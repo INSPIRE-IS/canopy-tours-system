@@ -29,11 +29,25 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
+
+        $user = $request->user();
+        if ($user) {
+            $user->load('roles.permissions');
+            //dd($user);
+        }
+        $permissions = $user?->roles->first()?->permissions
+            ->pluck('name') // assuming 'title' == 'name'
+            ->mapWithKeys(fn($name) => [$name => true])
+            ->all();
+        //dd($permissions);
         return [
             ...parent::share($request),
             'auth' => [
-                'user' => $request->user(),
+                'user' => $user,
             ],
+            'permissions' =>  $permissions,
+            'currentRoutePath' => $request->path(),
+            'translations' => __('sidebar'), // this comes from the lang folder in resources
         ];
     }
 }
