@@ -17,7 +17,7 @@ export default function AppLayout({ user, children }) {
 const page = usePage();
 const currentRoutePath = page.props.currentRoutePath;
 
-console.log('yyyyyyyyyyyyyyyyyyyyyyy',currentRoutePath); // outputs: "services"
+console.log('currentRoutePath ',currentRoutePath); // outputs: "services"
 
 function toggleSidebar() {
     setIsOpen(!isOpen);
@@ -178,7 +178,7 @@ function selectOption (dropdownId, value) {
             <SidebarMenuItem
                 label="User Management"
                 isOpen={isOpen}
-                icon={() => (<img src="/assets/icons/admin.svg" alt="users" className="w-5 h-5" />)}
+                iconName="settings"
                 submenuItems={[
                     { name: 'Permissions', url: 'permissions.index' },
                     { name: 'Roles', url: 'roles.index' },
@@ -189,7 +189,7 @@ function selectOption (dropdownId, value) {
                 label="Dashboard"
                 isOpen={isOpen}
                 url= 'dashboard'
-                icon={() => (<img src="/assets/icons/dashboard.svg" alt="dashboard" className="w-5 h-5" />)}
+                iconName="dashboard"
             />
             <SidebarMenuItem
                 label="Bookings"
@@ -197,6 +197,22 @@ function selectOption (dropdownId, value) {
                 url= 'bookings.index'
                 icon={() => (
                     <img src="/assets/icons/bookings.svg" alt="bookings" className="w-5 h-5" />
+                )}
+            />
+            <SidebarMenuItem
+                label="Services"
+                isOpen={isOpen}
+                url= 'services.index'
+                icon={() => (
+                    <img src="/assets/icons/services.svg" alt="Services" className="w-5 h-5" />
+                )}
+            />
+            <SidebarMenuItem
+                label="Seasons"
+                isOpen={isOpen}
+                url= 'seasons.index'
+                icon={() => (
+                    <img src="/assets/icons/services.svg" alt="Services" className="w-5 h-5" />
                 )}
             />
             <SidebarMenuItem
@@ -208,11 +224,11 @@ function selectOption (dropdownId, value) {
                 )}
             />
             <SidebarMenuItem
-                label="Services"
+                label="closeouts"
                 isOpen={isOpen}
-                url= 'services.index'
+                url= 'closeouts.index'
                 icon={() => (
-                    <img src="/assets/icons/services.svg" alt="Services" className="w-5 h-5" />
+                    <img src="/assets/icons/inventory.svg" alt="Inventory" className="w-5 h-5" />
                 )}
             />
             <SidebarMenuItem
@@ -231,11 +247,9 @@ function selectOption (dropdownId, value) {
                     <img src="/assets/icons/reports.svg" alt="Reports" className="w-5 h-5" />
                 )}
             />
-
-
-                <div>
+            <div>
                 <span className={`${isOpen ? '' : 'hidden'} text-menu-heading`}>Other</span>
-                </div>
+            </div>
             <SidebarMenuItem
                 label="Help & Center"
                 isOpen={isOpen}
@@ -246,9 +260,7 @@ function selectOption (dropdownId, value) {
                 label="Settings"
                 isOpen={isOpen}
                 url= 'roles.index'
-                icon={() => (
-                    <img src="/assets/icons/settings.svg" alt="Settings" className="w-5 h-5" />
-                )}
+                iconName="settings"
             />
                 <div>
                     <button
@@ -257,13 +269,9 @@ function selectOption (dropdownId, value) {
                     className={`${isOpen ? 'px-3' : 'px-1.5'} group menu-link flex items-center py-2 hover:bg-secondary-200 rounded-lg`}>
                     <span className="flex items-center gap-2">
                         <span className="light-icon transition-colors duration-300 text-primary-0 group-[data-open=true]:text-black">
-                        <svg width="20px" height="20px" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <g id="SVGRepo_bgCarrier" stroke-width="0"></g>
-                        <g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> 
-                            <path fill-rule="evenodd" clip-rule="evenodd" d="M2 6.5C2 4.01472 4.01472 2 6.5 2H12C14.2091 2 16 3.79086 16 6V7C16 7.55228 15.5523 8 15 8C14.4477 8 14 7.55228 14 7V6C14 4.89543 13.1046 4 12 4H6.5C5.11929 4 4 5.11929 4 6.5V17.5C4 18.8807 5.11929 20 6.5 20H12C13.1046 20 14 19.1046 14 18V17C14 16.4477 14.4477 16 15 16C15.5523 16 16 16.4477 16 17V18C16 20.2091 14.2091 22 12 22H6.5C4.01472 22 2 19.9853 2 17.5V6.5ZM18.2929 8.29289C18.6834 7.90237 19.3166 7.90237 19.7071 8.29289L22.7071 11.2929C23.0976 11.6834 23.0976 12.3166 22.7071 12.7071L19.7071 15.7071C19.3166 16.0976 18.6834 16.0976 18.2929 15.7071C17.9024 15.3166 17.9024 14.6834 18.2929 14.2929L19.5858 13L11 13C10.4477 13 10 12.5523 10 12C10 11.4477 10.4477 11 11 11L19.5858 11L18.2929 9.70711C17.9024 9.31658 17.9024 8.68342 18.2929 8.29289Z" fill="#0F1729"></path> 
-                            </g>
-                            </svg>
-                        </span> <span className={`${isOpen ? '' : 'hidden'} text-menu-heading`} >Logout</span>
+                            <img src="/assets/icons/logout.svg" alt="Logout" className="w-5 h-5" />
+                        </span> 
+                        <span className={`${isOpen ? '' : 'hidden'} text-menu-heading`} >Logout</span>
                     </span>
                     </button>          
                 </div>
@@ -278,8 +286,8 @@ function selectOption (dropdownId, value) {
         image
                     </div>
                     <div className="flex flex-col text-sm">
-                        <span className={`${isOpen ? '' : 'hidden'} font-medium text-gray-800`}>John Cornor</span>
-                        <span className={`${isOpen ? '' : 'hidden'} text-gray-500 text-xs`}>Johncornor@mail.com</span>
+                        <span className={`${isOpen ? '' : 'hidden'} font-medium text-gray-800`}>{user?.name}</span>
+                        <span className={`${isOpen ? '' : 'hidden'} text-gray-500 text-xs`}>{user?.email}</span>
                     </div>
                     <div className={`${isOpen ? '' : 'hidden'}`}>
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 14 14" fill="none">
@@ -289,11 +297,12 @@ function selectOption (dropdownId, value) {
                 </div>        
                 </div>
             </aside>
-            <div className="flex transition-all duration-300 w-[100vw+240px] py-[10px] pr-[10px] ">
+            {/* <div className="flex transition-all duration-300 w-[100vw+240px] py-[10px] pr-[10px] bg-red-400"> */}
+            <div className="flex transition-all duration-300 w-[100%] py-[10px] pr-[10px] bg-red-400">
                 {/* <div className="flex-1 flex flex-col overflow-hidden h-screen  bg-white rounded-lg">
                     <Header user={user} toggleSidebar={() => setSidebarOpen(!sidebarOpen)} /></div> */}
-                    <div className=" bg-[#3863C6] w-[10px] h-[100%] transition-all duration-300 rounded-l-lg" id="dividerBar"></div>
-                    <main className="bg-white min-h-screen 2xl:w-[95vw]  rounded-r-lg">
+                    <div className=" bg-[#3863C6] w-[10px] h-[100%] transition-all duration-300 rounded-l-lg " id="dividerBar"></div>
+                    <main className="bg-white min-h-screen 2xl:w-[100%]  rounded-r-lg">
                         <header className="h-16 bg-white  border-b border-secondary-100 p-6 py-4 flex justify-between items-center">
                             <div className="flex items-center gap-4">
                                 <div className={`icon-open flex md:hidden  items-center justify-between px-1 py-1 bg-secondary-100  relative rounded-[10px]`}>
