@@ -18,9 +18,7 @@ class ServicesController extends Controller
 {
     public function index(Request $request)
     {
-        //abort_if(Gate::denies('service_access'), 403);
-
-
+        abort_if(Gate::denies('service_access'), 403);
         $searchTerm = $request->get('search', '');
         $sortColumn = $request->get('sort', 'name');
         $sortDirection = $request->get('direction', 'asc');
@@ -39,42 +37,18 @@ class ServicesController extends Controller
         ]);
     }
 
-    public function create()
-    {
-        abort_if(Gate::denies('service_create'), Response::HTTP_FORBIDDEN, '403 Forbidden');
-
-        $created_bies = User::pluck('name', 'id')->prepend(trans('global.pleaseSelect'), '');
-
-        $updated_bies = User::pluck('name', 'id')->prepend(trans('global.pleaseSelect'), '');
-
-        return view('Admin.services.create', compact('created_bies', 'updated_bies'));
-    }
-
     public function store(StoreServiceRequest $request)
     {
         $service = Service::create($request->all());
 
-        return redirect()->route('Admin.services.index');
-    }
-
-    public function edit(Service $service)
-    {
-        abort_if(Gate::denies('service_edit'), Response::HTTP_FORBIDDEN, '403 Forbidden');
-
-        $created_bies = User::pluck('name', 'id')->prepend(trans('global.pleaseSelect'), '');
-
-        $updated_bies = User::pluck('name', 'id')->prepend(trans('global.pleaseSelect'), '');
-
-        $service->load('created_by', 'updated_by', 'team');
-
-        return view('Admin.services.edit', compact('created_bies', 'service', 'updated_bies'));
+        return redirect()->route('services.index');
     }
 
     public function update(UpdateServiceRequest $request, Service $service)
     {
         $service->update($request->all());
 
-        return redirect()->route('Admin.services.index');
+        return redirect()->route('services.index');
     }
 
     public function show(Service $service)

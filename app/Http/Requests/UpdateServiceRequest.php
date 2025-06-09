@@ -2,7 +2,10 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Service;
+use Gate;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Http\Response;
 
 class UpdateServiceRequest extends FormRequest
 {
@@ -11,7 +14,7 @@ class UpdateServiceRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return false;
+        return Gate::allows('service_edit');
     }
 
     /**
@@ -22,7 +25,32 @@ class UpdateServiceRequest extends FormRequest
     public function rules(): array
     {
         return [
-            //
+            'name' => [
+                'string',
+                'required',
+                'unique:services,name,' . request()->route('service')->id,
+            ],
+            'pillbox_text' => [
+                'string',
+                'required',
+            ],
+            'arrangements' => [
+                'required',
+            ],
+            'inclusions_exclusions' => [
+                'required',
+            ],
+            'notes' => [
+                'required',
+            ],
+            'lat_lon_start' => [
+                'string',
+                'required',
+            ],
+            'lat_long_end' => [
+                'string',
+                'required',
+            ],
         ];
     }
 }

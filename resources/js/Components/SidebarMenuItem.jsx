@@ -1,26 +1,30 @@
 import { Link } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
+import { icons } from '../icons';
 
-export default function SidebarMenuLink({ label, isOpen, url = null, icon: Icon, submenuItems = [] }) {
+export default function SidebarMenuLink({ label, isOpen, url = null, iconName: iconName, submenuItems = [] }) {
   const [open, setOpen] = useState(false);
+const Icon = iconName ? icons[iconName] : null;
+
   useEffect(() => {
     if (!isOpen) setOpen(false);
   }, [isOpen]);
   return (
-    <div>
+    <div className={`${open ? 'text-[#3863C6]' : 'text-dark-gray'} `}>
       <div
         onClick={(e) => {
           e.preventDefault();
           setOpen(!open);
         }}
-        className={`group menu-link flex items-center justify-between ${isOpen ? 'px-3' : 'px-1.5'}  py-2 hover:bg-secondary-200 rounded-lg ${
+        className={`group menu-link flex items-center justify-between ${isOpen ? 'px-3' : 'px-1.5'} ${open ? 'text-[#3863C6]' : 'text-dark-gray'} py-2 hover:bg-secondary-200 hover:text-black rounded-lg ${
           open ? 'bg-secondary-200' : ''
-        }`}
+        } cursor-pointer`}
       >
-        <span className="flex items-center gap-2">
+        {/* #3863C6 */}
+        <span className={`flex items-center gap-2 ${open ? 'text-[#3863C6]' : 'text-dark-gray'} `}>
           <span
-            className={`dark-icon flex items-center justify-center w-5 h-5 transition-colors duration-300 ${open ? 'text-black' : 'text-dark-gray'}`}>
-            {Icon ? <Icon /> : null}
+            className={`dark-icon flex items-center justify-center w-5 h-5 transition-colors duration-300 ${open ? 'text-[#3863C6]' : 'text-dark-gray'} `}>
+             {Icon}
           </span>
           {url ? (
             <Link

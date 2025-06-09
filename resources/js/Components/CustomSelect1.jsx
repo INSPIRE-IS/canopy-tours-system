@@ -2,17 +2,23 @@ import React from "react";
 
 const CustomSelect = ({ label, name, value, onChange, error,mode, options }) => {
   return (
-    <div className="w-full mb-4">
+    <div className="w-full mb-3">
       {label && (
-        <label className="block input-header mb-[14px]">
-          {label}
-        </label>
+            <label
+                htmlFor={name}
+                className="block input-header "
+            >
+                {label}
+            </label>
       )}
       <select
         name={name}
         value={value != null ? String(value) : ""}
         onChange={onChange}
-        className={`mt-1 block w-full ${error ? "border-red-500" : "border-gray-300"} shadow-sm input-text rounded-xl`}
+        className={`mt-1 block w-full ${error ? "border-red-500" : "border-gray-300"} shadow-sm input-text rounded-xl
+                        hover:border-black  active:border-blue-600 
+                focus:outline-none focus:ring-0 focus:border-black
+        `}
         disabled={mode === "view"}
 
       >

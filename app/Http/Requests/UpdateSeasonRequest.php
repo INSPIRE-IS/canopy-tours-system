@@ -2,7 +2,10 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Season;
+use Gate;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Http\Response;
 
 class UpdateSeasonRequest extends FormRequest
 {
@@ -11,7 +14,7 @@ class UpdateSeasonRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return false;
+        return Gate::allows('season_edit');
     }
 
     /**
@@ -22,7 +25,34 @@ class UpdateSeasonRequest extends FormRequest
     public function rules(): array
     {
         return [
-            //
+            'service_id' => [
+                'required',
+                'integer',
+            ],
+            'name' => [
+                'string',
+                'required',
+            ],
+            'start_date' => [
+                'required',
+                'date_format:' . config('panel.date_format'),
+            ],
+            'end_date' => [
+                'date_format:' . config('panel.date_format'),
+                'nullable',
+            ],
+            'rake_rate_adult' => [
+                'numeric',
+                'required',
+            ],
+            'rake_rate_child' => [
+                'numeric',
+                'required',
+            ],
+            'rake_rate_guide' => [
+                'numeric',
+                'required',
+            ],
         ];
     }
 }

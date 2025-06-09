@@ -5,6 +5,8 @@ namespace App\Models;
 use App\Notifications\VerifyUserNotification;
 use Carbon\Carbon;
 use DateTimeInterface;
+use App\Traits\Auditable;
+use App\Traits\MultiTenantModelTrait;
 use Hash;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
@@ -17,7 +19,7 @@ use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
-    use SoftDeletes, HasApiTokens, HasFactory, Notifiable;
+    use SoftDeletes, HasApiTokens, Auditable, HasFactory, Notifiable, MultiTenantModelTrait;
 
     public $table = 'users';
 
@@ -78,6 +80,11 @@ class User extends Authenticatable
     public function getIsAdminAttribute()
     {
         return $this->roles()->where('id', 1)->exists();
+    }
+
+    public function hasAnyRoles(array $roles)
+    {
+        return $this->roles->pluck('name')->intersect($roles)->isNotEmpty();
     }
 
     public function __construct(array $attributes = [])

@@ -77,7 +77,7 @@ export default function Index({ users,permissions,roles,teams,auth, searchTerm, 
                     <SearchBar search={search} handleSearchChange={(e) => handleSearchChange(e)} handleSearchSubmit={handleSearchSubmit} />
 
                     <span className="flex gap-2">
-                        {permissions.role_create && (
+                        {permissions.user_create && (
                         <BlueButton title="Add User" onClick={() => handleOpenModal("create")} icon={true}/>
                         )}
                     </span>

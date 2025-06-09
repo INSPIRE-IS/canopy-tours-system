@@ -11,17 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('rates', function (Blueprint $table) {
+        Schema::create('inventory_type_days', function (Blueprint $table) {
             $table->id();
-            $table->float('adult', 8, 2);
-            $table->float('child', 8, 2);
-            $table->float('guide', 8, 2);
             $table->timestamps();
             $table->softDeletes();
 
-
-            $table->foreignId('service_id')->nullable()->constrained('services');
-            $table->foreignId('season_id')->nullable()->constrained('seasons');
+            $table->foreignId('inventory_id')->nullable()->constrained('inventories');
+            $table->foreignId('type_day_id')->nullable()->constrained('type_days')->onDelete('cascade');
             $table->foreignId('created_by_id')->nullable()->constrained('users');
             $table->foreignId('updated_by_id')->nullable()->constrained('users');
             $table->foreignId('team_id')->nullable()->constrained('teams');
@@ -33,6 +29,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('rates');
+        Schema::dropIfExists('inventory_type_day_pivot');
     }
 };

@@ -11,55 +11,50 @@ use App\Models\Service;
 use App\Models\User;
 use Gate;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Session;
+use Inertia\Inertia;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\DependencyInjection\ServicesResetter;
 
 class SeasonsController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        abort_if(Gate::denies('season_access'), Response::HTTP_FORBIDDEN, '403 Forbidden');
+        abort_if(Gate::denies('season_access'), 403);
+        $searchTerm = $request->get('search', '');
+        $sortColumn = $request->get('sort', 'name');
+        $sortDirection = $request->get('direction', 'asc');
+        /** @var \App\Models\User $user */
+        $teamId = Session::get('team_id');
+        $seasons = Season::with(['service', 'updated_by', 'team'])
+            ->where('name', 'like', '%' . $searchTerm . '%')
+            ->orderBy($sortColumn, $sortDirection)
+            ->paginate(10);
 
-        $seasons = Season::with(['service', 'updated_by', 'team'])->get();
-
-        return view('Admin.seasons.index', compact('seasons'));
-    }
-
-    public function create()
-    {
-        abort_if(Gate::denies('season_create'), Response::HTTP_FORBIDDEN, '403 Forbidden');
-
-        $services = Service::pluck('name', 'id')->prepend(trans('global.pleaseSelect'), '');
-
-        $updated_bies = User::pluck('name', 'id')->prepend(trans('global.pleaseSelect'), '');
-
-        return view('Admin.seasons.create', compact('services', 'updated_bies'));
+        $services = Service::select('name', 'id')->get();
+        // dd($services);
+        return Inertia::render('Admin/Seasons/Index', [
+            'seasons' => $seasons,
+            'services' => $services,
+            'searchTerm' => $searchTerm,
+            'sortColumn' => $sortColumn,
+            'sortDirection' => $sortDirection,
+        ]);
     }
 
     public function store(StoreSeasonRequest $request)
     {
+        //dd($request->all());
         $season = Season::create($request->all());
 
-        return redirect()->route('Admin.seasons.index');
-    }
-
-    public function edit(Season $season)
-    {
-        abort_if(Gate::denies('season_edit'), Response::HTTP_FORBIDDEN, '403 Forbidden');
-
-        $services = Service::pluck('name', 'id')->prepend(trans('global.pleaseSelect'), '');
-
-        $updated_bies = User::pluck('name', 'id')->prepend(trans('global.pleaseSelect'), '');
-
-        $season->load('service', 'updated_by', 'team');
-
-        return view('Admin.seasons.edit', compact('season', 'services', 'updated_bies'));
+        return redirect()->route('seasons.index');
     }
 
     public function update(UpdateSeasonRequest $request, Season $season)
     {
         $season->update($request->all());
 
-        return redirect()->route('Admin.seasons.index');
+        return redirect()->route('seasons.index');
     }
 
     public function show(Season $season)
@@ -68,7 +63,7 @@ class SeasonsController extends Controller
 
         $season->load('service', 'updated_by', 'team');
 
-        return view('Admin.seasons.show', compact('season'));
+        return view('seasons.show', compact('season'));
     }
 
     public function destroy(Season $season)

@@ -35,30 +35,21 @@ class UsersController extends Controller
         $teams = Team::select('name', 'id')->whereNotNull('name')->get();
         // dd($teams);
         // $users =  User::with('roles')->get();
+        //dd($user->roles->pluck('name'));
         $users = User::with(['roles.permissions', 'team'])
             ->where('name', 'like', '%' . $searchTerm . '%')
-            // ->whereHas('teams', function ($query) use ($teamId) {
-            //     $query->where('team_id', $teamId);
-            // })
-            //     // Always exclude users with "super" or "admin" roles, 'permissions'
-            //     ->whereDoesntHave('roles', function ($query) {
-            //         $query->whereIn('name', ['super', 'admin', 'author']);
-            //     })
-            //     // unless user has this role do not show users with this role
-            //     ->when(!$user->hasAnyRole(['director']), function ($query) { // 'author', 
-            //         $query->whereDoesntHave('roles', function ($subQuery) {
-            //             $subQuery->whereIn('name', ['director']);
-            //         });
-            //     })
-            //     // ->when(!$user->hasAnyRole(['admin', 'super']), function ($query) use ($teamId) {
-            //     //     $query->whereHas('teams', function ($subQuery) use ($teamId) {
-            //     //         $subQuery->where('team_id', $teamId);
-            //     //     });
-            //     // })
+
+            // unless user has this role do not show users with this role
+            ->when(
+                ! $user->hasAnyRoles(['Admin', 'Director']),
+                function ($query) {
+                    $query->whereDoesntHave('roles', function ($subQuery) {
+                        $subQuery->whereIn('name', ['Admin', 'Director']);
+                    });
+                }
+            )
             ->orderBy($sortColumn, $sortDirection)
             ->paginate(10);
-
-
 
         return Inertia::render('Admin/Users/Index', [
             'users' => $users,

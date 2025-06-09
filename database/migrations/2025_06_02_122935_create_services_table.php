@@ -14,9 +14,15 @@ return new class extends Migration
         Schema::create('services', function (Blueprint $table) {
             $table->id();
             $table->string('name')->unique();
-            // $table->integer('duration')->nullable();
-            // $table->longText('description')->nullable();
-            // $table->float('price_per_person', 8, 2)->nullable();
+            $table->longText('description')->nullable();
+            $table->string('pillbox_text');
+            $table->longText('activity_description')->nullable();
+            $table->longText('arrangements');
+            $table->longText('requirements')->nullable();
+            $table->longText('inclusions_exclusions');
+            $table->longText('notes');
+            $table->string('lat_lon_start');
+            $table->string('lat_long_end');
             $table->timestamps();
             $table->softDeletes();
 

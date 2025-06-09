@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Traits\Auditable;
 use App\Traits\MultiTenantModelTrait;
+use Carbon\Carbon;
 use DateTimeInterface;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -23,12 +24,19 @@ class Inventory extends Model
 
     protected $fillable = [
         'service_id',
-        'season_id',
-        'start_time',
-        'end_time',
+        'season_name',
+        'start_date',
+        'end_date',
+        'rake_rate_adult',
+        'rake_rate_child',
+        'rake_rate_guide',
+        'allow_internal_price_override',
+        'duration',
         'capacity',
         'allow_internal_override',
         'status',
+        'pillbox_conditions',
+        'created_by_id',
         'updated_by_id',
         'created_at',
         'updated_at',
@@ -46,14 +54,39 @@ class Inventory extends Model
         return $this->belongsTo(Service::class, 'service_id');
     }
 
-    public function season()
+    public function getStartDateAttribute($value)
     {
-        return $this->belongsTo(Season::class, 'season_id');
+        return $value ? Carbon::parse($value)->format(config('panel.date_format')) : null;
     }
 
-    public function time_slots()
+    public function setStartDateAttribute($value)
     {
-        return $this->belongsToMany(TypeTimeSlot::class);
+        $this->attributes['start_date'] = $value ? Carbon::createFromFormat(config('panel.date_format'), $value)->format('Y-m-d') : null;
+    }
+
+    public function getEndDateAttribute($value)
+    {
+        return $value ? Carbon::parse($value)->format(config('panel.date_format')) : null;
+    }
+
+    public function setEndDateAttribute($value)
+    {
+        $this->attributes['end_date'] = $value ? Carbon::createFromFormat(config('panel.date_format'), $value)->format('Y-m-d') : null;
+    }
+
+    public function day_slots()
+    {
+        return $this->belongsToMany(TypeDay::class);
+    }
+
+    public function typeDays()
+    {
+        return $this->hasMany(InventoryTypeDay::class);
+    }
+
+    public function timeSlots()
+    {
+        return $this->hasMany(InventoryTimeSlot::class);
     }
 
     public function updated_by()

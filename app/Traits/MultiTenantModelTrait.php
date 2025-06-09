@@ -11,11 +11,13 @@ trait MultiTenantModelTrait
     {
         if (! app()->runningInConsole() && auth()->check()) {
             $isAdmin = auth()->user()->roles->contains(1);
+
             static::creating(function ($model) use ($isAdmin) {
                 // Prevent admin from setting his own id - admin entries are global.
                 // If required, remove the surrounding IF condition and admins will act as users
                 if (! $isAdmin) {
                     $model->team_id = auth()->user()->team_id;
+                    //session(['team_id' => auth()->user()->team_id]);
                 }
             });
             if (! $isAdmin) {

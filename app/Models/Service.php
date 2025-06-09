@@ -23,9 +23,15 @@ class Service extends Model
 
     protected $fillable = [
         'name',
-        'duration',
         'description',
-        'price_per_person',
+        'pillbox_text',
+        'activity_description',
+        'arrangements',
+        'requirements',
+        'inclusions_exclusions',
+        'notes',
+        'lat_lon_start',
+        'lat_long_end',
         'created_by_id',
         'updated_by_id',
         'created_at',

@@ -32,6 +32,8 @@ class InventoryOverride extends Model
         'price_child',
         'price_guide',
         'note',
+        'created_by_id',
+        'updated_by_id',
         'created_at',
         'updated_at',
         'deleted_at',

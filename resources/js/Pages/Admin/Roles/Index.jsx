@@ -76,12 +76,12 @@ export default function Index({ user,permissions, roles, teams, auth, searchTerm
             header={<h2 className="font-semibold text-xl text-gray-800 leading-tight">Roles</h2>}
     >
         <Head title="Roles" />
-        <header className="bg-white shadow-md px-6 py-4 flex justify-between items-center">
+        {/* <header className="bg-white shadow-md px-6 py-4 flex justify-between items-center">
             <div className="flex items-center gap-4">
 
-                <span className="font-semibold text-lg text-gray-800">Roles, {props.auth?.user?.name}</span>
+                <span className="font-semibold text-lg text-gray-800">Roles, </span>
             </div>
-        </header>
+        </header> */}
             <div className="bg-white p-6 ">
                 {/* top */}
                 <div className="flex justify-between items-center mb-6">

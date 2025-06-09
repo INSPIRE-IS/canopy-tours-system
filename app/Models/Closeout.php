@@ -32,6 +32,7 @@ class Closeout extends Model
         'start_date',
         'end_date',
         'reason',
+        'created_by_id',
         'updated_by_id',
         'created_at',
         'updated_at',

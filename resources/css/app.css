@@ -54,7 +54,15 @@
     }
 
     .text-btn-green {
-      @apply text-[#0E0E0E] font-geist text-[12px] font-medium leading-[150%] tracking-[-0.24px];
+      @apply text-[#FFFFFF] font-geist text-[16px] font-semibold leading-[150%] tracking-[-0.32px];
+    }
+
+      .text-welcome-card-title {
+      @apply text-[#231F20] font-geist text-[24px] font-semibold leading-[120%] tracking-[-0.96px];
+    }
+
+        .text-welcome-card-title-sub {
+      @apply text-[#231F20] font-geist text-[24px] font-normal leading-[120%] tracking-[-0.72px];
     }
 
     .text-heading-parts {
@@ -82,3 +90,16 @@
   .shadow-inset-white {
     box-shadow: inset 0 0 0 1.8px rgba(255, 255, 255, 0.25);
   }
+
+  .ProseMirror {
+  font-size: inherit;
+  font-family: inherit;
+}
+
+.ProseMirror span[style*="font-size"] {
+  font-size: inherit !important;
+}
+
+.ProseMirror span[style*="font-family"] {
+  font-family: inherit !important;
+}

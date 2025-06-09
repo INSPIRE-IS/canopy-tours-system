@@ -178,11 +178,13 @@ function selectOption (dropdownId, value) {
             <SidebarMenuItem
                 label="User Management"
                 isOpen={isOpen}
-                iconName="settings"
+                iconName="admin"
+                path={currentRoutePath == 'admin.home' ? '/admin' : null}
                 submenuItems={[
                     { name: 'Permissions', url: 'permissions.index' },
                     { name: 'Roles', url: 'roles.index' },
                     { name: 'Users', url: 'users.index' },
+                    { name: 'Teams', url: 'teams.index' },
                 ]}
             />)}   
             <SidebarMenuItem
@@ -195,57 +197,43 @@ function selectOption (dropdownId, value) {
                 label="Bookings"
                 isOpen={isOpen}
                 url= 'bookings.index'
-                icon={() => (
-                    <img src="/assets/icons/bookings.svg" alt="bookings" className="w-5 h-5" />
-                )}
+                iconName="bookings"
             />
             <SidebarMenuItem
                 label="Services"
                 isOpen={isOpen}
                 url= 'services.index'
-                icon={() => (
-                    <img src="/assets/icons/services.svg" alt="Services" className="w-5 h-5" />
-                )}
+                iconName="services"
             />
-            <SidebarMenuItem
+            {/* <SidebarMenuItem
                 label="Seasons"
                 isOpen={isOpen}
                 url= 'seasons.index'
-                icon={() => (
-                    <img src="/assets/icons/services.svg" alt="Services" className="w-5 h-5" />
-                )}
-            />
+                iconName="services"
+            /> */}
             <SidebarMenuItem
                 label="Inventory"
                 isOpen={isOpen}
-                url= 'inventory.index'
-                icon={() => (
-                    <img src="/assets/icons/inventory.svg" alt="Inventory" className="w-5 h-5" />
-                )}
+                url= 'inventories.index'
+                iconName="inventory"
             />
             <SidebarMenuItem
                 label="closeouts"
                 isOpen={isOpen}
                 url= 'closeouts.index'
-                icon={() => (
-                    <img src="/assets/icons/inventory.svg" alt="Inventory" className="w-5 h-5" />
-                )}
+                iconName="inventory"
             />
             <SidebarMenuItem
                 label="Messages"
                 isOpen={isOpen}
                 url= 'roles.index'
-                icon={() => (
-                    <img src="/assets/icons/messages.svg" alt="Messages" className="w-5 h-5" />
-                )}
+                iconName="messages"
             />
             <SidebarMenuItem
                 label="Reports"
                 isOpen={isOpen}
                 url= 'roles.index'
-                icon={() => (
-                    <img src="/assets/icons/reports.svg" alt="Reports" className="w-5 h-5" />
-                )}
+                iconName="reports"
             />
             <div>
                 <span className={`${isOpen ? '' : 'hidden'} text-menu-heading`}>Other</span>
@@ -254,7 +242,7 @@ function selectOption (dropdownId, value) {
                 label="Help & Center"
                 isOpen={isOpen}
                 url= 'roles.index'
-                icon={() => (<img src="/assets/icons/helpcenter.svg" alt="Help & Center" className="w-5 h-5" />)}
+                iconName="helpcenter"
             />
             <SidebarMenuItem
                 label="Settings"
@@ -298,19 +286,19 @@ function selectOption (dropdownId, value) {
                 </div>
             </aside>
             {/* <div className="flex transition-all duration-300 w-[100vw+240px] py-[10px] pr-[10px] bg-red-400"> */}
-            <div className="flex transition-all duration-300 w-[100%] py-[10px] pr-[10px] bg-red-400">
+            <div className="flex transition-all duration-300 w-[100%] py-[10px] pr-[10px] bg-secondary-100">
                 {/* <div className="flex-1 flex flex-col overflow-hidden h-screen  bg-white rounded-lg">
                     <Header user={user} toggleSidebar={() => setSidebarOpen(!sidebarOpen)} /></div> */}
                     <div className=" bg-[#3863C6] w-[10px] h-[100%] transition-all duration-300 rounded-l-lg " id="dividerBar"></div>
                     <main className="bg-white min-h-screen 2xl:w-[100%]  rounded-r-lg">
-                        <header className="h-16 bg-white  border-b border-secondary-100 p-6 py-4 flex justify-between items-center">
-                            <div className="flex items-center gap-4">
+                        <header className="h-16 bg-white  border-b border-secondary-100 rounded-r-lg p-6 py-4 flex justify-between items-center">
+                            <div className="flex items-center gap-4 ">
                                 <div className={`icon-open flex md:hidden  items-center justify-between px-1 py-1 bg-secondary-100  relative rounded-[10px]`}>
                                     <button onClick={()=>toggleSidebar()} className="flex w-auto h-auto hover:bg-gray-200 rounded-sm transition cursor-pointer">
                                         <img src="/assets/icons/sidebar-left.svg" alt="My Icon" className="w-5 h-5" />         
                                     </button>
                                 </div>
-                                <span className="font-semibold text-lg text-gray-800 capitalize">{currentRoutePath}</span>
+                                <span className="font-semibold text-lg text-gray-800 capitalize">{currentRoutePath}, {user?.name}</span>
                             </div>
                         </header>
                         {flash?.message && <FlashMessage message={flash.message} type={flash.type} />}

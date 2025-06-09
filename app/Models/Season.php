@@ -29,9 +29,13 @@ class Season extends Model
         'name',
         'start_date',
         'end_date',
+        'rake_rate_adult',
+        'rake_rate_child',
+        'rake_rate_guide',
+        'allow_internal_price_override',
+        'created_by_id',
         'updated_by_id',
         'created_at',
-        'allow_internal_price_override',
         'updated_at',
         'deleted_at',
         'team_id',
@@ -49,22 +53,30 @@ class Season extends Model
 
     public function getStartDateAttribute($value)
     {
-        return $value ? Carbon::parse($value)->format(config('panel.date_format')) : null;
+        return $value
+            ? Carbon::createFromFormat('Y-m-d', $value)->format(config('panel.date_format'))
+            : null;
     }
 
     public function setStartDateAttribute($value)
     {
-        $this->attributes['start_date'] = $value ? Carbon::createFromFormat(config('panel.date_format'), $value)->format('Y-m-d') : null;
+        $this->attributes['start_date'] = $value
+            ? Carbon::createFromFormat(config('panel.date_format'), $value)->format('Y-m-d')
+            : null;
     }
 
     public function getEndDateAttribute($value)
     {
-        return $value ? Carbon::parse($value)->format(config('panel.date_format')) : null;
+        return $value
+            ? Carbon::createFromFormat('Y-m-d', $value)->format(config('panel.date_format'))
+            : null;
     }
 
     public function setEndDateAttribute($value)
     {
-        $this->attributes['end_date'] = $value ? Carbon::createFromFormat(config('panel.date_format'), $value)->format('Y-m-d') : null;
+        $this->attributes['end_date'] = $value
+            ? Carbon::createFromFormat(config('panel.date_format'), $value)->format('Y-m-d')
+            : null;
     }
 
     public function updated_by()
