@@ -13,7 +13,6 @@ return new class extends Migration
     {
         Schema::create('inventories', function (Blueprint $table) {
             $table->id();
-            $table->string('season_name');
             $table->date('start_date');
             $table->date('end_date');
             $table->float('rake_rate_adult', 8, 2);
@@ -29,6 +28,7 @@ return new class extends Migration
             $table->softDeletes();
 
             $table->foreignId('service_id')->nullable()->constrained('services');
+            $table->foreignId('season_id')->nullable()->constrained('seasons');
             $table->foreignId('created_by_id')->nullable()->constrained('users');
             $table->foreignId('updated_by_id')->nullable()->constrained('users');
             $table->foreignId('team_id')->nullable()->constrained('teams');

@@ -29,9 +29,9 @@ class UpdateInventoryRequest extends FormRequest
                 'required',
                 'integer',
             ],
-            'season_name' => [
-                'string',
+            'season_id' => [
                 'required',
+                'integer',
             ],
             'start_date' => [
                 'required',
@@ -61,7 +61,7 @@ class UpdateInventoryRequest extends FormRequest
                 'array',
             ],
             'time_slots.*' => [
-                'integer',
+                'string',
             ],
             'time_slots' => [
                 'required',

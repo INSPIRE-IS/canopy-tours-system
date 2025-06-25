@@ -1,40 +1,64 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Header from '@/components/ui/header';
 import Button from '@/components/ui/button';
 import Input from '@/components/ui/input';
 import Calendar from '@/components/ui/calendar';
 import InfoCard from '@/components/ui/InfoCard';
+import { router } from '@inertiajs/react';
+import { format } from 'date-fns';
 
+export default function ActivitySchedulePage({ activities,activityId, schedule, start_date, view_mode, days,availableTimes }) {
+console.log('activities', activities);
 
-export default function ActivitySchedulePage() {
-  const [date, setDate] = useState(new Date());
-  const [adults, setAdults] = useState('2');
+  const [date, setDate] = useState(() => new Date(start_date));
+  const [adults, setAdults] = useState('');
   const [children, setChildren] = useState('');
+  const [selectedSlot, setSelectedSlot] = useState(null); // stores { date: string, time: string }
+const [scheduleData, setScheduleData] = useState({ schedule, days });
+const [loading, setLoading] = useState(false);
 
-  const inventory = [
-    {
-      time: '08:00 - 10:00',
-      slots: '2 Slots Open',
-      price: 'From R895',
-      status: 'available',
-      day: 'Mon 24'
-    },
-    {
-      time: '08:00 - 10:00',
-      slots: 'Fully Booked',
-      price: '',
-      status: 'full',
-      day: 'Tue 25'
-    },
-    {
-      time: '08:00 - 10:00',
-      slots: '8 Slots Open',
-      price: 'From R895',
-      status: 'available',
-      day: 'Fri 28'
+  useEffect(() => {
+    loadCalendar();
+  }, [date, view_mode]);
+
+  const loadCalendar = async () => {
+    setLoading(true);
+    try {
+      const response = await axios.get(route('front.activity.calendar'), {
+        params: {
+          activity_id: activityId,
+          view_mode: view_mode,
+          start_date: format(date, 'yyyy-MM-dd')
+        }
+      });
+      setScheduleData(response.data);
+    } catch (error) {
+      console.error('Failed to load calendar:', error);
+    } finally {
+      setLoading(false);
     }
-    // More items...
-  ];
+  };
+
+  // useEffect(() => {
+  //   // reload calendar from Laravel with view_mode=day and date +/- 2 days
+  //   router.get(route('front.activity'), {
+  //     activity_id: activityId,
+  //     view_mode: 'week',
+  //     start_date: format(date, 'yyyy-MM-dd')
+  //   });
+  //   setSelectedSlot(null); // reset selected slotdatedate.toDateString() // 
+  // }, [date]);
+
+  const handleDateChange = (newDate) => {
+    setDate(newDate);
+    router.get(route('front.activity'), {
+      activity_id: activityId,
+      view_mode: 'week',
+      start_date: format(newDate, 'yyyy-MM-dd')
+    });
+    setSelectedSlot(null); // reset selected slotdatedate.toDateString() // 
+  };
+
 
   return (
     <div className="bg-gray-50 min-h-screen">
@@ -49,13 +73,9 @@ export default function ActivitySchedulePage() {
             className="w-full h-full object-cover"
           />
           <div className="absolute inset-0 bg-black/50 flex flex-col justify-center p-6 text-white">
-            <h2 className="text-lg font-light">Tsitsikamma</h2>
-            <h1 className="text-3xl md:text-4xl font-bold">Tsitsikamma Canopy Tour</h1>
-            <p className="mt-2 max-w-md">
-              Come and Experience a World of Diversity in One Forest
-              <br />
-              A Unique Tsitsikamma Experience You’ll Never Forget!
-            </p>
+            <h2 className="text-lg font-light">{activities?.service}</h2>
+            <h1 className="text-3xl md:text-4xl font-bold">{activities?.season}</h1>
+            <p className="mt-2 max-w-md">{activities?.description}</p>
             <div className="mt-4 space-x-4">
               <Button variant="outline" className="bg-white text-blue-600">View Gallery</Button>
               <Button variant="outline" className="bg-white text-blue-600">Watch Video</Button>
@@ -70,13 +90,34 @@ export default function ActivitySchedulePage() {
             <div className="space-y-4">
               <Input placeholder="Number of Adults" value={adults} onChange={(e) => setAdults(e.target.value)} />
               <Input placeholder="Number of Children" value={children} onChange={(e) => setChildren(e.target.value)} />
-              <Calendar selected={date} onSelect={setDate} />
+              <Calendar selected={date} onSelect={handleDateChange} />
+              {availableTimes.length > 0 && (
+  <Select onValueChange={(value) => setSelectedSlot({ date: date.toISOString().split('T')[0], time: value })}>
+    {availableTimes.map(time => (
+      <SelectItem key={time} value={time}>{time}</SelectItem>
+    ))}
+  </Select>
+)}
               <Button className="w-full">Find Activities</Button>
               <div className="mt-4">
                 <div className="text-lg font-semibold text-green-700">R{Number(adults) * 895}.00</div>
                 <div className="text-sm text-gray-600">{adults} Adults</div>
                 <div className="text-sm text-gray-600">on {date.toLocaleDateString()}</div>
-                <Button className="mt-2 bg-green-500 text-white w-full">Book Now</Button>
+                <Button
+                  className="mt-2 bg-green-500 text-white w-full"
+                  disabled={!selectedSlot}
+                  onClick={() => {
+                    // Submit booking form or route with selected data
+                    router.post(route('booking.create'), {
+                      adults,
+                      children,
+                      date: selectedSlot.date,
+                      time: selectedSlot.time,
+                    });
+                  }}
+                >
+                  Book Now
+                </Button>
                 <Button variant="outline" className="mt-2 w-full">Buy as a Gift</Button>
               </div>
             </div>
@@ -87,9 +128,16 @@ export default function ActivitySchedulePage() {
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold">Available Inventory</h3>
               <div className="flex gap-2">
-                <Button variant="ghost">Day</Button>
-                <Button variant="ghost" className="font-bold border-b-2 border-blue-600">Week</Button>
-                <Button variant="ghost">Month</Button>
+                {['day', 'week', 'month'].map((mode) => (
+                  <Button
+                    key={mode}
+                    variant="ghost"
+                    onClick={() => router.get(route('front.activity'), { activity_id: activityId, view_mode: mode, start_date })}
+                    className={view_mode === mode ? 'font-bold border-b-2 border-blue-600' : ''}
+                  >
+                    {mode.charAt(0).toUpperCase() + mode.slice(1)}
+                  </Button>
+                ))}
               </div>
             </div>
             <div className="overflow-x-auto">
@@ -97,37 +145,31 @@ export default function ActivitySchedulePage() {
                 <thead>
                   <tr className="text-gray-600">
                     <th className="p-2">Time</th>
-                    <th className="p-2">Mon 24</th>
-                    <th className="p-2">Tue 25</th>
-                    <th className="p-2">Wed 26</th>
-                    <th className="p-2">Thu 27</th>
-                    <th className="p-2">Fri 28</th>
+                    {days.map(day => <th key={day} className="p-2">{day}</th>)}
                   </tr>
                 </thead>
                 <tbody>
-                  {[
-                    '08:00 - 10:00',
-                    '08:30 - 10:30',
-                    '09:00 - 11:00',
-                    '10:00 - 12:00',
-                  ].map((time) => (
-                    <tr key={time}>
-                      <td className="p-2 font-semibold text-gray-700">{time}</td>
-                      {[0, 1, 2, 3, 4].map((col) => {
-                        const cell = inventory.find(
-                          (i) => i.time === time && i.day === ['Mon 24', 'Tue 25', 'Wed 26', 'Thu 27', 'Fri 28'][col]
-                        );
+                  {schedule.map(row  => (
+                    <tr key={row.time}>
+                      <td className="p-2 font-semibold text-gray-700">{row.time}</td>
+                      {days.map(day => {
+                        const cell = row.days[day];
+                        console.log('cell', cell);
                         return (
                           <td
-                            key={col}
-                            className={
-                              'p-2 rounded text-center ' +
-                              (cell?.status === 'available'
-                                ? 'bg-green-100 text-green-700'
-                                : cell?.status === 'full'
-                                ? 'bg-red-100 text-red-700'
-                                : 'bg-yellow-100 text-yellow-700')
-                            }
+                            key={day}
+                            className={`p-2 text-center cursor-pointer rounded transition ${
+                                selectedSlot?.date === day && selectedSlot?.time === row.time
+                                  ? 'bg-blue-100 text-blue-700'
+                                  : cell?.status === 'available'
+                                    ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                                    : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                              }`}
+                              onClick={() => {
+                                if (cell?.status === 'available') {
+                                  setSelectedSlot({ date: day, time: row.time });
+                                }
+                              }}
                           >
                             <div>{cell?.slots || 'No Timeslot Yet'}</div>
                             {cell?.price && <div className="text-xs">{cell.price}</div>}
@@ -151,55 +193,32 @@ export default function ActivitySchedulePage() {
       <InfoCard
         title="Activity Description"
         color="green"
-        content={
-          <>
-            <p>
-              Experience a World of Diversity in One Forest – Situated in the Garden Route...
-            </p>
-            <p>
-              Tsitsikamma Canopy Tour is an award-winning eco-adventure...
-            </p>
-          </>
-        }
+        content={activities?.activity}
       />
 
       <InfoCard
         title="Arrangements"
         color="gray"
-        content={
-          <ul className="list-disc ml-5 space-y-1">
-            <li><strong>Duration:</strong> Open Ended</li>
-            <li><strong>When:</strong> All Year Round</li>
-            <li><strong>Where:</strong> Stormsriver Village, Tsitsikamma</li>
-            <li><strong>Weather:</strong> All-weather activity. Bring appropriate clothing.</li>
-            <li><strong>Things to Bring:</strong> All additional items</li>
-          </ul>
-        }
+        content={activities?.arrangements}
       />
 
       <InfoCard
         title="Requirements"
         color="green"
-        content={
-          <ul className="list-disc ml-5 space-y-1">
-            <li>Minimum Age: 5 years</li>
-            <li>Minimum Height: 0.0m</li>
-            <li>Fitness Level: Average</li>
-            <li>Certification: Not Applicable</li>
-          </ul>
-        }
+        content={activities?.requirements}
       />
 
       <InfoCard
         title="Inclusions and Exclusions"
         color="blue"
-        content={
-          <>
-            <p><strong>Inclusions:</strong> Bottled water, safety gear, guide, certificate</p>
-            <p><strong>Exclusions:</strong> All additional items</p>
-          </>
-        }
+        content={activities?.inclusions}
       />
+      <InfoCard
+        title="Notes"
+        color="blue"
+        content={activities?.notes}
+      />
+
     </section>
 
 

@@ -7,6 +7,7 @@ use App\Http\Requests\MassDestroyTeamRequest;
 use App\Http\Requests\StoreTeamRequest;
 use App\Http\Requests\UpdateTeamRequest;
 use App\Models\Team;
+use App\Models\User;
 use Gate;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Session;
@@ -77,23 +78,40 @@ class TeamController extends Controller
     }
 
 
-    public function change($team_id)
+    public function change(Request $request)
     {
-        ///////// update this J if the user is director then we update the team id on user to the chosen team 
-        ///////////// otherwise we update the team id on user to null then they see all the data
 
-        //$request->validate(['site_id' => 'required']);
-        //$teamId = Session::get('team_id'); 
-        //dd($site_id);
+        $request->validate([
+            'team_id' => 'nullable|exists:teams,id',
+        ]);
+        //dd($request);
+        $team_id = $request->team_id;
 
-        $team = Team::find($team_id);
-        //dd($team);
-        if ($team) {
-            session(['team_id' => $team->id]);
+        //$team = Team::find($team_id);$team &&
+        $user = auth()->user();
+        $user = User::find($user->id)->with('roles')->first();
+        // dd($user);
+        if ($user->hasAnyRoles(['Admin', 'Director'])) {
+            $user->team_id = $team_id;
+            $user->save();
+            session(['team_id' => $user->team_id]);
+
+            return redirect()->back()->with('message', 'Team changed.');
             Log::info('site controller site id: ' . $team->id);
         } else {
             Log::info('site controller site: none');
         }
+
         return redirect()->back()->with('message', 'Site changed.');
+
+        // $team = Team::find($team_id);
+        // //dd($team);
+        // if ($team) {
+        //     session(['team_id' => $team->id]);
+        //     Log::info('site controller site id: ' . $team->id);
+        // } else {
+        //     Log::info('site controller site: none');
+        // }
+        // return redirect()->back()->with('message', 'Site changed.');
     }
 }

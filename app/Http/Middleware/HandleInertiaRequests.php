@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Team;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -32,20 +33,24 @@ class HandleInertiaRequests extends Middleware
 
         $user = $request->user();
         if ($user) {
-            $user->load('roles.permissions');
-            //dd($user);
+            $user->load('roles.permissions', 'team');
+            $permissions = $user?->roles->first()?->permissions
+                ->pluck('name') // assuming 'title' == 'name'
+                ->mapWithKeys(fn($name) => [$name => true])
+                ->all();
+            $teams = Team::all();
+            //dd($teams);
         }
-        $permissions = $user?->roles->first()?->permissions
-            ->pluck('name') // assuming 'title' == 'name'
-            ->mapWithKeys(fn($name) => [$name => true])
-            ->all();
+
+
         //dd($permissions);
         return [
             ...parent::share($request),
             'auth' => [
                 'user' => $user,
+                'teams' => $teams ?? [],
             ],
-            'permissions' =>  $permissions,
+            'permissions' =>  $permissions ?? [],
             'currentRoutePath' => $request->path(),
             'translations' => __('sidebar'), // this comes from the lang folder in resources
         ];

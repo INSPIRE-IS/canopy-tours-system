@@ -27,12 +27,6 @@ class Season extends Model
     protected $fillable = [
         'service_id',
         'name',
-        'start_date',
-        'end_date',
-        'rake_rate_adult',
-        'rake_rate_child',
-        'rake_rate_guide',
-        'allow_internal_price_override',
         'created_by_id',
         'updated_by_id',
         'created_at',
@@ -46,37 +40,9 @@ class Season extends Model
         return $date->format('Y-m-d H:i:s');
     }
 
-    public function service()
+    public function created_by()
     {
-        return $this->belongsTo(Service::class, 'service_id');
-    }
-
-    public function getStartDateAttribute($value)
-    {
-        return $value
-            ? Carbon::createFromFormat('Y-m-d', $value)->format(config('panel.date_format'))
-            : null;
-    }
-
-    public function setStartDateAttribute($value)
-    {
-        $this->attributes['start_date'] = $value
-            ? Carbon::createFromFormat(config('panel.date_format'), $value)->format('Y-m-d')
-            : null;
-    }
-
-    public function getEndDateAttribute($value)
-    {
-        return $value
-            ? Carbon::createFromFormat('Y-m-d', $value)->format(config('panel.date_format'))
-            : null;
-    }
-
-    public function setEndDateAttribute($value)
-    {
-        $this->attributes['end_date'] = $value
-            ? Carbon::createFromFormat(config('panel.date_format'), $value)->format('Y-m-d')
-            : null;
+        return $this->belongsTo(User::class, 'created_by_id');
     }
 
     public function updated_by()
@@ -84,8 +50,35 @@ class Season extends Model
         return $this->belongsTo(User::class, 'updated_by_id');
     }
 
+    public function service()
+    {
+        return $this->belongsTo(Service::class, 'service_id');
+    }
+
     public function team()
     {
         return $this->belongsTo(Team::class, 'team_id');
+    }
+
+    public function inventory()
+    {
+        return $this->hasOne(Inventory::class); // ✅ correct
+    }
+
+    public function seasonfieldValues()
+    {
+        return $this->hasMany(SeasonFieldValue::class);
+    }
+
+    public function fields()
+    {
+        return $this->belongsToMany(SeasonField::class, 'season_field_values', 'season_id', 'field_id')
+            ->withPivot('value')
+            ->withTimestamps();
+    }
+
+    public function file()
+    {
+        return $this->hasOne(File::class, 'table_row_id')->where('table_name', 'seasons');
     }
 }

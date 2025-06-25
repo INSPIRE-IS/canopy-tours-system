@@ -1,15 +1,22 @@
-import { router, usePage } from '@inertiajs/react';
+import { router, useForm, usePage } from '@inertiajs/react';
 import { useState } from 'react';
+import axios from 'axios';
 import Sidebar from '@/Components/Sidebar1';
 import Header from '@/Components/Header';
 //import FlashMessages from '@/Components/FlashMessages';
 import FlashMessage from '@/Components/FlashMessage';
 import SidebarMenuItem from '@/Components/SidebarMenuItem';
 
-export default function AppLayout({ user, children }) {
-    const { flash, errors, translations, permissions   } = usePage().props;
+export default function AppLayout({  user, children }) {
+ 
+
+    const { auth, flash, errors, translations, permissions} = usePage().props;
+    const { data, setData, post, reset, processing } = useForm({
+        team_id: "",
+    });
     console.log('------------translations', translations);
     console.log('test permissions', permissions);
+    console.log('test auth', auth);
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const [isOpen, setIsOpen] = useState(sidebarOpen);
     const [isOpenSelect, setIsOpenSelect] = useState('');
@@ -30,11 +37,40 @@ function toggleSubmenu (element) {
 function toggleDropdown (id) {
     setIsOpenSelect(prev => (prev === id ? '' : id));  
 }
-function selectOption (dropdownId, value) {
-    console.log('apply changes to ',dropdownId);
-    setIsOpenSelect('');
+// function selectOption (e,dropdownId, value) {
+//     console.log('apply changes to ',dropdownId);
+//     console.log('apply changes to ',value);
+//     setData("team_id", value);
+//     e.preventDefault();    
+//     post(route("teams.change"), {
+//         data: { team_id: value }, 
+//         onSuccess: () => {
+//             console.log('success');
+//         }
+//     });
+//     setIsOpenSelect('');
+// }
+function selectOption(dropdownId, value) {
+    console.log("apply changes to", dropdownId);
 
+    axios.post(route("teams.change"), {
+        team_id: value,
+    })
+    .then((response) => {
+        console.log("Team changed successfully", response.data);
+        // Optional: trigger a page reload or flash message
+        window.location.reload(); // or Inertia.reload()
+    })
+    .catch((error) => {
+        console.error("Error changing team", error);
+    });
+
+    setIsOpenSelect('');
 }
+
+
+
+
   const handleLogout = () => {
     router.post(route('logout'));
 };
@@ -83,85 +119,47 @@ function selectOption (dropdownId, value) {
                                 <span className="flex w-[31px] h-[27.7px] rounded-lg items-center justify-center text-white text-lg">
                                     <img src="/assets/icons/logo-icon.png" alt="My Icon" className="w-[31px] h-[27.7px]" />
                                 </span>
-                                <span className="menu-label text-entity-name">Tsitsikamma</span>
+                                <span className="menu-label text-entity-name">{auth?.user?.team?.name ?? 'All'}</span>
                             </span>
                             <span className="arrow transform transition-transform duration-300 group-[data-open=true]:!rotate-90">
                             <img src="/assets/icons/arrow-down.svg" alt="My Icon" className="w-5 h-5" />
                             </span>
                         </button> 
-                        {isOpenSelect === 'dropdown-E1' && (
+                        {isOpenSelect === 'dropdown-E1' && (auth.user.roles[0].id == 1 || auth.user.roles[0].id == 2) && (
                         <ul id="dropdown-E1" className="absolute w-full bg-white mt-1 z-10 text-sm">
-                            <li onClick={()=> selectOption('dropdown-E1', 'Test Site')} className="flex items-center justify-between border-b border-gray-200 px-4 py-2 hover:bg-primary-7 cursor-pointer">
+                            <li 
+                            onClick={() => selectOption('dropdown-E1', null)} 
+                            className="flex items-center justify-between border-b border-gray-200 px-4 py-2 hover:bg-primary-7 cursor-pointer"
+                            >
                             <span className="flex items-center gap-2">
-                                <span className="w-4 h-4 bg-[#FF3939] rounded-[2px] flex items-center justify-center text-primary-0 text-sm">
-
-                                    <svg className="w-[6px] h-[15px]" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-                                        <text x="50%" y="50%" 
-                                        dy=".35em"
-                                        textAnchor="middle" 
-                                        fontSize="60" 
-                                        className="text-entity-logo"
-                                        fill="currentColor">
-                                        T
-                                        </text>
-                                    </svg>
-                                </span>
-                                <span id="label-dropdown-E1" className="text-dropdown-option">Test Site</span>
+                                <span id="label-dropdown-E1" className="text-dropdown-option">All</span>
                             </span>
                             <span className="text-[#AF9494]">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="4" height="7" viewBox="0 0 4 7" fill="currentColor">
-                                <path d="M3.35381 3.3269L0.526913 6.15381L-2.30321e-08 5.6269L2.3 3.3269L-2.24104e-07 1.0269L0.526912 0.499983L3.35381 3.3269Z" fill="currentColor"/>
+                                <path d="M3.35381 3.3269L0.526913 6.15381L-2.30321e-08 5.6269L2.3 3.3269L-2.24104e-07 1.0269L0.526912 0.499983L3.35381 3.3269Z" fill="currentColor" />
                                 </svg>
                             </span>
                             </li>
-                            <li onClick={()=> selectOption('dropdown-E1', 'Entity Name')} className="flex items-center justify-between border-b border-gray-200 px-4 py-2 hover:bg-primary-7 cursor-pointer">
-                            <span className="flex items-center gap-2">
-                                <span className="w-4 h-4 bg-[#B8E50D] rounded-[2px] flex items-center justify-center text-primary-0 text-sm">
 
-                                    <svg className="w-[6px] h-[15px]" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-                                        <text x="50%" y="50%" 
-                                        dy=".35em"
-                                        textAnchor="middle" 
-                                        fontSize="60" 
-                                        className="text-entity-logo"
-                                        fill="currentColor">
-                                        E
-                                        </text>
-                                    </svg>
+                            {auth.teams.map((team, i) => (
+                            <li 
+                                key={i} 
+                                onClick={() => selectOption('dropdown-E1', team.id)} 
+                                className="flex items-center justify-between border-b border-gray-200 px-4 py-2 hover:bg-primary-7 cursor-pointer"
+                            >
+                                <span className="flex items-center gap-2">
+                                <span id="label-dropdown-E1" className="text-dropdown-option">{team.name}</span>
                                 </span>
-                                <span id="label-dropdown-E1" className="text-dropdown-option">Entity Name</span>
-                            </span>
-                            <span className="text-[#AF9494]">
+                                <span className="text-[#AF9494]">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="4" height="7" viewBox="0 0 4 7" fill="currentColor">
-                                <path d="M3.35381 3.3269L0.526913 6.15381L-2.30321e-08 5.6269L2.3 3.3269L-2.24104e-07 1.0269L0.526912 0.499983L3.35381 3.3269Z" fill="currentColor"/>
+                                    <path d="M3.35381 3.3269L0.526913 6.15381L-2.30321e-08 5.6269L2.3 3.3269L-2.24104e-07 1.0269L0.526912 0.499983L3.35381 3.3269Z" fill="currentColor" />
                                 </svg>
-                            </span>
-                            </li>
-                            <li onClick={()=> selectOption('dropdown-E1', 'Site Test')} className="flex items-center justify-between border-b border-gray-200 px-4 py-2 hover:bg-primary-7 cursor-pointer">
-                            <span className="flex items-center gap-2">
-                                <span className="w-4 h-4 bg-[#5795FF] rounded-[2px] flex items-center justify-center text-primary-0 text-sm">
-
-                                    <svg className="w-[6px] h-[15px]" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-                                        <text x="50%" y="50%" 
-                                        dy=".35em"
-                                        textAnchor="middle" 
-                                        fontSize="60" 
-                                        className="text-entity-logo"
-                                        fill="currentColor">
-                                        S
-                                        </text>
-                                    </svg>
                                 </span>
-                                <span id="label-dropdown-E1" className="text-dropdown-option">Site Test</span>
-                            </span>
-                            <span className="text-[#AF9494]">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="4" height="7" viewBox="0 0 4 7" fill="currentColor">
-                                <path d="M3.35381 3.3269L0.526913 6.15381L-2.30321e-08 5.6269L2.3 3.3269L-2.24104e-07 1.0269L0.526912 0.499983L3.35381 3.3269Z" fill="currentColor"/>
-                                </svg>
-                            </span>
                             </li>
+                            ))}
                         </ul>
                         )}
+
                     </div>
                 </div>
                 <div className={`${isOpen ? 'hidden' : ''} icon-closed px-2 w-full h-[57px] items-center justify-center`}>
@@ -205,12 +203,12 @@ function selectOption (dropdownId, value) {
                 url= 'services.index'
                 iconName="services"
             />
-            {/* <SidebarMenuItem
+            <SidebarMenuItem
                 label="Seasons"
                 isOpen={isOpen}
                 url= 'seasons.index'
                 iconName="services"
-            /> */}
+            /> 
             <SidebarMenuItem
                 label="Inventory"
                 isOpen={isOpen}

@@ -2,9 +2,17 @@
 
 namespace App\Console\Commands;
 
+use App\Models\Closeout;
+use App\Models\Inventory;
+use App\Models\InventoryTimeSlot;
+use App\Models\InventoryTypeDay;
 use Illuminate\Console\Command;
 use App\Models\Permission;
 use App\Models\Role;
+use App\Models\Season;
+use App\Models\SeasonField;
+use App\Models\SeasonFieldValue;
+use App\Models\Service;
 use App\Models\Team;
 use App\Models\User;
 use App\Models\TypeDay;
@@ -12,7 +20,12 @@ use App\Models\TypePayOption;
 use App\Models\TypePayment;
 use App\Models\StatusBooking;
 use App\Models\TypeAffiliate;
+use App\Models\TypeCategory;
+use App\Models\TypeData;
+use App\Models\TypeFile;
 use App\Models\TypeGroup;
+use App\Models\TypeInput;
+use App\Models\File;
 
 class SeedCoreData extends Command
 {
@@ -204,6 +217,7 @@ class SeedCoreData extends Command
         foreach ($roles as $role) {
             Role::updateOrCreate(['id' => $role['id']], $role);
         }
+        $this->info('Roles seeded successfully.');
 
         // Assign permissions
         $adminPermissions = Permission::all();
@@ -390,6 +404,597 @@ class SeedCoreData extends Command
         ];
         foreach ($affiliateTypes as $affiliateType) {
             TypeAffiliate::updateOrCreate(['id' => $affiliateType['id']], $affiliateType);
+        }
+
+        $type_categories = [
+            ['id' => 1, 'name' => 'Details'],
+            ['id' => 2, 'name' => 'Financial Details'],
+            ['id' => 3, 'name' => 'Locations'],
+            ['id' => 4, 'name' => 'Notifications'],
+            ['id' => 5, 'name' => 'Shared Resources'],
+        ];
+        foreach ($type_categories as $type_category) {
+            TypeCategory::updateOrCreate(['id' => $type_category['id']], $type_category);
+        }
+        // <ul class="dropdown-menu">
+        // <li><a href="/services/11271/edit_details">Details</a></li>
+        // <li><a href="/services/11271/edit_transport">Transport &amp; Locations</a></li>
+
+        // <li><a href="/services/11271/edit_resources">Resources</a></li>
+        // <li><a href="/services/11271/edit_financial">Financial Details</a></li>
+        // <li><a href="/services/11271/edit_distribution">Distribution</a></li>
+        // <li><a href="/services/11271/edit_seasons">Seasons</a></li>
+        // <li><a href="/services/11271/edit_rates">Rates</a></li>
+        // <li><a href="/services/11271/edit_inventories">Inventories</a>
+        // </li><li><a href="/services/11271/edit_tickets">Tickets &amp; Manifest</a>
+        // </li><li><a href="/services/11271/edit_check_in">Check-In</a></li>
+        // <li><a href="/services/11271/confirmation_templates">Confirmation Templates</a></li>
+        // <li><a href="/services/11271/option_groups">Service Options</a></li>
+        // <li><a href="/services/11271/additional_informations/edit">Additional Information</a></li>
+        // <li><a href="/services/11271/portal_featured/edit">Featured Services</a></li>
+        // <li><a href="/services/11271/edit_integrated_distributors">Integrated Distributors</a></li></ul>
+
+
+        $type_datas = [
+            ['id' => 1, 'name' => 'text'],
+            ['id' => 2, 'name' => 'long text'],
+            ['id' => 3, 'name' => 'integer'],
+            ['id' => 4, 'name' => 'float'],
+            ['id' => 5, 'name' => 'date'],
+            ['id' => 5, 'name' => 'time'],
+            ['id' => 6, 'name' => 'boolean'],
+        ];
+        foreach ($type_datas as $type_data) {
+            TypeData::updateOrCreate(['id' => $type_data['id']], $type_data);
+        }
+
+        $type_inputs = [
+            ['id' => 1, 'name' => 'text'],       // <input type="text">
+            ['id' => 2, 'name' => 'textarea'],   // <textarea>
+            ['id' => 3, 'name' => 'number'],     // <input type="number">
+            ['id' => 4, 'name' => 'date'],       // <input type="date">
+            ['id' => 5, 'name' => 'time'],       // <input type="time">
+            ['id' => 6, 'name' => 'checkbox'],   // <input type="checkbox">
+        ];
+        foreach ($type_inputs as $type_input) {
+            TypeInput::updateOrCreate(['id' => $type_input['id']], $type_input);
+        }
+
+        $service_fields = [
+            //['id' => 1, 'name' => 'header_pillbox_text','slug' => 'header_pillbox_text', 'type_category' => 1, 'order' => 1, 'type_data_id' => 1, 'type_input_id' => 1, 'required' => 1],
+            ['id' => 1, 'name' => 'Description', 'slug' => 'description', 'type_category' => 1, 'order' => 1, 'type_data_id' => 2, 'type_input_id' => 2, 'required' => 1],
+            ['id' => 2, 'name' => 'Condition Text', 'slug' => 'condition_text', 'type_category' => 1, 'order' => 2, 'type_data_id' => 2, 'type_input_id' => 2, 'required' => 1],
+            ['id' => 3, 'name' => 'Activity Description', 'slug' => 'activity_description', 'type_category' => 1, 'order' => 3, 'type_data_id' => 2, 'type_input_id' => 2, 'required' => 1],
+            ['id' => 4, 'name' => 'Arrangements', 'slug' => 'arrangements', 'type_category' => 1, 'order' => 4, 'type_data_id' => 2, 'type_input_id' => 2, 'required' => 1],
+            ['id' => 5, 'name' => 'Requirements', 'slug' => 'requirements', 'type_category' => 1, 'order' => 5, 'type_data_id' => 2, 'type_input_id' => 2, 'required' => 1],
+            ['id' => 6, 'name' => 'Inclusions', 'slug' => 'inclusions', 'type_category' => 1, 'order' => 6, 'type_data_id' => 2, 'type_input_id' => 2, 'required' => 1],
+            ['id' => 7, 'name' => 'Exclusions', 'slug' => 'exclusions', 'type_category' => 1, 'order' => 7, 'type_data_id' => 2, 'type_input_id' => 2, 'required' => 1],
+            ['id' => 8, 'name' => 'Notes', 'slug' => 'notes', 'type_category' => 1, 'order' => 8, 'type_data_id' => 2, 'type_input_id' => 2, 'required' => 1],
+            ['id' => 9, 'name' => 'lat-lon start', 'slug' => 'lat_lon_start', 'type_category' => 3, 'order' => 9, 'type_data_id' => 1, 'type_input_id' => 1, 'required' => 1],
+            ['id' => 10, 'name' => 'lat-long end', 'slug' => 'lat_long_end', 'type_category' => 3, 'order' => 10, 'type_data_id' => 1, 'type_input_id' => 1, 'required' => 1],
+            //['id' => 12, 'name' => 'pillbox_condition_text','slug' => 'pillbox_condition_text', 'type_category' => 1, 'order' => 8, 'type_data_id' => 1, 'type_input_id' => 1, 'required' => 1],
+
+        ];
+
+        foreach ($service_fields as $service_field) {
+            SeasonField::updateOrCreate(['id' => $service_field['id']], $service_field);
+        }
+
+        $type_files = [
+            ['id' => 1, 'name' => 'logo'],
+            ['id' => 2, 'name' => 'service'],
+        ];
+        foreach ($type_files as $type_file) {
+            TypeFile::updateOrCreate(['id' => $type_file['id']], $type_file);
+        }
+
+        $services = [
+            [
+                'id' => 1,
+                'name' => 'Canopy Tour',
+            ],
+            [
+                'id' => 2,
+                'name' => 'Woodcutters',
+            ],
+            [
+                'id' => 3,
+                'name' => 'Guided Hikes',
+            ],
+            [
+                'id' => 4,
+                'name' => 'Team Building',
+            ],
+        ];
+        foreach ($services as $service) {
+            Service::updateOrCreate(['id' => $service['id']], $service);
+        }
+        $this->info('Services seeded successfully.');
+        $seasons = [
+            [
+                'id' => 1,
+                'name' => 'Tsitsikamma Canopy Tour',
+                'created_by_id' => 1,
+                'updated_by_id' => 1,
+                'team_id' => 1,
+                'service_id' => 1,
+            ],
+            [
+                'id' => 2,
+                'name' => 'Tsitsikamma Woodcutters Journey',
+                'created_by_id' => 1,
+                'updated_by_id' => 1,
+                'team_id' => 1,
+                'service_id' => 2,
+            ],
+            [
+                'id' => 3,
+                'name' => 'Tsitsikamma Guided Hikes Green route: 5.09km',
+
+                'created_by_id' => 1,
+                'updated_by_id' => 1,
+                'team_id' => 1,
+                'service_id' => 3,
+            ],
+            [
+                'id' => 4,
+                'name' => 'Tsitsikamma Guided Hikes Red route: 7.78km',
+                'created_by_id' => 1,
+                'updated_by_id' => 1,
+                'team_id' => 1,
+                'service_id' => 3,
+            ],
+            [
+                'id' => 5,
+                'name' => 'Tsitsikamma Guided Hikes Yellow route 8.09km',
+                'created_by_id' => 1,
+                'updated_by_id' => 1,
+                'team_id' => 1,
+                'service_id' => 3,
+            ],
+            [
+                'id' => 6,
+                'name' => 'Tsitsikamma Canopy Tour Photographic Scavenger Hunt',
+                'created_by_id' => 1,
+                'updated_by_id' => 1,
+                'team_id' => 1,
+                'service_id' => 4,
+            ],
+        ];
+
+        $description = "Come and Experience a World of Diversity in One Forest A Unique Tsitsikamma Experience You'll Never Forget!!!";
+        $condition_text = "";
+        $activity = "Experience a World of Diversity in One Forest – Just a short drive from Knysna and 2 hours from Port-Elizabeth. Situated in the Garden of the Garden Route and heart of Tsitsikamma – Stormsriver Village. Tsitsikamma Canopy Tour is an Award-Winning Canopy Tour company that turns Tourism activities into Tourism experiences! Enjoy being suspended 30m above the forest floor on the Tsitsikamma Canopy Tour, cable sliding from ten platforms, tree to tree while discovering the spectacular and unique wilderness of the Tsitsikamma Indigenous forest. Surrounded by birdlife and giant trees like the Outeniqua Yellowwood, known to us as Uncle Sam who is over 600 years old! One can easily feel like a dwarf standing against it. The tour begins with a detailed safety briefing followed by a ‘kitting up’ session where a full-body harness, pulleys, and climbing equipment is issued and checked. A short drive into the Tsitsikamma forest and it is time to monkey around! From the start on the launch platform, a new world unfolds as one gently glides on a steel cable to the first tree platform. All groups are escorted through the forest canopy by a lead guide and a follow guide to ensure your safety as you slide from tree to tree. The platforms built high up in the giant Outeniqua Yellowwoods, provide an unbelievable view of this enchanting new world – any fear of heights is soon lost as you gather in your new surroundings.";
+        $arrangements = "Duration: Open Ended<br>When: All Year Round<br>Where: Stormsriver Village, Tsitsikamma<br>Weather: All-weather activity. Bring appropriate clothing.<br>Things to Bring: All additional items";
+        $requirements = "Minimum Age: 5 years<br>Minimum Height: 0.0m<br>Fitness Level: Average<br>Certification: Not Applicable";
+        $inclusions = "Inclusions: Bottled water, safety gear, guide, certificate<br>Exclusions: All additional items";
+        $exclusions = "Exclusions All additional items.";
+        $notes = "Things to remember Guests who are differently abled or have unique needs must please book via telephone or email to share their specific requirements so that we can cater to their needs and ensure you enjoy your experience to the fullest. Discount vouchers and over-the-counter or telephonic promotions are not applicable to online bookings after full payment has been captured on an online booking. Tours include bottled water, gear, and safety equipment as well as guides Clients are advised that the tour includes a 600m hike out afterward. Moms to be: We apologize – this tour is not for you while you are pregnant. We suggest a weight restriction per person of approximately 120kg to 130kg – this restriction is not weight-related but rather imposed by the size of the harnesses we use and is based on the circumference of the straps around the body. ●Our minimum age is 5 years old, and the children can do the tour in tandem with the guide. The activity is an all-weather activity. Even in the rain – just bring something warm to wear and come and enjoy a rainforest experience with us. It is in the Tsitsikamma Indigenous forest and is always a magical experience. A rain jacket will be supplied. Comfortable clothes should be worn and any footwear that is secure on your feet and that will not fall if you are suspended in mid-air. (Closed shoes) Long/Braided or Styled Hair: Please note that a helmet will have to fit onto your head. Hair cannot be tied on top of your head obstructing the helmet to comfortably protect your head.";
+        $lat_lon_start = "0,0";
+        $lat_long_end = "1,1";
+
+
+
+        $seasonFieldValues = [
+            ['season_id' => 1, 'field_id' => 1, 'value' => $description,],
+            ['season_id' => 1, 'field_id' => 2, 'value' => '1 Adult',],
+            ['season_id' => 1, 'field_id' => 3, 'value' => $activity,],
+            ['season_id' => 1, 'field_id' => 4, 'value' => $arrangements,],
+            ['season_id' => 1, 'field_id' => 5, 'value' => $requirements,],
+            ['season_id' => 1, 'field_id' => 6, 'value' => $inclusions,],
+            ['season_id' => 1, 'field_id' => 7, 'value' => $exclusions,],
+            ['season_id' => 1, 'field_id' => 8, 'value' => $notes,],
+            ['season_id' => 1, 'field_id' => 9, 'value' => $lat_lon_start,],
+            ['season_id' => 1, 'field_id' => 10, 'value' => $lat_long_end,],
+            ['season_id' => 2, 'field_id' => 1, 'value' => $description,],
+            ['season_id' => 2, 'field_id' => 2, 'value' => 'Requires a minimum of 2 People',],
+            ['season_id' => 2, 'field_id' => 3, 'value' => $activity,],
+            ['season_id' => 2, 'field_id' => 4, 'value' => $arrangements,],
+            ['season_id' => 2, 'field_id' => 5, 'value' => $requirements,],
+            ['season_id' => 2, 'field_id' => 6, 'value' => $inclusions,],
+            ['season_id' => 2, 'field_id' => 7, 'value' => $exclusions,],
+            ['season_id' => 2, 'field_id' => 8, 'value' => $notes,],
+            ['season_id' => 2, 'field_id' => 9, 'value' => $lat_lon_start,],
+            ['season_id' => 2, 'field_id' => 10, 'value' => $lat_long_end,],
+            ['season_id' => 3, 'field_id' => 1, 'value' => $description,],
+            ['season_id' => 3, 'field_id' => 2, 'value' => 'Book Now From 24 February 2025',],
+            ['season_id' => 3, 'field_id' => 3, 'value' => $activity,],
+            ['season_id' => 3, 'field_id' => 4, 'value' => $arrangements,],
+            ['season_id' => 3, 'field_id' => 5, 'value' => $requirements,],
+            ['season_id' => 3, 'field_id' => 6, 'value' => $inclusions,],
+            ['season_id' => 3, 'field_id' => 7, 'value' => $exclusions,],
+            ['season_id' => 3, 'field_id' => 8, 'value' => $notes,],
+            ['season_id' => 3, 'field_id' => 9, 'value' => $lat_lon_start,],
+            ['season_id' => 3, 'field_id' => 10, 'value' => $lat_long_end,],
+            ['season_id' => 4, 'field_id' => 1, 'value' => $description,],
+            ['season_id' => 4, 'field_id' => 2, 'value' => 'Requires a minimum of 2 People',],
+            ['season_id' => 4, 'field_id' => 3, 'value' => $activity,],
+            ['season_id' => 4, 'field_id' => 4, 'value' => $arrangements,],
+            ['season_id' => 4, 'field_id' => 5, 'value' => $requirements,],
+            ['season_id' => 4, 'field_id' => 6, 'value' => $inclusions,],
+            ['season_id' => 4, 'field_id' => 7, 'value' => $exclusions,],
+            ['season_id' => 4, 'field_id' => 8, 'value' => $notes,],
+            ['season_id' => 4, 'field_id' => 9, 'value' => $lat_lon_start,],
+            ['season_id' => 4, 'field_id' => 10, 'value' => $lat_long_end,],
+            ['season_id' => 5, 'field_id' => 1, 'value' => $description,],
+            ['season_id' => 5, 'field_id' => 2, 'value' => 'Requires a minimum of 2 People',],
+            ['season_id' => 5, 'field_id' => 3, 'value' => $activity,],
+            ['season_id' => 5, 'field_id' => 4, 'value' => $arrangements,],
+            ['season_id' => 5, 'field_id' => 5, 'value' => $requirements,],
+            ['season_id' => 5, 'field_id' => 6, 'value' => $inclusions,],
+            ['season_id' => 5, 'field_id' => 7, 'value' => $exclusions,],
+            ['season_id' => 5, 'field_id' => 8, 'value' => $notes,],
+            ['season_id' => 5, 'field_id' => 9, 'value' => $lat_lon_start,],
+            ['season_id' => 5, 'field_id' => 10, 'value' => $lat_long_end,],
+            ['season_id' => 6, 'field_id' => 1, 'value' => $description,],
+            ['season_id' => 6, 'field_id' => 2, 'value' => 'Requires a minimum of 2 People',],
+            ['season_id' => 6, 'field_id' => 3, 'value' => $activity,],
+            ['season_id' => 6, 'field_id' => 4, 'value' => $arrangements,],
+            ['season_id' => 6, 'field_id' => 5, 'value' => $requirements,],
+            ['season_id' => 6, 'field_id' => 6, 'value' => $inclusions,],
+            ['season_id' => 6, 'field_id' => 7, 'value' => $exclusions,],
+            ['season_id' => 6, 'field_id' => 8, 'value' => $notes,],
+            ['season_id' => 6, 'field_id' => 9, 'value' => $lat_lon_start,],
+            ['season_id' => 6, 'field_id' => 10, 'value' => $lat_long_end,],
+        ];
+
+
+        foreach ($seasons as $season) {
+            Season::updateOrCreate(['id' => $season['id']], $season);
+        }
+        $this->info('Seasons seeded successfully.');
+        foreach ($seasonFieldValues as $seasonFieldValue) {
+            SeasonFieldValue::updateOrCreate(
+                [
+                    'season_id' => $seasonFieldValue['season_id'],
+                    'field_id' => $seasonFieldValue['field_id'],
+                ],
+                [
+                    'value' => $seasonFieldValue['value'],
+                    'team_id' => null,
+                ]
+            );
+        }
+
+        $files = [
+            [
+                "id" => 1,
+                "table_name" => "seasons",
+                "table_row_id" => "1",
+                "file_name" => "card1.jpg",
+                "file_type" => "image/jpeg",
+                "path" => "seasons/1/VG1575vJQfQGmo6TFAk5gE0DknbgZ00qYNv5XR2Q.jpg",
+                "expiry" => null,
+                "team_id" => null,
+                "type_file_id" => 1
+            ],
+            [
+                "id" => 2,
+                "table_name" => "seasons",
+                "table_row_id" => "6",
+                "file_name" => "card1.jpg",
+                "file_type" => "image/jpeg",
+                "path" => "seasons/6/A8f8mauVaWW4C6REWtltV3WXnrK1u7bRqNqvDMo0.jpg",
+                "expiry" => null,
+                "team_id" => null,
+                "type_file_id" => 1
+            ],
+            [
+                "id" => 3,
+                "table_name" => "seasons",
+                "table_row_id" => "3",
+                "file_name" => "card3.jpg",
+                "file_type" => "image/jpeg",
+                "path" => "seasons/3/gSjvgA1MyCqhhcxqdVOFNu4AAX9hAUdocjhZuVLV.jpg",
+                "expiry" => null,
+                "team_id" => null,
+                "type_file_id" => 1
+            ],
+            [
+                "id" => 4,
+                "table_name" => "seasons",
+                "table_row_id" => "4",
+                "file_name" => "card4.jpg",
+                "file_type" => "image/jpeg",
+                "path" => "seasons/4/ahRAMEjm1Udj3OGILUq9YnzSz7KNsSVl3KDRIxUc.jpg",
+                "expiry" => null,
+                "team_id" => null,
+                "type_file_id" => 1
+            ],
+            [
+                "id" => 5,
+                "table_name" => "seasons",
+                "table_row_id" => "5",
+                "file_name" => "card5.jpg",
+                "file_type" => "image/jpeg",
+                "path" => "seasons/5/P9BTOjmG1DiaLDMfxU7S7Tg3AewtJBitOzP1TTyd.jpg",
+                "expiry" => null,
+                "team_id" => null,
+                "type_file_id" => 1
+            ],
+            [
+                "id" => 6,
+                "table_name" => "seasons",
+                "table_row_id" => "2",
+                "file_name" => "card6.jpg",
+                "file_type" => "image/jpeg",
+                "path" => "seasons/2/2y6BtQAwOEuAEt98H5p0Nuyab00mhWM4yqgJHJXW.jpg",
+                "expiry" => null,
+                "team_id" => null,
+                "type_file_id" => 1
+            ]
+        ];
+
+        foreach ($files as $file) {
+            File::updateOrCreate(
+                [
+                    'team_id'      => null, // auth()->user()->team_id,
+                    'table_name'   => 'seasons',
+                    'table_row_id' => $file['table_row_id'],
+                    'file_name'    => $file['file_name'],
+                    'file_type'    => $file['file_type'],
+                    'type_file_id' => 1, // optional enum/type
+                    'path'         => $file['path'],
+                    'expiry'       => $file['expiry'],
+                ],
+            );
+        }
+        $this->info('Files seeded successfully.');
+
+        $inventory = [
+            [
+                'id' => 1,
+                'service_id' => 1,
+                'season_id' => 1,
+                'start_date' => '2020-02-01',
+                'end_date' => '2021-02-28',
+                'rake_rate_adult' => 'R390.00',
+                'rake_rate_child' => 'R390.00',
+                'rake_rate_guide' => 'R390.00',
+                'allow_internal_price_override' => 1,
+                'duration' => 2,
+                'capacity' => 8,
+                'allow_internal_override' => 1,
+                'status' => 0,
+                'pillbox_conditions' => 'Book Now From 21 February 2025',
+            ],
+            [
+                'id' => 2,
+                'service_id' => 2,
+                'season_id' => 2,
+                'start_date' => '2020-02-01',
+                'end_date' => '2020-10-28',
+                'rake_rate_adult' => 'R390.00',
+                'rake_rate_child' => 'R390.00',
+                'rake_rate_guide' => 'R390.00',
+                'allow_internal_price_override' => 1,
+                'duration' => 4,
+                'capacity' => 4,
+                'allow_internal_override' => 1,
+                'status' => 0,
+                'pillbox_conditions' => 'Book Now From 21 February 2025',
+            ],
+            [
+                'id' => 3,
+                'service_id' => 3,
+                'season_id' => 3,
+                'start_date' => '2020-02-01',
+                'end_date' => '2021-03-28',
+                'rake_rate_adult' => 'R390.00',
+                'rake_rate_child' => 'R390.00',
+                'rake_rate_guide' => 'R390.00',
+                'allow_internal_price_override' => 1,
+                'duration' => 5,
+                'capacity' => 6,
+                'allow_internal_override' => 1,
+                'status' => 0,
+                'pillbox_conditions' => 'Book Now From 21 February 2025',
+            ],
+            [
+                'id' => 4,
+                'service_id' => 3,
+                'season_id' => 4,
+                'start_date' => '2020-02-01',
+                'end_date' => '2020-06-28',
+                'rake_rate_adult' => 'R390.00',
+                'rake_rate_child' => 'R390.00',
+                'rake_rate_guide' => 'R390.00',
+                'allow_internal_price_override' => 1,
+                'duration' => 8,
+                'capacity' => 8,
+                'allow_internal_override' => 1,
+                'status' => 0,
+                'pillbox_conditions' => 'Book Now From 21 February 2025',
+            ],
+            [
+                'id' => 5,
+                'service_id' => 3,
+                'season_id' => 5,
+                'start_date' => '2020-02-01',
+                'end_date' => '2020-08-28',
+                'rake_rate_adult' => 'R390.00',
+                'rake_rate_child' => 'R390.00',
+                'rake_rate_guide' => 'R390.00',
+                'allow_internal_price_override' => 1,
+                'duration' => 7,
+                'capacity' => 5,
+                'allow_internal_override' => 1,
+                'status' => 0,
+                'pillbox_conditions' => 'Book Now From 21 February 2025',
+            ],
+            [
+                'id' => 6,
+                'service_id' => 4,
+                'season_id' => 6,
+                'start_date' => '2020-02-01',
+                'end_date' => '2020-12-28',
+                'rake_rate_adult' => 'R390.00',
+                'rake_rate_child' => 'R390.00',
+                'rake_rate_guide' => 'R390.00',
+                'allow_internal_price_override' => 1,
+                'duration' => 3,
+                'capacity' => 6,
+                'allow_internal_override' => 1,
+                'status' => 0,
+                'pillbox_conditions' => 'Book Now From 21 February 2025',
+            ],
+        ];
+
+        foreach ($inventory as $inv) {
+            $inv['rake_rate_adult'] = floatval(str_replace('R', '', $inv['rake_rate_adult']));
+            $inv['rake_rate_child'] = floatval(str_replace('R', '', $inv['rake_rate_child']));
+            $inv['rake_rate_guide'] = floatval(str_replace('R', '', $inv['rake_rate_guide']));
+
+            Inventory::updateOrCreate(['id' => $inv['id']], $inv);
+        }
+
+        $inventory_time_slots = [
+            [
+                'id' => 1,
+                'inventory_id' => 1,
+                'start_time' => '10:00:00',
+            ],
+            [
+                'id' => 2,
+                'inventory_id' => 1,
+                'start_time' => '12:00:00',
+            ],
+            [
+                'id' => 3,
+                'inventory_id' => 2,
+                'start_time' => '08:00:00',
+            ],
+            [
+                'id' => 4,
+                'inventory_id' => 2,
+                'start_time' => '10:00:00',
+            ],
+            [
+                'id' => 5,
+                'inventory_id' => 3,
+                'start_time' => '08:00:00',
+            ],
+            [
+                'id' => 6,
+                'inventory_id' => 3,
+                'start_time' => '10:00:00',
+            ],
+            [
+                'id' => 7,
+                'inventory_id' => 4,
+                'start_time' => '08:00:00',
+            ],
+            [
+                'id' => 8,
+                'inventory_id' => 4,
+                'start_time' => '10:00:00',
+            ],
+            [
+                'id' => 9,
+                'inventory_id' => 5,
+                'start_time' => '08:00:00',
+            ],
+            [
+                'id' => 10,
+                'inventory_id' => 5,
+                'start_time' => '10:00:00',
+            ],
+            [
+                'id' => 11,
+                'inventory_id' => 6,
+                'start_time' => '08:00:00',
+            ],
+            [
+                'id' => 12,
+                'inventory_id' => 6,
+                'start_time' => '10:00:00',
+            ],
+        ];
+
+        foreach ($inventory_time_slots as $invTs) {
+            InventoryTimeSlot::updateOrCreate(['id' => $invTs['id']], $invTs);
+        }
+        $this->info('InventoryTimeSlots seeded successfully.');
+        $inventory_type_days = [
+            ['id' => 1, 'inventory_id' => 1, 'type_day_id' => 1],
+            ['id' => 2, 'inventory_id' => 1, 'type_day_id' => 2],
+            ['id' => 3, 'inventory_id' => 1, 'type_day_id' => 3],
+            ['id' => 4, 'inventory_id' => 1, 'type_day_id' => 4],
+            ['id' => 5, 'inventory_id' => 1, 'type_day_id' => 5],
+            ['id' => 6, 'inventory_id' => 1, 'type_day_id' => 6],
+            ['id' => 7, 'inventory_id' => 1, 'type_day_id' => 7],
+            ['id' => 8, 'inventory_id' => 2, 'type_day_id' => 1],
+            ['id' => 9, 'inventory_id' => 2, 'type_day_id' => 2],
+            ['id' => 10, 'inventory_id' => 2, 'type_day_id' => 3],
+            ['id' => 11, 'inventory_id' => 2, 'type_day_id' => 4],
+            ['id' => 12, 'inventory_id' => 2, 'type_day_id' => 5],
+            ['id' => 13, 'inventory_id' => 2, 'type_day_id' => 6],
+            ['id' => 14, 'inventory_id' => 2, 'type_day_id' => 7],
+            ['id' => 15, 'inventory_id' => 3, 'type_day_id' => 1],
+            ['id' => 16, 'inventory_id' => 3, 'type_day_id' => 2],
+            ['id' => 17, 'inventory_id' => 3, 'type_day_id' => 3],
+            ['id' => 18, 'inventory_id' => 3, 'type_day_id' => 4],
+            ['id' => 19, 'inventory_id' => 3, 'type_day_id' => 5],
+            ['id' => 20, 'inventory_id' => 3, 'type_day_id' => 6],
+            ['id' => 21, 'inventory_id' => 3, 'type_day_id' => 7],
+            ['id' => 22, 'inventory_id' => 4, 'type_day_id' => 1],
+            ['id' => 23, 'inventory_id' => 4, 'type_day_id' => 2],
+            ['id' => 24, 'inventory_id' => 4, 'type_day_id' => 3],
+            ['id' => 25, 'inventory_id' => 4, 'type_day_id' => 4],
+            ['id' => 26, 'inventory_id' => 4, 'type_day_id' => 5],
+            ['id' => 27, 'inventory_id' => 4, 'type_day_id' => 6],
+            ['id' => 28, 'inventory_id' => 4, 'type_day_id' => 7],
+            ['id' => 29, 'inventory_id' => 5, 'type_day_id' => 1],
+            ['id' => 30, 'inventory_id' => 5, 'type_day_id' => 2],
+            ['id' => 31, 'inventory_id' => 5, 'type_day_id' => 3],
+            ['id' => 32, 'inventory_id' => 5, 'type_day_id' => 4],
+            ['id' => 33, 'inventory_id' => 5, 'type_day_id' => 5],
+            ['id' => 34, 'inventory_id' => 5, 'type_day_id' => 6],
+            ['id' => 35, 'inventory_id' => 5, 'type_day_id' => 7],
+            ['id' => 36, 'inventory_id' => 6, 'type_day_id' => 1],
+            ['id' => 37, 'inventory_id' => 6, 'type_day_id' => 2],
+            ['id' => 38, 'inventory_id' => 6, 'type_day_id' => 3],
+            ['id' => 39, 'inventory_id' => 6, 'type_day_id' => 4],
+            ['id' => 40, 'inventory_id' => 6, 'type_day_id' => 5],
+            ['id' => 41, 'inventory_id' => 6, 'type_day_id' => 6],
+            ['id' => 42, 'inventory_id' => 6, 'type_day_id' => 7],
+        ];
+        foreach ($inventory_type_days as $invTypeDay) {
+            InventoryTypeDay::updateOrCreate(['id' => $invTypeDay['id']], $invTypeDay);
+        }
+
+        $closeouts = [
+            [
+                'id' => 1,
+                'service_id' => 1,
+                'season_id' => 1,
+                'name' => 'renovations',
+                'start_date' => '2020-05-01',
+                'end_date' => '2020-05-21',
+                'reason' => 'general maintenance',
+            ],
+            [
+                'id' => 2,
+                'service_id' => 1,
+                'season_id' => 1,
+                'name' => 'holiday',
+                'start_date' => '2020-12-25',
+                'end_date' => '2020-12-26',
+                'reason' => 'general',
+            ],
+            [
+                'id' => 3,
+                'service_id' => 2,
+                'season_id' => 2,
+                'name' => 'holiday',
+                'start_date' => '2020-12-25',
+                'end_date' => '2020-12-26',
+                'reason' => 'general',
+            ],
+        ];
+
+        foreach ($closeouts as $closeout) {
+            Closeout::updateOrCreate(['id' => $closeout['id']], $closeout);
         }
 
         $this->info('Core data seeded successfully.');

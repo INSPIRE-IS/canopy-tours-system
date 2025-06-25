@@ -33,26 +33,6 @@ class StoreSeasonRequest extends FormRequest
                 'string',
                 'required',
             ],
-            'start_date' => [
-                'required',
-                //'date_format:' . config('panel.date_format'),
-            ],
-            'end_date' => [
-                //'date_format:' . config('panel.date_format'),
-                'nullable',
-            ],
-            'rake_rate_adult' => [
-                'numeric',
-                'required',
-            ],
-            'rake_rate_child' => [
-                'numeric',
-                'required',
-            ],
-            'rake_rate_guide' => [
-                'numeric',
-                'required',
-            ],
         ];
     }
 }

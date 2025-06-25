@@ -24,14 +24,6 @@ class Service extends Model
     protected $fillable = [
         'name',
         'description',
-        'pillbox_text',
-        'activity_description',
-        'arrangements',
-        'requirements',
-        'inclusions_exclusions',
-        'notes',
-        'lat_lon_start',
-        'lat_long_end',
         'created_by_id',
         'updated_by_id',
         'created_at',
@@ -53,6 +45,11 @@ class Service extends Model
     public function updated_by()
     {
         return $this->belongsTo(User::class, 'updated_by_id');
+    }
+
+    public function seasons()
+    {
+        return $this->hasMany(Season::class, 'service_id');
     }
 
     public function team()

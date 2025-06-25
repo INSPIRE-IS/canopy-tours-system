@@ -7,14 +7,16 @@ import OutlineButton from "@/Components/OutlineButton";
 import BlueButton from "@/Components/BlueButton";
 
 
-const InventoryModal = ({ isOpen, onClose, mode, inventory = null,services, day__slots, auth, team }) => {
+const InventoryModal = ({ isOpen, onClose, mode, inventory = null,services, seasons, day__slots, auth, team }) => {
     // console.log("mode", mode);
      console.log("inventory", inventory);
+     console.log('inventory.time_slots', inventory?.time_slots);
      const [newTimeSlot, setNewTimeSlot] = useState("");
+     const [filteredSeasons, setFilteredSeasons] = useState([]);
     // console.log("roles", roles);
     const { data, setData, post, put, errors, reset, processing } = useForm({
         service_id: "",
-        season_name: "",
+        season_id: "",
         start_date: "",
         end_date: "",
         rake_rate_adult: "",
@@ -33,18 +35,18 @@ const InventoryModal = ({ isOpen, onClose, mode, inventory = null,services, day_
         if (inventory && mode !== "create") {
             setData({
                 service_id: inventory.service_id || "",
-                season_name: inventory.season_name || "",
+                season_id: inventory.season_id || "",
                 start_date: inventory.start_date || "",
                 end_date: inventory.end_date || "",
-                rake_rate_adult: inventory.end_date || "",
-                rake_rate_child: inventory.end_date || "",
-                rake_rate_guide: inventory.end_date || "",
-                allow_internal_price_override: inventory.end_date || 0,
+                rake_rate_adult: inventory.rake_rate_adult || "",
+                rake_rate_child: inventory.rake_rate_child || "",
+                rake_rate_guide: inventory.rake_rate_guide || "",
+                allow_internal_price_override: inventory.allow_internal_price_override || 0,
                 day_slots: inventory.day_slots || [1,2,3,4,5,6,7],
-                time_slots: inventory.day_slots || [],// Load existing time_slots
+                time_slots: inventory?.time_slots?.map(slot => slot.start_time) || [],
                 capacity: inventory.capacity || "",
                 allow_internal_override: inventory.allow_internal_override || "",
-                status: inventory.status || "",
+                status: inventory.status || 0,
                 updated_by_id: inventory.updated_by_id || "",
                 //roles: inventory.roles.map((role) => role.id),
 
@@ -53,6 +55,21 @@ const InventoryModal = ({ isOpen, onClose, mode, inventory = null,services, day_
             reset(); // Clear form for create mode
         }
     }, [mode,inventory,team]);
+
+
+    useEffect(() => {
+        console.log('data.service_id', data.service_id);
+        console.log('seasons', seasons);
+        if (data.service_id) {
+            const filtered = seasons.filter(
+                (item) => item.service_id == data.service_id
+            );
+            console.log('filtered', filtered);
+            setFilteredSeasons(filtered);
+        } else {
+            setFilteredSeasons([]);
+        }
+    }, [data.service_id, seasons]);
 
     const handleChange = (target, value) => {
         setData(target, value);
@@ -75,6 +92,7 @@ const InventoryModal = ({ isOpen, onClose, mode, inventory = null,services, day_
 
     const handleSubmit = (e) => {
         e.preventDefault();
+        console.log('data', data);
         if (mode === "create") {
             post(route("inventories.store"), {
                 onSuccess: () => {
@@ -112,14 +130,15 @@ const InventoryModal = ({ isOpen, onClose, mode, inventory = null,services, day_
                         onChange={(e) => handleChange(e.target.name, e.target.value)}
                         error={errors.service_id}
                         options={services}
-                    />     
-                    <InputText
-                        title="Season/Name"
-                        field="season_name"
-                        value={data.season_name}
+                    /> 
+                    <CustomSelect
+                        label="Season/Name"
+                        name="season_id"
+                        value={data.season_id}
                         mode={mode}
-                        handleChange={handleChange}
-                        errors={errors}
+                        onChange={(e) => handleChange(e.target.name, e.target.value)}
+                        error={errors.season_id}
+                        options={filteredSeasons}
                     />
                     </div>
                     <div className="flex flex-row w-full items-center gap-2 justify-between mb-4">

@@ -12,6 +12,7 @@ use App\Http\Controllers\Admin\SeasonsController;
 use App\Http\Controllers\Admin\ServicesController;
 use App\Http\Controllers\Admin\TeamController;
 use App\Http\Controllers\Admin\UsersController;
+use App\Http\Controllers\Front\ActivityController;
 use App\Http\Controllers\ProfileController;
 use App\Models\Service;
 use Illuminate\Foundation\Application;
@@ -29,24 +30,31 @@ use Inertia\Inertia;
 |
 */
 
-Route::get('/', function () {
-    return Inertia::render('Welcome', [
-        'canLogin' => Route::has('login'),
-        'canRegister' => Route::has('register'),
-        'laravelVersion' => Application::VERSION,
-        'phpVersion' => PHP_VERSION,
-    ]);
-});
+// Route::get('/', function () {
+//     return Inertia::render('Welcome', [
+//         'canLogin' => Route::has('login'),
+//         'canRegister' => Route::has('register'),
+//         'laravelVersion' => Application::VERSION,
+//         'phpVersion' => PHP_VERSION,
+//     ]);
+// });
 
 Route::get('/dashboard', function () {
     return Inertia::render('Dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
 
-Route::get('/activities', function () {
-    return Inertia::render('Activities');
-})->name('activities');
-Route::resource('questionnaire', QuestionnaireController::class);
+// Route::get('/activities', function () {
+//     return Inertia::render('Activities');
+// })->name('activities');
 
+Route::get('/', [ActivityController::class, 'index'])->name('welcome');
+Route::get('front/welcome', [ActivityController::class, 'index'])->name('front.welcome');
+Route::get('/activity', [ActivityController::class, 'activity'])->name('front.activity');
+Route::get('/activity/calendar', [ActivityController::class, 'calendar'])->name('front.activity.calendar');
+Route::get('front/voucher', [ActivityController::class, 'voucher'])->name('front.voucher');
+
+
+Route::resource('questionnaire', QuestionnaireController::class);
 Route::get('/continents', [QuestionnaireController::class, 'getContinents']);
 Route::get('/countries/{continent_id}', [QuestionnaireController::class, 'getCountries']);
 Route::get('/states/{country_id}', [QuestionnaireController::class, 'getStates']);
@@ -71,7 +79,9 @@ Route::middleware('auth')->group(function () {
     // Roles
     Route::resource('roles', RolesController::class);
     // Team
-    Route::get('/teams/{team_id}/change', [TeamController::class, 'change'])->name('teams.change');
+    //Route::get('/teams/{team_id}/change', [TeamController::class, 'change'])->name('teams.change');
+    Route::post('/teams/change', [TeamController::class, 'change'])->name('teams.change');
+
     Route::resource('teams', TeamController::class);
     // Users
     Route::resource('users', UsersController::class);

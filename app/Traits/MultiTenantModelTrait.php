@@ -10,7 +10,8 @@ trait MultiTenantModelTrait
     public static function bootMultiTenantModelTrait()
     {
         if (! app()->runningInConsole() && auth()->check()) {
-            $isAdmin = auth()->user()->roles->contains(1);
+            $isAdmin = auth()->user()->roles->contains(1) && is_null(auth()->user()->team_id);
+            // $isAdmin = auth()->user()->roles->contains(1); 
 
             static::creating(function ($model) use ($isAdmin) {
                 // Prevent admin from setting his own id - admin entries are global.

@@ -14,12 +14,6 @@ return new class extends Migration
         Schema::create('seasons', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->date('start_date');
-            $table->date('end_date')->nullable();
-            $table->float('rake_rate_adult', 8, 2);
-            $table->float('rake_rate_child', 8, 2);
-            $table->float('rake_rate_guide', 8, 2);
-            $table->boolean('allow_internal_price_override')->default(0)->nullable();
             $table->timestamps();
             $table->softDeletes();
 

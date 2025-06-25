@@ -24,7 +24,7 @@ class Inventory extends Model
 
     protected $fillable = [
         'service_id',
-        'season_name',
+        'season_id',
         'start_date',
         'end_date',
         'rake_rate_adult',
@@ -52,6 +52,11 @@ class Inventory extends Model
     public function service()
     {
         return $this->belongsTo(Service::class, 'service_id');
+    }
+
+    public function season()
+    {
+        return $this->belongsTo(Season::class, 'season_id');
     }
 
     public function getStartDateAttribute($value)
@@ -86,7 +91,7 @@ class Inventory extends Model
 
     public function timeSlots()
     {
-        return $this->hasMany(InventoryTimeSlot::class);
+        return $this->hasMany(InventoryTimeSlot::class, 'inventory_id');
     }
 
     public function updated_by()

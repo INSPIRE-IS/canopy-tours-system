@@ -26,23 +26,25 @@ class InventoryController extends Controller
     {
         abort_if(Gate::denies('inventory_access'), 403);
         $searchTerm = $request->get('search', '');
-        $sortColumn = $request->get('sort', 'season_name');
+        $sortColumn = $request->get('sort', 'start_date');
         $sortDirection = $request->get('direction', 'asc');
         /** @var \App\Models\User $user */
         $teamId = Session::get('team_id');
         //$seasons = Season::with(['service', 'updated_by', 'team'])
-        $inventories = Inventory::with(['service', 'typeDays', 'timeSlots', 'team'])
-            ->where('season_name', 'like', '%' . $searchTerm . '%')
+        $inventories = Inventory::with(['service', 'season', 'typeDays', 'timeSlots', 'team'])
+            ->where('start_date', 'like', '%' . $searchTerm . '%')
             ->orderBy($sortColumn, $sortDirection)
             ->paginate(10);
         //dd($inventories);
         $services = Service::select('name', 'id')->get();
+        $seasons = Season::select('name', 'id', 'service_id')->get();
         $day_slots = TypeDay::select('name', 'id')->get();
         //$time_slots = TypeTimeSlot::select('name', 'id')->get();
-        // dd($services);
+        //dd($services);
         return Inertia::render('Admin/Inventories/Index', [
 
             'services' => $services,
+            'seasons' => $seasons,
             'inventories' => $inventories,
             'day_slots' => $day_slots,
             'searchTerm' => $searchTerm,
@@ -109,9 +111,37 @@ class InventoryController extends Controller
     public function update(UpdateInventoryRequest $request, Inventory $inventory)
     {
         $inventory->update($request->all());
-        $inventory->time_slots()->sync($request->input('time_slots', []));
+        //$inventory->time_slots()->sync($request->input('time_slots', []));
+        // Clear existing related slots
+        $inventory->typeDays()->delete();
+        $inventory->timeSlots()->delete();
 
-        return redirect()->route('Admin.inventories.index');
+        // Prepare new day slot records
+        $daySlotRecords = collect($request->day_slots)->map(fn($typeDayId) => [
+            'inventory_id' => $inventory->id,
+            'type_day_id' => $typeDayId,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ])->toArray();
+
+        // Prepare new time slot records (adjust depending on format)
+        $timeSlotRecords = collect($request->time_slots)->map(function ($slot) use ($inventory) {
+            return [
+                'inventory_id' => $inventory->id,
+                'start_time' => is_array($slot) ? $slot['start_time'] : $slot,
+                //'end_time' => is_array($slot) && isset($slot['end_time']) ? $slot['end_time'] : null,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ];
+        })->toArray();
+
+        // Bulk insert
+        InventoryTypeDay::insert($daySlotRecords);
+        InventoryTimeSlot::insert($timeSlotRecords);
+
+
+
+        return redirect()->route('inventories.index');
     }
 
     public function show(Inventory $inventory)

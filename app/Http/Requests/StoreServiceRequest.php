@@ -25,32 +25,32 @@ class StoreServiceRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => [
-                'string',
-                'required',
-                'unique:services',
-            ],
-            'pillbox_text' => [
-                'string',
-                'required',
-            ],
-            'arrangements' => [
-                'required',
-            ],
-            'inclusions_exclusions' => [
-                'required',
-            ],
-            'notes' => [
-                'required',
-            ],
-            'lat_lon_start' => [
-                'string',
-                'required',
-            ],
-            'lat_long_end' => [
-                'string',
-                'required',
-            ],
+            // 'name' => [
+            //     'string',
+            //     'required',
+            //     'unique:services',
+            // ],
+            // 'pillbox_text' => [
+            //     'string',
+            //     'required',
+            // ],
+            // 'arrangements' => [
+            //     'required',
+            // ],
+            // 'inclusions_exclusions' => [
+            //     'required',
+            // ],
+            // 'notes' => [
+            //     'required',
+            // ],
+            // 'lat_lon_start' => [
+            //     'string',
+            //     'required',
+            // ],
+            // 'lat_long_end' => [
+            //     'string',
+            //     'required',
+            // ],
         ];
     }
 }

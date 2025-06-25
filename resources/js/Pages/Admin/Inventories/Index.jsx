@@ -106,7 +106,7 @@ console.log('timeSlots:', inventories?.data?.[0]?.time_slots);
                                 <tr key={inventory.id} className="flex justify-between items-center hover:bg-gray-50">
                                 <td className="w-[95px] p-3">{inventory.id}</td>
                                 <td className="w-[95px] p-3">{inventory.service.name}</td>
-                                <td className="w-[95px] p-3">{inventory.season_name}</td>
+                                <td className="w-[95px] p-3">{inventory.season.name}</td>
                                 <td className="w-[185px] p-3">{inventory.start_date}</td>
                                 <td className="w-[185px] p-3">{inventory.end_date}</td>
                                 <td className="w-[132px] p-3">{inventory?.time_slots?.map((r) => r.start_time).join(', ')}</td>

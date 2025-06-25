@@ -6,11 +6,15 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\MassDestroyServiceRequest;
 use App\Http\Requests\StoreServiceRequest;
 use App\Http\Requests\UpdateServiceRequest;
+use App\Models\File;
 use App\Models\Service;
+use App\Models\SeasonField;
+use App\Models\SeasonFieldValue;
 use App\Models\User;
 use Gate;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Session;
+use Illuminate\Support\Facades\Validator;
 use Inertia\Inertia;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -24,7 +28,12 @@ class ServicesController extends Controller
         $sortDirection = $request->get('direction', 'asc');
         /** @var \App\Models\User $user */
         $teamId = Session::get('team_id');
-        $services = Service::with(['created_by', 'updated_by', 'team'])
+        $services = Service::with([
+
+            'created_by',
+            'updated_by',
+            'team',
+        ])
             ->where('name', 'like', '%' . $searchTerm . '%')
             ->orderBy($sortColumn, $sortDirection)
             ->paginate(10);
@@ -34,12 +43,15 @@ class ServicesController extends Controller
             'searchTerm' => $searchTerm,
             'sortColumn' => $sortColumn,
             'sortDirection' => $sortDirection,
+            'fieldValues' => null,
         ]);
     }
 
     public function store(StoreServiceRequest $request)
     {
+        //dd($request->all());
         $service = Service::create($request->all());
+
 
         return redirect()->route('services.index');
     }

@@ -37,4 +37,18 @@ class InventoryTimeSlot extends Model
     {
         return $this->belongsTo(Inventory::class, 'inventory_id');
     }
+
+    public function team()
+    {
+        return $this->belongsTo(Team::class, 'team_id');
+    }
+    public function time_slot()
+    {
+        return $this->belongsTo(TypeTimeSlot::class, 'time_slot_id');
+    }
+
+    public function updated_by()
+    {
+        return $this->belongsTo(User::class, 'updated_by_id');
+    }
 }

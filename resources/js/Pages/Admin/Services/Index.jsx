@@ -11,7 +11,7 @@ import BlueButton from '@/Components/BlueButton';
 import Pagination from '@/Components/Pagination';
 
 
-export default function Index({ permissions,services,teams,auth, searchTerm, sortColumn, sortDirection }) {
+export default function Index({ permissions,services, auth, searchTerm, sortColumn, sortDirection }) {
   //const [modalOpen, setModalOpen] = useState(false);
 
   const [selectedservice, setSelectedservice] = useState(null);
@@ -139,7 +139,6 @@ export default function Index({ permissions,services,teams,auth, searchTerm, sor
                 onClose={handleCloseModal}
                 mode={modalMode}
                 service={selectedservice}
-                services={services}
                 auth={auth}
                 team = {auth?.team}
             />

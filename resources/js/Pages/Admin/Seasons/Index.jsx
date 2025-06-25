@@ -11,12 +11,12 @@ import BlueButton from '@/Components/BlueButton';
 import Pagination from '@/Components/Pagination';
 
 
-export default function Index({ permissions,seasons,services,auth, searchTerm, sortColumn, sortDirection }) {
+export default function Index({ permissions,seasons,services,seasonFields,auth, searchTerm, sortColumn, sortDirection }) {
   //const [modalOpen, setModalOpen] = useState(false);
 
   const [selectedSeason, setSelectedSeason] = useState(null);
   const { props } = usePage();
-    console.log('auth on season ', auth);
+    console.log('seasons on season ', seasons);
     const [search, setSearch] = useState(searchTerm);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalMode, setModalMode] = useState("create");
@@ -152,6 +152,7 @@ export default function Index({ permissions,seasons,services,auth, searchTerm, s
                 mode={modalMode}
                 season={selectedSeason}
                 services={services}
+                seasonFields={seasonFields}
                 team = {auth?.team}
                 auth = {auth}
             />

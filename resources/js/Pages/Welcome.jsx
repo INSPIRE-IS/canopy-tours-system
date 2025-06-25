@@ -1,75 +1,76 @@
 import React from 'react';
-import { Link, Head } from '@inertiajs/react';
+import { Link, Head, router } from '@inertiajs/react';
 import Card from '@/components/ui/card';
 import Button from '@/components/ui/button';
 import Calendar from '@/components/ui/calendar';
 import Input from '@/components/ui/input';
 import Select from '@/components/ui/select';
 
-const activities = [
-  {
-    id: 1,
-    category: 'Canopy Tour',
-    title: 'Tsitsikamma Canopy Tour',
-    price: 'R895.00',
-    image: '/images/card1.jpg',
-    badge: '1 Adult',
-    gift: true,
-    minPeople: 1,
-  },
-  {
-    id: 2,
-    category: 'Woodcutters',
-    title: 'Tsitsikamma Woodcutters Journey',
-    price: 'R540.00',
-    image: '/images/card2.jpg',
-    badge: 'Requires a minimum of 2 People',
-    gift: true,
-    minPeople: 2,
-  },
-  {
-    id: 3,
-    category: 'Guided Hikes',
-    title: 'Tsitsikamma Guided Hikes Green route: 5.09km',
-    price: 'R270.00',
-    image: '/images/card3.jpg',
-    badge: 'Book Now From 21 February 2025',
-    gift: true,
-    minPeople: 2,
-  },
-    {
-    id: 4,
-    category: 'Guided Hikes',
-    title: 'Tsitsikamma Guided Hikes Green route: 5.09km',
-    price: 'R270.00',
-    image: '/images/card4.jpg',
-    badge: 'Book Now From 21 February 2025',
-    gift: true,
-    minPeople: 2,
-  },
-    {
-    id: 5,
-    category: 'Guided Hikes',
-    title: 'Tsitsikamma Guided Hikes Green route: 5.09km',
-    price: 'R270.00',
-    image: '/images/card5.jpg',
-    badge: 'Book Now From 21 February 2025',
-    gift: true,
-    minPeople: 2,
-  },
-    {
-    id: 6,
-    category: 'Guided Hikes',
-    title: 'Tsitsikamma Guided Hikes Green route: 5.09km',
-    price: 'R270.00',
-    image: '/images/card6.jpg',
-    badge: 'Book Now From 21 February 2025',
-    gift: true,
-    minPeople: 2,
-  },
-];
+// const activities = [
+//   {
+//     id: 1,
+//     category: 'Canopy Tour',
+//     title: 'Tsitsikamma Canopy Tour',
+//     price: 'R895.00',
+//     image: '/images/card1.jpg',
+//     badge: '1 Adult',
+//     gift: true,
+//     minPeople: 1,
+//   },
+//   {
+//     id: 2,
+//     category: 'Woodcutters',
+//     title: 'Tsitsikamma Woodcutters Journey',
+//     price: 'R540.00',
+//     image: '/images/card2.jpg',
+//     badge: 'Requires a minimum of 2 People',
+//     gift: true,
+//     minPeople: 2,
+//   },
+//   {
+//     id: 3,
+//     category: 'Guided Hikes',
+//     title: 'Tsitsikamma Guided Hikes Green route: 5.09km',
+//     price: 'R270.00',
+//     image: '/images/card3.jpg',
+//     badge: 'Book Now From 21 February 2025',
+//     gift: true,
+//     minPeople: 2,
+//   },
+//     {
+//     id: 4,
+//     category: 'Guided Hikes',
+//     title: 'Tsitsikamma Guided Hikes Red route: 7.78km',
+//     price: 'R390.00',
+//     image: '/images/card4.jpg',
+//     badge: 'Requires a minimum of 2 People',
+//     gift: true,
+//     minPeople: 2,
+//   },
+//     {
+//     id: 5,
+//     category: 'Guided Hikes',
+//     title: 'Tsitsikamma Guided Hikes Yellow route 8.09km',
+//     price: 'R450.00',
+//     image: '/images/card5.jpg',
+//     badge: 'Requires a minimum of 2 People',
+//     gift: true,
+//     minPeople: 2,
+//   },
+//     {
+//     id: 6,
+//     category: 'Guided Hikes',
+//     title: 'Tsitsikamma Canopy Tour Photographic Scavenger Hunt',
+//     price: 'R1183.00',
+//     image: '/images/card6.jpg',
+//     badge: 'Book Now From 21 February 2025',
+//     gift: true,
+//     minPeople: 2,
+//   },
+// ];
 
-export default function HomePage() {
+export default function HomePage({activities}) {
+  console.log('activities', activities);
   const [date, setDate] = React.useState(new Date());
 
   return (
@@ -122,9 +123,21 @@ export default function HomePage() {
         </div>
 
       <div className="mt-10 grid md:grid-cols-3 sm:grid-cols-2 grid-cols-1 gap-6">
-        {activities.map((activity) => (
-          <Card key={activity.id} image={activity.image} title={activity.title} category={activity.category} price={activity.price} badge={activity.badge} gift={activity.gift} />
-        ))}
+        {activities?.map((activity) => {
+          console.log('activity', activity);
+          return(
+          <Card 
+          key={activity?.id} 
+          image={activity?.image} 
+          service={activity?.service} 
+          season={activity?.season}
+          price={activity?.price} 
+          badge={activity?.badge} 
+          gift={activity?.gift} 
+          onBook={() => router.get(route('front.activity',{activity_id: activity?.id}))}
+          onGift={() => router.get(route('front.voucher',{activity_id:activity?.id}))}
+          />
+        )})}
       </div>
     </div>    
     </>

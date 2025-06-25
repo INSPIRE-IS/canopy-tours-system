@@ -29,9 +29,9 @@ class StoreInventoryRequest extends FormRequest
                 'required',
                 'integer',
             ],
-            'season_name' => [
-                'string',
+            'season_id' => [
                 'required',
+                'integer',
             ],
             'start_date' => [
                 'required',
