@@ -103,7 +103,7 @@ export default function Index({ permissions,wholesalers, auth, searchTerm, sortC
                             <thead className="bg-gray-50 text-left text-gray-500">
                             <tr className='flex justify-between items-center'>
                                 <th className="w-[95px] p-3">ID</th>
-                                <th className="w-[95px] p-3">Name</th>
+                                <th className="w-[300px] p-3">Name</th>
                                 <th className="w-[185px] p-3">Actions</th>
                             </tr>
                             </thead>
@@ -111,7 +111,7 @@ export default function Index({ permissions,wholesalers, auth, searchTerm, sortC
                             {wholesalers?.data.map((wholesaler, i) => (
                                 <tr key={wholesaler.id} className="flex justify-between items-center hover:bg-gray-50">
                                 <td className="w-[95px] p-3">{wholesaler.id}</td>
-                                <td className="w-[95px] p-3">{wholesaler.name}</td>
+                                <td className="w-[300px] p-3">{wholesaler.name}</td>
                                 <td className="w-[185px] p-3 flex  gap-2">
                                     {permissions.wholesalers_edit && (
                                     <button onClick={() => handleOpenModal("edit",wholesaler)}

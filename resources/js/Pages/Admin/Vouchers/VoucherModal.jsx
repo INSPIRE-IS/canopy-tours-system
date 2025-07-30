@@ -6,18 +6,24 @@ import BlueButton from "@/Components/BlueButton";
 import CustomTextarea from "@/Components/CustomTextarea";
 import Tiptap from "@/Components/Tiptap";
 import parse from "html-react-parser";
+import CustomSelect from "@/Components/CustomSelect";
+import CustomInputText from "@/Components/CustomInputText";
 
 
-const VoucherModal = ({ isOpen, onClose, mode, voucher = null, voucherFields, fieldValues, auth, team }) => {
+const VoucherModal = ({ isOpen, onClose, mode, voucher = null, services, auth, team_id }) => {
     // console.log("mode", mode);
      console.log("voucher", voucher);
     // console.log("roles", roles);
-const [note, setNote] = useState("");
-const [file, setFile] = useState(null);
+    const [seasons, setSeasons] = useState([]);
 
     const { data, setData, post, put, errors, reset, processing } = useForm({
         voucher_code: "",
         note: "",
+        amount: "",
+        expire_date: "",
+        service_id: "",
+        season_id: "",
+        team_id: team_id,
         created_by_id: auth?.user?.id,
         updated_by_id: auth?.user?.id,
     });
@@ -26,14 +32,34 @@ const [file, setFile] = useState(null);
         if (voucher && mode !== "create") {
             setData({
                 voucher_code: voucher?.voucher_code || "",
+                amount: voucher?.amount || "",
                 note: voucher?.note || "",
+                expire_date: voucher?.expire_date || "",
+                service_id: voucher?.service_id || "",
+                season_id: voucher?.season_id || "",
+                team_id: team_id,
                 created_by_id: voucher.created_by_id || auth?.user?.id,
                 updated_by_id: voucher.updated_by_id || auth?.user?.id,
             });
         } else if (mode === "create") {
             reset(); // Clear form for create mode
         }
-    }, [mode,voucher,team]);
+    }, [mode,voucher,team_id]);
+
+    useEffect(() => {
+        const selectedService = services.find(s => {
+            console.log('service', s);
+            console.log('service_id ', data.service_id);
+            const selected = s.id === parseInt(data.service_id);
+            console.log(selected);
+
+            return selected;
+        });
+        console.log(selectedService);
+        const seasons = selectedService ? setSeasons(selectedService.seasons) : [];
+        console.log('seasons', selectedService?.seasons);
+
+    }, [data.service_id]);
 
     const handleChange = (target, value) => {
         setData(target, value);
@@ -43,11 +69,11 @@ const [file, setFile] = useState(null);
     const handleSubmit = (e) => {
         e.preventDefault();
         if (mode === "create") {
-            post(route("vouchers.store"), {
+            post(route("admin.vouchers.store"), {
                 onSuccess: () => onClose(),
             });
         } else if (mode === "edit") {
-            put(route("vouchers.update", voucher.id), {
+            put(route("admin.vouchers.update", voucher.id), {
                 onSuccess: () => onClose(),
             });
         }
@@ -75,6 +101,18 @@ const [file, setFile] = useState(null);
                             handleChange={handleChange}
                             errors={errors}
                         />
+                        <CustomInputText
+                            title="Amount"
+                            id="amount"
+                            name="amount"
+                            type='number'
+                            value={data.amount}
+                            
+                            onChange={(e) => {handleChange(e.target.name, e.target.value);}}
+                            errors={errors}
+                        />
+                    </div>
+                    <div className="flex flex-row w-full items-center gap-2 justify-between mb-4">
                         <InputText
                             title="Note"
                             field="note"
@@ -84,17 +122,37 @@ const [file, setFile] = useState(null);
                             errors={errors}
                             isRequired
                             isReadOnly={mode === "view"}
-                        />  
-                      {/*   <div className="w-full mb-4">
-                            <label className="block text-main mb-1">Note</label>
-                            <Tiptap setNote={setNote} />                           
-                        </div>*/}
-                    {/*  show the note in a textarea
-                    <div className="flex flex-row w-full items-center gap-2 justify-between mb-4">
-                        <div className="ProseMirror">{parse(note)}</div>
-                    </div>      
-                    */}                        
+                        />
+                        <CustomSelect
+                            label="Service"
+                            name="service_id"
+                            value={data.service_id}
+                            onChange={(e) => handleChange(e.target.name, e.target.value)}
+                            error={errors.service_id}
+                            options={services}
+                        /> 
 
+                    </div>
+                    <div className="flex flex-row w-full items-center gap-2 justify-between mb-4">
+                        <CustomSelect
+                            label="Season"
+                            name="season_id"
+                            value={data.season_id}
+                            
+                            onChange={(e) => handleChange(e.target.name, e.target.value)}
+                            error={errors.season_id}
+                            options={seasons}
+                        />                        
+                        <CustomInputText
+                            title="Expire Date"
+                            id="expire_date"
+                            name="expire_date"
+                            type='date'
+                            value={data.expire_date}
+                            
+                            onChange={(e) => {handleChange(e.target.name, e.target.value);}}
+                            errors={errors}
+                        />
                     </div>
 
                     <div className="flex justify-center gap-4">

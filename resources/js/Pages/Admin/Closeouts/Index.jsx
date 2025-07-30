@@ -11,7 +11,7 @@ import Pagination from '@/Components/Pagination';
 import ServicesHeader from '@/Components/ServicesHeader';
 
 
-export default function Index({ permissions,closeouts, auth, searchTerm, sortColumn, sortDirection }) {
+export default function Index({ permissions,closeouts, seasons, services, auth, searchTerm, sortColumn, sortDirection }) {
   //const [modalOpen, setModalOpen] = useState(false);
 
   const [selectedCloseout, setSelectedCloseout] = useState(null);
@@ -104,6 +104,9 @@ export default function Index({ permissions,closeouts, auth, searchTerm, sortCol
                             <tr className='flex justify-between items-center'>
                                 <th className="w-[95px] p-3">ID</th>
                                 <th className="w-[95px] p-3">Name</th>
+                                <th className="w-[105px] p-3">Start Date</th>
+                                <th className="w-[105px] p-3">End Date</th>
+                                <th className="w-[95px] p-3">Season</th>
                                 <th className="w-[185px] p-3">Actions</th>
                             </tr>
                             </thead>
@@ -112,6 +115,9 @@ export default function Index({ permissions,closeouts, auth, searchTerm, sortCol
                                 <tr key={closeout.id} className="flex justify-between items-center hover:bg-gray-50">
                                 <td className="w-[95px] p-3">{closeout.id}</td>
                                 <td className="w-[95px] p-3">{closeout.name}</td>
+                                <td className="w-[105px] p-3">{closeout.start_date}</td>
+                                <td className="w-[105px] p-3">{closeout.end_date}</td>
+                                <td className="w-[95px] p-3">{closeout.season?.name}</td>
                                 <td className="w-[185px] p-3 flex  gap-2">
                                     {permissions.closeouts_edit && (
                                     <button onClick={() => handleOpenModal("edit",closeout)}
@@ -151,7 +157,9 @@ export default function Index({ permissions,closeouts, auth, searchTerm, sortCol
                 mode={modalMode}
                 closeout={selectedCloseout}
                 auth={auth}
-                team = {auth?.team}
+                seasons={seasons}
+                services={services}
+                team_id = {auth?.user.team_id}
             />
             </div>
         </div> 

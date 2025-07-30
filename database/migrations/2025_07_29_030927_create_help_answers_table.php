@@ -17,7 +17,7 @@ return new class extends Migration
             $table->timestamps();
             $table->softDeletes();
 
-            $table->foreignId('help_questions')->constrained('help_questions')->onDelete('cascade');
+            $table->foreignId('help_question_id')->constrained('help_questions')->onDelete('cascade');
         });
     }
 

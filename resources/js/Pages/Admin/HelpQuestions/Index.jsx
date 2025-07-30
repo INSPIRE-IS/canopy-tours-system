@@ -11,7 +11,7 @@ import Pagination from '@/Components/Pagination';
 import ServicesHeader from '@/Components/ServicesHeader';
 
 
-export default function Index({ permissions,helpQuestions, auth, searchTerm, sortColumn, sortDirection }) {
+export default function Index({ permissions,helpQuestions,typeHelpQuestions, auth, searchTerm, sortColumn, sortDirection }) {
   //const [modalOpen, setModalOpen] = useState(false);
 
   const [selectedHelpQuestion, setSelectedHelpQuestion] = useState(null);
@@ -149,8 +149,9 @@ export default function Index({ permissions,helpQuestions, auth, searchTerm, sor
                 onClose={handleCloseModal}
                 mode={modalMode}
                 helpQuestion={selectedHelpQuestion}
+                typeHelpQuestions={typeHelpQuestions}
                 auth={auth}
-                team = {auth?.team}
+                team_id = {auth?.user.team_id}
             />
             </div>
         </div> 

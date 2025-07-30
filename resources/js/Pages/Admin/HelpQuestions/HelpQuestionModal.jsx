@@ -6,9 +6,10 @@ import BlueButton from "@/Components/BlueButton";
 import CustomTextarea from "@/Components/CustomTextarea";
 import Tiptap from "@/Components/Tiptap";
 import parse from "html-react-parser";
+import CustomSelect from "@/Components/CustomSelect";
 
 
-const HelpQuestionModal = ({ isOpen, onClose, mode, helpQuestion = null, helpQuestionFields, fieldValues, auth, team }) => {
+const HelpQuestionModal = ({ isOpen, onClose, mode, helpQuestion = null, typeHelpQuestions, auth, team_id }) => {
     // console.log("mode", mode);
      console.log("helpQuestion", helpQuestion);
     // console.log("roles", roles);
@@ -17,7 +18,9 @@ const [file, setFile] = useState(null);
 
     const { data, setData, post, put, errors, reset, processing } = useForm({
         question: "",
+        type_help_question_id: "",
         answer: "",
+        team_id: team_id,
         created_by_id: auth?.user?.id,
         updated_by_id: auth?.user?.id,
     });
@@ -26,14 +29,16 @@ const [file, setFile] = useState(null);
         if (helpQuestion && mode !== "create") {
             setData({
                 question: helpQuestion?.question || "",
+                type_help_question_id: helpQuestion?.type_help_question_id || "",
                 answer: helpQuestion?.answer || "",
+                team_id: team_id,
                 created_by_id: helpQuestion.created_by_id || auth?.user?.id,
                 updated_by_id: helpQuestion.updated_by_id || auth?.user?.id,
             });
         } else if (mode === "create") {
             reset(); // Clear form for create mode
         }
-    }, [mode,helpQuestion,team]);
+    }, [mode,helpQuestion,team_id]);
 
     const handleChange = (target, value) => {
         setData(target, value);
@@ -75,6 +80,17 @@ const [file, setFile] = useState(null);
                             handleChange={handleChange}
                             errors={errors}
                         />
+                        <CustomSelect
+                            label="Type Help Question"
+                            name="type_help_question_id"
+                            value={data.type_help_question_id}
+                            
+                            onChange={(e) => handleChange(e.target.name, e.target.value)}
+                            error={errors.type_help_question_id}
+                            options={typeHelpQuestions}
+                            />
+                        </div>
+                        <div className="flex flex-row w-full items-center gap-2 justify-between mb-4">
                         <InputText
                             title="Answer"
                             field="answer"
@@ -84,16 +100,7 @@ const [file, setFile] = useState(null);
                             errors={errors}
                             isRequired
                             isReadOnly={mode === "view"}
-                        />  
-                      {/*   <div className="w-full mb-4">
-                            <label className="block text-main mb-1">answer</label>
-                            <Tiptap setAnswer={setAnswer} />                           
-                        </div>*/}
-                    {/*  show the answer in a textarea
-                    <div className="flex flex-row w-full items-center gap-2 justify-between mb-4">
-                        <div className="ProseMirror">{parse(answer)}</div>
-                    </div>      
-                    */}                        
+                        />                        
 
                     </div>
 

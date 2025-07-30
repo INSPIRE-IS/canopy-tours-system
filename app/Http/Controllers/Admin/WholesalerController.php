@@ -42,35 +42,13 @@ class WholesalerController extends Controller
     }
 
     /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
-    }
-
-    /**
      * Store a newly created resource in storage.
      */
     public function store(Request $request)
     {
-        //
-    }
-
-    /**
-     * Display the specified resource.
-     */
-    public function show(Wholesaler $wholesaler)
-    {
-        //
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(Wholesaler $wholesaler)
-    {
-        //
+        //dd($request->all());
+        $wholesaler = Wholesaler::create($request->all());
+        return redirect()->route('admin.wholesalers.index');
     }
 
     /**
@@ -78,7 +56,8 @@ class WholesalerController extends Controller
      */
     public function update(Request $request, Wholesaler $wholesaler)
     {
-        //
+        $wholesaler->update($request->all());
+        return redirect()->route('admin.wholesalers.index');
     }
 
     /**
@@ -86,6 +65,7 @@ class WholesalerController extends Controller
      */
     public function destroy(Wholesaler $wholesaler)
     {
-        //
+        $wholesaler->delete();
+        return redirect()->route('admin.wholesalers.index');
     }
 }

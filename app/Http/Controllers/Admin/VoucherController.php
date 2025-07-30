@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Service;
 use App\Models\Voucher;
 use Gate;
 use Illuminate\Http\Request;
@@ -31,8 +32,11 @@ class VoucherController extends Controller
             ->orderBy($sortColumn, $sortDirection)
             ->paginate(10);
 
+        $services = Service::with('seasons')->select('id', 'name')->get();
+
         return Inertia::render('Admin/Vouchers/Index', [
             'vouchers' => $vouchers,
+            'services' => $services,
             'searchTerm' => $searchTerm,
             'sortColumn' => $sortColumn,
             'sortDirection' => $sortDirection,
@@ -40,44 +44,26 @@ class VoucherController extends Controller
         ]);
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
-    }
 
     /**
      * Store a newly created resource in storage.
      */
     public function store(Request $request)
     {
-        //
+        //dd($request->all());
+        $voucher = Voucher::create($request->all());
+
+        return redirect()->route('admin.vouchers.index');
     }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(Voucher $voucher)
-    {
-        //
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(Voucher $voucher)
-    {
-        //
-    }
 
     /**
      * Update the specified resource in storage.
      */
     public function update(Request $request, Voucher $voucher)
     {
-        //
+        $voucher->update($request->all());
+        return redirect()->route('admin.vouchers.index');
     }
 
     /**
@@ -85,6 +71,7 @@ class VoucherController extends Controller
      */
     public function destroy(Voucher $voucher)
     {
-        //
+        $voucher->delete();
+        return redirect()->route('admin.vouchers.index');
     }
 }

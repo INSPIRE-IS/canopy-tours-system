@@ -11,7 +11,7 @@ import Pagination from '@/Components/Pagination';
 import ServicesHeader from '@/Components/ServicesHeader';
 
 
-export default function Index({ permissions,vouchers, auth, searchTerm, sortColumn, sortDirection }) {
+export default function Index({ permissions,vouchers, services, auth, searchTerm, sortColumn, sortDirection }) {
   //const [modalOpen, setModalOpen] = useState(false);
 
   const [selectedVoucher, setSelectedVoucher] = useState(null);
@@ -103,7 +103,10 @@ export default function Index({ permissions,vouchers, auth, searchTerm, sortColu
                             <thead className="bg-gray-50 text-left text-gray-500">
                             <tr className='flex justify-between items-center'>
                                 <th className="w-[95px] p-3">ID</th>
-                                <th className="w-[95px] p-3">Name</th>
+                                <th className="w-[95px] p-3">Voucher Code</th>
+                                <th className="w-[95px] p-3">Amount</th>
+                                <th className="w-[95px] p-3">Expire Date</th>
+                                <th className="w-[95px] p-3">Season</th>
                                 <th className="w-[185px] p-3">Actions</th>
                             </tr>
                             </thead>
@@ -111,7 +114,10 @@ export default function Index({ permissions,vouchers, auth, searchTerm, sortColu
                             {vouchers?.data.map((voucher, i) => (
                                 <tr key={voucher.id} className="flex justify-between items-center hover:bg-gray-50">
                                 <td className="w-[95px] p-3">{voucher.id}</td>
-                                <td className="w-[95px] p-3">{voucher.name}</td>
+                                <td className="w-[95px] p-3">{voucher.voucher_code}</td>
+                                <td className="w-[95px] p-3">{voucher.amount}</td>
+                                <td className="w-[95px] p-3">{voucher.expire_date}</td>
+                                <td className="w-[95px] p-3">{voucher.season?.name}</td>
                                 <td className="w-[185px] p-3 flex  gap-2">
                                     {permissions.vouchers_edit && (
                                     <button onClick={() => handleOpenModal("edit",voucher)}
@@ -150,8 +156,9 @@ export default function Index({ permissions,vouchers, auth, searchTerm, sortColu
                 onClose={handleCloseModal}
                 mode={modalMode}
                 voucher={selectedVoucher}
+                services={services}
                 auth={auth}
-                team = {auth?.team}
+                team_id = {auth?.user.team_id}
             />
             </div>
         </div> 

@@ -4,7 +4,10 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\HelpQuestion;
+use App\Models\TypeHelpQuestion;
+use Gate;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Session;
 use Inertia\Inertia;
 
 class HelpQuestionsController extends Controller
@@ -12,10 +15,28 @@ class HelpQuestionsController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
+
+        abort_if(Gate::denies('service_access'), 403);
+        $searchTerm = $request->get('search', '');
+        $sortColumn = $request->get('sort', 'question');
+        $sortDirection = $request->get('direction', 'asc');
+        /** @var \App\Models\User $user */
+        $teamId = Session::get('team_id');
+        $closeouts = HelpQuestion::with(['typeHelpQuestion', 'answer'])
+            ->where('question', 'like', '%' . $searchTerm . '%')
+            ->orderBy($sortColumn, $sortDirection)
+            ->paginate(10);
+
+        $typeHelpQuestions = TypeHelpQuestion::select('id', 'name')->get();
+
         return Inertia::render('Admin/HelpQuestions/Index', [
-            'title' => 'All',
+            'helpQuestions' => $closeouts,
+            'typeHelpQuestions' => $typeHelpQuestions,
+            'searchTerm' => $searchTerm,
+            'sortColumn' => $sortColumn,
+            'sortDirection' => $sortDirection,
         ]);
     }
 

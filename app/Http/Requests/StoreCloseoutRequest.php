@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use Gate;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreCloseoutRequest extends FormRequest
@@ -11,7 +12,7 @@ class StoreCloseoutRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return false;
+        return Gate::allows('closeouts_create');
     }
 
     /**
@@ -22,7 +23,13 @@ class StoreCloseoutRequest extends FormRequest
     public function rules(): array
     {
         return [
-            //
+            'name' => 'required|string|max:255',
+            'start_date' => 'required|date',
+            'end_date' => 'required|date',
+            'reason' => 'required|string|max:255',
+            'service_id' => 'required|integer',
+            'season_id' => 'required|integer',
+            'team_id' => 'required|integer',
         ];
     }
 }

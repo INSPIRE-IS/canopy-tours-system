@@ -54,6 +54,9 @@ use Inertia\Inertia;
 // Route::get('/activities', function () {
 //     return Inertia::render('Activities');
 // })->name('activities');
+
+Route::redirect('dashboard', '/admin/dashboard');
+
 Route::get('/test-order', [ActivityController::class, 'showTestOrder']);
 Route::get('/', [ActivityController::class, 'index'])->name('welcome');
 Route::get('front/welcome', [ActivityController::class, 'index'])->name('front.welcome');
@@ -94,11 +97,13 @@ Route::get('/states/{country_id}', [BookingQuestionnaireController::class, 'getS
 
 
 //Route::middleware('auth')->group(function () {, 'namespace' => 'Admin'
-Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['auth']], function () {
+Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['auth', 'verified']], function () {
 
-    Route::get('dashboard', function () {
-        return Inertia::render('Dashboard');
-    })->middleware(['auth', 'verified'])->name('dashboard');
+
+    Route::get('dashboard', [HomeController::class, 'index'])->name('dashboard');
+    // Route::get('dashboard', function () {
+    //     return Inertia::render('Dashboard');
+    // })->middleware(['auth', 'verified'])->name('dashboard');
     // Permissions
     Route::resource('permissions', PermissionsController::class);
     // Roles

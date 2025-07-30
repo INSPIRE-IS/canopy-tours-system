@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use Gate;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreVoucherRequest extends FormRequest
@@ -11,7 +12,7 @@ class StoreVoucherRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return false;
+        return Gate::allows('vouchers_create');
     }
 
     /**
@@ -22,7 +23,13 @@ class StoreVoucherRequest extends FormRequest
     public function rules(): array
     {
         return [
-            //
+            'voucher_code' => 'required|string|max:255',
+            'amount' => 'required|float',
+            'note' => 'required|string|max:255',
+            'expire_date' => 'required|date',
+            'service_id' => 'required|integer',
+            'season_id' => 'required|integer',
+            'team_id' => 'required|integer',
         ];
     }
 }

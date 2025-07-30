@@ -38,8 +38,15 @@ class CloseoutsController extends Controller
             ->orderBy($sortColumn, $sortDirection)
             ->paginate(10);
 
+        $services = Service::with('seasons')->select('id', 'name')->get();
+
+        //$seasons = Season::select('id', 'name')->get();
+
+
         return Inertia::render('Admin/Closeouts/Index', [
             'closeouts' => $closeouts,
+            'services' => $services,
+            //'seasons' => $seasons,
             'searchTerm' => $searchTerm,
             'sortColumn' => $sortColumn,
             'sortDirection' => $sortDirection,
@@ -47,46 +54,20 @@ class CloseoutsController extends Controller
         ]);
     }
 
-    public function create()
-    {
-        abort_if(Gate::denies('closeout_create'), Response::HTTP_FORBIDDEN, '403 Forbidden');
-
-        $services = Service::pluck('name', 'id')->prepend(trans('global.pleaseSelect'), '');
-
-        $seasons = Season::pluck('name', 'id')->prepend(trans('global.pleaseSelect'), '');
-
-        $updated_bies = User::pluck('name', 'id')->prepend(trans('global.pleaseSelect'), '');
-
-        return view('Admin.closeouts.create', compact('seasons', 'services', 'updated_bies'));
-    }
-
     public function store(StoreCloseoutRequest $request)
     {
+        //dd($request->all());
         $closeout = Closeout::create($request->all());
 
-        return redirect()->route('Admin.closeouts.index');
+        return redirect()->route('admin.closeouts.index');
     }
 
-    public function edit(Closeout $closeout)
-    {
-        abort_if(Gate::denies('closeout_edit'), Response::HTTP_FORBIDDEN, '403 Forbidden');
-
-        $services = Service::pluck('name', 'id')->prepend(trans('global.pleaseSelect'), '');
-
-        $seasons = Season::pluck('name', 'id')->prepend(trans('global.pleaseSelect'), '');
-
-        $updated_bies = User::pluck('name', 'id')->prepend(trans('global.pleaseSelect'), '');
-
-        $closeout->load('service', 'season', 'updated_by', 'team');
-
-        return view('Admin.closeouts.edit', compact('closeout', 'seasons', 'services', 'updated_bies'));
-    }
 
     public function update(UpdateCloseoutRequest $request, Closeout $closeout)
     {
         $closeout->update($request->all());
 
-        return redirect()->route('Admin.closeouts.index');
+        return redirect()->route('admin.closeouts.index');
     }
 
     public function show(Closeout $closeout)
