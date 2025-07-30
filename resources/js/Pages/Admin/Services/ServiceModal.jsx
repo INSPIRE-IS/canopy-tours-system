@@ -4,7 +4,6 @@ import InputText from "@/Components/InputText";
 import OutlineButton from "@/Components/OutlineButton";
 import BlueButton from "@/Components/BlueButton";
 import CustomTextarea from "@/Components/CustomTextarea";
-import Tiptap from "@/Components/Tiptap";
 import parse from "html-react-parser";
 
 
@@ -85,10 +84,6 @@ const [file, setFile] = useState(null);
                             isRequired
                             isReadOnly={mode === "view"}
                         />  
-                      {/*   <div className="w-full mb-4">
-                            <label className="block text-main mb-1">Description</label>
-                            <Tiptap setDescription={setDescription} />                           
-                        </div>*/}
                     {/*  show the description in a textarea
                     <div className="flex flex-row w-full items-center gap-2 justify-between mb-4">
                         <div className="ProseMirror">{parse(description)}</div>

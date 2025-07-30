@@ -4,7 +4,6 @@ import InputText from "@/Components/InputText";
 import OutlineButton from "@/Components/OutlineButton";
 import BlueButton from "@/Components/BlueButton";
 import CustomTextarea from "@/Components/CustomTextarea";
-import Tiptap from "@/Components/Tiptap";
 import parse from "html-react-parser";
 
 
@@ -115,10 +114,7 @@ const [description, setDescription] = useState("");
                             handleChange={handleChange}
                             errors={errors}
                         /> */}
-                        <div className="w-full mb-4">
-                            <label className="block text-main mb-1">Content</label>
-<Tiptap setDescription={setDescription} />                           
-                        </div>
+
 
                         
 
