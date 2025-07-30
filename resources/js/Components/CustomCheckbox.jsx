@@ -1,19 +1,34 @@
-const CustomCheckbox = ({ label, name, checked, onChange, errors }) => {
+const CustomCheckbox = ({ label,side="right", name, checked, onChange, errors }) => {
+
     return (
         <div className="mb-4">
-            <div className="flex items-center">
+            <label htmlFor={name} className="flex items-center gap-2 cursor-pointer relative">
+                {side === "left" && (<span className="text-booking-check-lbl-left mt-1.5">{label}</span>)}
+                <span className="relative w-5 h-5 shrink-0">
                 <input
                     type="checkbox"
                     id={name}
                     name={name}
                     checked={checked}
-                    onChange={(e) => onChange(name, e.target.checked)}
-                    className={`h-5 w-5 text-blue-600 ${errors[name] ? "border-red-500" : "border-gray-300"} focus:ring-blue-500 rounded-sm`}
+                    onChange={(e) => onChange(name, e.target.checked)}                                  
+                    className="peer w-full h-full appearance-none border border-gray-400 rounded-md checked:bg-[#31B7001A] checked:border-[#31B700] hover:border-black focus:outline-none focus:ring-0 focus:ring-offset-0 focus:ring-offset-white text-[#31B700]"
                 />
-                <label htmlFor={name} className="ml-2 text-gray-700">{label}</label>
-            </div>
+                <svg
+                    className="absolute inset-0 w-4 h-4 m-auto mt-[6px] pointer-events-none hidden peer-checked:block"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="3"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                >
+                    <polyline points="20 6 9 17 4 12" />
+                </svg>
+                </span>
+                {side === "right" && (<span className="text-booking-check-lbl-right mt-1.5">{label}</span>)}
+            </label>
             {errors[name] && (
-                <p className="text-red-500 text-sm mt-2">
+                <p className="text-checkbox-lbl text-red-500 mt-2">
                     {errors[name]}
                 </p>
             )}

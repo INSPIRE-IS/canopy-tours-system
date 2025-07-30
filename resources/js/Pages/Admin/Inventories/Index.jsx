@@ -64,9 +64,9 @@ console.log('timeSlots:', inventories?.data?.[0]?.time_slots);
     // <AuthenticatedLayout user={props.auth.user}>
     <AuthenticatedLayout
         user={props.auth.user}
-            header={<h2 className="font-semibold text-xl text-gray-800 leading-tight">Inventorys</h2>}
+            header={<h2 className="font-semibold text-xl text-gray-800 leading-tight">Inventories</h2>}
     >
-        <Head title="Inventorys" />
+        <Head title="Inventories" />
             <div className="bg-white p-6 ">
                 {/* top */}
                 <div className="flex justify-between items-center mb-6">
@@ -83,7 +83,7 @@ console.log('timeSlots:', inventories?.data?.[0]?.time_slots);
                     <div className="flex justify-start items-center px-4 pt-4 pb-[9px] ">
                         <span className='flex items-center gap-2'>
                             <img src="/assets/icons/task-square.svg" alt="bookings" className="w-5 h-5" />
-                            <span className="font-semibold text-lg text-gray-800 block text-start">Inventorys</span>
+                            <span className="font-semibold text-lg text-gray-800 block text-start">Inventories</span>
                         </span>
                     </div>
                     <div className="flex justify-between items-center px-4 pb-[9px] ">
@@ -137,17 +137,9 @@ console.log('timeSlots:', inventories?.data?.[0]?.time_slots);
                     </div>
                 </div>
             </div>
-
-
             <div className="mt-4">
                 <Pagination links={inventories?.links} />
             </div>  
-
-
-
-
-
-
             <InventoryModal
                 isOpen={isModalOpen}
                 onClose={handleCloseModal}

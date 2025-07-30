@@ -68,7 +68,7 @@ class SeasonsController extends Controller
         //     ];
         // });
         // dd($seasons);
-        return Inertia::render('Admin/Seasons/Index', [
+        return Inertia::render('Admin/Seasons/Index1', [
             'seasons' => $seasons,
             'services' => $services,
             'searchTerm' => $searchTerm,

@@ -41,7 +41,7 @@ class InventoryController extends Controller
         $day_slots = TypeDay::select('name', 'id')->get();
         //$time_slots = TypeTimeSlot::select('name', 'id')->get();
         //dd($services);
-        return Inertia::render('Admin/Inventories/Index', [
+        return Inertia::render('Admin/Inventories/Index1', [
 
             'services' => $services,
             'seasons' => $seasons,

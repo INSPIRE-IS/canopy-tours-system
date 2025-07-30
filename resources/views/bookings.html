@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Booking System Management</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 justify-items-center p-6 text-sm">
+
+    <div class="bg-white  p-4 rounded shadow mb-6">
+        <div class="flex justify-end mb-4">
+            <a href="test1.html" class="flex h-full bg-white p-2 rounded-md border-[3px] border-blue-300 text-blue-600 underline hover:text-blue-800">Go to Booking Form</a>
+        </div>
+        <h2 class="text-xl font-semibold mb-4">⑤ Booking Form</h2>
+        <div class="grid gap-3">
+            <label>
+            Service
+            <select id="bookingService" class="mt-1 p-2 border rounded w-full"></select>
+            </label>
+
+            <label>
+            Season
+            <select id="bookingSeason" class="mt-1 p-2 border rounded w-full"></select>
+            </label>
+
+            <label>
+            Date
+            <input type="date" id="bookingDate" class="mt-1 p-2 border rounded w-full" />
+            </label>
+
+            <label>
+            Time Slot
+            <select id="bookingTime" class="mt-1 p-2 border rounded w-full"></select>
+            </label>
+
+            <hr class="my-4" />
+
+            <label>
+            Main Contact Name
+            <input type="text" id="contactName" class="mt-1 p-2 border rounded w-full" />
+            </label>
+            <label>
+            Email
+            <input type="email" id="contactEmail" class="mt-1 p-2 border rounded w-full" />
+            </label>
+            <label>
+            Phone
+            <input type="tel" id="contactPhone" class="mt-1 p-2 border rounded w-full" />
+            </label>
+
+            <div>
+            <h3 class="font-medium mt-4 mb-2">Additional Clients</h3>
+            <div id="clientsContainer" class="space-y-2"></div>
+            <button type="button" onclick="addClientField()" class="bg-gray-200 px-2 py-1 rounded">
+                Add Client
+            </button>
+            </div>
+
+            <button onclick="saveBooking()" class="mt-4 bg-green-500 text-white px-4 py-2 rounded">
+            Save Booking
+            </button>
+        </div>
+    </div>
+    <!-- SUMMARY TABLE -->
+    <div class="bg-white p-4 rounded shadow">
+      <h2 class="text-xl font-semibold mb-2">⑤ Summary</h2>
+      <table class="w-full table-auto border text-xs">
+        <thead>
+          <tr>
+            <th class="border px-2">#</th>
+            <th class="border px-2">Data</th>
+          </tr>
+        </thead>
+        <tbody id="summaryTable"></tbody>
+      </table>
+    </div>
+<script>
+  // On page load
+  document.addEventListener('DOMContentLoaded', () => {
+    populateBookingSelectors();
+    document.getElementById('bookingService').addEventListener('change', updateTimeSlots);
+    document.getElementById('bookingSeason').addEventListener('change', updateTimeSlots);
+    document.getElementById('bookingDate').addEventListener('change', updateTimeSlots);
+  });
+
+  function populateBookingSelectors() {
+    const services = JSON.parse(localStorage.getItem('services') || '[]');
+    const seasons = JSON.parse(localStorage.getItem('seasons') || '[]');
+
+    const serviceSelect = document.getElementById('bookingService');
+    const seasonSelect = document.getElementById('bookingSeason');
+
+    serviceSelect.innerHTML = services.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+    seasonSelect.innerHTML = seasons.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+  }
+
+  function updateTimeSlots() {
+    const serviceId = document.getElementById('bookingService').value;
+    const seasonId = document.getElementById('bookingSeason').value;
+    const selectedDate = document.getElementById('bookingDate').value;
+    const dayOfWeek = new Date(selectedDate).getDay(); // 0=Sunday
+
+    const inventories = JSON.parse(localStorage.getItem('inventories') || '[]');
+    const closeouts = JSON.parse(localStorage.getItem('closeouts') || '[]');
+
+    let timeOptions = inventories
+      .filter(i => i.service_id == serviceId && i.season_id == seasonId)
+      .flatMap(i => i.time_slots);
+
+    // Filter based on closeouts
+    const blocked = closeouts.filter(co => {
+      return co.service_id == serviceId &&
+        new Date(co.start_date) <= new Date(selectedDate) &&
+        new Date(co.end_date) >= new Date(selectedDate) &&
+        co.days.includes(dayOfWeek);
+    });
+
+    let blockedSlots = blocked.flatMap(b => b.time_slots);
+    let filtered = timeOptions.filter(t => !blockedSlots.includes(t));
+
+    document.getElementById('bookingTime').innerHTML = filtered.map(t => `<option value="${t}">${t}</option>`).join('');
+  }
+
+  function addClientField() {
+    const container = document.getElementById('clientsContainer');
+    const index = container.children.length + 1;
+    const field = document.createElement('input');
+    field.type = 'text';
+    field.placeholder = `Client ${index} Name`;
+    field.className = 'p-2 border rounded w-full';
+    container.appendChild(field);
+  }
+
+  function saveBooking() {
+    const bookings = JSON.parse(localStorage.getItem('bookings') || '[]');
+
+    const booking = {
+      id: Date.now(),
+      service_id: document.getElementById('bookingService').value,
+      season_id: document.getElementById('bookingSeason').value,
+      date: document.getElementById('bookingDate').value,
+      time: document.getElementById('bookingTime').value,
+      contact: {
+        name: document.getElementById('contactName').value,
+        email: document.getElementById('contactEmail').value,
+        phone: document.getElementById('contactPhone').value
+      },
+      clients: Array.from(document.getElementById('clientsContainer').children).map(c => c.value)
+    };
+
+    bookings.push(booking);
+    localStorage.setItem('bookings', JSON.stringify(bookings));
+    alert('Booking saved!');
+  }
+
+      function renderSummary() {
+        const keys = ['users','services','seasons', 'inventory', 'closeouts'];
+        const table = document.getElementById('summaryTable');
+        table.innerHTML = "";
+        keys.forEach(key => {
+          const items = JSON.parse(localStorage.getItem(key)) || [];
+          if (items.length) {
+            const section = document.createElement('tr');
+            section.innerHTML = `<td colspan="2" class="font-bold pt-4">${key.toUpperCase()}</td>`;
+            table.appendChild(section);
+            items.forEach((item, i) => {
+              const row = document.createElement('tr');
+              row.innerHTML = `<td class="border px-2">${i + 1}</td><td class="border px-2">${JSON.stringify(item)}</td>`;
+              table.appendChild(row);
+            });
+          }
+        });
+      }
+
+      window.onload = function () {
+        // populateSelectOptions();
+        renderSummary();
+      };
+
+
+
+</script>
+
+</body>
+</html>

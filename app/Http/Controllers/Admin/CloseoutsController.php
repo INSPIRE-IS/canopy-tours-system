@@ -11,19 +11,40 @@ use App\Models\Service;
 use App\Models\User;
 use Gate;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
+use Illuminate\Support\Facades\Session;
 use Symfony\Component\HttpFoundation\Response;
 
 class CloseoutsController extends Controller
 {
 
 
-    public function index()
+    public function index(Request $request)
     {
-        abort_if(Gate::denies('closeout_access'), Response::HTTP_FORBIDDEN, '403 Forbidden');
+        abort_if(Gate::denies('closeouts_access'), Response::HTTP_FORBIDDEN, '403 Forbidden');
 
-        $closeouts = Closeout::with(['service', 'season', 'updated_by', 'team'])->get();
+        //$closeouts = Closeout::with(['service', 'season', 'updated_by', 'team'])->get();
 
-        return view('Admin.closeouts.index', compact('closeouts'));
+        //return view('Admin.closeouts.index', compact('closeouts'));
+
+        abort_if(Gate::denies('service_access'), 403);
+        $searchTerm = $request->get('search', '');
+        $sortColumn = $request->get('sort', 'name');
+        $sortDirection = $request->get('direction', 'asc');
+        /** @var \App\Models\User $user */
+        $teamId = Session::get('team_id');
+        $closeouts = Closeout::with(['service', 'season', 'updated_by', 'team'])
+            ->where('name', 'like', '%' . $searchTerm . '%')
+            ->orderBy($sortColumn, $sortDirection)
+            ->paginate(10);
+
+        return Inertia::render('Admin/Closeouts/Index', [
+            'closeouts' => $closeouts,
+            'searchTerm' => $searchTerm,
+            'sortColumn' => $sortColumn,
+            'sortDirection' => $sortDirection,
+            'fieldValues' => null,
+        ]);
     }
 
     public function create()

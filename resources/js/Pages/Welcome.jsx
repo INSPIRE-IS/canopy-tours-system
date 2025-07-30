@@ -86,6 +86,8 @@ export default function HomePage({activities}) {
         <Link href="/services" className="hover:text-blue-600">Services</Link>
         <Link href="/vouchers" className="hover:text-blue-600">Gift Vouchers</Link>
         <Link href="/cart" className="hover:text-blue-600">Cart</Link>
+        <Link href="/questionnaire" className="hover:text-blue-600">Questionnaire</Link>
+        <Link href="/login" className="hover:text-blue-600">Login</Link>
       </nav>
     </div>
   </header>

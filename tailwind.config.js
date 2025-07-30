@@ -15,17 +15,27 @@ export default {
             fontFamily: {
                 inter: ['Inter', 'sans-serif'],
                 geist: ['Geist', 'sans-serif'],
+                publicSans: ['PublicSans', 'sans-serif'],
+
               },
               fontSize: {
                 xs: ['12px', { lineHeight: '18px', letterSpacing: '-0.24px' }],
                 // add more sizes if needed
               },
+              boxShadow: {
+                soft: '0px 1px 2px 0px rgba(82, 88, 102, 0.06)',
+                medium: '0px 4px 30px 0px rgba(26, 28, 33, 0.05)',
+              },
               colors: {
                 'dark-gray': '#8C8C95',
                 'light-gray': '#8C8C95',
                 'other-gray-bg': '#F9F9FB',
-                'gts-dark-green': '#5E7306',
-                'gts-light-green': 'rgba(184, 229, 13, 0.25)',
+                'dark-green': '#31B700',
+                'light-green': '#D6FBE6',
+                'cal-pink': '#FCE4DF',
+                'cal-green': '#D6FBE6',
+                'cal-bauge': '#FDF0DB',
+                'cal-select': '#55FF9E',
                 'primary-3': '#F3F4F6', 
                 'primary-5': '#000000',   
                 'primary-0': '#FFFFFF',              
@@ -34,10 +44,10 @@ export default {
                 'primary-11': '#D8DADF',
                 'primary-13': '#C9C9D4',
                 'primary-14': '#8C8C95',
-                'primary-4': '#B8E50C',
+                'primary-4': '#55FF9E',
                 'primary-12': '#D2D2DC',
-                'primary-7': 'rgba(184, 229, 13, 0.25)',
-                'primary-1': '#AF9494',
+                'primary-7': '#4D81E7',
+                'primary-1': '#FDF0DB',
                 'primary-2': '#C4C4D0',
                 'primary-17': '#e2e4e9-30%',
                 'primary-16': '#FF8000',
@@ -47,7 +57,7 @@ export default {
                 'primary-20': '#F9F9FB',               
                 'primary-6': '#0B0B0B',
                 'primary-21': '#258EF0',
-                'primary-22': '#8DCB3D',
+                'primary-22': '#31b7001a',
                 'primary-23': '#B8E50D',
                 'primary-24': '#b6e50d41',
                 

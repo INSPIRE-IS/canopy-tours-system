@@ -38,7 +38,7 @@ class ServicesController extends Controller
             ->orderBy($sortColumn, $sortDirection)
             ->paginate(10);
 
-        return Inertia::render('Admin/Services/Index', [
+        return Inertia::render('Admin/Services/Index1', [
             'services' => $services,
             'searchTerm' => $searchTerm,
             'sortColumn' => $sortColumn,

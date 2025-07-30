@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useForm } from "@inertiajs/react";
 import InputText from "@/Components/InputText";
 import CustomCheckbox from "@/Components/CustomCheckbox";
-import CustomSelect from "@/Components/CustomSelect1";
+import CustomSelect from "@/Components/CustomSelect";
 import OutlineButton from "@/Components/OutlineButton";
 import BlueButton from "@/Components/BlueButton";
 

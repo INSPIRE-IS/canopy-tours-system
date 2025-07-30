@@ -1,10 +1,10 @@
 import React from "react";
 
-const CustomTextarea1 = ({ label, name, value, onChange, error, placeholder,rows = 4 }) => {
+const CustomTextarea = ({ label, name, value, onChange, error, placeholder,rows = 4 }) => {
   return (
     <div className="w-full mb-4">
       {label && (
-        <label className="block text-main mb-[14px]">
+        <label className="text-[#161618] font-poppins text-[12px] font-normal  leading-[130%]">
           {label}
         </label>
       )}
@@ -15,7 +15,7 @@ const CustomTextarea1 = ({ label, name, value, onChange, error, placeholder,rows
         onChange={onChange}
         placeholder={placeholder}
         rows={rows}
-        className={`w-full pl-[19px] pt-[11px] pb-[12px] bg-[#FBF9F7] border rounded-2xl focus:outline-none focus:ring-2 resize-none ${
+        className={`w-full bg-[#FFF] border rounded-[10px] focus:outline-none focus:ring-2 resize-none ${
           error
             ? "border-red-500 focus:ring-red-300 text-red-700"
             : "border-gray-300 focus:ring-blue-300 text-main2"
@@ -26,4 +26,4 @@ const CustomTextarea1 = ({ label, name, value, onChange, error, placeholder,rows
   );
 };
 
-export default CustomTextarea1;
+export default CustomTextarea;

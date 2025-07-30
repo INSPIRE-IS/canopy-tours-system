@@ -1,0 +1,791 @@
+    <div class="overflow-x-auto px-[15px]">
+      <div class="flex pt-2 space-x-6 border-b border-gray-200">
+        <button id="General-tab" class="tab-button px-4 py-[11px] border-b-[5px] border-primary-7 text-tab-active pb-2 cursor-pointer" onclick="switchTab('General')">General</button>
+        <button id="Customs-tab" class="tab-button px-4 py-[11px] text-tab-inactive pb-2 cursor-pointer" onclick="switchTab('Customs')">Customs</button>
+        <button id="Containers-tab" class="tab-button px-4 py-[11px] text-tab-inactive pb-2 cursor-pointer" onclick="switchTab('Containers')">Containers</button>
+        <button id="Details-tab" class="tab-button px-4 py-[11px] text-tab-inactive pb-2 cursor-pointer" onclick="switchTab('Details')">Details</button>
+        <button id="CommercialInvoice-tab" class="tab-button px-4 py-[11px] text-tab-inactive pb-2 cursor-pointer" onclick="switchTab('CommercialInvoice')">Commercial Invoice</button>
+        <button id="PR-tab" class="tab-button px-4 py-[11px] text-tab-inactive pb-2 cursor-pointer flex items-center gap-1" onclick="switchTab('PR')">
+          P&amp;R
+          <span onclick="toggleDetailsModal(event, 1)"  class="text-gray-400 text-xs">🛈</span>
+        </button>
+        <button id="GoodsDeclaration-tab" class="tab-button px-4 py-[11px] text-tab-inactive pb-2 cursor-pointer" onclick="switchTab('GoodsDeclaration')">Goods Declaration</button>
+        <button id="CostInvoice-tab" class="tab-button px-4 py-[11px] text-tab-inactive pb-2 cursor-pointer" onclick="switchTab('CostInvoice')">Cost Invoice</button>
+        <button id="Documents-tab" class="tab-button px-4 py-[11px] text-tab-inactive pb-2 cursor-pointer" onclick="switchTab('Documents')">Documents</button>
+        <button id="Status-tab" class="tab-button px-4 py-[11px] text-tab-inactive pb-2 cursor-pointer" onclick="switchTab('Status')">Status</button>
+      </div>
+
+      <!-- Tab Contents -->
+      <div class="">
+        <div id="General-content" class="tab-content">
+          <div class=" p-6">
+            <!-- Routing -->
+            <div id="header-routing-details" onclick="toggleDetails('routing-details')" class="flex h-12 px-3 bg-other-gray-bg justify-between items-center rounded-[7px] cursor-pointer">
+              <button  class="flex items-center gap-3 cursor-pointer">
+                <span class="text-tab-content-header">Routing</span>
+                <span class="inline-block pr-3 transform transition-transform duration-200" id="toggle-icon">
+                  <svg id="icon-routing-details"
+                      class="transform transition-transform duration-300 "
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="14" height="14" viewBox="0 0 14 14" fill="none">
+                    <path d="M5.22082 2.38012L9.02416 6.18345C9.47333 6.63262 9.47333 7.36762 9.02416 7.81678L5.22083 11.6201" 
+                          stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </span>
+              </button>
+ 
+            </div>
+            <!-- Routing Details -->
+            <div id="routing-details" class="mt-2.5 mb-2.5 hidden ">
+              <!-- row 1 -->
+              <div class="mt-2.5 mb-2.5 grid grid-cols-3 gap-6 space-y-2.5">
+                <div class="relative w-full">
+                  <label class="block text-select-header mb-1.5">Route</label>
+                  <div class=" appearance-none  rounded-[10px]  text-select-option">
+                    <button 
+                    onclick="toggleDropdown('dropdown-11')"
+                    class="group inline-flex w-full h-[40px] items-center justify-between gap-2 px-4 py-2 rounded-xl border-[1px] border-secondary-200 bg-white transition-all 
+                    text-secondary-200 hover:border-dark-gray hover:text-black active:border-primary-23 active:text-primary-23 cursor-pointer">
+
+                      <span id="label-dropdown-11" class="text-select-filter group-hover:text-black group-active:text-[#0E0E0E] transition-colors">
+                        Choose option
+                      </span>
+                      <!-- <span id="label-dropdown-1" class="text-entity-name">Choose option</span> -->
+                      <span>
+                        <svg id="icon-dropdown-11"
+                            class="transition-transform duration-300"
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="14" height="14" viewBox="0 0 14 14" fill="none">
+                          <path d="M5.22082 2.38012L9.02416 6.18345C9.47333 6.63262 9.47333 7.36762 9.02416 7.81678L5.22083 11.6201" 
+                                stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                      </span>
+                    </button> 
+                    <ul id="dropdown-11" class="hidden absolute w-full bg-white border mt-1 rounded-md shadow z-10 text-sm">
+                      <li onclick="selectedOption('dropdown-11', 'ZA2CN - ZA TO China')" class="flex items-center justify-between border-b border-gray-200 px-4 py-2 hover:bg-primary-7 cursor-pointer">
+                          <span class="flex items-center gap-2">
+                              <span id="label-dropdown-11" class="text-dropdown-option">ZA2CN - ZA TO China</span>
+                          </span>
+                          <span class="text-[#AF9494]">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="4" height="7" viewBox="0 0 4 7" fill="currentColor">
+                            <path d="M3.35381 3.3269L0.526913 6.15381L-2.30321e-08 5.6269L2.3 3.3269L-2.24104e-07 1.0269L0.526912 0.499983L3.35381 3.3269Z" fill="currentColor"/>
+                            </svg>
+                          </span>
+                      </li>
+                      <li onclick="selectedOption('dropdown-11', 'Option 2')" class="flex items-center justify-between border-b border-gray-200 px-4 py-2 hover:bg-primary-7 cursor-pointer">
+                          <span class="flex items-center gap-2">
+                              <span id="label-dropdown-11" class="text-dropdown-option">Option 2</span>
+                          </span>
+                          <span class="text-[#AF9494]">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="4" height="7" viewBox="0 0 4 7" fill="currentColor">
+                            <path d="M3.35381 3.3269L0.526913 6.15381L-2.30321e-08 5.6269L2.3 3.3269L-2.24104e-07 1.0269L0.526912 0.499983L3.35381 3.3269Z" fill="currentColor"/>
+                            </svg>
+                          </span>
+                      </li>
+                      <li onclick="selectedOption('dropdown-11', 'Option 3')" class="flex items-center justify-between border-b border-gray-200 px-4 py-2 hover:bg-primary-7 cursor-pointer">
+                          <span class="flex items-center gap-2">
+                              <span id="label-dropdown-11" class="text-dropdown-option">Option 3</span>
+                          </span>
+                          <span class="text-[#AF9494]">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="4" height="7" viewBox="0 0 4 7" fill="currentColor">
+                            <path d="M3.35381 3.3269L0.526913 6.15381L-2.30321e-08 5.6269L2.3 3.3269L-2.24104e-07 1.0269L0.526912 0.499983L3.35381 3.3269Z" fill="currentColor"/>
+                            </svg>
+                          </span>
+                      </li>
+                    </ul>                      
+                  </div>
+                </div>
+                <div class="relative w-full">
+                  <label class="block text-select-header mb-1.5">Transport Mode<span class="text-[#F00]">*</span></label>
+                  <div class=" appearance-none  rounded-[10px]  text-select-option">
+                    <button 
+                    onclick="toggleDropdown('dropdown-12')"
+                    class="group inline-flex w-full h-[40px] items-center justify-between gap-2 px-4 py-2 rounded-xl border-[1px] border-secondary-200 bg-white transition-all 
+                    text-secondary-200 hover:border-dark-gray hover:text-black active:border-primary-23 active:text-primary-23 cursor-pointer">
+
+                      <span id="label-dropdown-12" class="text-select-filter group-hover:text-black group-active:text-[#0E0E0E] transition-colors">
+                        Choose option
+                      </span>
+                      <!-- <span id="label-dropdown-1" class="text-entity-name">Choose option</span> -->
+                      <span>
+                        <svg id="icon-dropdown-12"
+                            class="transition-transform duration-300"
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="14" height="14" viewBox="0 0 14 14" fill="none">
+                          <path d="M5.22082 2.38012L9.02416 6.18345C9.47333 6.63262 9.47333 7.36762 9.02416 7.81678L5.22083 11.6201" 
+                                stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                      </span>
+                    </button> 
+                    <ul id="dropdown-12" class="hidden absolute w-full bg-white border mt-1 rounded-md shadow z-10 text-sm">
+                      <li onclick="selectedOption('dropdown-12', '1 - Sea')" class="flex items-center justify-between border-b border-gray-200 px-4 py-2 hover:bg-primary-7 cursor-pointer">
+                          <span class="flex items-center gap-2">
+                              <span id="label-dropdown-12" class="text-dropdown-option">1 - Sea</span>
+                          </span>
+                          <span class="text-[#AF9494]">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="4" height="7" viewBox="0 0 4 7" fill="currentColor">
+                            <path d="M3.35381 3.3269L0.526913 6.15381L-2.30321e-08 5.6269L2.3 3.3269L-2.24104e-07 1.0269L0.526912 0.499983L3.35381 3.3269Z" fill="currentColor"/>
+                            </svg>
+                          </span>
+                      </li>
+                      <li onclick="selectedOption('dropdown-12', 'Option 2')" class="flex items-center justify-between border-b border-gray-200 px-4 py-2 hover:bg-primary-7 cursor-pointer">
+                          <span class="flex items-center gap-2">
+                              <span id="label-dropdown-12" class="text-dropdown-option">Option 2</span>
+                          </span>
+                          <span class="text-[#AF9494]">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="4" height="7" viewBox="0 0 4 7" fill="currentColor">
+                            <path d="M3.35381 3.3269L0.526913 6.15381L-2.30321e-08 5.6269L2.3 3.3269L-2.24104e-07 1.0269L0.526912 0.499983L3.35381 3.3269Z" fill="currentColor"/>
+                            </svg>
+                          </span>
+                      </li>
+                      <li onclick="selectedOption('dropdown-12', 'Option 3')" class="flex items-center justify-between border-b border-gray-200 px-4 py-2 hover:bg-primary-7 cursor-pointer">
+                          <span class="flex items-center gap-2">
+                              <span id="label-dropdown-12" class="text-dropdown-option">Option 3</span>
+                          </span>
+                          <span class="text-[#AF9494]">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="4" height="7" viewBox="0 0 4 7" fill="currentColor">
+                            <path d="M3.35381 3.3269L0.526913 6.15381L-2.30321e-08 5.6269L2.3 3.3269L-2.24104e-07 1.0269L0.526912 0.499983L3.35381 3.3269Z" fill="currentColor"/>
+                            </svg>
+                          </span>
+                      </li>
+                    </ul>                      
+                  </div>
+                </div>
+                <div class="relative w-full">
+                  <label class="block text-select-header mb-1.5">Loading Country</label>
+                  <div class=" appearance-none  rounded-[10px]  text-select-option">
+                    <button 
+                    onclick="toggleDropdown('dropdown-13')"
+                    class="group inline-flex w-full h-[40px] items-center justify-between gap-2 px-4 py-2 rounded-xl border-[1px] border-secondary-200 bg-white transition-all 
+                    text-secondary-200 hover:border-dark-gray hover:text-black active:border-primary-23 active:text-primary-23 cursor-pointer">
+
+                      <span id="label-dropdown-13" class="text-select-filter group-hover:text-black group-active:text-[#0E0E0E] transition-colors">
+                        Choose option
+                      </span>
+                      <!-- <span id="label-dropdown-1" class="text-entity-name">Choose option</span> -->
+                      <span>
+                        <svg id="icon-dropdown-13"
+                            class="transition-transform duration-300"
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="14" height="14" viewBox="0 0 14 14" fill="none">
+                          <path d="M5.22082 2.38012L9.02416 6.18345C9.47333 6.63262 9.47333 7.36762 9.02416 7.81678L5.22083 11.6201" 
+                                stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                      </span>
+                    </button> 
+                    <ul id="dropdown-13" class="hidden absolute w-full bg-white border mt-1 rounded-md shadow z-10 text-sm">
+                      <li onclick="selectedOption('dropdown-13', 'ZA - South Africa')" class="flex items-center justify-between border-b border-gray-200 px-4 py-2 hover:bg-primary-7 cursor-pointer">
+                          <span class="flex items-center gap-2">
+                              <span id="label-dropdown-13" class="text-dropdown-option">ZA - South Africa</span>
+                          </span>
+                          <span class="text-[#AF9494]">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="4" height="7" viewBox="0 0 4 7" fill="currentColor">
+                            <path d="M3.35381 3.3269L0.526913 6.15381L-2.30321e-08 5.6269L2.3 3.3269L-2.24104e-07 1.0269L0.526912 0.499983L3.35381 3.3269Z" fill="currentColor"/>
+                            </svg>
+                          </span>
+                      </li>
+                      <li onclick="selectedOption('dropdown-13', 'Option 2')" class="flex items-center justify-between border-b border-gray-200 px-4 py-2 hover:bg-primary-7 cursor-pointer">
+                          <span class="flex items-center gap-2">
+                              <span id="label-dropdown-13" class="text-dropdown-option">Option 2</span>
+                          </span>
+                          <span class="text-[#AF9494]">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="4" height="7" viewBox="0 0 4 7" fill="currentColor">
+                            <path d="M3.35381 3.3269L0.526913 6.15381L-2.30321e-08 5.6269L2.3 3.3269L-2.24104e-07 1.0269L0.526912 0.499983L3.35381 3.3269Z" fill="currentColor"/>
+                            </svg>
+                          </span>
+                      </li>
+                      <li onclick="selectedOption('dropdown-13', 'Option 3')" class="flex items-center justify-between border-b border-gray-200 px-4 py-2 hover:bg-primary-7 cursor-pointer">
+                          <span class="flex items-center gap-2">
+                              <span id="label-dropdown-13" class="text-dropdown-option">Option 3</span>
+                          </span>
+                          <span class="text-[#AF9494]">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="4" height="7" viewBox="0 0 4 7" fill="currentColor">
+                            <path d="M3.35381 3.3269L0.526913 6.15381L-2.30321e-08 5.6269L2.3 3.3269L-2.24104e-07 1.0269L0.526912 0.499983L3.35381 3.3269Z" fill="currentColor"/>
+                            </svg>
+                          </span>
+                      </li>
+                    </ul>                      
+                  </div>
+                </div>                
+              </div>
+              <!-- row 2 -->
+              <div class="mt-2.5 mb-2.5 grid grid-cols-3 gap-6 space-y-2.5">
+                <div class="relative w-full">
+                  <label class="block text-select-header mb-1.5">Loading Location</label>
+                  <div class=" appearance-none  rounded-[10px]  text-select-option">
+                    <button 
+                    onclick="toggleDropdown('dropdown-21')"
+                    class="group inline-flex w-full h-[40px] items-center justify-between gap-2 px-4 py-2 rounded-xl border-[1px] border-secondary-200 bg-white transition-all 
+                    text-secondary-200 hover:border-dark-gray hover:text-black active:border-primary-23 active:text-primary-23 cursor-pointer">
+
+                      <span id="label-dropdown-21" class="text-select-filter group-hover:text-black group-active:text-[#0E0E0E] transition-colors">
+                        Choose option
+                      </span>
+                      <span>
+                        <svg id="icon-dropdown-21"
+                            class="transition-transform duration-300"
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="14" height="14" viewBox="0 0 14 14" fill="none">
+                          <path d="M5.22082 2.38012L9.02416 6.18345C9.47333 6.63262 9.47333 7.36762 9.02416 7.81678L5.22083 11.6201" 
+                                stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                      </span>
+                    </button> 
+                    <ul id="dropdown-21" class="hidden absolute w-full bg-white border mt-1 rounded-md shadow z-10 text-sm">
+                      <li onclick="selectedOption('dropdown-21', 'ZACPT - Cape Town')" class="flex items-center justify-between border-b border-gray-200 px-4 py-2 hover:bg-primary-7 cursor-pointer">
+                          <span class="flex items-center gap-2">
+                              <span id="label-dropdown-21" class="text-dropdown-option">ZACPT - Cape Town</span>
+                          </span>
+                          <span class="text-[#AF9494]">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="4" height="7" viewBox="0 0 4 7" fill="currentColor">
+                            <path d="M3.35381 3.3269L0.526913 6.15381L-2.30321e-08 5.6269L2.3 3.3269L-2.24104e-07 1.0269L0.526912 0.499983L3.35381 3.3269Z" fill="currentColor"/>
+                            </svg>
+                          </span>
+                      </li>
+                      <li onclick="selectedOption('dropdown-21', 'Option 2')" class="flex items-center justify-between border-b border-gray-200 px-4 py-2 hover:bg-primary-7 cursor-pointer">
+                          <span class="flex items-center gap-2">
+                              <span id="label-dropdown-21" class="text-dropdown-option">Option 2</span>
+                          </span>
+                          <span class="text-[#AF9494]">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="4" height="7" viewBox="0 0 4 7" fill="currentColor">
+                            <path d="M3.35381 3.3269L0.526913 6.15381L-2.30321e-08 5.6269L2.3 3.3269L-2.24104e-07 1.0269L0.526912 0.499983L3.35381 3.3269Z" fill="currentColor"/>
+                            </svg>
+                          </span>
+                      </li>
+                      <li onclick="selectedOption('dropdown-21', 'Option 3')" class="flex items-center justify-between border-b border-gray-200 px-4 py-2 hover:bg-primary-7 cursor-pointer">
+                          <span class="flex items-center gap-2">
+                              <span id="label-dropdown-21" class="text-dropdown-option">Option 3</span>
+                          </span>
+                          <span class="text-[#AF9494]">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="4" height="7" viewBox="0 0 4 7" fill="currentColor">
+                            <path d="M3.35381 3.3269L0.526913 6.15381L-2.30321e-08 5.6269L2.3 3.3269L-2.24104e-07 1.0269L0.526912 0.499983L3.35381 3.3269Z" fill="currentColor"/>
+                            </svg>
+                          </span>
+                      </li>
+                    </ul>                      
+                  </div>
+                </div>
+
+                <div class="relative w-full">
+                  <label class="block text-select-header mb-1.5">Dispatch Warehouse<span class="text-[#F00]">*</span></label>
+                  <div class=" appearance-none  rounded-[10px]  text-select-option">
+                    <button id="btn-dropdown-22"
+                    onclick="toggleDropdown('dropdown-22')"
+                    class="group inline-flex w-full h-[40px] items-center justify-between gap-2 px-4 py-2 rounded-xl border-[1px] border-secondary-200 bg-white transition-all 
+                    text-secondary-200 hover:border-dark-gray hover:text-black active:border-primary-23 active:text-primary-23 cursor-pointer">
+
+                      <span id="label-dropdown-22" class="text-select-filter  group-hover:text-black group-active:text-[#0E0E0E] transition-colors">
+                        Choose option
+                      </span>
+                      <span>
+                        <svg id="icon-dropdown-22"
+                            class="transition-transform duration-300"
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="14" height="14" viewBox="0 0 14 14" fill="none">
+                          <path d="M5.22082 2.38012L9.02416 6.18345C9.47333 6.63262 9.47333 7.36762 9.02416 7.81678L5.22083 11.6201" 
+                                stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                      </span>
+                    </button> 
+                    <ul id="dropdown-22" class="hidden absolute w-full bg-white border mt-1 rounded-md shadow z-10 text-sm">
+                      <li onclick="selectedOption('dropdown-22', 'Not Designated')" class="flex items-center justify-between border-b border-gray-200 px-4 py-2 hover:bg-primary-7 cursor-pointer">
+                          <span class="flex items-center gap-2">
+                              <span id="label-dropdown-22" class="text-dropdown-option">Not Designated</span>
+                          </span>
+                          <span class="text-[#AF9494]">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="4" height="7" viewBox="0 0 4 7" fill="currentColor">
+                            <path d="M3.35381 3.3269L0.526913 6.15381L-2.30321e-08 5.6269L2.3 3.3269L-2.24104e-07 1.0269L0.526912 0.499983L3.35381 3.3269Z" fill="currentColor"/>
+                            </svg>
+                          </span>
+                      </li>
+                      <li onclick="selectedOption('dropdown-22', 'Option 2')" class="flex items-center justify-between border-b border-gray-200 px-4 py-2 hover:bg-primary-7 cursor-pointer">
+                          <span class="flex items-center gap-2">
+                              <span id="label-dropdown-22" class="text-dropdown-option">Option 2</span>
+                          </span>
+                          <span class="text-[#AF9494]">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="4" height="7" viewBox="0 0 4 7" fill="currentColor">
+                            <path d="M3.35381 3.3269L0.526913 6.15381L-2.30321e-08 5.6269L2.3 3.3269L-2.24104e-07 1.0269L0.526912 0.499983L3.35381 3.3269Z" fill="currentColor"/>
+                            </svg>
+                          </span>
+                      </li>
+                      <li onclick="selectedOption('dropdown-22', 'Option 3')" class="flex items-center justify-between border-b border-gray-200 px-4 py-2 hover:bg-primary-7 cursor-pointer">
+                          <span class="flex items-center gap-2">
+                              <span id="label-dropdown-22" class="text-dropdown-option">Option 3</span>
+                          </span>
+                          <span class="text-[#AF9494]">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="4" height="7" viewBox="0 0 4 7" fill="currentColor">
+                            <path d="M3.35381 3.3269L0.526913 6.15381L-2.30321e-08 5.6269L2.3 3.3269L-2.24104e-07 1.0269L0.526912 0.499983L3.35381 3.3269Z" fill="currentColor"/>
+                            </svg>
+                          </span>
+                      </li>
+                    </ul>                      
+                  </div>
+                </div>
+                <div class="relative w-full">
+                  <label class="block text-select-header mb-1.5">Unloading Country</label>
+                  <div class=" appearance-none  rounded-[10px]  text-select-option">
+                    <button 
+                    onclick="toggleDropdown('dropdown-23')"
+                    class="group inline-flex w-full h-[40px] items-center justify-between gap-2 px-4 py-2 rounded-xl border-[1px] border-secondary-200 bg-white transition-all 
+                    text-secondary-200 hover:border-dark-gray hover:text-black active:border-primary-23 active:text-primary-23 cursor-pointer">
+
+                      <span id="label-dropdown-23" class="text-select-filter group-hover:text-black group-active:text-[#0E0E0E] transition-colors">
+                        Choose option
+                      </span>
+                      <!-- <span id="label-dropdown-1" class="text-entity-name">Choose option</span> -->
+                      <span>
+                        <svg id="icon-dropdown-23"
+                            class="transition-transform duration-300"
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="14" height="14" viewBox="0 0 14 14" fill="none">
+                          <path d="M5.22082 2.38012L9.02416 6.18345C9.47333 6.63262 9.47333 7.36762 9.02416 7.81678L5.22083 11.6201" 
+                                stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                      </span>
+                    </button> 
+                    <ul id="dropdown-23" class="hidden absolute w-full bg-white border mt-1 rounded-md shadow z-10 text-sm">
+                      <li onclick="selectedOption('dropdown-23', 'MZ - Mozambique')" class="flex items-center justify-between border-b border-gray-200 px-4 py-2 hover:bg-primary-7 cursor-pointer">
+                          <span class="flex items-center gap-2">
+                              <span id="label-dropdown-23" class="text-dropdown-option">MZ - Mozambique</span>
+                          </span>
+                          <span class="text-[#AF9494]">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="4" height="7" viewBox="0 0 4 7" fill="currentColor">
+                            <path d="M3.35381 3.3269L0.526913 6.15381L-2.30321e-08 5.6269L2.3 3.3269L-2.24104e-07 1.0269L0.526912 0.499983L3.35381 3.3269Z" fill="currentColor"/>
+                            </svg>
+                          </span>
+                      </li>
+                      <li onclick="selectedOption('dropdown-23', 'Option 2')" class="flex items-center justify-between border-b border-gray-200 px-4 py-2 hover:bg-primary-7 cursor-pointer">
+                          <span class="flex items-center gap-2">
+                              <span id="label-dropdown-23" class="text-dropdown-option">Option 2</span>
+                          </span>
+                          <span class="text-[#AF9494]">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="4" height="7" viewBox="0 0 4 7" fill="currentColor">
+                            <path d="M3.35381 3.3269L0.526913 6.15381L-2.30321e-08 5.6269L2.3 3.3269L-2.24104e-07 1.0269L0.526912 0.499983L3.35381 3.3269Z" fill="currentColor"/>
+                            </svg>
+                          </span>
+                      </li>
+                      <li onclick="selectedOption('dropdown-23', 'Option 3')" class="flex items-center justify-between border-b border-gray-200 px-4 py-2 hover:bg-primary-7 cursor-pointer">
+                          <span class="flex items-center gap-2">
+                              <span id="label-dropdown-23" class="text-dropdown-option">Option 3</span>
+                          </span>
+                          <span class="text-[#AF9494]">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="4" height="7" viewBox="0 0 4 7" fill="currentColor">
+                            <path d="M3.35381 3.3269L0.526913 6.15381L-2.30321e-08 5.6269L2.3 3.3269L-2.24104e-07 1.0269L0.526912 0.499983L3.35381 3.3269Z" fill="currentColor"/>
+                            </svg>
+                          </span>
+                      </li>
+                    </ul>                      
+                  </div>
+                </div>                
+              </div>
+
+              <!-- row 3 -->
+              <div class="mt-2.5 mb-2.5 grid grid-cols-3 gap-6 space-y-2.5">
+                <div class="relative w-full">
+                  <label class="block text-select-header mb-1.5">Unloading Location</label>
+                  <div class=" appearance-none  rounded-[10px]  text-select-option">
+                    <button 
+                    onclick="toggleDropdown('dropdown-31')"
+                    class="group inline-flex w-full h-[40px] items-center justify-between gap-2 px-4 py-2 rounded-xl border-[1px] border-secondary-200 bg-white transition-all 
+                    text-secondary-200 hover:border-dark-gray hover:text-black active:border-primary-23 active:text-primary-23 cursor-pointer">
+
+                      <span id="label-dropdown-31" class="text-select-filter group-hover:text-black group-active:text-[#0E0E0E] transition-colors">
+                        Choose option
+                      </span>
+                      <span>
+                        <svg id="icon-dropdown-31"
+                            class="transition-transform duration-300"
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="14" height="14" viewBox="0 0 14 14" fill="none">
+                          <path d="M5.22082 2.38012L9.02416 6.18345C9.47333 6.63262 9.47333 7.36762 9.02416 7.81678L5.22083 11.6201" 
+                                stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                      </span>
+                    </button> 
+                    <ul id="dropdown-31" class="hidden absolute w-full bg-white border mt-1 rounded-md shadow z-10 text-sm">
+                      <li onclick="selectedOption('dropdown-31', 'MZMPM - Maputo')" class="flex items-center justify-between border-b border-gray-200 px-4 py-2 hover:bg-primary-7 cursor-pointer">
+                          <span class="flex items-center gap-2">
+                              <span id="label-dropdown-31" class="text-dropdown-option">MZMPM - Maputo</span>
+                          </span>
+                          <span class="text-[#AF9494]">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="4" height="7" viewBox="0 0 4 7" fill="currentColor">
+                            <path d="M3.35381 3.3269L0.526913 6.15381L-2.30321e-08 5.6269L2.3 3.3269L-2.24104e-07 1.0269L0.526912 0.499983L3.35381 3.3269Z" fill="currentColor"/>
+                            </svg>
+                          </span>
+                      </li>
+                      <li onclick="selectedOption('dropdown-31', 'Option 2')" class="flex items-center justify-between border-b border-gray-200 px-4 py-2 hover:bg-primary-7 cursor-pointer">
+                          <span class="flex items-center gap-2">
+                              <span id="label-dropdown-31" class="text-dropdown-option">Option 2</span>
+                          </span>
+                          <span class="text-[#AF9494]">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="4" height="7" viewBox="0 0 4 7" fill="currentColor">
+                            <path d="M3.35381 3.3269L0.526913 6.15381L-2.30321e-08 5.6269L2.3 3.3269L-2.24104e-07 1.0269L0.526912 0.499983L3.35381 3.3269Z" fill="currentColor"/>
+                            </svg>
+                          </span>
+                      </li>
+                      <li onclick="selectedOption('dropdown-31', 'Option 3')" class="flex items-center justify-between border-b border-gray-200 px-4 py-2 hover:bg-primary-7 cursor-pointer">
+                          <span class="flex items-center gap-2">
+                              <span id="label-dropdown-31" class="text-dropdown-option">Option 3</span>
+                          </span>
+                          <span class="text-[#AF9494]">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="4" height="7" viewBox="0 0 4 7" fill="currentColor">
+                            <path d="M3.35381 3.3269L0.526913 6.15381L-2.30321e-08 5.6269L2.3 3.3269L-2.24104e-07 1.0269L0.526912 0.499983L3.35381 3.3269Z" fill="currentColor"/>
+                            </svg>
+                          </span>
+                      </li>
+                    </ul>                      
+                  </div>
+                </div>
+                <div class="relative w-full">
+                  <label class="block text-select-header mb-1.5">Terminal</label>
+                  <div class=" appearance-none  rounded-[10px]  text-select-option">
+                    <button 
+                    onclick="toggleDropdown('dropdown-32')"
+                    class="group inline-flex w-full h-[40px] items-center justify-between gap-2 px-4 py-2 rounded-xl border-[1px] border-secondary-200 bg-white transition-all 
+                    text-secondary-200 hover:border-dark-gray hover:text-black active:border-primary-23 active:text-primary-23 cursor-pointer">
+
+                      <span id="label-dropdown-32" class="text-select-filter group-hover:text-black group-active:text-[#0E0E0E] transition-colors">
+                        Choose option
+                      </span>
+                      <span>
+                        <svg id="icon-dropdown-32"
+                            class="transition-transform duration-300"
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="14" height="14" viewBox="0 0 14 14" fill="none">
+                          <path d="M5.22082 2.38012L9.02416 6.18345C9.47333 6.63262 9.47333 7.36762 9.02416 7.81678L5.22083 11.6201" 
+                                stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                      </span>
+                    </button> 
+                    <ul id="dropdown-32" class="hidden absolute w-full bg-white border mt-1 rounded-md shadow z-10 text-sm">
+                      <li onclick="selectedOption('dropdown-32', 'TNP1 - Transnet Port Terminals Pier 1')" class="flex items-center justify-between border-b border-gray-200 px-4 py-2 hover:bg-primary-7 cursor-pointer">
+                          <span class="flex items-center gap-2">
+                              <span id="label-dropdown-32" class="text-dropdown-option">TNP1 - Transnet Port Terminals Pier 1</span>
+                          </span>
+                          <span class="text-[#AF9494]">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="4" height="7" viewBox="0 0 4 7" fill="currentColor">
+                            <path d="M3.35381 3.3269L0.526913 6.15381L-2.30321e-08 5.6269L2.3 3.3269L-2.24104e-07 1.0269L0.526912 0.499983L3.35381 3.3269Z" fill="currentColor"/>
+                            </svg>
+                          </span>
+                      </li>
+                      <li onclick="selectedOption('dropdown-32', 'Option 2')" class="flex items-center justify-between border-b border-gray-200 px-4 py-2 hover:bg-primary-7 cursor-pointer">
+                          <span class="flex items-center gap-2">
+                              <span id="label-dropdown-32" class="text-dropdown-option">Option 2</span>
+                          </span>
+                          <span class="text-[#AF9494]">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="4" height="7" viewBox="0 0 4 7" fill="currentColor">
+                            <path d="M3.35381 3.3269L0.526913 6.15381L-2.30321e-08 5.6269L2.3 3.3269L-2.24104e-07 1.0269L0.526912 0.499983L3.35381 3.3269Z" fill="currentColor"/>
+                            </svg>
+                          </span>
+                      </li>
+                      <li onclick="selectedOption('dropdown-32', 'Option 3')" class="flex items-center justify-between border-b border-gray-200 px-4 py-2 hover:bg-primary-7 cursor-pointer">
+                          <span class="flex items-center gap-2">
+                              <span id="label-dropdown-32" class="text-dropdown-option">Option 3</span>
+                          </span>
+                          <span class="text-[#AF9494]">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="4" height="7" viewBox="0 0 4 7" fill="currentColor">
+                            <path d="M3.35381 3.3269L0.526913 6.15381L-2.30321e-08 5.6269L2.3 3.3269L-2.24104e-07 1.0269L0.526912 0.499983L3.35381 3.3269Z" fill="currentColor"/>
+                            </svg>
+                          </span>
+                      </li>
+                    </ul>                      
+                  </div>
+                </div>
+                <div class="relative w-full">
+                  <label class="block text-select-header mb-1.5">Receipt Warehouse</label>
+                  <div class=" appearance-none  rounded-[10px]  text-select-option">
+                    <button 
+                    onclick="toggleDropdown('dropdown-33')"
+                    class="group inline-flex w-full h-[40px] items-center justify-between gap-2 px-4 py-2 rounded-xl border-[1px] border-secondary-200 bg-white transition-all 
+                    text-secondary-200 hover:border-dark-gray hover:text-black active:border-primary-23 active:text-primary-23 cursor-pointer">
+
+                      <span id="label-dropdown-33" class="text-select-filter group-hover:text-black group-active:text-[#0E0E0E] transition-colors">
+                        Choose option
+                      </span>
+                      <!-- <span id="label-dropdown-1" class="text-entity-name">Choose option</span> -->
+                      <span>
+                        <svg id="icon-dropdown-33"
+                            class="transition-transform duration-300"
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="14" height="14" viewBox="0 0 14 14" fill="none">
+                          <path d="M5.22082 2.38012L9.02416 6.18345C9.47333 6.63262 9.47333 7.36762 9.02416 7.81678L5.22083 11.6201" 
+                                stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                      </span>
+                    </button> 
+                    <ul id="dropdown-33" class="hidden absolute w-full bg-white border mt-1 rounded-md shadow z-10 text-sm">
+                      <li onclick="selectedOption('dropdown-33', 'Not Designated')" class="flex items-center justify-between border-b border-gray-200 px-4 py-2 hover:bg-primary-7 cursor-pointer">
+                          <span class="flex items-center gap-2">
+                              <span id="label-dropdown-33" class="text-dropdown-option">Not Designated</span>
+                          </span>
+                          <span class="text-[#AF9494]">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="4" height="7" viewBox="0 0 4 7" fill="currentColor">
+                            <path d="M3.35381 3.3269L0.526913 6.15381L-2.30321e-08 5.6269L2.3 3.3269L-2.24104e-07 1.0269L0.526912 0.499983L3.35381 3.3269Z" fill="currentColor"/>
+                            </svg>
+                          </span>
+                      </li>
+                      <li onclick="selectedOption('dropdown-33', 'Option 2')" class="flex items-center justify-between border-b border-gray-200 px-4 py-2 hover:bg-primary-7 cursor-pointer">
+                          <span class="flex items-center gap-2">
+                              <span id="label-dropdown-33" class="text-dropdown-option">Option 2</span>
+                          </span>
+                          <span class="text-[#AF9494]">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="4" height="7" viewBox="0 0 4 7" fill="currentColor">
+                            <path d="M3.35381 3.3269L0.526913 6.15381L-2.30321e-08 5.6269L2.3 3.3269L-2.24104e-07 1.0269L0.526912 0.499983L3.35381 3.3269Z" fill="currentColor"/>
+                            </svg>
+                          </span>
+                      </li>
+                      <li onclick="selectedOption('dropdown-33', 'Option 3')" class="flex items-center justify-between border-b border-gray-200 px-4 py-2 hover:bg-primary-7 cursor-pointer">
+                          <span class="flex items-center gap-2">
+                              <span id="label-dropdown-33" class="text-dropdown-option">Option 3</span>
+                          </span>
+                          <span class="text-[#AF9494]">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="4" height="7" viewBox="0 0 4 7" fill="currentColor">
+                            <path d="M3.35381 3.3269L0.526913 6.15381L-2.30321e-08 5.6269L2.3 3.3269L-2.24104e-07 1.0269L0.526912 0.499983L3.35381 3.3269Z" fill="currentColor"/>
+                            </svg>
+                          </span>
+                      </li>
+                    </ul>                      
+                  </div>
+                </div>                
+              </div>
+
+              <!-- row 4 -->
+              <div class="mt-2.5 mb-2.5 grid grid-cols-3 gap-6 space-y-2.5">
+                <div class="relative w-full">
+                  <label class="block text-select-header mb-1.5">Master Contractor</label>
+                  <div class=" appearance-none  rounded-[10px]  text-select-option">
+                    <button 
+                    onclick="toggleDropdown('dropdown-41')"
+                    class="group inline-flex w-full h-[40px] items-center justify-between gap-2 px-4 py-2 rounded-xl border-[1px] border-secondary-200 bg-white transition-all 
+                    text-secondary-200 hover:border-dark-gray hover:text-black active:border-primary-23 active:text-primary-23 cursor-pointer">
+
+                      <span id="label-dropdown-41" class="text-select-filter group-hover:text-black group-active:text-[#0E0E0E] transition-colors">
+                        Choose option
+                      </span>
+                      <span>
+                        <svg id="icon-dropdown-41"
+                            class="transition-transform duration-300"
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="14" height="14" viewBox="0 0 14 14" fill="none">
+                          <path d="M5.22082 2.38012L9.02416 6.18345C9.47333 6.63262 9.47333 7.36762 9.02416 7.81678L5.22083 11.6201" 
+                                stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                      </span>
+                    </button> 
+                    <ul id="dropdown-41" class="hidden absolute w-full bg-white border mt-1 rounded-md shadow z-10 text-sm">
+                      <li onclick="selectedOption('dropdown-41', '10998 - CEVA Logistics SA PTY LTD')" class="flex items-center justify-between border-b border-gray-200 px-4 py-2 hover:bg-primary-7 cursor-pointer">
+                          <span class="flex items-center gap-2">
+                              <span id="label-dropdown-41" class="text-dropdown-option">10998 - CEVA Logistics SA PTY LTD</span>
+                          </span>
+                          <span class="text-[#AF9494]">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="4" height="7" viewBox="0 0 4 7" fill="currentColor">
+                            <path d="M3.35381 3.3269L0.526913 6.15381L-2.30321e-08 5.6269L2.3 3.3269L-2.24104e-07 1.0269L0.526912 0.499983L3.35381 3.3269Z" fill="currentColor"/>
+                            </svg>
+                          </span>
+                      </li>
+                      <li onclick="selectedOption('dropdown-41', 'Option 2')" class="flex items-center justify-between border-b border-gray-200 px-4 py-2 hover:bg-primary-7 cursor-pointer">
+                          <span class="flex items-center gap-2">
+                              <span id="label-dropdown-41" class="text-dropdown-option">Option 2</span>
+                          </span>
+                          <span class="text-[#AF9494]">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="4" height="7" viewBox="0 0 4 7" fill="currentColor">
+                            <path d="M3.35381 3.3269L0.526913 6.15381L-2.30321e-08 5.6269L2.3 3.3269L-2.24104e-07 1.0269L0.526912 0.499983L3.35381 3.3269Z" fill="currentColor"/>
+                            </svg>
+                          </span>
+                      </li>
+                      <li onclick="selectedOption('dropdown-41', 'Option 3')" class="flex items-center justify-between border-b border-gray-200 px-4 py-2 hover:bg-primary-7 cursor-pointer">
+                          <span class="flex items-center gap-2">
+                              <span id="label-dropdown-41" class="text-dropdown-option">Option 3</span>
+                          </span>
+                          <span class="text-[#AF9494]">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="4" height="7" viewBox="0 0 4 7" fill="currentColor">
+                            <path d="M3.35381 3.3269L0.526913 6.15381L-2.30321e-08 5.6269L2.3 3.3269L-2.24104e-07 1.0269L0.526912 0.499983L3.35381 3.3269Z" fill="currentColor"/>
+                            </svg>
+                          </span>
+                      </li>
+                    </ul>                      
+                  </div>
+                </div>
+                <div class="relative w-full">
+                  <label class="block text-select-header mb-1.5">Cartage Contractor</label>
+                  <div class=" appearance-none  rounded-[10px]  text-select-option">
+                    <button 
+                    onclick="toggleDropdown('dropdown-42')"
+                    class="group inline-flex w-full h-[40px] items-center justify-between gap-2 px-4 py-2 rounded-xl border-[1px] border-secondary-200 bg-white transition-all 
+                    text-secondary-200 hover:border-dark-gray hover:text-black active:border-primary-23 active:text-primary-23 cursor-pointer">
+
+                      <span id="label-dropdown-42" class="text-select-filter group-hover:text-black group-active:text-[#0E0E0E] transition-colors">
+                        Choose option
+                      </span>
+                      <span>
+                        <svg id="icon-dropdown-42"
+                            class="transition-transform duration-300"
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="14" height="14" viewBox="0 0 14 14" fill="none">
+                          <path d="M5.22082 2.38012L9.02416 6.18345C9.47333 6.63262 9.47333 7.36762 9.02416 7.81678L5.22083 11.6201" 
+                                stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                      </span>
+                    </button> 
+                    <ul id="dropdown-42" class="hidden absolute w-full bg-white border mt-1 rounded-md shadow z-10 text-sm">
+                      <li onclick="selectedOption('dropdown-42', 'Not Designated')" class="flex items-center justify-between border-b border-gray-200 px-4 py-2 hover:bg-primary-7 cursor-pointer">
+                          <span class="flex items-center gap-2">
+                              <span id="label-dropdown-42" class="text-dropdown-option">Not Designated</span>
+                          </span>
+                          <span class="text-[#AF9494]">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="4" height="7" viewBox="0 0 4 7" fill="currentColor">
+                            <path d="M3.35381 3.3269L0.526913 6.15381L-2.30321e-08 5.6269L2.3 3.3269L-2.24104e-07 1.0269L0.526912 0.499983L3.35381 3.3269Z" fill="currentColor"/>
+                            </svg>
+                          </span>
+                      </li>
+                      <li onclick="selectedOption('dropdown-42', 'Option 2')" class="flex items-center justify-between border-b border-gray-200 px-4 py-2 hover:bg-primary-7 cursor-pointer">
+                          <span class="flex items-center gap-2">
+                              <span id="label-dropdown-42" class="text-dropdown-option">Option 2</span>
+                          </span>
+                          <span class="text-[#AF9494]">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="4" height="7" viewBox="0 0 4 7" fill="currentColor">
+                            <path d="M3.35381 3.3269L0.526913 6.15381L-2.30321e-08 5.6269L2.3 3.3269L-2.24104e-07 1.0269L0.526912 0.499983L3.35381 3.3269Z" fill="currentColor"/>
+                            </svg>
+                          </span>
+                      </li>
+                      <li onclick="selectedOption('dropdown-42', 'Option 3')" class="flex items-center justify-between border-b border-gray-200 px-4 py-2 hover:bg-primary-7 cursor-pointer">
+                          <span class="flex items-center gap-2">
+                              <span id="label-dropdown-42" class="text-dropdown-option">Option 3</span>
+                          </span>
+                          <span class="text-[#AF9494]">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="4" height="7" viewBox="0 0 4 7" fill="currentColor">
+                            <path d="M3.35381 3.3269L0.526913 6.15381L-2.30321e-08 5.6269L2.3 3.3269L-2.24104e-07 1.0269L0.526912 0.499983L3.35381 3.3269Z" fill="currentColor"/>
+                            </svg>
+                          </span>
+                      </li>
+                    </ul>                      
+                  </div>
+                </div>
+                <div class="relative w-full">
+                  <label class="block text-select-header mb-1.5">Cargo Type</label>
+                  <div class=" appearance-none  rounded-[10px]  text-select-option">
+                    <button 
+                    onclick="toggleDropdown('dropdown-43')"
+                    class="group inline-flex w-full h-[40px] items-center justify-between gap-2 px-4 py-2 rounded-xl border-[1px] border-secondary-200 bg-white transition-all 
+                    text-secondary-200 hover:border-dark-gray hover:text-black active:border-primary-23 active:text-primary-23 cursor-pointer">
+
+                      <span id="label-dropdown-43" class="text-select-filter group-hover:text-black group-active:text-[#0E0E0E] transition-colors">
+                        Choose option
+                      </span>
+                      <span>
+                        <svg id="icon-dropdown-43"
+                            class="transition-transform duration-300"
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="14" height="14" viewBox="0 0 14 14" fill="none">
+                          <path d="M5.22082 2.38012L9.02416 6.18345C9.47333 6.63262 9.47333 7.36762 9.02416 7.81678L5.22083 11.6201" 
+                                stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                      </span>
+                    </button> 
+                    <ul id="dropdown-43" class="hidden absolute w-full bg-white border mt-1 rounded-md shadow z-10 text-sm">
+                      <li onclick="selectedOption('dropdown-43', 'Containterised')" class="flex items-center justify-between border-b border-gray-200 px-4 py-2 hover:bg-primary-7 cursor-pointer">
+                          <span class="flex items-center gap-2">
+                              <span id="label-dropdown-43" class="text-dropdown-option">Containterised</span>
+                          </span>
+                          <span class="text-[#AF9494]">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="4" height="7" viewBox="0 0 4 7" fill="currentColor">
+                            <path d="M3.35381 3.3269L0.526913 6.15381L-2.30321e-08 5.6269L2.3 3.3269L-2.24104e-07 1.0269L0.526912 0.499983L3.35381 3.3269Z" fill="currentColor"/>
+                            </svg>
+                          </span>
+                      </li>
+                      <li onclick="selectedOption('dropdown-43', 'Option 2')" class="flex items-center justify-between border-b border-gray-200 px-4 py-2 hover:bg-primary-7 cursor-pointer">
+                          <span class="flex items-center gap-2">
+                              <span id="label-dropdown-43" class="text-dropdown-option">Option 2</span>
+                          </span>
+                          <span class="text-[#AF9494]">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="4" height="7" viewBox="0 0 4 7" fill="currentColor">
+                            <path d="M3.35381 3.3269L0.526913 6.15381L-2.30321e-08 5.6269L2.3 3.3269L-2.24104e-07 1.0269L0.526912 0.499983L3.35381 3.3269Z" fill="currentColor"/>
+                            </svg>
+                          </span>
+                      </li>
+                      <li onclick="selectedOption('dropdown-43', 'Option 3')" class="flex items-center justify-between border-b border-gray-200 px-4 py-2 hover:bg-primary-7 cursor-pointer">
+                          <span class="flex items-center gap-2">
+                              <span id="label-dropdown-43" class="text-dropdown-option">Option 3</span>
+                          </span>
+                          <span class="text-[#AF9494]">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="4" height="7" viewBox="0 0 4 7" fill="currentColor">
+                            <path d="M3.35381 3.3269L0.526913 6.15381L-2.30321e-08 5.6269L2.3 3.3269L-2.24104e-07 1.0269L0.526912 0.499983L3.35381 3.3269Z" fill="currentColor"/>
+                            </svg>
+                          </span>
+                      </li>
+                    </ul>                      
+                  </div>
+                </div>                
+              </div>
+
+            </div>
+            <!-- Transport -->
+            <div id="header-transport-details" onclick="toggleDetails('transport-details')" class="flex h-12 px-3 bg-other-gray-bg justify-between items-center rounded-[7px] cursor-pointer">
+              <button  class="flex items-center gap-3 cursor-pointer">
+                <span class="text-tab-content-header">Transport Details</span>
+                <span class="inline-block pr-3 transform transition-transform duration-200" id="toggle-icon">
+                  <svg id="icon-transport-details"
+                      class="transform transition-transform duration-300 "
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="14" height="14" viewBox="0 0 14 14" fill="none">
+                    <path d="M5.22082 2.38012L9.02416 6.18345C9.47333 6.63262 9.47333 7.36762 9.02416 7.81678L5.22083 11.6201" 
+                          stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </span>
+              </button>
+ 
+            </div>
+            <!-- Transport Details -->
+            <div id="transport-details" class="mt-2.5 mb-2.5 hidden ">
+              <div class="">Transport Details</div>
+            </div>
+            <!-- Lead Time -->
+            <div id="header-lead-time-details" onclick="toggleDetails('lead-time-details')" class="flex h-12 px-3 bg-other-gray-bg justify-between items-center rounded-[7px] cursor-pointer">
+              <button  class="flex items-center gap-3 cursor-pointer">
+                <span class="text-tab-content-header">Lead Time</span>
+                <span class="inline-block pr-3 transform transition-transform duration-200" id="toggle-icon">
+                  <svg id="icon-lead-time-details"
+                      class="transform transition-transform duration-300 "
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="14" height="14" viewBox="0 0 14 14" fill="none">
+                    <path d="M5.22082 2.38012L9.02416 6.18345C9.47333 6.63262 9.47333 7.36762 9.02416 7.81678L5.22083 11.6201" 
+                          stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </span>
+              </button>
+            </div>
+            <!-- Lead Time Details -->
+            <div id="lead-time-details" class="mt-2.5 mb-2.5 hidden ">
+              <div class="">Lead Time Details</div>
+            </div>
+          </div>
+        </div>
+        <div id="Customs-content" class="tab-content hidden">
+          <div class="bg-primary-7 p-4 rounded-md">Customs Section</div>
+        </div>
+        <div id="Containers-content" class="tab-content hidden">
+          <div class="bg-primary-7 p-4 rounded-md">Containers Section</div>
+        </div>
+        <div id="Details-content" class="tab-content hidden">
+          <div class="bg-primary-7 p-4 rounded-md">Details Section</div>
+        </div>
+        <div id="CommercialInvoice-content" class="tab-content hidden">
+          <div class="bg-primary-7 p-4 rounded-md">Commercial Invoice Section</div>
+        </div>
+        <div id="PR-content" class="tab-content hidden">
+          <div class="bg-primary-7 p-4 rounded-md">P&amp;R Section</div>
+        </div>
+        <div id="GoodsDeclaration-content" class="tab-content hidden">
+          <div class="bg-primary-7 p-4 rounded-md">Goods Declaration Section</div>
+        </div>
+        <div id="CostInvoice-content" class="tab-content hidden">
+          <div class="bg-primary-7 p-4 rounded-md">Cost Invoice Section</div>
+        </div>
+        <div id="Documents-content" class="tab-content hidden">
+          <div class="bg-primary-7 p-4 rounded-md">Documents Section</div>
+        </div>
+        <div id="Status-content" class="tab-content hidden">
+          <div class="bg-primary-7 p-4 rounded-md">Status Section</div>
+        </div>
+      </div>
+    </div>

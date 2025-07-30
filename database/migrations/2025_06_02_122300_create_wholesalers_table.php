@@ -11,11 +11,16 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('type_affiliates', function (Blueprint $table) {
+        Schema::create('wholesalers', function (Blueprint $table) {
             $table->id();
-            $table->string('name')->unique(); // 
+            $table->string('name')->unique();
+            $table->longText('description')->nullable();
             $table->timestamps();
             $table->softDeletes();
+
+            $table->foreignId('created_by_id')->nullable()->constrained('users');
+            $table->foreignId('updated_by_id')->nullable()->constrained('users');
+            $table->foreignId('team_id')->nullable()->constrained('teams');
         });
     }
 
@@ -24,6 +29,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('type_affiliates');
+        Schema::dropIfExists('wholesalers');
     }
 };

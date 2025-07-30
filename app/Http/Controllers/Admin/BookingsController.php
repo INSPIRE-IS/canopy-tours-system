@@ -1,0 +1,763 @@
+<?php
+
+namespace App\Http\Controllers\Admin;
+
+use App\Http\Controllers\Controller;
+use App\Http\Requests\MassDestroyBookingRequest;
+use App\Http\Requests\StoreBookingRequest;
+use App\Http\Requests\UpdateBookingRequest;
+use App\Models\Booking;
+use App\Models\BookingDetail;
+use App\Models\BookingFee;
+use App\Models\BookingInfo;
+use App\Models\BookingInventory;
+use App\Models\Closeout;
+use App\Models\Customer;
+use App\Models\Inventory;
+use App\Models\InventoryOverride;
+use App\Models\InventoryTimeSlot;
+use App\Models\Season;
+use App\Models\Service;
+use App\Models\StatusBooking;
+use App\Models\TypeAffiliate;
+use App\Models\TypeLocation;
+use App\Models\TypeReferral;
+use App\Models\User;
+use App\Models\Wholesaler;
+use App\Models\WholesalerBooking;
+use Carbon\Carbon;
+use Carbon\CarbonPeriod;
+use Illuminate\Support\Facades\DB;
+use Gate;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Inertia\Inertia;
+use Str;
+use Symfony\Component\HttpFoundation\Response;
+
+class BookingsController extends Controller
+{
+    public function index()
+    {
+        //abort_if(Gate::denies('booking_access'), Response::HTTP_FORBIDDEN, '403 Forbidden');
+        $bookings = Booking::with([
+            'customers', // :id,name,email,contact_number
+            'booking_details', //:id,booking_id ,start_time,end_time
+            'booking_fees', //:id,booking_id,tot_amount
+            'booking_payments', // :id,booking_id,amount
+            'booking_inventory', // :id,booking_id,inventory_id
+        ])
+            // ->select([
+            //     'id',
+            //     'lead_name',
+            //     'user_id',
+            //     'status_booking_id',
+            //     'due_date',
+            //     'tot_paid',
+            //     'grand_tot_due',
+            //     'service_id',
+            //     'season_id',
+            //     'inventory_id',
+            //     'created_at'
+            // ])
+            //->whereDate('due_date', '2025-01-01')
+            ->get();
+        //dd($bookings);
+        $formatted = $bookings->map(function ($booking) {
+            try {
+
+
+                $price = 0;
+                foreach ($booking->booking_fees as $fee) {
+                    $price += $fee->tot_amount;
+                }
+                $paid = 0;
+                foreach ($booking->booking_payments as $payment) {
+                    $paid += $payment->amount;
+                }
+
+                $due = $price - $paid;
+                //dd($booking->booking_inventory->inventory_time_slot_id);
+
+                // $inventory = Inventory::with(['timeSlots' => function ($q) use ($booking) {
+                //     $q->where('id', $booking->booking_inventory->inventory_time_slot_id);
+                // }])->find($booking->booking_inventory->booking_id);
+                // dd($inventory);
+                $inventory = Inventory::find($booking->inventory_id);
+                $timeSlot = InventoryTimeSlot::find($inventory->id);
+
+                $time = $timeSlot->start_time;
+                $start_time = Carbon::parse($time);
+                // assuming $inventory->duration = '02:00:00'
+                //dd($inventory->duration);
+                list($hours, $minutes, $seconds) = explode(':', $inventory->duration);
+                $end_time = $start_time->copy()->addHours($hours)->addMinutes($minutes)->addSeconds($seconds);
+                // dd($end_time->format('H:i:s'));
+
+                return [
+                    'id' => $booking->id,
+                    'reference' => $booking->reference,
+                    'lead_name' => $booking->lead_name,
+                    'bookingPax' => $booking->booking_inventory->pax, // $booking->customers->count(),
+                    'maxPax' => $inventory->capacity, // $booking->customers->count(),
+                    'service' => $booking->service->name,
+                    'time' => $start_time->format('H:i:s') . ' ' . $end_time->format('H:i:s'), // optional($booking->booking_inventory)->inventory_time_slot_id ?? '' . ' - ' . optional($booking->booking_inventory)->inventory_time_slot_id ?? '',
+                    'price' => number_format($price ?? 0, 2),
+                    'paid' =>  number_format($paid ?? 0, 2),
+                    'due' =>  number_format($due ?? 0, 2),
+                    'customers' => $booking->customers->map(fn($c) => [
+                        //'reference' => $booking->reference,
+                        'name' => "{$c->name}",
+                        'email' => $c->email,
+                        'phone' => $c->contact_number,
+                        //'age' => $c->age,
+                        //'notes' => $c->notes,
+                        'price' => $c->pivot->price ?? 190,
+                        'paid' => $c->pivot->paid ?? 0,
+                        'due' => ($c->pivot->price ?? 190) - ($c->pivot->paid ?? 0),
+                        'docs_link' => '', // route('customer.docs', $c->id),
+                        'ols_link' => '', // route('customer.ols', $c->id),
+                        'is_lead' => $c->pivot->is_lead,
+                        'team_id' => $c->pivot->team_id,
+                    ]),
+                    'dueStatus' => $booking->status_booking_id,
+                    'due_date' => $booking->due_date,
+                ];
+            } catch (\Throwable $e) {
+                Log::error('Booking', [
+                    'message' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString(),
+                    'input' => $booking,
+                ]);
+                return null;
+            }
+        });
+
+        // [
+        //     'time' => '09:00 - 11:30',
+        //     'pax' => 6,
+        //     'maxPax' => 8,
+        //     'service' => 'Tsitsikamma Canopy Tour',
+        //     'price' => 5570,
+        //     'paid' => 5570,
+        //     'due' => 3780,
+        //     'dueStatus' => 'Overdue', // Could be 'Normal', 'Overdue', or 'Paid'
+        // ],
+
+        // dd($formatted);
+        return Inertia::render('Admin/Bookings/Index', ['bookings' => $formatted]);
+
+        // return view('admin.bookings.index', compact('bookings'));
+    }
+
+    public function create(Request $request)
+    {
+
+        $users = User::select('name', 'id')->get();
+        $status_bookings = StatusBooking::select('name', 'id')->get();
+        $wholesalers = Wholesaler::select('id', 'name')->get();
+        //$services = Service::select('id', 'name')->get();
+        $services = Service::select('id', 'name')->with('seasons:id,name,service_id', 'seasons.inventory', 'seasons.inventory.timeSlots')->get();
+        //$seasons = Season::select('id', 'name', 'service_id')->get();
+        $inventories = Inventory::select('start_date', 'id')->get();
+        $type_affiliates = TypeReferral::select('name', 'id')->get();
+        $updated_bies = User::select('name', 'id')->get();
+        $customers = Customer::select('full_name as name', 'id')->get();
+
+        $viewMode = $request->input('view_mode', 'week');
+        $startDate = Carbon::parse($request->input('start_date', now()));
+        $timeslots = Booking::TIME_SLOTS;
+        //$timeslotCollection = collect($timeslots);
+        $slots = [];
+        // foreach ($timeslots as $value => $label) {
+        //     $slots[] = [
+        //         'id' => (string)$value,  // Convert value to string
+        //         'name' => $label
+        //     ];
+        // }
+        //dd($services);
+
+        $formatted = [];
+        $schedule = [];
+        $days = match ($viewMode) {
+            'day' => 1,
+            'week' => 7,
+            'month' => 30,
+            default => 7
+        };
+        $endDate = (clone $startDate)->addDays($days - 1);
+        return Inertia::render('Admin/Bookings/Create', [
+            'wholesalers' => $wholesalers,
+            'services' => $services,
+            //'seasons' => $seasons,
+            'inventories' => $inventories,
+            'type_affiliates' => $type_affiliates,
+            'updated_bies' => $updated_bies,
+            'users' => $users,
+            'status_bookings' => $status_bookings,
+            'timeslots' => $slots,
+            'schedule' => $schedule,
+            'start_date' => $startDate->toDateString(),
+            'view_mode' => $viewMode,
+            'days' => collect(CarbonPeriod::create($startDate, $endDate))
+                ->map(fn($d) => $d->format('D d'))
+                ->values(),
+            'adults' => 0,
+            'children' => 0,
+            'guides' => 0,
+            'availableTimes' => [],
+        ]);
+        //return view('admin.bookings.create', compact('customers', 'inventories', 'seasons', 'services', 'status_bookings', 'updated_bies', 'users'));
+    }
+
+    public function store(StoreBookingRequest $request)
+    {
+        // dd($request->all());
+        //   "is_wholesaler" => true
+        //   "wholesaler_id" => "1"
+        //   "add_consultant" => true
+        //   "consultant_name" => "Consultant Name"
+        //   "consultant_email" => "Consultant Email"
+        //   "consultant_mobile" => "Consultant Email Consultant Mobile"
+        //   "service_id" => "2"
+        //   "season_id" => "2"
+        //   "booking_date" => "2025-07-25"
+        //   "start_time" => "3"
+        //   "end_time" => null
+        //   "selected_slot" => array:3 [▶]
+        //   "adults" => "1"
+        //   "children" => "2"
+        //   "guides" => "1"
+        //   "include_media" => true
+        //   "override_rates" => true
+        //   "adult" => 600
+        //   "child" => 300
+        //   "guide" => 200
+        //   "booking_total" => "1400.00"
+        //   "redeem_voucher" => null
+        //   "invoice_note" => "Add Invoice Note"
+        //   "email_reminder" => "Add Email Reminder"
+        //   "booking_note" => "Add Booking Note"
+        //   "corporate_customer" => true
+        //   "send_sms" => true
+        //   "lead_person" => "Lead Person"
+        //   "lead_email" => "Lead Email"
+        //   "lead_mobile" => "Lead Mobile"
+        //   "referral_source" => "2"
+        //   "rate_per_adult" => 600
+        //   "rate_per_child" => 300
+        //   "rate_per_guide" => 200
+        //   "web_booking" => true
+        //   "needs_pickup" => true
+        //   "override_timeslots" => true
+        //   "exclusive_resource" => true
+        //   "override_reason" => "Reason for Override"
+
+
+
+        $validated = $request->validate([
+            'lead_person' => 'required|string', //   "lead_person" => "Lead Person"
+            'lead_email' => 'required|email', //   "lead_email" => "Lead Email"
+            'lead_mobile' => 'required|string', //   "lead_mobile" => "Lead Mobile"
+            'selected_slot' => 'required|array', //   "selected_slot" => array:3 [▶] date "2025-07-28" "selected_slot" => array:3 [▶] time "08:00:00"
+            'adults' => 'required|integer|min:1', //   "adults" => "1"
+            'children' => 'nullable|integer|min:0', //   "children" => "2"
+            'season_id' => 'required|integer', //   "season_id" => "2"
+            'corporate_customer' => 'boolean', //   "corporate_customer" => "true"
+            'send_sms' => 'boolean', //   "send_sms" => "true"
+            'booking_date' => 'required|date', //   "booking_date" => "2025-07-28"
+            'start_time' => 'required', //   "start_time" => "08:00:00"
+            'is_wholesaler' => 'boolean', //   "is_wholesaler" => "true"
+            'wholesaler_id' => 'integer|nullable', //   "wholesaler_id" => "1"
+            'add_consultant' => 'boolean', //   "add_consultant" => "true"
+            'consultant_name' => 'string|nullable', //   "consultant_name" => "Consultant Name"
+            'consultant_email' => 'email|nullable', //   "consultant_email" => "Consultant Email"
+            'consultant_mobile' => 'string|nullable', //   "consultant_mobile" => "Consultant Email Consultant Mobile"
+            'needs_pickup' => 'boolean', //   "needs_pickup" => "true"
+            'web_booking' => 'boolean', //   "web_booking" => "true"
+            'include_media' => 'boolean', //   "videos_photos" => "true"
+            'override_timeslots' => 'boolean', //   "override_timeslots" => "true"
+            'exclusive_resource' => 'boolean', //   "exclusive_resource" => "true"
+            'redeem_voucher' => 'string|nullable', //   "redeem_voucher" => "Voucher Code"
+            'invoice_note' => 'string|nullable', //   "invoice_note" => "Add Invoice Note"
+            'email_reminder' => 'string|nullable', //   "email_reminder" => "Add Email Reminder"
+            'booking_note' => 'string|nullable', //   "booking_note" => "Add Booking Note"
+        ]);
+        try {
+            $booking = DB::transaction(function () use ($validated) {
+                //dd($validated);
+                $season_id = $validated['season_id'];
+                $selected_slot = $validated['selected_slot'];
+                //dd($selected_slot['date']);
+                $season = Season::findOrFail($season_id);
+                $inventory = Inventory::where('season_id', $season->id)->first();
+                //$FullNameOfDay = Carbon::parse($validated['date'])->format('l'); // e.g., Monday
+                //$ShortNameOfDay = Carbon::parse($validated['date'])->format('D'); // e.g., Mon
+                $isoNameOfDay = Carbon::parse($selected_slot['date'])->format('N'); // iso week starts on Monday
+                //$numericNameOfDay = Carbon::parse($validated['date'])->format('w'); // week starts on Sunday
+
+
+                if (!$inventory) {
+                    abort(404, 'This season has no inventory.');
+                }
+                $inventoryTimeSlot = InventoryTimeSlot::where('inventory_id', $inventory->id)->where('start_time', $selected_slot['time'])->first();
+                //$inventoryTypeDay = InventoryTypeDay::where('inventory_id', $inventory->id)->first();
+
+                if (!$inventoryTimeSlot) {
+                    abort(404, 'This inventory has no time slot.');
+                }
+
+                // 1. Create or find customer
+                $customer = Customer::firstOrCreate([
+                    'email_address' => $validated['lead_email'],
+                ], [
+                    'full_name' => $validated['lead_person'],
+                    'contact_number' => $validated['lead_mobile'],
+                ]);
+                $adultsCount = (int) ($validated['adults'] ?? 0);
+                $amount_adults = $inventory->rake_rate_adult * $adultsCount;
+                $childrenCount = (int) ($validated['children'] ?? 0);
+                $amount_children = $inventory->rake_rate_children * $childrenCount;
+                //$guidesCount = (int) ($validated['guides'] ?? 0);
+                $amount_guides = $inventory->rake_rate_guide * 1;
+                $amount = $amount_adults + $amount_children + $amount_guides;
+
+                // 2. Create booking
+                $booking = Booking::create([
+                    'lead_name'      => $validated['lead_person'],
+                    'status_booking_id' => 1,
+                    'is_sms'         => $validated['send_sms'],
+                    'is_corporate'   => $validated['corporate_customer'],
+                    'due_date'       => $validated['booking_date'],
+                    'tot_paid'       => 0,
+                    'grand_tot_due'  => $amount,
+                    'reference'      => 'REF-' . strtoupper(Str::random(6)), //Str::uuid(),
+                    'service_id'     => $season->service_id,
+                    'season_id'      => $season->id,
+                    'inventory_id'   => $inventory->id,
+                    'customers'      => [$customer->id],
+                    'created_at'     => now(),
+                    'updated_at'     => now(),
+                    'deleted_at'     => null,
+                    'team_id'        => null,
+                ]);
+
+                // Prepare pivot data
+                $pivotData = [];
+
+
+                $pivotData[$customer->id] = [
+                    'team_id' => null,   // TODO: get team from the page or session
+                    'is_lead' => 1,     // First customer is lead, rest are not
+                ];
+
+
+                // Sync with pivot data
+                $booking->customers()->sync($pivotData);
+
+                // Optional Enhancements
+                // You can also lock inventory slots with for update queries if you expect concurrency.
+                // Use Laravel's retry helper if you're worried about deadlocks (rare unless high traffic).
+
+                $bookingDetail = BookingDetail::create([
+                    'booking_id'     => $booking->id,
+                    'is_wholesaler_booking' => $validated['is_wholesaler'],
+                    'is_needs_pickup' => $validated['needs_pickup'],
+                    'is_web_booking' => $validated['web_booking'],
+                    'is_videos_photos' => $validated['include_media'],
+                    'is_exclusive_resource_use' => $validated['exclusive_resource'],
+                    'is_override_time_slots' => $validated['override_timeslots'],
+                    'created_at'     => now(),
+                    'updated_at'     => now(),
+                    'team_id'        => null,
+                ]);
+
+                if ($validated['is_wholesaler']) {
+                    WholesalerBooking::create([
+                        'booking_id'     => $booking->id,
+                        'wholesaler_id'     => $validated['wholesaler_id'],
+                        'consultant_name' => $validated['consultant_name'] ?? '',
+                        'consultant_email' => $validated['consultant_email'] ?? '',
+                        'consultant_mobile' => $validated['consultant_mobile'] ?? '',
+                    ]);
+                }
+                //TODO add modal to capture and update inventory overrides
+                if (false) { // $validated['override_timeslots']
+                    InventoryOverride::create([
+                        'inventory_id'     => $inventory->id,
+                        'date'           => $validated['date'],
+                        'time'           => $validated['time'],
+                        'capacity_override' => $validated['adult'],
+                        'price_adult' => $validated['adult'],
+                        'price_child' => $validated['child'],
+                        'price_guide' => $validated['guide'],
+                        'note' => $validated['override_reason'] ?? '',
+                        'created_by_id'     => $validated['user_id'],
+                        'updated_by_id'     => $validated['user_id'],
+                        'team_id'        => null,
+                    ]);
+                }
+
+                // TODO add modal to capture and update inventory overrides then remove the commented code below
+                BookingInventory::create([
+                    'booking_id'     => $booking->id,
+                    'booking_detail_id' => $bookingDetail->id,
+                    'date'           => $validated['booking_date'],
+                    'tot_adults'     => $adultsCount,
+                    'tot_children'   => $childrenCount,
+                    'tot_guides'     => 1,
+                    'pax'            => $adultsCount + $childrenCount,
+                    'inventory_type_day_id' => $isoNameOfDay,
+                    'inventory_time_slot_id' => $inventoryTimeSlot->id,
+                    'inventory_override_id' => null, // $validated['override_timeslots'] ? $inventoryOverride->id : null,
+                    'created_at'     => now(),
+                    'updated_at'     => now(),
+                    'team_id'        => null,
+                ]);
+                // TODO add logic for creating and validating a voucher code
+                $bookingFee = BookingFee::create([
+                    'booking_id'     => $booking->id,
+                    'booking_detail_id' => $bookingDetail->id,
+                    'tot_adults'     => $amount_adults,
+                    'tot_children'   => $amount_children,
+                    'tot_guides'     => $amount_guides,
+                    'is_voucher'     => $validated['redeem_voucher'] ? 1 : 0,
+                    'voucher_code'   => $validated['redeem_voucher'] ?? '',
+                    'invoice_note'   => $validated['invoice_note'] ?? '',
+                    'is_email_reminder' => $validated['email_reminder'] ? 1 : 0,
+                    'booking_note'   => $validated['booking_note'] ?? '',
+                    'tot_amount'     => $amount,
+                    'created_at'     => now(),
+                    'updated_at'     => now(),
+                    'team_id'        => null,
+                ]);
+
+                return $booking;
+            });
+
+            // 4. Save to booking_inventories or other linked tables
+            // return response()->json([
+            //     'success' => true,
+            //     'booking_id' => $booking->id,
+            //     'redirect_url' => route('front.payment.review', ['booking' => $booking->id]) //  route('payfast.checkout', ['booking' => $booking->id])
+            // ]);
+            //return redirect()->back()->with('booking_id', $booking->id);
+            return redirect()->route('admin.bookings.index');
+        } catch (\Throwable $e) {
+            // Log the full error for debugging
+            Log::error('Booking failed and rolled back', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'input' => $validated,
+            ]);
+            return back()->with([
+                'error' => 'Something went wrong while saving your booking. Please try again.',
+            ]);
+            // return response()->json([
+            //     'success' => false,
+            //     'error' => 'Something went wrong while saving your booking. Please try again.',
+            // ], 500);
+        }
+
+
+        // $booking = Booking::create($request->all());
+        // $booking->customers()->sync($request->input('customers', []));
+
+        return redirect()->route('admin.bookings.index');
+    }
+
+    public function edit(Booking $booking)
+    {
+        //abort_if(Gate::denies('booking_edit'), Response::HTTP_FORBIDDEN, '403 Forbidden');
+        $user = auth()->user();
+
+        $booking->load([
+            'service',
+            'season',
+            'inventory',
+            'customers', // :id,name,email,contact_number
+            'customer_manifests', // :id,position,notes,is_indemnity,customer_id,booking_id\
+            'booking_infos', // :id,booking_id,type_location_id,location,time,created_at,updated_at,deleted_at
+            'customers.booking_questionnaire', // :id,booking_id,customer_id,guide_id,safety_guide_id,type_group_id,fullname,email,signature,birth_date,type_referral,country_id,province_id,is_medical,medical_detail,is_fit,is_agree
+            'booking_details', //:id,booking_id ,start_time,end_time
+            'booking_fees', //:id,booking_id,tot_amount
+            'booking_payments', // :id,booking_id,amount
+            'booking_inventory', // :id,booking_id,inventory_id
+            'booking_staff', // :id,booking_id,user_id
+            'booking_staff.user', // :id,name,email,contact_number
+        ])
+            // ->select([
+            //     'id',
+            //     'lead_name',
+            //     'user_id',
+            //     'status_booking_id',
+            //     'due_date',
+            //     'tot_paid',
+            //     'grand_tot_due',
+            //     'service_id',
+            //     'season_id',
+            //     'inventory_id',
+            //     'created_at'
+            // ])
+            //->whereDate('due_date', '2025-01-01')
+            ->get();
+
+        $staff = User::with('roles:id,name')
+            ->whereHas('roles', function ($query) {
+                $query->whereIn('id', [4, 5, 6]);
+            })
+            ->when($user->team_id, function ($query, $teamId) {
+                $query->where('team_id', $teamId);
+            })
+            ->select('name', 'id')
+            ->get()
+            ->map(function ($user) {
+                $roleName = $user->roles->first()?->name ?? 'No Role';
+                return collect([
+                    'id'   => $user->id,
+                    'name' => $user->name,
+                    'role' => $roleName,
+                ]);
+            });
+        // ->flatMap(function ($user) {
+        //     return $user->roles->map(function ($role) use ($user) {
+        //         return "{$user->name} - {$role->name}";
+        //     });
+        // });
+
+        return Inertia::render('Admin/Bookings/Edit', ['booking' => $booking, 'staff' => $staff]);
+
+
+
+
+
+        // $users = User::pluck('name', 'id')->prepend(trans('global.pleaseSelect'), '');
+
+        // $status_bookings = StatusBooking::pluck('name', 'id')->prepend(trans('global.pleaseSelect'), '');
+
+        // $services = Service::pluck('name', 'id')->prepend(trans('global.pleaseSelect'), '');
+
+        // $seasons = Season::pluck('name', 'id')->prepend(trans('global.pleaseSelect'), '');
+
+        // $inventories = Inventory::pluck('start_date', 'id')->prepend(trans('global.pleaseSelect'), '');
+
+
+        // $updated_bies = User::pluck('name', 'id')->prepend(trans('global.pleaseSelect'), '');
+
+        // $customers = Customer::pluck('full_name as name', 'id');
+
+        // $booking->load('user', 'status_booking', 'service', 'season', 'inventory', 'updated_by', 'customers', 'team');
+
+        // return view('admin.bookings.edit', compact('booking', 'customers', 'inventories', 'seasons', 'services', 'status_bookings', 'updated_bies', 'users'));
+    }
+
+    public function update(UpdateBookingRequest $request, Booking $booking)
+    {
+        //dd($request->all());
+        //$booking->update($request->all());
+        $locations = TypeLocation::pluck('id', 'name');
+        $booking_infos = [];
+        foreach ($locations as $key => $type_id) {
+            $location = $request->input("{$key}_location");
+            $time     = $request->input("{$key}_time");
+            $meridiem = $request->input("{$key}_meridiem"); // Optional — only needed for pickup
+
+            if ($location && $time) {
+                // Adjust time to 24-hour if AM/PM is provided
+                // if ($meridiem && in_array(strtoupper($meridiem), ['AM', 'PM'])) {
+                //     $parsedTime = Carbon::createFromFormat('h:i A', "{$time} {$meridiem}");
+                // } else {
+                //     $parsedTime = Carbon::parse($time);
+                // }
+
+                $booking_infos[] = [
+                    'booking_id'       => $booking->id,
+                    'type_location_id' => $type_id,
+                    'location'         => $location,
+                    'time'             => $time, // ->format('H:i'),
+                    'meridiem'         => $meridiem,
+                ];
+            }
+        }
+        //dd($booking_infos);
+        foreach ($booking_infos as $info) {
+            BookingInfo::updateOrCreate(
+                [
+                    'booking_id' => $info['booking_id'],
+                    'type_location_id' => $info['type_location_id'],
+                ],
+                $info
+            );
+        }
+
+        //$booking->customers()->sync($request->input('customers', []));
+
+        return redirect()->route('admin.bookings.index');
+    }
+
+    public function show(Booking $booking)
+    {
+        abort_if(Gate::denies('booking_show'), Response::HTTP_FORBIDDEN, '403 Forbidden');
+
+        $booking->load('user', 'status_booking', 'service', 'season', 'inventory', 'updated_by', 'customers', 'team');
+
+        return view('admin.bookings.show', compact('booking'));
+    }
+
+    public function destroy(Booking $booking)
+    {
+        abort_if(Gate::denies('booking_delete'), Response::HTTP_FORBIDDEN, '403 Forbidden');
+
+        $booking->delete();
+
+        return back();
+    }
+
+
+    public function calendar(Request $request)
+    {
+        $activityId = $request->input('activity_id');
+        $viewMode = $request->input('view_mode', 'week');
+        $startDate = Carbon::parse($request->input('start_date', now()));
+        $totalRequested = (int) $request->input('adults', 0) + (int) $request->input('children', 0);
+        $days = match ($viewMode) {
+            'day' => 1,
+            'week' => 7,
+            'month' => 30,
+            default => 7
+        };
+        $endDate = (clone $startDate)->addDays($days - 1);
+        //dd($endDate);
+
+        $inventory = Inventory::with(['timeSlots', 'typeDays'])->findOrFail($activityId);
+        if ($startDate->lt(Carbon::parse($inventory->start_date)) || $endDate->gt(Carbon::parse($inventory->end_date))) {
+            return response()->json([
+                'schedule' => [],
+                'days' => [],
+                'message' => 'Selected date is outside the inventory availability period.',
+            ], 200); // Or 200 with flag
+        }
+
+        if (true) {
+            $bookingData = DB::table('bookings as b')
+                ->leftJoin('booking_inventories as bi', 'bi.booking_id', '=', 'b.id')
+                ->leftJoin('inventory_type_days as itd', 'itd.id', '=', 'bi.inventory_type_day_id')
+                ->leftJoin('type_days as td', 'td.id', '=', 'itd.type_day_id')
+                ->leftJoin('inventory_time_slots as its', 'its.id', '=', 'bi.inventory_time_slot_id')
+                ->leftJoin('inventory_overrides as io', 'io.id', '=', 'bi.inventory_override_id')
+                ->where('b.inventory_id', $activityId)
+                ->whereBetween('bi.date', [$startDate->toDateString(), $endDate->toDateString()])
+                ->select([
+                    'bi.date',
+                    'td.name as day',
+                    'its.start_time as time',
+                    DB::raw('SUM(bi.pax) as total')
+                ])
+                ->groupBy('bi.date', 'td.name', 'its.start_time')
+                ->get()
+                ->keyBy(fn($row) => $row->date . '_' . $row->time);
+        }
+        //dd($bookingData);
+
+        //dd($inventory);
+        $allowedDays = $inventory->typeDays->pluck('type_day_id')->toArray();
+
+        $closeouts = Closeout::where('service_id', $inventory->service_id)
+            ->where('season_id', $inventory->season_id)
+            ->get();
+        //dd($closeouts);
+        $blockedDates = $closeouts->flatMap(function ($c) {
+            logger("Closeout: {$c->start_date} to {$c->end_date}");
+            // $start = Carbon::parse($c->start_date);
+            // $end = Carbon::parse($c->end_date);
+
+            // return CarbonPeriod::create($start, $end)
+            //     ->map(fn($d) => $d->format('Y-m-d'));
+
+            $start = Carbon::parse($c->start_date);
+            $end = Carbon::parse($c->end_date);
+
+            $dates = CarbonPeriod::create($start, $end)->toArray();
+            logger("Generated dates: ", $dates);
+
+            return collect($dates)->map(fn($d) => $d->format('Y-m-d'));
+        })->unique()->values()->toArray();
+        // dd($blockedDates);
+        $timeSlots = $inventory->timeSlots->pluck('start_time')->unique()->sort();
+        $schedule = [];
+
+        foreach ($timeSlots as $time) {
+            $row = [
+                'time' => $time,
+                'days' => []
+            ];
+
+            foreach (CarbonPeriod::create($startDate, $endDate) as $date) {
+                $label = $date->format('D d');
+                $dayOfWeek = $date->dayOfWeekIso;
+                $dateStr = $date->toDateString();
+
+                if (!in_array($dayOfWeek, $allowedDays)) {
+                    $row['days'][$label] = [
+                        'date' => $date->format('Y-m-d'),
+                        'slots' => 0,
+                        'status' => 'unavailable',
+                        'note' => 'Not an allowed day',
+                    ];
+                    continue;
+                }
+
+                if (in_array($dateStr, $blockedDates)) {
+                    $row['days'][$label] = [
+                        'date' => $date->format('Y-m-d'),
+                        'slots' => 0,
+                        'status' => 'blocked',
+                        'note' => 'Blocked due to closeout',
+                    ];
+                    continue;
+                }
+
+                // once we have the booking data, we can calculate the remaining slots
+                if (true) {
+                    $dateTimeStr = $dateStr . '_' . $time;
+                    $booked = $bookingData[$dateTimeStr]->total ?? 0;
+                    $remaining = $inventory->capacity - $booked;
+                    if ($remaining < $totalRequested) {
+                        $row['days'][$label] = [
+                            'date' => $date->format('Y-m-d'),
+                            'slots' => $remaining,
+                            'status' => 'full',
+                            'note' => 'Fully booked',
+                        ];
+                    } else {
+                        $row['days'][$label] = [
+                            'date' => $date->format('Y-m-d'),
+                            'slots' => $remaining,
+                            'status' => 'available',
+                            'rake_rate_adult' => $inventory->rake_rate_adult,
+                        ];
+                    }
+                }
+                // if we don't have the booking data, we can't calculate the remaining slots
+                if (false) {
+                    $row['days'][$label] = [
+                        'date' => $date->format('Y-m-d'),
+                        'slots' => $inventory->capacity,
+                        'status' => 'available',
+                        'rake_rate_adult' => $inventory->rake_rate_adult,
+                    ];
+                }
+            }
+
+            $schedule[] = $row;
+        }
+
+        return response()->json([
+            'schedule' => $schedule,
+            'days' => collect(CarbonPeriod::create($startDate, $endDate))
+                ->map(fn($d) => $d->format('D d'))
+                ->values(),
+            'message' => '',
+        ]);
+    }
+}

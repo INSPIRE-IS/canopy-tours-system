@@ -3,7 +3,7 @@ import { useForm } from "@inertiajs/react";
 import InputText from "@/Components/InputText";
 import OutlineButton from "@/Components/OutlineButton";
 import BlueButton from "@/Components/BlueButton";
-import CustomTextarea1 from "@/Components/CustomTextarea1";
+import CustomTextarea from "@/Components/CustomTextarea";
 import Tiptap from "@/Components/Tiptap";
 import parse from "html-react-parser";
 
@@ -107,7 +107,7 @@ const [description, setDescription] = useState("");
                             isRequired
                             isReadOnly={mode === "view"}
                         />
-                        {/* <CustomTextarea1
+                        {/* <CustomTextarea
                             label="Content"
                             name="content"
                             value={data.content}

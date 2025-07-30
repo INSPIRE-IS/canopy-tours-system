@@ -1,7 +1,7 @@
 const CustomCheckbox = ({ label, name, checked, onChange, errors }) => {
     return (
         <div>
-            <div className="flex rounded-[10px] border border-[#F1F1F5] w-[672px] h-[60px]  ">
+            <div className="flex rounded-[10px] border border-[#F1F1F5] w-full sm:w-[672px] h-[60px]  ">
                 <div className="flex items-center gap-[18px] p-3">
                     <input
                         type="checkbox"

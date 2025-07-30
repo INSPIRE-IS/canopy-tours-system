@@ -17,6 +17,8 @@ return new class extends Migration
             $table->string('name');
             $table->string('iso2')->nullable()->unique();
             $table->string('iso3')->nullable()->unique();
+            $table->string('nationality')->nullable();
+            $table->string('phonecode')->nullable();
             $table->timestamps();
             $table->softDeletes();
         });

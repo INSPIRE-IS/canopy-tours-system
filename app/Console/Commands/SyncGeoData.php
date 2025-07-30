@@ -51,6 +51,8 @@ class SyncGeoData extends Command
                     'name' => $country['name'],
                     'iso3' => $country['iso3'],
                     'continent_id' => $continentMap[$continentName],
+                    'nationality' => $country['nationality'],
+                    'phonecode' => $country['phonecode'],
                 ]
             );
         }

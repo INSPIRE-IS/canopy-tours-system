@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { usePage, router } from '@inertiajs/react';
-import CModal from '@/Components/CModal';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head } from '@inertiajs/react';
 import ServiceModal from './ServiceModal';

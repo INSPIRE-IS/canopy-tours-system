@@ -1,118 +1,106 @@
-// resources/js/Pages/Users/Index.jsx
-
-import { useState } from 'react';
-import { usePage, router } from '@inertiajs/react';
-import CModal from '@/Components/CModal';
+import BookingToolsModal from '@/Components/BookingToolsModal';
+import CustomerToolsModal from '@/Components/CustomerToolsModal';
+import Header from '@/Components/Header';
+import { icons } from '@/icons';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head } from '@inertiajs/react';
-import UserModal from './UserModal';
-import SearchBar from '@/Components/SearchBar';
-import BlueButton from '@/Components/BlueButton';
-import Pagination from '@/Components/Pagination';
+import { Head, Link, router } from '@inertiajs/react';
+import React, { useState } from 'react';
+
+export default function Dashboard({ auth, bookings  }) {
 
 
-export default function Index({ users,permissions,roles,teams,auth, searchTerm, sortColumn, sortDirection }) {
-  //const [modalOpen, setModalOpen] = useState(false);
+    console.log("bookings", bookings)
+const [expanded, setExpanded] = useState(null); // track which booking is expanded
+const [toolsCustomer, setToolsCustomer] = useState(null); // null or { id: ..., name: ... }
+const [customerToolsTarget, setCustomerToolsTarget] = useState(null); // { customer, position }
+const [bookingToolsTarget, setBookingToolsTarget] = useState(null); // { customer, position }
 
-  const [selectedUser, setSelectedUser] = useState(null);
-  const { props } = usePage();
+const openCustomerToolsModal = (event, customer) => {
+    event.preventDefault();
+console.log("customer----------tool-------- ", customer)
 
-//   const openModal = (user = null) => {
-//     setSelectedUser(user);
-//     setModalOpen(true);
-//   };
-
-//   const closeModal = () => {
-//     setSelectedUser(null);
-//     setModalOpen(false);
-//   };
-
-
-
-
-//const { auth } = usePage().props;
-    //const { destroy } = useForm();
-    console.log('auth on user ', auth);
-    const [search, setSearch] = useState(searchTerm);
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [modalMode, setModalMode] = useState("create");
-
-    const handleOpenModal = (mode, user = null) => {
-        console.log('mode ', mode);
-        console.log('user ', user);
-        setModalMode(mode);
-        setSelectedUser(user);
-        setIsModalOpen(true);
-    };
-
-    const handleCloseModal = () => {
-        setIsModalOpen(false);
-        setSelectedUser(null);
-    };
-
-    const handleSearchChange = (e) => {
-        console.log('value ', e.target.value);
-        setSearch(e.target.value);
-    };
-
-    const handleSearchSubmit = (e) => {
-       // e.preventDefault();
-        // Redirect to the route with search query and other parameters
-        console.log('search ', search);
-
-        window.location.href = route('users.index', {
-            search,
-            sort: sortColumn,
-            direction: sortDirection
-        });
-    };
-
-    const handleDelete = (user) => {
-        if (confirm("Are you sure you want to delete this user?")) {
-            //post(route("users.destroy", user), { _method: "DELETE",});
-            router.delete(route('users.destroy', user), {preserveScroll: true});
+    const rect = event.target.getBoundingClientRect();
+    setCustomerToolsTarget({
+        customer,
+        position: {
+            top: rect.top + window.scrollY + 30, // offset below the button
+            left: rect.left + window.scrollX,
         }
-    };
+    });
+};
+const openBookingToolsModal = (event, booking) => {
+    event.preventDefault();
+console.log("booking----------tool-------- ", booking)
 
-
-
-
-
-
-
-
-
-
-  return (
-    // <AuthenticatedLayout user={props.auth.user}>
-    <AuthenticatedLayout
-        user={props.auth.user}
-            header={<h2 className="font-semibold text-xl text-gray-800 leading-tight">Users</h2>}
-    >
-        <Head title="Users" />
-        <header className="bg-white shadow-md px-6 py-4 flex justify-between items-center">
-            <div className="flex items-center gap-4">
-
-                <span className="font-semibold text-lg text-gray-800">Users, {props.auth?.user?.name}</span>
-            </div>
-        </header>
+    const rect = event.target.getBoundingClientRect();
+    setBookingToolsTarget({
+        booking,
+        position: {
+            top: rect.top + window.scrollY + 30, // offset below the button
+            left: rect.left + window.scrollX,
+        }
+    });
+};
+    return (
+        <AuthenticatedLayout
+            user={auth.user}
+            header={<h2 className="font-semibold text-xl text-gray-800 leading-tight">Bookings</h2>}
+        >
+            <Head title="Dashboard" />
+            {/* <header className="h-16 bg-white  border-b border-secondary-100 rounded-r-lg p-6 py-4 flex justify-between items-center">
+                            <div className="flex items-center gap-4 ">
+                                <div className={`icon-open flex md:hidden  items-center justify-between px-1 py-1 bg-secondary-100  relative rounded-[10px]`}>
+                                    <button onClick={()=>{}} className="flex w-auto h-auto hover:bg-gray-200 rounded-sm transition cursor-pointer">
+                                        <img src="/assets/icons/sidebar-left.svg" alt="My Icon" className="w-5 h-5" />         
+                                    </button>
+                                </div>
+                                <span className="font-semibold text-lg text-gray-800 capitalize">test</span>
+                            </div>
+                        </header> */}
             <div className="bg-white p-6 ">
                 {/* top */}
                 <div className="flex justify-between items-center mb-6">
-                    <SearchBar search={search} handleSearchChange={(e) => handleSearchChange(e)} handleSearchSubmit={handleSearchSubmit} />
+                    <span>
+                        <span className="font-semibold text-lg text-gray-800 block text-start">Welcome Back, {auth?.user?.name}👋</span>
+                        <span className="font-semibold text-lg text-gray-800 block text-start">We have 2 Pending Tasks and 5 New Bookings.</span>
 
+                    </span>
                     <span className="flex gap-2">
-                        <BlueButton title="Add User" onClick={() => handleOpenModal("create")} icon={true}/>
-
+                    <button className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] border-primary-14 text-primary-14 cursor-pointer">
+                        <img src="/assets/icons/bookings.svg" alt="bookings" className="w-5 h-5" />
+                        <span className="text-btn-outline-gray">01 January 2025</span>
+                    </button>
+                    <button onClick={() => router.get(route('admin.bookings.create'))} className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-blue-gradient-overlay border-[#3863C6] text-white shadow-inset-white cursor-pointer">
+                        <img src="/assets/icons/plus.svg" alt="bookings" className="w-5 h-5" />
+                        <span className="text-btn-outline-gray">New Booking</span>
+                    </button>
+                    <button onClick={() => router.get(route('questionnaire.index'))} className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-red-gradient-overlay border-[#C65468] text-white shadow-inset-white cursor-pointer">
+                        <img src="/assets/icons/plus.svg" alt="bookings" className="w-5 h-5" />
+                        <span className="text-btn-outline-gray">Check in</span>
+                    </button>
                     </span>
                 </div>
                 {/* bottom */}
                 <div className="bg-white border border-secondary-100">
                     <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                    <div className="flex justify-start items-center px-4 pt-4 pb-[9px] ">
+                    <div className="flex justify-between items-center px-4 pt-4 pb-[9px] ">
                         <span className='flex items-center gap-2'>
                             <img src="/assets/icons/task-square.svg" alt="bookings" className="w-5 h-5" />
-                            <span className="font-semibold text-lg text-gray-800 block text-start">Users</span>
+                            <span className="font-semibold text-lg text-gray-800 block text-start">Bookings</span>
+                        </span>
+                        <span className="flex gap-2">
+                            <button className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] border-primary-14 text-primary-14 cursor-pointer">
+                                <img src="/assets/icons/search-normal.svg" alt="bookings" className="w-5 h-5" />
+                                <span className="text-btn-outline-gray">Search here</span>
+                            </button>
+                            <button className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] border-primary-14 text-primary-14 cursor-pointer">
+                                <img src="/assets/icons/filter.svg" alt="filter" className="w-5 h-5" />   
+                                <span className="text-btn-outline-gray">Filter</span>
+                            </button>
+                            <button className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] border-primary-14 text-primary-14 cursor-pointer">
+                                <img src="/assets/icons/export.svg" alt="export" className="w-5 h-5" />
+                                <span className="text-btn-outline-gray">Export</span>
+                            </button>
                         </span>
                     </div>
                     <div className="flex justify-between items-center px-4 pb-[9px] ">
@@ -120,40 +108,114 @@ export default function Index({ users,permissions,roles,teams,auth, searchTerm, 
 
                         <table className="min-w-full divide-y divide-gray-200 text-sm">
                             <thead className="bg-gray-50 text-left text-gray-500">
-                            <tr className='flex justify-between items-center'>
-                                <th className="w-[95px] p-3">ID</th>
-                                <th className="w-[95px] p-3">Name</th>
-                                <th className="w-[268px] p-3">Email</th>
-                                <th className="w-[132px] p-3">Roles</th>
+                            <tr >
+                                <th className="w-[164px] p-3 flex justify-between items-center gap-2">
+                                    <span className='flex items-center gap-2'>
+                                    <span className="w-5 h-5 block border border-gray-500 rounded-md"></span>
+                                    Time                                        
+                                    </span>
+                                </th>
+                                <th className="w-[95px] p-3">PAX</th>
+                                <th className="w-[268px] p-3">Service</th>
+                                <th className="w-[132px] p-3">Price</th>
+                                <th className="w-[111px] p-3">Paid</th>
+                                <th className="w-[107px] p-3">Due</th>
                                 <th className="w-[185px] p-3">Actions</th>
                             </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100">
-                            {users?.data.map((user, i) => (
-                                <tr key={user.id} className="flex justify-between items-center hover:bg-gray-50">
-                                <td className="w-[95px] p-3">{user.id}</td>
-                                <td className="w-[95px] p-3">{user.name}</td>
-                                <td className="w-[268px] p-3">{user.email}</td>
-                                <td className="w-[132px] p-3">{user.roles.map((r) => r.name).join(', ')}</td>
-                                <td className="w-[185px] p-3 flex  gap-2">
-                                    {permissions.user_edit && (
-                                    <button onClick={() => handleOpenModal("edit",user)}
-                                    className="flex items-center gap-1 text-green-600 hover:text-green-800">
-                                    Edit
-                                    </button>)}
+                            {bookings.map((item, i) => (
+                                <React.Fragment key={i}>
+                                {/* Main Booking Row */}
+                                <tr className="hover:bg-gray-50">
+                                    <td className="w-[164px] p-3">
+                                    <div className="flex justify-between items-center gap-2">
+                                        <div className="flex items-center gap-2">
+                                        <span className="w-5 h-5 block border border-gray-500 rounded-md"></span>
+                                        {item.time}
+                                        </div>
+                                        <img
+                                        src={`/assets/icons/${expanded === i ? 'arrow-down' : 'arrow-left'}.svg`}
+                                        alt="toggle"
+                                        className="w-5 h-5 cursor-pointer"
+                                        onClick={() => setExpanded(expanded === i ? null : i)}
+                                        />
+                                    </div>
+                                    </td>
+                                    <td className="w-[95px] p-3">{item.bookingPax} ({item.maxPax})</td>
+                                    <td className="w-[268px] p-3">{item.service}</td>
+                                    <td className="w-[132px] p-3">R{item.price.toLocaleString()}</td>
+                                    <td className="w-[111px] p-3">R{item.paid.toLocaleString()}</td>
+                                    <td className="w-[107px] p-3">
+                                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                        item.due === 0 ? 'bg-blue-100 text-blue-600'
+                                        : item.dueStatus === 'Normal' ? 'bg-orange-100 text-orange-600'
+                                        : 'bg-red-100 text-red-600'
+                                    }`}>
+                                        • {item.due === 0 ? 'R0.00' : item.dueStatus === 'Normal' ? 'Normal' : `R${item.due.toLocaleString()}`}
+                                    </span>
+                                    </td>
+                                    <td className="w-[185px] p-3 flex gap-2">
+                                        {expanded === i ? (
+                                            <button className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border border-primary-14 text-primary-14 cursor-pointer">
+                                            {icons.eye}
+                                            <span className="text-btn-outline-gray">View Booking</span>
+                                            </button>
+                                        ) : (
+                                            <>
+                                                <button type='button' onClick={() => router.get(route('admin.bookings.edit', item.id))} className="btn-tool">{icons.plus_alt} Add</button>
+                                                <button type='button' onClick={(e) => openBookingToolsModal(e, item)} className="btn-tool">{icons.tools} Tools</button>                                            
+                                            </>                                            
+                                        )}
 
-                                    {permissions.user_edit && (
-                                    <button onClick={() => handleDelete(user)}
-                                    className="flex items-center gap-1 text-red-600 hover:text-red-800">
-                                    Remove
-                                    </button>)}
-                                    {permissions.user_edit && (
-                                    <button onClick={() => handleOpenModal("view",user)}
-                                    className="flex items-center gap-1 text-blue-600 hover:text-blue-800">
-                                    View
-                                    </button>)}                                 
-                                </td>
+                                    </td>
                                 </tr>
+
+                                {/* Expanded Customer Rows */}
+                                {expanded === i && (
+                                    item.customers && item.customers.length > 0 ? (
+                                    item.customers.map((customer, index) => (
+                                        <tr key={index} className="bg-gray-50">
+                                        <td className="w-[164px] p-3">
+                                            {item.reference}<br />
+                                            Notes: {customer?.notes || 'None'}
+                                        </td>
+                                        <td className="w-[95px] p-3">{index + 1}</td>
+                                        <td className="w-[268px] p-3">
+                                            <div className="text-sm text-gray-800 font-medium">{customer.name}</div>
+                                            <div className="text-sm text-gray-600">{customer.email} | {customer.phone}</div>
+                                            <div className="text-sm text-gray-600">Children Age: {customer?.age || 'N/A'}</div>
+                                        </td>
+                                        <td className="w-[132px] p-3">R{customer.price?.toLocaleString() || '0.00'}</td>
+                                        <td className="w-[111px] p-3">R{customer.paid?.toLocaleString() || '0.00'}</td>
+                                        <td className="w-[107px] p-3">
+                                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                            customer.due === 0 ? 'bg-blue-100 text-blue-600'
+                                            : customer.dueStatus === 'Normal' ? 'bg-orange-100 text-orange-600'
+                                            : 'bg-red-100 text-red-600'
+                                            }`}>
+                                            • {customer.due === 0 ? 'R0.00' : customer.dueStatus === 'Normal' ? 'Normal' : `R${customer.due.toLocaleString()}`}
+                                            </span>
+                                        </td>
+                                        <td className="flex flex-col w-[120px] p-3  gap-2">
+                                            <button type='button' className="btn-tool">{icons.docs} Docs</button>
+                                            <button type='button' onClick={(e) => openCustomerToolsModal(e, customer)} className="btn-tool">{icons.tools} Tools</button>
+                                            {/* <button type='button'
+                                            onClick={(e) => openCustomerToolsModal(e, customer)}
+                                            className="flex items-center gap-1 text-blue-600 hover:text-blue-800"
+                                            >
+                                            Tools
+                                            </button> */}
+                                        </td>
+                                        </tr>
+                                    ))
+                                    ) : (
+                                    <tr className="bg-gray-50">
+                                        <td colSpan={7} className="p-4 text-sm text-gray-500">No customers assigned.</td>
+                                    </tr>
+                                    )
+                                )}
+                                </React.Fragment>
                             ))}
                             </tbody>
                         </table>
@@ -161,36 +223,22 @@ export default function Index({ users,permissions,roles,teams,auth, searchTerm, 
                     </div>
                     </div>
                 </div>
+                {customerToolsTarget && (
+                    <CustomerToolsModal
+                        customer={customerToolsTarget.customer}
+                        position={customerToolsTarget.position}
+                        onClose={() => setCustomerToolsTarget(null)}
+                    />
+                )}
+                {bookingToolsTarget && (
+                    <BookingToolsModal
+                        booking={bookingToolsTarget.booking}
+                        position={bookingToolsTarget.position}
+                        onClose={() => setBookingToolsTarget(null)}
+                    />
+                )}
+
             </div>
-
-
-            <div className="mt-4">
-                <Pagination links={users?.links} />
-            </div>  
-
-
-
-
-
-
-            <UserModal
-                isOpen={isModalOpen}
-                onClose={handleCloseModal}
-                mode={modalMode}
-                user={selectedUser}
-                roles={roles}
-                teams={teams}
-                team = {auth?.team}
-            />
-        {/* {modalOpen && (
-            <CModal title={selectedUser ? 'Edit User' : 'Add User'} onClose={closeModal}>
-            <form className="space-y-4">
-                <input type="text" defaultValue={selectedUser?.name} placeholder="Name" className="w-full border px-3 py-2" />
-                <input type="email" defaultValue={selectedUser?.email} placeholder="Email" className="w-full border px-3 py-2" />
-                <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded">Save</button>
-            </form>
-            </CModal>
-      )} */}
-    </AuthenticatedLayout>
-  );
+        </AuthenticatedLayout>
+    );
 }

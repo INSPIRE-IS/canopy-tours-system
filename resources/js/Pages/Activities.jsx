@@ -5,21 +5,23 @@ import Input from '@/components/ui/input';
 import Calendar from '@/components/ui/calendar';
 import InfoCard from '@/components/ui/InfoCard';
 import { router } from '@inertiajs/react';
-import { format } from 'date-fns';
+import { format, set } from 'date-fns';
+import BookingModal from '@/Components/BookingModal';
 
-export default function ActivitySchedulePage({ activities,activityId, schedule, start_date, view_mode, days,availableTimes }) {
+export default function ActivitySchedulePage({ activities,serviceId, seasonId, activityId, schedule, start_date, view_mode, days,availableTimes }) {
 console.log('activities', activities);
 
   const [date, setDate] = useState(() => new Date(start_date));
   const [adults, setAdults] = useState('');
   const [children, setChildren] = useState('');
-  const [selectedSlot, setSelectedSlot] = useState(null); // stores { date: string, time: string }
-const [scheduleData, setScheduleData] = useState({ schedule, days });
-const [loading, setLoading] = useState(false);
+  const [selectedSlot, setSelectedSlot] = useState(null); // stores {date: string, day: string, time: string }
+  const [scheduleData, setScheduleData] = useState({ schedule, days });
+  const [loading, setLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
 
   useEffect(() => {
     loadCalendar();
-  }, [date, view_mode]);
+  }, [date, view_mode, adults, children]);
 
   const loadCalendar = async () => {
     setLoading(true);
@@ -28,9 +30,12 @@ const [loading, setLoading] = useState(false);
         params: {
           activity_id: activityId,
           view_mode: view_mode,
-          start_date: format(date, 'yyyy-MM-dd')
+          start_date: format(date, 'yyyy-MM-dd'),
+          adults,
+          children
         }
       });
+      console.log('response', response);
       setScheduleData(response.data);
     } catch (error) {
       console.error('Failed to load calendar:', error);
@@ -72,7 +77,7 @@ const [loading, setLoading] = useState(false);
             alt="Tsitsikamma Canopy Tour"
             className="w-full h-full object-cover"
           />
-          <div className="absolute inset-0 bg-black/50 flex flex-col justify-center p-6 text-white">
+          <div className="absolute inset-0 bg-black/10 flex flex-col justify-center p-6 text-white">
             <h2 className="text-lg font-light">{activities?.service}</h2>
             <h1 className="text-3xl md:text-4xl font-bold">{activities?.season}</h1>
             <p className="mt-2 max-w-md">{activities?.description}</p>
@@ -92,12 +97,12 @@ const [loading, setLoading] = useState(false);
               <Input placeholder="Number of Children" value={children} onChange={(e) => setChildren(e.target.value)} />
               <Calendar selected={date} onSelect={handleDateChange} />
               {availableTimes.length > 0 && (
-  <Select onValueChange={(value) => setSelectedSlot({ date: date.toISOString().split('T')[0], time: value })}>
-    {availableTimes.map(time => (
-      <SelectItem key={time} value={time}>{time}</SelectItem>
-    ))}
-  </Select>
-)}
+                  <Select onValueChange={(value) => setSelectedSlot({ date: date.toISOString().split('T')[0], time: value })}>
+                    {availableTimes.map(time => (
+                      <SelectItem key={time} value={time}>{time}</SelectItem>
+                    ))}
+                  </Select>
+                )}
               <Button className="w-full">Find Activities</Button>
               <div className="mt-4">
                 <div className="text-lg font-semibold text-green-700">R{Number(adults) * 895}.00</div>
@@ -108,12 +113,13 @@ const [loading, setLoading] = useState(false);
                   disabled={!selectedSlot}
                   onClick={() => {
                     // Submit booking form or route with selected data
-                    router.post(route('booking.create'), {
-                      adults,
-                      children,
-                      date: selectedSlot.date,
-                      time: selectedSlot.time,
-                    });
+                    // router.post(route('booking.create'), {
+                    //   adults,
+                    //   children,
+                    //   date: selectedSlot.date,
+                    //   time: selectedSlot.time,
+                    // });
+                    setShowModal(true);
                   }}
                 >
                   Book Now
@@ -124,64 +130,93 @@ const [loading, setLoading] = useState(false);
           </aside>
 
           {/* Inventory Calendar Table */}
-          <section className="md:col-span-3 bg-white shadow rounded-xl p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold">Available Inventory</h3>
-              <div className="flex gap-2">
-                {['day', 'week', 'month'].map((mode) => (
-                  <Button
-                    key={mode}
-                    variant="ghost"
-                    onClick={() => router.get(route('front.activity'), { activity_id: activityId, view_mode: mode, start_date })}
-                    className={view_mode === mode ? 'font-bold border-b-2 border-blue-600' : ''}
-                  >
-                    {mode.charAt(0).toUpperCase() + mode.slice(1)}
-                  </Button>
-                ))}
-              </div>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm text-left">
-                <thead>
-                  <tr className="text-gray-600">
-                    <th className="p-2">Time</th>
-                    {days.map(day => <th key={day} className="p-2">{day}</th>)}
-                  </tr>
-                </thead>
-                <tbody>
-                  {schedule.map(row  => (
-                    <tr key={row.time}>
-                      <td className="p-2 font-semibold text-gray-700">{row.time}</td>
-                      {days.map(day => {
-                        const cell = row.days[day];
-                        console.log('cell', cell);
-                        return (
-                          <td
-                            key={day}
-                            className={`p-2 text-center cursor-pointer rounded transition ${
-                                selectedSlot?.date === day && selectedSlot?.time === row.time
-                                  ? 'bg-blue-100 text-blue-700'
-                                  : cell?.status === 'available'
-                                    ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                                    : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                              }`}
-                              onClick={() => {
-                                if (cell?.status === 'available') {
-                                  setSelectedSlot({ date: day, time: row.time });
-                                }
-                              }}
-                          >
-                            <div>{cell?.slots || 'No Timeslot Yet'}</div>
-                            {cell?.price && <div className="text-xs">{cell.price}</div>}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
+<section className="md:col-span-3 bg-white shadow rounded-xl p-6">
+  <div className="flex justify-between items-center mb-4">
+    <h3 className="text-lg font-semibold">Available Inventory</h3>
+    <div className="flex gap-2">
+      {['day', 'week', 'month'].map((mode) => (
+        <Button
+          key={mode}
+          variant="ghost"
+          onClick={() => router.reload({ only: ['view_mode'], data: { view_mode: mode } })}
+          className={view_mode === mode ? 'font-bold border-b-2 border-blue-600' : ''}
+        >
+          {mode.charAt(0).toUpperCase() + mode.slice(1)}
+        </Button>
+      ))}
+    </div>
+    <div className="flex gap-2">
+      <Calendar selected={date} onSelect={handleDateChange} />      
+    </div>
+
+  </div>
+  {loading ? (
+    <div className="text-center py-20 text-gray-500">Loading calendar...</div>
+  ) : (
+    <div className="overflow-x-auto">
+      {scheduleData.days.length === 0 ? (
+        <div className="text-center py-10 text-red-500">No availability for this date range.</div>
+      ) : (
+        <table className="w-full text-sm text-left">
+          <thead>
+            <tr className="text-gray-600">
+              <th className="p-2">Time</th>
+              {scheduleData.days.map(day => (
+                <th key={day} className=" w-[133px] h-[52px] bg-gray-100 border border-gray-200 text-center">{day}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {scheduleData.schedule.map(row => (
+              <tr key={row.time} className='w-full border-b border-gray-200 '>
+                <td className="flex-1 p-2 font-semibold w-[100px] h-[114px] text-gray-700  ">{row.time.slice(0, 5)}</td>
+                {scheduleData.days.map(day => {
+                  const cell = row.days[day];
+                  return (
+                    <td
+                      key={day}
+                      className={`flex-1 items-center justify-center w-[133px] h-[111px] border border-gray-200 cursor-pointer transition `}
+                      onClick={() => {
+                        if (cell?.status === 'available') {
+                          setSelectedSlot({ date: cell.date, day: day, time: row.time });
+                        }
+                      }}
+                    >
+                      <div className="w-full h-full flex items-center justify-center">
+                        <div  className={`p-[6px] text-start w-[135px] h-[99px] cursor-pointer rounded-[10px] space-y-[10px] transition ${
+                            selectedSlot?.day === day && selectedSlot?.time === row.time
+                              ? 'bg-[#55FF9E] text-black'
+                              : cell?.status === 'available'
+                                ? 'bg-[#D6FBE6] border border-[#E5E5EC] text-green-700 hover:bg-green-200'
+                                : 'bg-[#FCE4DF] border border-[#E5E5EC] text-gray-400 cursor-not-allowed'
+                          }`}>
+                          {cell?.status === 'available' && (
+                            <>
+                              <div className="text-xs">{row.time.slice(0, 5)}</div>
+                              <div className="text-xs">{cell?.slots} Slots Open</div>
+                              {cell?.rake_rate_adult && <div className="text-xs">From R{cell.rake_rate_adult}</div>}                           
+                            </>
+                          )}
+                          {cell?.status === 'blocked' && (
+                            <div>No Timeslot Yet</div>
+                          )}
+                          {cell?.status === 'full' &&(
+                            <div>Fully Booked</div>
+                          )}
+                        </div>                        
+                      </div>
+
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  )}
+</section>
         </div>
       </div>
 
@@ -221,8 +256,17 @@ const [loading, setLoading] = useState(false);
 
     </section>
 
-
-
+      {showModal && (
+        <BookingModal
+          isOpen={showModal}
+          onClose={() => setShowModal(false)}
+          slot={selectedSlot}
+          adults={adults}
+          children={children}
+          pricePerAdult={activities.price}
+          activityId={activityId}
+        />
+      )}
 
     </div>
   );

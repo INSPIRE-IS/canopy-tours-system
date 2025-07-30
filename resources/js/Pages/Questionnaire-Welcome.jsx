@@ -8,7 +8,7 @@ export default function BookingLookup() {
   const [isWelcome, setIsWelcome] = useState(true);
   const inputRef = useRef(null);
     const { data, setData, get, post, put, errors, reset, processing } = useForm({
-        booking_id: "",
+        reference: "REF-AF1GD7",
     });
     const handleChange = (target, value) => {
         setData(target, value);
@@ -27,7 +27,7 @@ export default function BookingLookup() {
         (decodedText) => {
           alert(`Booking ID: ${decodedText}`);
           
-          setData('booking_id', decodedText);
+          setData('reference', decodedText);
           setShowScanner(false); // close scanner on success
           setTimeout(() => inputRef.current?.focus(), 100); // focus input
         },
@@ -40,18 +40,35 @@ export default function BookingLookup() {
     }
   }, [showScanner]);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async(e) => {
       e.preventDefault();
-      alert(`Searching booking for ID: ${data.booking_id}`);        
-      if (data.booking_id) {
+      //alert(`Searching booking for ID: ${data.reference}`);      
+      await axios.get(`/check-reference/${data.reference}`).then((res) => {
+        const response = res.data;
+        console.log('Booking', response);
+        if (response.success && response.booking) {
+          // Booking is valid, navigate to create form
           get(route("questionnaire.create"), {
-              onSuccess: () => {
-                  reset();
-              },
+            data: {
+              reference: data.reference,
+              customer: data.customerId, // Pass any extra needed data
+            },
+            onSuccess: () => {
+              reset(); // Clear form if needed
+            },
           });
-      }else{
-          alert('Please enter a booking ID');
-      }
+        } else {
+          alert('Booking not found');
+        }
+      }).catch((err) => {
+        console.error('Error checking reference', err);
+        alert('Error validating reference');
+      });
+
+      
+      
+
+
   };
 
 

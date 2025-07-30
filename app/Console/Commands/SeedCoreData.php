@@ -2,7 +2,14 @@
 
 namespace App\Console\Commands;
 
+use App\Models\Booking;
+use App\Models\BookingDetail;
+use App\Models\BookingFee;
+use App\Models\BookingInventory;
+use App\Models\BookingPayment;
 use App\Models\Closeout;
+use App\Models\Customer;
+use App\Models\CustomerManifest;
 use App\Models\Inventory;
 use App\Models\InventoryTimeSlot;
 use App\Models\InventoryTypeDay;
@@ -26,6 +33,16 @@ use App\Models\TypeFile;
 use App\Models\TypeGroup;
 use App\Models\TypeInput;
 use App\Models\File;
+use App\Models\Gateway;
+use App\Models\StatusPayment;
+use App\Models\TypeConfirmation;
+use App\Models\TypeGender;
+use App\Models\TypeLocation;
+use App\Models\TypeReferral;
+use App\Models\Wholesaler;
+use Illuminate\Support\Facades\DB;
+use Mockery\Matcher\Type;
+use Str;
 
 class SeedCoreData extends Command
 {
@@ -36,176 +53,221 @@ class SeedCoreData extends Command
     {
         $this->info('Seeding core data...');
 
+        // $permissions = [
+        //     [
+        //         'id'    => 1,
+        //         'name' => 'user_management_access',
+        //     ],
+        //     [
+        //         'id'    => 2,
+        //         'name' => 'permission_create',
+        //     ],
+        //     [
+        //         'id'    => 3,
+        //         'name' => 'permission_edit',
+        //     ],
+        //     [
+        //         'id'    => 4,
+        //         'name' => 'permission_show',
+        //     ],
+        //     [
+        //         'id'    => 5,
+        //         'name' => 'permission_delete',
+        //     ],
+        //     [
+        //         'id'    => 6,
+        //         'name' => 'permission_access',
+        //     ],
+        //     [
+        //         'id'    => 7,
+        //         'name' => 'role_create',
+        //     ],
+        //     [
+        //         'id'    => 8,
+        //         'name' => 'role_edit',
+        //     ],
+        //     [
+        //         'id'    => 9,
+        //         'name' => 'role_show',
+        //     ],
+        //     [
+        //         'id'    => 10,
+        //         'name' => 'role_delete',
+        //     ],
+        //     [
+        //         'id'    => 11,
+        //         'name' => 'role_access',
+        //     ],
+        //     [
+        //         'id'    => 12,
+        //         'name' => 'user_create',
+        //     ],
+        //     [
+        //         'id'    => 13,
+        //         'name' => 'user_edit',
+        //     ],
+        //     [
+        //         'id'    => 14,
+        //         'name' => 'user_show',
+        //     ],
+        //     [
+        //         'id'    => 15,
+        //         'name' => 'user_delete',
+        //     ],
+        //     [
+        //         'id'    => 16,
+        //         'name' => 'user_access',
+        //     ],
+        //     [
+        //         'id'    => 17,
+        //         'name' => 'audit_log_show',
+        //     ],
+        //     [
+        //         'id'    => 18,
+        //         'name' => 'audit_log_access',
+        //     ],
+        //     [
+        //         'id'    => 19,
+        //         'name' => 'team_create',
+        //     ],
+        //     [
+        //         'id'    => 20,
+        //         'name' => 'team_edit',
+        //     ],
+        //     [
+        //         'id'    => 21,
+        //         'name' => 'team_show',
+        //     ],
+        //     [
+        //         'id'    => 22,
+        //         'name' => 'team_delete',
+        //     ],
+        //     [
+        //         'id'    => 23,
+        //         'name' => 'team_access',
+        //     ],
+        //     [
+        //         'id'    => 24,
+        //         'name' => 'service_access',
+        //     ],
+        //     [
+        //         'id'    => 25,
+        //         'name' => 'service_create',
+        //     ],
+        //     [
+        //         'id'    => 26,
+        //         'name' => 'service_edit',
+        //     ],
+        //     [
+        //         'id'    => 27,
+        //         'name' => 'service_show',
+        //     ],
+        //     [
+        //         'id'    => 28,
+        //         'name' => 'service_delete',
+        //     ],
+        //     [
+        //         'id'    => 29,
+        //         'name' => 'season_access',
+        //     ],
+        //     [
+        //         'id'    => 30,
+        //         'name' => 'season_create',
+        //     ],
+        //     [
+        //         'id'    => 31,
+        //         'name' => 'season_edit',
+        //     ],
+        //     [
+        //         'id'    => 32,
+        //         'name' => 'season_show',
+        //     ],
+        //     [
+        //         'id'    => 33,
+        //         'name' => 'season_delete',
+        //     ],
+        //     [
+        //         'id'    => 34,
+        //         'name' => 'inventory_access',
+        //     ],
+        //     [
+        //         'id'    => 35,
+        //         'name' => 'inventory_create',
+        //     ],
+        //     [
+        //         'id'    => 36,
+        //         'name' => 'inventory_edit',
+        //     ],
+        //     [
+        //         'id'    => 37,
+        //         'name' => 'inventory_show',
+        //     ],
+        //     [
+        //         'id'    => 38,
+        //         'name' => 'inventory_delete',
+        //     ],
+        //     [
+        //         'id'    => 39,
+        //         'name' => 'task_access',
+        //     ],
+        //     [
+        //         'id'    => 40,
+        //         'name' => 'tasks_calendar_access',
+        //     ],
+        //     [
+        //         'id'    => 41,
+        //         'name' => 'profile_password_edit',
+        //     ],
+        //     [
+        //         'id'    => 42,
+        //         'name' => 'booking_access',
+        //     ],
+        //     [
+        //         'id'    => 43,
+        //         'name' => 'booking_create',
+        //     ],
+        //     [
+        //         'id'    => 44,
+        //         'name' => 'booking_edit',
+        //     ],
+        //     [
+        //         'id'    => 45,
+        //         'name' => 'booking_show',
+        //     ],
+        //     [
+        //         'id'    => 46,
+        //         'name' => 'booking_delete',
+        //     ],
+        // ];
+        // foreach ($permissions as $permission) {
+        //     Permission::updateOrCreate(['id' => $permission['id']], $permission);
+        // }
+
+        $tableKey = 'Tables_in_' . DB::getDatabaseName();
+
+        $tables = collect(DB::select('SHOW TABLES'))
+            ->pluck($tableKey)
+            ->reject(fn($table) => str_starts_with($table, 'type_') || str_starts_with($table, 'status_'))
+            ->values();
+
+        $crudActions = ['create', 'edit', 'show', 'delete', 'access'];
+
         $permissions = [
-            [
-                'id'    => 1,
-                'name' => 'user_management_access',
-            ],
-            [
-                'id'    => 2,
-                'name' => 'permission_create',
-            ],
-            [
-                'id'    => 3,
-                'name' => 'permission_edit',
-            ],
-            [
-                'id'    => 4,
-                'name' => 'permission_show',
-            ],
-            [
-                'id'    => 5,
-                'name' => 'permission_delete',
-            ],
-            [
-                'id'    => 6,
-                'name' => 'permission_access',
-            ],
-            [
-                'id'    => 7,
-                'name' => 'role_create',
-            ],
-            [
-                'id'    => 8,
-                'name' => 'role_edit',
-            ],
-            [
-                'id'    => 9,
-                'name' => 'role_show',
-            ],
-            [
-                'id'    => 10,
-                'name' => 'role_delete',
-            ],
-            [
-                'id'    => 11,
-                'name' => 'role_access',
-            ],
-            [
-                'id'    => 12,
-                'name' => 'user_create',
-            ],
-            [
-                'id'    => 13,
-                'name' => 'user_edit',
-            ],
-            [
-                'id'    => 14,
-                'name' => 'user_show',
-            ],
-            [
-                'id'    => 15,
-                'name' => 'user_delete',
-            ],
-            [
-                'id'    => 16,
-                'name' => 'user_access',
-            ],
-            [
-                'id'    => 17,
-                'name' => 'audit_log_show',
-            ],
-            [
-                'id'    => 18,
-                'name' => 'audit_log_access',
-            ],
-            [
-                'id'    => 19,
-                'name' => 'team_create',
-            ],
-            [
-                'id'    => 20,
-                'name' => 'team_edit',
-            ],
-            [
-                'id'    => 21,
-                'name' => 'team_show',
-            ],
-            [
-                'id'    => 22,
-                'name' => 'team_delete',
-            ],
-            [
-                'id'    => 23,
-                'name' => 'team_access',
-            ],
-            [
-                'id'    => 24,
-                'name' => 'service_access',
-            ],
-            [
-                'id'    => 25,
-                'name' => 'service_create',
-            ],
-            [
-                'id'    => 26,
-                'name' => 'service_edit',
-            ],
-            [
-                'id'    => 27,
-                'name' => 'service_show',
-            ],
-            [
-                'id'    => 28,
-                'name' => 'service_delete',
-            ],
-            [
-                'id'    => 29,
-                'name' => 'season_access',
-            ],
-            [
-                'id'    => 30,
-                'name' => 'season_create',
-            ],
-            [
-                'id'    => 31,
-                'name' => 'season_edit',
-            ],
-            [
-                'id'    => 32,
-                'name' => 'season_show',
-            ],
-            [
-                'id'    => 33,
-                'name' => 'season_delete',
-            ],
-            [
-                'id'    => 34,
-                'name' => 'inventory_access',
-            ],
-            [
-                'id'    => 35,
-                'name' => 'inventory_create',
-            ],
-            [
-                'id'    => 36,
-                'name' => 'inventory_edit',
-            ],
-            [
-                'id'    => 37,
-                'name' => 'inventory_show',
-            ],
-            [
-                'id'    => 38,
-                'name' => 'inventory_delete',
-            ],
-            [
-                'id'    => 39,
-                'name' => 'task_access',
-            ],
-            [
-                'id'    => 40,
-                'name' => 'tasks_calendar_access',
-            ],
-            [
-                'id'    => 41,
-                'name' => 'profile_password_edit',
-            ],
+            ['name' => 'user_management_access'],
         ];
-        foreach ($permissions as $permission) {
-            Permission::updateOrCreate(['id' => $permission['id']], $permission);
+
+        foreach ($tables as $table) {
+            foreach ($crudActions as $action) {
+                $permissions[] = [
+                    'name' => $table . '_' . $action,
+                ];
+            }
         }
 
+        foreach ($permissions as $permission) {
+            Permission::updateOrCreate(['name' => $permission['name']], $permission);
+        }
+        $this->info('permissions seeded successfully.' . count($permissions));
         $roles = [
             ['id' => 1, 'name' => 'Admin'],
             ['id' => 2, 'name' => 'Director'],
@@ -315,6 +377,56 @@ class SeedCoreData extends Command
                 'is_admin'       => false,
                 'is_email_recipient' => false,
             ],
+            [
+                'id'             => 8,
+                'name'           => 'Consultant',
+                'surname'        => 'tsitsikamma',
+                'email'          => 'consultant@tsitsikamma.com',
+                'password'       => bcrypt('password'),
+                'team_id'        => 7,
+                'is_admin'       => false,
+                'is_email_recipient' => false,
+            ],
+            [
+                'id'             => 9,
+                'name'           => 'Guide1',
+                'surname'        => 'tsitsikamma',
+                'email'          => 'guide1@tsitsikamma.com',
+                'password'       => bcrypt('password'),
+                'team_id'        => 7,
+                'is_admin'       => false,
+                'is_email_recipient' => false,
+            ],
+            [
+                'id'             => 10,
+                'name'           => 'Guide2',
+                'surname'        => 'tsitsikamma',
+                'email'          => 'guide2@tsitsikamma.com',
+                'password'       => bcrypt('password'),
+                'team_id'        => 7,
+                'is_admin'       => false,
+                'is_email_recipient' => false,
+            ],
+            [
+                'id'             => 11,
+                'name'           => 'Guide3',
+                'surname'        => 'tsitsikamma',
+                'email'          => 'guide3@tsitsikamma.com',
+                'password'       => bcrypt('password'),
+                'team_id'        => 7,
+                'is_admin'       => false,
+                'is_email_recipient' => false,
+            ],
+            [
+                'id'             => 12,
+                'name'           => 'Guide4',
+                'surname'        => 'tsitsikamma',
+                'email'          => 'guide4@tsitsikamma.com',
+                'password'       => bcrypt('password'),
+                'team_id'        => 7,
+                'is_admin'       => false,
+                'is_email_recipient' => false,
+            ],
         ];
         foreach ($users as $user) {
             User::updateOrCreate(['id' => $user['id']], $user);
@@ -327,7 +439,11 @@ class SeedCoreData extends Command
         User::findOrFail(5)->roles()->sync([4]); //consultant
         User::findOrFail(6)->roles()->sync([5]); //guide
         User::findOrFail(7)->roles()->sync([5]); //guide
-
+        User::findOrFail(8)->roles()->sync([4]); //consultant
+        User::findOrFail(9)->roles()->sync([5]); //guide
+        User::findOrFail(10)->roles()->sync([5]); //guide
+        User::findOrFail(11)->roles()->sync([6]); //guide
+        User::findOrFail(12)->roles()->sync([6]); //guide
         // TypeDays
         $typeDays = [
             ['id' => 1, 'name' => 'm'],
@@ -350,6 +466,27 @@ class SeedCoreData extends Command
         ];
         foreach ($payOptions as $opt) {
             TypePayOption::updateOrCreate(['id' => $opt['id']], $opt);
+        }
+
+        // StatusPayments
+        $statusPayments = [
+            ['id' => 1, 'name' => 'pending'],
+            ['id' => 2, 'name' => 'paid'],
+            ['id' => 3, 'name' => 'failed'],
+            ['id' => 4, 'name' => 'cancelled'],
+        ];
+        foreach ($statusPayments as $opt) {
+            StatusPayment::updateOrCreate(['id' => $opt['id']], $opt);
+        }
+
+        // Gateways
+        $gateways = [
+            ['id' => 1, 'name' => 'PayFast'],
+            ['id' => 2, 'name' => 'Manual'],
+            ['id' => 3, 'name' => 'Stripe'],
+        ];
+        foreach ($gateways as $opt) {
+            Gateway::updateOrCreate(['id' => $opt['id']], $opt);
         }
 
         // TypePayments
@@ -403,7 +540,7 @@ class SeedCoreData extends Command
             ['id' => 6, 'name' => 'TV or Newspaper'],
         ];
         foreach ($affiliateTypes as $affiliateType) {
-            TypeAffiliate::updateOrCreate(['id' => $affiliateType['id']], $affiliateType);
+            TypeReferral::updateOrCreate(['id' => $affiliateType['id']], $affiliateType);
         }
 
         $type_categories = [
@@ -460,6 +597,34 @@ class SeedCoreData extends Command
             TypeInput::updateOrCreate(['id' => $type_input['id']], $type_input);
         }
 
+        $type_locations = [
+            ['id' => 1, 'name' => 'pickup'],
+            ['id' => 2, 'name' => 'start'],
+            ['id' => 3, 'name' => 'dropoff'],
+            ['id' => 4, 'name' => 'end'],
+        ];
+        foreach ($type_locations as $type_location) {
+            TypeLocation::updateOrCreate(['id' => $type_location['id']], $type_location);
+        }
+
+        $type_confirmations = [
+            ['id' => 1, 'name' => 'Yes'],
+            ['id' => 2, 'name' => 'No'],
+            ['id' => 3, 'name' => 'N/A'],
+        ];
+        foreach ($type_confirmations as $type_confirmation) {
+            TypeConfirmation::updateOrCreate(['id' => $type_confirmation['id']], $type_confirmation);
+        }
+
+        $type_genders = [
+            ['id' => 1, 'name' => 'Male'],
+            ['id' => 2, 'name' => 'Female'],
+            ['id' => 3, 'name' => 'N/A'],
+        ];
+        foreach ($type_genders as $type_gender) {
+            TypeGender::updateOrCreate(['id' => $type_gender['id']], $type_gender);
+        }
+
         $service_fields = [
             //['id' => 1, 'name' => 'header_pillbox_text','slug' => 'header_pillbox_text', 'type_category' => 1, 'order' => 1, 'type_data_id' => 1, 'type_input_id' => 1, 'required' => 1],
             ['id' => 1, 'name' => 'Description', 'slug' => 'description', 'type_category' => 1, 'order' => 1, 'type_data_id' => 2, 'type_input_id' => 2, 'required' => 1],
@@ -488,22 +653,52 @@ class SeedCoreData extends Command
             TypeFile::updateOrCreate(['id' => $type_file['id']], $type_file);
         }
 
+        $wholesalers = [
+            [
+                'id' => 1,
+                'name' => 'Wholesaler 1',
+                'team_id' => 4,
+            ],
+            [
+                'id' => 2,
+                'name' => 'Wholesaler 2',
+                'team_id' => 7,
+            ],
+            [
+                'id' => 3,
+                'name' => 'Wholesaler 3',
+                'team_id' => 7,
+            ],
+            [
+                'id' => 4,
+                'name' => 'Wholesaler 4',
+                'team_id' => 7,
+            ],
+        ];
+        foreach ($wholesalers as $wholesaler) {
+            Wholesaler::updateOrCreate(['id' => $wholesaler['id']], $wholesaler);
+        }
+
         $services = [
             [
                 'id' => 1,
                 'name' => 'Canopy Tour',
+                'team_id' => 7,
             ],
             [
                 'id' => 2,
                 'name' => 'Woodcutters',
+                'team_id' => 7,
             ],
             [
                 'id' => 3,
                 'name' => 'Guided Hikes',
+                'team_id' => 7,
             ],
             [
                 'id' => 4,
                 'name' => 'Team Building',
+                'team_id' => 7,
             ],
         ];
         foreach ($services as $service) {
@@ -516,7 +711,7 @@ class SeedCoreData extends Command
                 'name' => 'Tsitsikamma Canopy Tour',
                 'created_by_id' => 1,
                 'updated_by_id' => 1,
-                'team_id' => 1,
+                'team_id' => 7,
                 'service_id' => 1,
             ],
             [
@@ -524,7 +719,7 @@ class SeedCoreData extends Command
                 'name' => 'Tsitsikamma Woodcutters Journey',
                 'created_by_id' => 1,
                 'updated_by_id' => 1,
-                'team_id' => 1,
+                'team_id' => 7,
                 'service_id' => 2,
             ],
             [
@@ -533,7 +728,7 @@ class SeedCoreData extends Command
 
                 'created_by_id' => 1,
                 'updated_by_id' => 1,
-                'team_id' => 1,
+                'team_id' => 7,
                 'service_id' => 3,
             ],
             [
@@ -541,7 +736,7 @@ class SeedCoreData extends Command
                 'name' => 'Tsitsikamma Guided Hikes Red route: 7.78km',
                 'created_by_id' => 1,
                 'updated_by_id' => 1,
-                'team_id' => 1,
+                'team_id' => 7,
                 'service_id' => 3,
             ],
             [
@@ -549,7 +744,7 @@ class SeedCoreData extends Command
                 'name' => 'Tsitsikamma Guided Hikes Yellow route 8.09km',
                 'created_by_id' => 1,
                 'updated_by_id' => 1,
-                'team_id' => 1,
+                'team_id' => 7,
                 'service_id' => 3,
             ],
             [
@@ -557,7 +752,7 @@ class SeedCoreData extends Command
                 'name' => 'Tsitsikamma Canopy Tour Photographic Scavenger Hunt',
                 'created_by_id' => 1,
                 'updated_by_id' => 1,
-                'team_id' => 1,
+                'team_id' => 7,
                 'service_id' => 4,
             ],
         ];
@@ -746,13 +941,13 @@ class SeedCoreData extends Command
                 'id' => 1,
                 'service_id' => 1,
                 'season_id' => 1,
-                'start_date' => '2020-02-01',
-                'end_date' => '2021-02-28',
-                'rake_rate_adult' => 'R390.00',
-                'rake_rate_child' => 'R390.00',
-                'rake_rate_guide' => 'R390.00',
+                'start_date' => '2025-02-01',
+                'end_date' => '2026-02-28',
+                'rake_rate_adult' => '600.00',
+                'rake_rate_child' => '300.00',
+                'rake_rate_guide' => '200.00',
                 'allow_internal_price_override' => 1,
-                'duration' => 2,
+                'duration' => '02:00:00',
                 'capacity' => 8,
                 'allow_internal_override' => 1,
                 'status' => 0,
@@ -762,13 +957,13 @@ class SeedCoreData extends Command
                 'id' => 2,
                 'service_id' => 2,
                 'season_id' => 2,
-                'start_date' => '2020-02-01',
-                'end_date' => '2020-10-28',
-                'rake_rate_adult' => 'R390.00',
-                'rake_rate_child' => 'R390.00',
-                'rake_rate_guide' => 'R390.00',
+                'start_date' => '2025-02-01',
+                'end_date' => '2026-10-28',
+                'rake_rate_adult' => '600.00',
+                'rake_rate_child' => '300.00',
+                'rake_rate_guide' => '200.00',
                 'allow_internal_price_override' => 1,
-                'duration' => 4,
+                'duration' => '04:00:00',
                 'capacity' => 4,
                 'allow_internal_override' => 1,
                 'status' => 0,
@@ -778,13 +973,13 @@ class SeedCoreData extends Command
                 'id' => 3,
                 'service_id' => 3,
                 'season_id' => 3,
-                'start_date' => '2020-02-01',
-                'end_date' => '2021-03-28',
-                'rake_rate_adult' => 'R390.00',
-                'rake_rate_child' => 'R390.00',
-                'rake_rate_guide' => 'R390.00',
+                'start_date' => '2025-02-01',
+                'end_date' => '2026-03-28',
+                'rake_rate_adult' => '600.00',
+                'rake_rate_child' => '300.00',
+                'rake_rate_guide' => '200.00',
                 'allow_internal_price_override' => 1,
-                'duration' => 5,
+                'duration' => '02:00:00',
                 'capacity' => 6,
                 'allow_internal_override' => 1,
                 'status' => 0,
@@ -794,13 +989,13 @@ class SeedCoreData extends Command
                 'id' => 4,
                 'service_id' => 3,
                 'season_id' => 4,
-                'start_date' => '2020-02-01',
-                'end_date' => '2020-06-28',
-                'rake_rate_adult' => 'R390.00',
-                'rake_rate_child' => 'R390.00',
-                'rake_rate_guide' => 'R390.00',
+                'start_date' => '2025-02-01',
+                'end_date' => '2026-06-28',
+                'rake_rate_adult' => '600.00',
+                'rake_rate_child' => '300.00',
+                'rake_rate_guide' => '200.00',
                 'allow_internal_price_override' => 1,
-                'duration' => 8,
+                'duration' => '03:00:00',
                 'capacity' => 8,
                 'allow_internal_override' => 1,
                 'status' => 0,
@@ -810,13 +1005,13 @@ class SeedCoreData extends Command
                 'id' => 5,
                 'service_id' => 3,
                 'season_id' => 5,
-                'start_date' => '2020-02-01',
-                'end_date' => '2020-08-28',
-                'rake_rate_adult' => 'R390.00',
-                'rake_rate_child' => 'R390.00',
-                'rake_rate_guide' => 'R390.00',
+                'start_date' => '2025-02-01',
+                'end_date' => '2026-08-28',
+                'rake_rate_adult' => '600.00',
+                'rake_rate_child' => '300.00',
+                'rake_rate_guide' => '200.00',
                 'allow_internal_price_override' => 1,
-                'duration' => 7,
+                'duration' => '05:00:00',
                 'capacity' => 5,
                 'allow_internal_override' => 1,
                 'status' => 0,
@@ -826,13 +1021,13 @@ class SeedCoreData extends Command
                 'id' => 6,
                 'service_id' => 4,
                 'season_id' => 6,
-                'start_date' => '2020-02-01',
-                'end_date' => '2020-12-28',
-                'rake_rate_adult' => 'R390.00',
-                'rake_rate_child' => 'R390.00',
-                'rake_rate_guide' => 'R390.00',
+                'start_date' => '2025-02-01',
+                'end_date' => '2026-12-28',
+                'rake_rate_adult' => '600.00',
+                'rake_rate_child' => '300.00',
+                'rake_rate_guide' => '200.00',
                 'allow_internal_price_override' => 1,
-                'duration' => 3,
+                'duration' => '03:00:00',
                 'capacity' => 6,
                 'allow_internal_override' => 1,
                 'status' => 0,
@@ -969,8 +1164,8 @@ class SeedCoreData extends Command
                 'service_id' => 1,
                 'season_id' => 1,
                 'name' => 'renovations',
-                'start_date' => '2020-05-01',
-                'end_date' => '2020-05-21',
+                'start_date' => '2025-06-20',
+                'end_date' => '2025-06-27',
                 'reason' => 'general maintenance',
             ],
             [
@@ -978,8 +1173,8 @@ class SeedCoreData extends Command
                 'service_id' => 1,
                 'season_id' => 1,
                 'name' => 'holiday',
-                'start_date' => '2020-12-25',
-                'end_date' => '2020-12-26',
+                'start_date' => '2025-07-25',
+                'end_date' => '2025-07-26',
                 'reason' => 'general',
             ],
             [
@@ -987,8 +1182,8 @@ class SeedCoreData extends Command
                 'service_id' => 2,
                 'season_id' => 2,
                 'name' => 'holiday',
-                'start_date' => '2020-12-25',
-                'end_date' => '2020-12-26',
+                'start_date' => '2025-12-25',
+                'end_date' => '2025-12-26',
                 'reason' => 'general',
             ],
         ];
@@ -997,6 +1192,601 @@ class SeedCoreData extends Command
             Closeout::updateOrCreate(['id' => $closeout['id']], $closeout);
         }
 
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+        $customers = [
+            [
+                'id'             => 1,
+                'full_name'      => 'Customer1',
+                'email_address'  => 'Customer1@email.com',
+                'contact_number' => '1234567890',
+                'nationality_id'    => '',
+                'created_at'     => now(),
+                'updated_at'     => now(),
+                'deleted_at'     => null,
+            ],
+            [
+                'id'             => 2,
+                'full_name'           => 'Customer2',
+                'email_address'          => 'Customer2@email.com',
+                'contact_number' => '0987654321',
+                'nationality'    => '',
+                'created_at'     => now(),
+                'updated_at'     => now(),
+                'deleted_at'     => null,
+            ],
+            [
+                'id'             => 3,
+                'full_name'           => 'Customer3',
+                'email_address'          => 'Customer3@email.com',
+                'contact_number' => '9876543210',
+                'nationality'    => '',
+                'created_at'     => now(),
+                'updated_at'     => now(),
+                'deleted_at'     => null,
+            ],
+            [
+                'id'             => 4,
+                'full_name'           => 'Customer4',
+                'email_address'          => 'Customer4@email.com',
+                'contact_number' => '9876543211',
+                'nationality'    => '',
+                'created_at'     => now(),
+                'updated_at'     => now(),
+                'deleted_at'     => null,
+            ],
+            [
+                'id'             => 5,
+                'full_name'           => 'Customer5',
+                'email_address'          => 'Customer5@email.com',
+                'contact_number' => '9876543212',
+                'nationality'    => '',
+                'created_at'     => now(),
+                'updated_at'     => now(),
+                'deleted_at'     => null,
+            ],
+            [
+                'id'             => 6,
+                'full_name'           => 'Customer6',
+                'email_address'          => 'Customer6@email.com',
+                'contact_number' => '9876543213',
+                'nationality'    => '',
+                'created_at'     => now(),
+                'updated_at'     => now(),
+                'deleted_at'     => null,
+            ],
+            [
+                'id'             => 7,
+                'full_name'           => 'Customer7',
+                'email_address'          => 'Customer7@email.com',
+                'contact_number' => '9876543214',
+                'nationality'    => '',
+                'created_at'     => now(),
+                'updated_at'     => now(),
+                'deleted_at'     => null,
+            ],
+            [
+                'id'             => 8,
+                'full_name'           => 'Customer8',
+                'email_address'          => 'Customer8@email.com',
+                'contact_number' => '9876543215',
+                'nationality'    => '',
+                'created_at'     => now(),
+                'updated_at'     => now(),
+                'deleted_at'     => null,
+            ],
+            [
+                'id'             => 9,
+                'full_name'           => 'Customer9',
+                'email_address'          => 'Customer9@email.com',
+                'contact_number' => '9876543216',
+                'nationality'    => '',
+                'created_at'     => now(),
+                'updated_at'     => now(),
+                'deleted_at'     => null,
+            ],
+            [
+                'id'             => 10,
+                'full_name'           => 'Customer10',
+                'email_address'          => 'Customer10@email.com',
+                'contact_number' => '9876543217',
+                'nationality'    => '',
+                'created_at'     => now(),
+                'updated_at'     => now(),
+                'deleted_at'     => null,
+            ],
+        ];
+
+        foreach ($customers as $customer) {
+            Customer::updateOrCreate(['id' => $customer['id']], $customer);
+        }
+
+
+
+        $bookings = [
+            [
+                'id'             => 1,
+                'lead_name'      => 'Customer1',
+                'user_id'        => 1,
+                'status_booking_id' => 1,
+                'is_sms'         => 0,
+                'is_corporate'   => 0,
+                'due_date'       => '2025-07-01',
+                'tot_paid'       => 0,
+                'grand_tot_due'  => 1700.00,
+                'reference'      => 'REF-' . strtoupper(Str::random(6)), //Str::uuid(),
+                'service_id'     => 1,
+                'season_id'      => 1,
+                'inventory_id'   => 1,
+                'updated_by_id'  => 1,
+                'customers'      => [1, 2, 3],
+                'created_at'     => now(),
+                'updated_at'     => now(),
+                'deleted_at'     => null,
+                'team_id'        => null,
+            ],
+            [
+                'id'             => 2,
+                'lead_name'      => 'Customer4',
+                'user_id'        => 1,
+                'status_booking_id' => 1,
+                'is_sms'         => 0,
+                'is_corporate'   => 0,
+                'due_date'       => '2025-07-02',
+                'tot_paid'       => 0,
+                'grand_tot_due'  => 2000.00,
+                'reference'      => 'REF-' . strtoupper(Str::random(6)), //Str::uuid(),
+                'service_id'     => 1,
+                'season_id'      => 1,
+                'inventory_id'   => 1,
+                'updated_by_id'  => 1,
+                'customers'      => [4, 5, 6],
+                'created_at'     => now(),
+                'updated_at'     => now(),
+                'deleted_at'     => null,
+                'team_id'        => null,
+            ],
+            [
+                'id'             => 3,
+                'lead_name'      => 'Customer7',
+                'user_id'        => 1,
+                'status_booking_id' => 1,
+                'is_sms'         => 0,
+                'is_corporate'   => 0,
+                'due_date'       => '2025-07-03',
+                'tot_paid'       => 0,
+                'grand_tot_due'  => 1100.00,
+                'reference'      => 'REF-' . strtoupper(Str::random(6)), //Str::uuid(),
+                'service_id'     => 1,
+                'season_id'      => 1,
+                'inventory_id'   => 1,
+                'updated_by_id'  => 1,
+                'customers'      => [7, 8],
+                'created_at'     => now(),
+                'updated_at'     => now(),
+                'deleted_at'     => null,
+                'team_id'        => null,
+            ],
+            [
+                'id'             => 4,
+                'lead_name'      => 'Customer9',
+                'user_id'        => 1,
+                'status_booking_id' => 1,
+                'is_sms'         => 0,
+                'is_corporate'   => 0,
+                'due_date'       => '2025-07-04',
+                'tot_paid'       => 0,
+                'grand_tot_due'  => 5000.00,
+                'reference'      => 'REF-' . strtoupper(Str::random(6)), //Str::uuid(),
+                'service_id'     => 1,
+                'season_id'      => 1,
+                'inventory_id'   => 1,
+                'updated_by_id'  => 1,
+                'customers'      => [9, 10],
+                'created_at'     => now(),
+                'updated_at'     => now(),
+                'deleted_at'     => null,
+                'team_id'        => null,
+            ],
+        ];
+
+        foreach ($bookings as $item) {
+            $booking =  Booking::updateOrCreate(['id' => $item['id']], $item);
+            // Prepare pivot data
+            $pivotData = [];
+
+            foreach ($item['customers'] as $index => $customerId) {
+                $pivotData[$customerId] = [
+                    'team_id' => $item['team_id'],         // Or use logic to assign different teams
+                    'is_lead' => $index === 0 ? 1 : 0,     // First customer is lead, rest are not
+                ];
+            }
+
+            // Sync with pivot data
+            $booking->customers()->sync($pivotData);
+            //$booking->customers()->sync($item['customers']);
+        }
+
+        $customerManifests = [
+            [
+                'id'             => 1,
+                'position'       => '0',
+                'notes'          => '',
+                'is_indemnity'   => 0,
+                'customer_id'    => 1,
+                'booking_id'     => 1,
+                'created_at'     => now(),
+                'updated_at'     => now(),
+                'deleted_at'     => null,
+                'team_id'        => null,
+            ],
+            [
+                'id'             => 2,
+                'position'       => '0',
+                'notes'          => '',
+                'is_indemnity'   => 0,
+                'customer_id'    => 2,
+                'booking_id'     => 1,
+                'created_at'     => now(),
+                'updated_at'     => now(),
+                'deleted_at'     => null,
+                'team_id'        => null,
+            ],
+            [
+                'id'             => 3,
+                'position'       => '0',
+                'notes'          => '',
+                'is_indemnity'   => 0,
+                'customer_id'    => 3,
+                'booking_id'     => 2,
+                'created_at'     => now(),
+                'updated_at'     => now(),
+                'deleted_at'     => null,
+                'team_id'        => null,
+            ],
+            [
+                'id'             => 4,
+                'position'       => '0',
+                'notes'          => '',
+                'is_indemnity'   => 0,
+                'customer_id'    => 4,
+                'booking_id'     => 2,
+                'created_at'     => now(),
+                'updated_at'     => now(),
+                'deleted_at'     => null,
+                'team_id'        => null,
+            ],
+        ];
+
+        foreach ($customerManifests as $customerManifest) {
+            // CustomerManifest::updateOrCreate(['id' => $customerManifest['id']], $customerManifest);
+        }
+
+
+        $bookingDetails = [
+            [
+                'id'             => 1,
+                'booking_id'     => 1,
+                'is_wholesaler_booking' => 0,
+                'is_needs_pickup' => 0,
+                'is_web_booking' => 0,
+                'is_videos_photos' => 0,
+                'is_exclusive_resource_use' => 0,
+                'is_override_time_slots' => 0,
+                'created_at'     => now(),
+                'updated_at'     => now(),
+                'deleted_at'     => null,
+                'team_id'        => null,
+            ],
+            [
+                'id'             => 2,
+                'booking_id'     => 2,
+                'is_wholesaler_booking' => 0,
+                'is_needs_pickup' => 0,
+                'is_web_booking' => 0,
+                'is_videos_photos' => 0,
+                'is_exclusive_resource_use' => 0,
+                'is_override_time_slots' => 0,
+                'created_at'     => now(),
+                'updated_at'     => now(),
+                'deleted_at'     => null,
+                'team_id'        => null,
+            ],
+            [
+                'id'             => 3,
+                'booking_id'     => 3,
+                'is_wholesaler_booking' => 0,
+                'is_needs_pickup' => 0,
+                'is_web_booking' => 0,
+                'is_videos_photos' => 0,
+                'is_exclusive_resource_use' => 0,
+                'is_override_time_slots' => 0,
+                'created_at'     => now(),
+                'updated_at'     => now(),
+                'deleted_at'     => null,
+                'team_id'        => null,
+            ],
+            [
+                'id'             => 4,
+                'booking_id'     => 4,
+                'is_wholesaler_booking' => 0,
+                'is_needs_pickup' => 0,
+                'is_web_booking' => 0,
+                'is_videos_photos' => 0,
+                'is_exclusive_resource_use' => 0,
+                'is_override_time_slots' => 0,
+                'created_at'     => now(),
+                'updated_at'     => now(),
+                'deleted_at'     => null,
+                'team_id'        => null,
+            ],
+        ];
+
+        foreach ($bookingDetails as $bookingDetail) {
+            BookingDetail::updateOrCreate(['id' => $bookingDetail['id']], $bookingDetail);
+        }
+
+        $bookingInventories = [
+            [
+                'id'             => 1,
+                'booking_id'     => 1,
+                'booking_detail_id' => 1,
+                'date'           => '2025-07-01',
+                'tot_adults'     => 2,
+                'tot_children'   => 1,
+                'tot_guides'     => 1,
+                'pax'            => 3,
+                'inventory_type_day_id' => 7,
+                'inventory_time_slot_id' => 1,
+                'inventory_override_id' => null,
+                'created_at'     => now(),
+                'updated_at'     => now(),
+                'deleted_at'     => null,
+                'team_id'        => 7,
+            ],
+            [
+                'id'             => 2,
+                'booking_id'     => 2,
+                'booking_detail_id' => 2,
+                'date'           => '2025-07-02',
+                'tot_adults'     => 3,
+                'tot_children'   => 0,
+                'tot_guides'     => 1,
+                'pax'            => 3,
+                'inventory_type_day_id' => 1,
+                'inventory_time_slot_id' => 2,
+                'inventory_override_id' => null,
+                'created_at'     => now(),
+                'updated_at'     => now(),
+                'deleted_at'     => null,
+                'team_id'        => 7,
+            ],
+            [
+                'id'             => 3,
+                'booking_id'     => 3,
+                'booking_detail_id' => 3,
+                'date'           => '2025-07-03',
+                'tot_adults'     => 1,
+                'tot_children'   => 1,
+                'tot_guides'     => 1,
+                'pax'            => 2,
+                'inventory_type_day_id' => 2,
+                'inventory_time_slot_id' => 2,
+                'inventory_override_id' => null,
+                'created_at'     => now(),
+                'updated_at'     => now(),
+                'deleted_at'     => null,
+                'team_id'        => 7,
+            ],
+            [
+                'id'             => 4,
+                'booking_id'     => 4,
+                'booking_detail_id' => 4,
+                'date'           => '2025-07-04',
+                'tot_adults'     => 8,
+                'tot_children'   => 0,
+                'tot_guides'     => 1,
+                'pax'            => 8,
+                'inventory_type_day_id' => 3,
+                'inventory_time_slot_id' => 1,
+                'inventory_override_id' => null,
+                'created_at'     => now(),
+                'updated_at'     => now(),
+                'deleted_at'     => null,
+                'team_id'        => 7,
+            ],
+        ];
+
+        foreach ($bookingInventories as $bookingInventory) {
+            BookingInventory::updateOrCreate(['id' => $bookingInventory['id']], $bookingInventory);
+        }
+
+        $bookingFees = [
+            [
+                'id'             => 1,
+                'booking_id'     => 1,
+                'booking_detail_id' => 1,
+                'tot_adults'     => 1200.00,
+                'tot_children'   => 300.00,
+                'tot_guides'     => 200.00,
+                'is_voucher'     => 0,
+                'voucher_code'   => '',
+                'invoice_note'   => '',
+                'is_email_reminder' => 0,
+                'booking_note'   => '',
+                'tot_amount'     => 1700.00,
+                'created_at'     => now(),
+                'updated_at'     => now(),
+                'deleted_at'     => null,
+                'team_id'        => null,
+            ],
+            [
+                'id'             => 2,
+                'booking_id'     => 2,
+                'booking_detail_id' => 2,
+                'tot_adults'     => 1800.00,
+                'tot_children'   => 0,
+                'tot_guides'     => 200.00,
+                'is_voucher'     => 0,
+                'voucher_code'   => '',
+                'invoice_note'   => '',
+                'is_email_reminder' => 0,
+                'booking_note'   => '',
+                'tot_amount'     => 2000.00,
+                'created_at'     => now(),
+                'updated_at'     => now(),
+                'deleted_at'     => null,
+                'team_id'        => null,
+            ],
+            [
+                'id'             => 3,
+                'booking_id'     => 3,
+                'booking_detail_id' => 3,
+                'tot_adults'     => 600.00,
+                'tot_children'   => 300.00,
+                'tot_guides'     => 200.00,
+                'is_voucher'     => 0,
+                'voucher_code'   => '',
+                'invoice_note'   => '',
+                'is_email_reminder' => 0,
+                'booking_note'   => '',
+                'tot_amount'     => 1100.00,
+                'created_at'     => now(),
+                'updated_at'     => now(),
+                'deleted_at'     => null,
+                'team_id'        => null,
+            ],
+            [
+                'id'             => 4,
+                'booking_id'     => 4,
+                'booking_detail_id' => 4,
+                'tot_adults'     => 4800.00,
+                'tot_children'   => 0,
+                'tot_guides'     => 200.00,
+                'is_voucher'     => 0,
+                'voucher_code'   => '',
+                'invoice_note'   => '',
+                'is_email_reminder' => 0,
+                'booking_note'   => '',
+                'tot_amount'     => 5000.00,
+                'created_at'     => now(),
+                'updated_at'     => now(),
+                'deleted_at'     => null,
+                'team_id'        => null,
+            ],
+        ];
+        foreach ($bookingFees as $bookingFee) {
+            BookingFee::updateOrCreate(['id' => $bookingFee['id']], $bookingFee);
+        }
+
+        $bookingPayments = [
+            [
+                'id'             => 1,
+                'booking_id'     => 1,
+                'type_pay_option_id'   => 1,     // or 'Pay Offline'
+                'type_payment_id' => 1, // Cash // 5 eft
+                'status_payment_id'         => 1,        // 'paid', 'failed', 'cancelled'
+                'amount'         => 1700.00,          // full amount due or partial
+                'reference'      => $bookings[0]['reference'], //  'OFF-' . strtoupper(Str::random(6)), // can be order ref or external tx
+                'gateway_id'        => 1,        // 'Manual'
+                'meta'           => json_encode([
+                    'file_path' => '/assets/icons/plus.svg',
+                    'note' => '',
+                    'original_name' => '',
+                ]),
+                'payment_date'   =>  now(),
+                'redeemer_name'  => '',
+                'voucher_code' => null,
+                'note'           => '',
+                'updated_by_id'  => null,
+                'deleted_at'     => null,
+                'team_id'        => null,
+            ],
+            [
+                'id'             => 2,
+                'booking_id'     => 2,
+                'type_pay_option_id'   => 1,     // or 'Pay Offline'
+                'type_payment_id' => 1, // Cash // 5 eft
+                'status_payment_id'         => 1,        // 'paid', 'failed', 'cancelled'
+                'amount'         => 1000.00,          // full amount due or partial
+                'reference'      => $bookings[1]['reference'], // 'OFF-' . strtoupper(Str::random(6)), // can be order ref or external tx
+                'gateway_id'        => 1,        // 'Manual'
+                'meta'           => json_encode([
+                    'file_path' => '/assets/icons/plus.svg',
+                    'note' => '',
+                    'original_name' => '',
+                ]),
+                'payment_date'   =>  now(),
+                'redeemer_name'  => '',
+                'voucher_code' => null,
+                'note'           => '',
+                'updated_by_id'  => null,
+                'deleted_at'     => null,
+                'team_id'        => null,
+            ],
+            [
+                'id'             => 3,
+                'booking_id'     => 3,
+                'type_pay_option_id'   => 1,     // or 'Pay Offline'
+                'type_payment_id' => 1, // Cash // 5 eft
+                'status_payment_id'         => 1,        // 'paid', 'failed', 'cancelled'
+                'amount'         => 500.00,          // full amount due or partial
+                'reference'      => $bookings[2]['reference'], //'OFF-' . strtoupper(Str::random(6)), // can be order ref or external tx
+                'gateway_id'        => 1,        // 'Manual'
+                'meta'           => json_encode([
+                    'file_path' => '/assets/icons/plus.svg',
+                    'note' => '',
+                    'original_name' => '',
+                ]),
+                'payment_date'   =>  now(),
+                'redeemer_name'  => '',
+                'voucher_code' => null,
+                'note'           => '',
+                'updated_by_id'  => null,
+                'deleted_at'     => null,
+                'team_id'        => null,
+            ],
+            [
+                'id'             => 4,
+                'booking_id'     => 4,
+                'type_pay_option_id'   => 1,     // or 'Pay Offline'
+                'type_payment_id' => 1, // Cash // 5 eft
+                'status_payment_id'         => 1,        // 'paid', 'failed', 'cancelled'
+                'amount'         => 3000.00,          // full amount due or partial
+                'reference'      => $bookings[3]['reference'], //'OFF-' . strtoupper(Str::random(6)), // can be order ref or external tx
+                'gateway_id'        => 1,        // 'Manual'
+                'meta'           => json_encode([
+                    'file_path' => '/assets/icons/plus.svg',
+                    'note' => '',
+                    'original_name' => '',
+                ]),
+                'payment_date'   =>  now(),
+                'redeemer_name'  => '',
+                'voucher_code' => null,
+                'note'           => '',
+                'updated_by_id'  => null,
+                'deleted_at'     => null,
+                'team_id'        => null,
+            ],
+        ];
+        foreach ($bookingPayments as $bookingPayment) {
+            $booking = Booking::findOrFail($bookingPayment['booking_id']);
+
+            // Mark as paid (in real app, you'd validate PayFast response)
+            $booking->update([
+                'status_booking_id' => 2, // e.g., "paid"
+                'tot_paid' => $bookingPayment['amount'],
+            ]);
+
+
+            BookingPayment::updateOrCreate(['id' => $bookingPayment['id']], $bookingPayment);
+        }
+
+
+
         $this->info('Core data seeded successfully.');
+
+        // php artisan seed:core-data
     }
 }

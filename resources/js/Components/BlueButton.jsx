@@ -1,8 +1,8 @@
 const BlueButton = ({ title, onClick, disabled = false, icon=false, width, props}) => {
     return (
         <button onClick={onClick}
-            className={`flex items-center justify-center ${width} h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] 
-            bg-blue-gradient-overlay border-[#3863C6] text-white shadow-inset-white 
+            className={`flex items-center justify-center ${width} h-[40px] gap-2 px-4 py-2 rounded-[10px] border-[1px] 
+            bg-[#3863C6] border-[#3863C6] text-white shadow-inset-white 
             hover:border-black hover:text-black
             cursor-pointer`} disabled={disabled} {...props}>
                 {icon && (

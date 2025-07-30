@@ -24,6 +24,8 @@ class Country extends Model
         'name',
         'iso2',
         'iso3',
+        'nationality',
+        'phonecode',
         'created_at',
         'updated_at',
         'deleted_at',

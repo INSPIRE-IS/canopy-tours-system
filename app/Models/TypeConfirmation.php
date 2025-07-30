@@ -7,11 +7,11 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class TypeAffiliate extends Model
+class TypeConfirmation extends Model
 {
-    use SoftDeletes, HasFactory;
+    public $table = 'type_confirmations';
 
-    public $table = 'type_affiliates';
+    use SoftDeletes, HasFactory;
 
     protected $dates = [
         'created_at',

@@ -6,6 +6,7 @@ import Header from '@/Components/Header';
 //import FlashMessages from '@/Components/FlashMessages';
 import FlashMessage from '@/Components/FlashMessage';
 import SidebarMenuItem from '@/Components/SidebarMenuItem';
+import { icons } from '@/icons';
 
 export default function AppLayout({  user, children }) {
  
@@ -53,7 +54,7 @@ function toggleDropdown (id) {
 function selectOption(dropdownId, value) {
     console.log("apply changes to", dropdownId);
 
-    axios.post(route("teams.change"), {
+    axios.post(route("admin.teams.change"), {
         team_id: value,
     })
     .then((response) => {
@@ -172,65 +173,53 @@ function selectOption(dropdownId, value) {
                 </div>
                 <nav className="px-4 space-y-2 ">
         <label className="menu-label text-menu-heading">Main Menu</label>
-            {permissions?.user_management_access && (
-            <SidebarMenuItem
-                label="User Management"
-                isOpen={isOpen}
-                iconName="admin"
-                path={currentRoutePath == 'admin.home' ? '/admin' : null}
-                submenuItems={[
-                    { name: 'Permissions', url: 'permissions.index' },
-                    { name: 'Roles', url: 'roles.index' },
-                    { name: 'Users', url: 'users.index' },
-                    { name: 'Teams', url: 'teams.index' },
-                ]}
-            />)}   
+ 
             <SidebarMenuItem
                 label="Dashboard"
                 isOpen={isOpen}
-                url= 'dashboard'
+                url= 'admin.dashboard'
                 iconName="dashboard"
             />
             <SidebarMenuItem
                 label="Bookings"
                 isOpen={isOpen}
-                url= 'bookings.index'
+                url= 'admin.bookings.index'
                 iconName="bookings"
             />
             <SidebarMenuItem
                 label="Services"
                 isOpen={isOpen}
-                url= 'services.index'
+                url= 'admin.services.index'
                 iconName="services"
             />
-            <SidebarMenuItem
+            {/* <SidebarMenuItem
                 label="Seasons"
                 isOpen={isOpen}
-                url= 'seasons.index'
+                url= 'admin.seasons.index'
                 iconName="services"
             /> 
             <SidebarMenuItem
                 label="Inventory"
                 isOpen={isOpen}
-                url= 'inventories.index'
+                url= 'admin.inventories.index'
                 iconName="inventory"
-            />
+            /> 
             <SidebarMenuItem
                 label="closeouts"
                 isOpen={isOpen}
-                url= 'closeouts.index'
+                url= 'admin.closeouts.index'
                 iconName="inventory"
-            />
+            />*/}
             <SidebarMenuItem
                 label="Messages"
                 isOpen={isOpen}
-                url= 'roles.index'
+                url= 'admin.messenger.index'
                 iconName="messages"
             />
             <SidebarMenuItem
                 label="Reports"
                 isOpen={isOpen}
-                url= 'roles.index'
+                url= 'admin.reports.index'
                 iconName="reports"
             />
             <div>
@@ -239,15 +228,42 @@ function selectOption(dropdownId, value) {
             <SidebarMenuItem
                 label="Help & Center"
                 isOpen={isOpen}
-                url= 'roles.index'
+                url= 'admin.help-questions.index'
                 iconName="helpcenter"
             />
+            {/* <SidebarMenuItem
+                label="Settings"
+                isOpen={isOpen}
+                url= 'admin.roles.index'
+                iconName="settings"
+            /> */}
+            {permissions?.user_management_access && (
             <SidebarMenuItem
                 label="Settings"
                 isOpen={isOpen}
-                url= 'roles.index'
                 iconName="settings"
-            />
+                path={currentRoutePath == 'admin.home' ? '/admin' : null}
+                submenuItems={[
+                    // { name: 'Permissions', url: 'admin.permissions.index' },
+                    // { name: 'Roles', url: 'admin.roles.index' },
+                    { name: 'Users', url: 'admin.users.index' },
+                    { name: 'Teams', url: 'admin.teams.index' },
+                ]}
+            />)} 
+            {/* {permissions?.user_management_access && (
+            <SidebarMenuItem
+                label="User Management"
+                isOpen={isOpen}
+                iconName="admin"
+                path={currentRoutePath == 'admin.home' ? '/admin' : null}
+                submenuItems={[
+                    { name: 'Permissions', url: 'admin.permissions.index' },
+                    { name: 'Roles', url: 'admin.roles.index' },
+                    { name: 'Users', url: 'admin.users.index' },
+                    { name: 'Teams', url: 'admin.teams.index' },
+                ]}
+            />)}  */}
+
                 <div>
                     <button
                     onClick={handleLogout}
@@ -269,7 +285,7 @@ function selectOption(dropdownId, value) {
                 <div className="group px-4">
                 <div className="pl-[10px] mt-auto border-t pt-[13px] pb-4 flex items-center gap-3">
                     <div className=" w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center text-sm font-semibold">
-        image
+                        {icons.user}
                     </div>
                     <div className="flex flex-col text-sm">
                         <span className={`${isOpen ? '' : 'hidden'} font-medium text-gray-800`}>{user?.name}</span>
@@ -286,19 +302,20 @@ function selectOption(dropdownId, value) {
             {/* <div className="flex transition-all duration-300 w-[100vw+240px] py-[10px] pr-[10px] bg-red-400"> */}
             <div className="flex transition-all duration-300 w-[100%] py-[10px] pr-[10px] bg-secondary-100">
                 {/* <div className="flex-1 flex flex-col overflow-hidden h-screen  bg-white rounded-lg">
-                    <Header user={user} toggleSidebar={() => setSidebarOpen(!sidebarOpen)} /></div> */}
+                    <Header user={user} toggleSidebar={() => toggleSidebar()} /></div> */}
                     <div className=" bg-[#3863C6] w-[10px] h-[100%] transition-all duration-300 rounded-l-lg " id="dividerBar"></div>
-                    <main className="bg-white min-h-screen 2xl:w-[100%]  rounded-r-lg">
-                        <header className="h-16 bg-white  border-b border-secondary-100 rounded-r-lg p-6 py-4 flex justify-between items-center">
+                    <main className="bg-white min-h-screen w-[100%]  rounded-r-lg">
+                        {/**/} <header className="h-16 bg-white  border-b border-secondary-100 rounded-r-lg p-6 py-4 flex justify-between items-center">
                             <div className="flex items-center gap-4 ">
                                 <div className={`icon-open flex md:hidden  items-center justify-between px-1 py-1 bg-secondary-100  relative rounded-[10px]`}>
                                     <button onClick={()=>toggleSidebar()} className="flex w-auto h-auto hover:bg-gray-200 rounded-sm transition cursor-pointer">
                                         <img src="/assets/icons/sidebar-left.svg" alt="My Icon" className="w-5 h-5" />         
                                     </button>
                                 </div>
-                                <span className="font-semibold text-lg text-gray-800 capitalize">{currentRoutePath}, {user?.name}</span>
+                                {currentRoutePath === 'admin/bookings' && <span className="font-semibold text-lg text-gray-800 capitalize">Bookings</span>}
+                                {/* <span className="font-semibold text-lg text-gray-800 capitalize">{currentRoutePath}, {user?.name}</span> */}
                             </div>
-                        </header>
+                        </header> 
                         {flash?.message && <FlashMessage message={flash.message} type={flash.type} />}
                         {children}
                     </main>

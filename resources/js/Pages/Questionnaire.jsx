@@ -3,22 +3,35 @@ import React, { useState, useEffect } from 'react';
 import { Head, useForm } from '@inertiajs/react';
 import CustomButton from '@/Components/CustomButton';
 import CustomCheckboxQ from '@/Components/CustomCheckboxQ';
+import CustomInputText from '@/Components/CustomInputText';
+import CustomSelect from '@/Components/CustomSelect';
+import CustomRadio from '@/Components/CustomRadioQ';
+import SignaturePad from '@/Components/SignaturePad';
 
-export default function BookingLookup() {
+export default function BookingLookup({auth,booking, leadGuides,safetyGuides, typeGroup, typeReferral, typeConfirmation}) {
+    console.log("auth", auth);
+    const mode = 'create';
+    console.log("typeGroup", typeGroup);
+    console.log("typeConfirmation", typeConfirmation);
+    const [prevNext, setPrevNext] = useState(1);
     const { data, setData, post, put, errors, reset, processing } = useForm({
-        service_id: "",
-        season_name: "",
-        start_date: "",
-        end_date: "",
-        rake_rate_adult: "",
-        rake_rate_child: "",
-        rake_rate_guide: "",
-        allow_internal_price_override: 0,
-        day_slots: [1,2,3,4,5,6,7],
-        time_slots: [],
-        capacity: "",
-        allow_internal_override: "",
-        status: 0,
+        booking_id: booking.id,
+        team_id: booking?.team_id,
+        lead_guide_id: "",
+        safety_guide_id: "",
+        type_group_id: "",
+        full_name: "",
+        birth_date: "",
+        referral_id: "",
+        continent_id: "",
+        country_id: "",
+        province_id: "",
+        medical_id: "",
+        medical_detail: "",
+        is_fit: "",
+        is_agree: "",
+        email_address: "",
+        signature: "",
     });
     const [continents, setContinents] = useState([]);
     const [countries, setCountries] = useState([]);
@@ -34,9 +47,10 @@ export default function BookingLookup() {
 
     // When continent changes
     useEffect(() => {
-    if (selectedContinent) {
-        axios.get(`/countries/${selectedContinent}`).then(res => setCountries(res.data));
-    }
+      if (selectedContinent) {
+        //alert('selectedContinent');
+          axios.get(`/countries/${selectedContinent}`).then(res => setCountries(res.data));
+      }
     }, [selectedContinent]);
 
     // When country changes
@@ -46,177 +60,565 @@ export default function BookingLookup() {
     }
     }, [selectedCountry]);
 
-
-
-    useEffect(() => {
-
-            // setData({
-            //     service_id: inventory.service_id || "",
-            //     season_name: inventory.season_name || "",
-            //     start_date: inventory.start_date || "",
-            //     end_date: inventory.end_date || "",
-            //     rake_rate_adult: inventory.end_date || "",
-            //     rake_rate_child: inventory.end_date || "",
-            //     rake_rate_guide: inventory.end_date || "",
-            //     allow_internal_price_override: inventory.end_date || 0,
-            //     day_slots: inventory.day_slots || [1,2,3,4,5,6,7],
-            //     time_slots: inventory.day_slots || [],// Load existing time_slots
-            //     capacity: inventory.capacity || "",
-            //     allow_internal_override: inventory.allow_internal_override || "",
-            //     status: inventory.status || "",
-            //     updated_by_id: inventory.updated_by_id || "",
-            //     //roles: inventory.roles.map((role) => role.id),
-
-            // });
-
-    }, []);
-
+    const handlePrevNext = (number) => {
+        console.log('number', number);
+        setPrevNext(number);
+        console.log('data', data);
+    };
     const handleChange = (target, value) => {
-        setData(target, value);
+
         //setData("name", e.target.value);
+        if(target == "continent_id"){
+            setSelectedContinent(value);
+        }
+        if(target == "country_id"){
+            setSelectedCountry(value);
+        }
+        // if(target == "referral_id"){
+        //     setSelectedReferral(value);
+        // }
+        setData(target, value);        
+        console.log('data', data);
     };
 
-  const handleSubmit = (e) => {
-      e.preventDefault();
-      alert(`Searching booking for ID: ${data.booking_id}`);        
-      if (data.booking_id) {
-          get(route("questionnaire.create"), {
-              onSuccess: () => {
-                  reset();
-                  onClose();
-              },
-          });
-      }else{
-          alert('Please enter a booking ID');
-      }
-  };
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        console.log('booking', booking);
+        console.log('data', data);
+        post(route('questionnaire.store'));
+        //put(route('admin.checkins.store',{booking}));
+    };
 
   return (
     <>
       <Head title="Find Your Booking" />
-        <div className="min-h-screen flex flex-col items-center justify-center bg-secondary-100">
-            <div className="flex items-center justify-center w-full pb-[51px]">
-              {/* Logo Box */}
-              <div className="flex items-center justify-center w-[118px] h-[106px] ">
-              <img
-                src="/images/logo.png"
-                alt="Canopy Tours"
-                className="w-full h-full object-contain min-w-[100px] min-h-[90px]"
-              />
-              </div>
-
-              {/* Text Logo */}
-              <div className="flex items-center pl-2">
-                <img
-                  src="/images/text.png"
-                  alt="Canopy Tours Text"
-                  className="w-24 h-24 md:w-[118px] md:h-[106px] object-contain"
-                />
-              </div>
+      <div className="flex flex-col  h-screen items-center justify-center bg-secondary-100">
+          <div className="flex items-center justify-center w-full sm:pb-[51px] ">
+            {/* Logo Box */}
+            <div className="flex items-center justify-center w-[118px] h-[106px] ">
+            <img
+              src="/images/logo.png"
+              alt="Canopy Tours"
+              className="w-full h-full object-contain min-w-[100px] min-h-[90px]"
+            />
             </div>
-            <div className="flex flex-col bg-white items-center justify-start md:w-[1109px] w-full shadow-lg rounded-[20px]">
 
-
-              <h2 className="text-welcome-card-title w-[544px] mt-[42px] mb-[26px] px-[39px]">
-                Select your Lead Guide
-              </h2>
-
-                <div className="flex rounded-[10px] border border-[#F1F1F5] w-[672px] h-[60px]  ">
-                    <CustomCheckboxQ
-                        label="Allow Internal Time Slot Override"
-                        name="allow_internal_override"
-                        checked={data.allow_internal_override}
-                        onChange={handleChange}
-                        errors={errors}
-                    />
+            {/* Text Logo */}
+            <div className="flex items-center pl-2">
+              <img
+                src="/images/text.png"
+                alt="Canopy Tours Text"
+                className="w-24 h-24 md:w-[118px] md:h-[106px] object-contain"
+              />
+            </div>
+          </div>
+          <div className="flex flex-col bg-white h-[80%] w-full sm:w-[50%] items-center shadow-lg rounded-[20px]">
+            {/* select lead guide */}
+            {prevNext == 1 && (
+              <div className="flex flex-col h-full mb-[26px]">
+                <div className="flex flex-col w-full h-[90%] gap-2" >
+                  <span className="text-welcome-card-title text-center min-w-[90%] sm:w-full mt-[42px] mb-[26px] px-6 sm:px-[39px]">
+                  Select your Lead Guide
+                  </span>
+                  {leadGuides?.map((staff, i) => (
+                  <CustomRadio
+                    key={staff.id}
+                    label={staff.name}
+                    name="lead_guide_id"
+                    value={staff.id}
+                    checked={data.lead_guide_id == staff.id.toString()}
+                    onChange={handleChange}
+                    errors={errors}
+                  />
+                  ))}
                 </div>
-              <h2 className="text-welcome-card-title w-[544px] mt-[42px] mb-[26px] px-[39px]">
-                Select your Safety Guide
-              </h2>
+                <div className="flex items-center justify-center gap-6">
+                  <button type='button' onClick={() => handlePrevNext(2)} className="flex items-center justify-center w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-green-gradient-overlay border-[#31B700] text-white shadow-inset-white cursor-pointer">
+                    <span className="text-btn-outline-gray">Next</span>
+                  </button>
+                </div>
+              </div>
+            )}
+            {/* select safety guide */}
+            {prevNext == 2 && (
+              <div className="flex flex-col h-full mb-[26px]">
+                <div className="flex flex-col w-full h-[90%] gap-2" >
+                  <span className="text-welcome-card-title text-center min-w-[90%] sm:w-full mt-[42px] mb-[26px] px-6 sm:px-[39px]">
+              Select your Safety Guide
+              </span>                  
+              {safetyGuides?.map((staff, i) => (
+              <CustomRadio
+              key={staff.id}
+              label={staff.name}
+              name="safety_guide_id"
+              value={staff.id}
+              checked={data.safety_guide_id == staff.id.toString()}
+              onChange={handleChange}
+              errors={errors}
+              />
+              ))}
+              </div> 
+              <div className="flex items-center justify-center gap-6">
+              <button type='button' onClick={() => handlePrevNext(1)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border border-primary-14 text-primary-14 cursor-pointer">
+              <span className="text-btn-outline-gray">Prev</span>
 
-              <h2 className="text-welcome-card-title w-[544px] mt-[42px] mb-[26px] px-[39px]">
-                What kind of a group are you with?
-              </h2>
+              </button>
+              <button type='button' onClick={() => handlePrevNext(3)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-green-gradient-overlay border-[#31B700] text-white shadow-inset-white cursor-pointer">
+              <span className="text-btn-outline-gray">Next</span>
+              </button>
+              </div>
+              </div>
+            )}
+            {/* select group */}
+            {prevNext == 3 && (
+              <div className="flex flex-col h-full mb-[26px]">
+                <div className="flex flex-col w-full h-[90%] gap-2" >
+                  <span className="text-welcome-card-title text-center min-w-[90%] sm:w-full mt-[42px] mb-[26px] px-6 sm:px-[39px]">
+                  What kind of a group are you with?
+                  </span>
+                  <div className="h-auto w-[90%] sm:w-full pl-7 sm:pl-0 overflow-x-auto">                  
+                  {typeGroup?.map((group, i) => (
+                  <CustomRadio
+                  key={group.id}
+                  label={group.name}
+                  name="type_group_id"
+                  value={group.id}
+                  checked={data.type_group_id == group.id.toString()}
+                  onChange={handleChange}
+                  errors={errors}
+                  />
+                  ))}
+                  </div>
+                </div> 
+                <div className="flex items-center justify-center gap-6">
+                  <button type='button' onClick={() => handlePrevNext(2)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border border-primary-14 text-primary-14 cursor-pointer">
+                  <span className="text-btn-outline-gray">Prev</span>
+
+                  </button>
+                  <button type='button' onClick={() => handlePrevNext(4)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-green-gradient-overlay border-[#31B700] text-white shadow-inset-white cursor-pointer">
+                  <span className="text-btn-outline-gray">Next</span>
+                  </button>
+                </div>
+              </div>
+            )}
+            {/* enter name */}
+            {prevNext == 4 && (
+              <div className="flex flex-col h-full mb-[26px]">
+                <div className="flex flex-col w-full h-[90%] gap-2" >
+                  <span className="text-welcome-card-title text-center min-w-[90%] sm:w-full mt-[42px] mb-[26px] px-6 sm:px-[39px]">
+                  Please enter your First and Last name
+                  </span> 
+                  <div className="h-auto w-[90%] sm:w-full pl-7 sm:pl-0 overflow-x-auto">
+                    <CustomInputText
+                    name="full_name"
+                    value={data.full_name}
+                    type="text"
+                    mode = {mode} 
+                    onChange={(e) => setData(e.target.name, e.target.value)}
+                    errors={errors}
+                    />
+                    </div>
+                </div>
+                <div className="flex items-center justify-center gap-6">
+                  <button type='button' onClick={() => handlePrevNext(3)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border border-primary-14 text-primary-14 cursor-pointer">
+                  <span className="text-btn-outline-gray">Prev</span>
+
+                  </button>
+                  <button type='button' onClick={() => handlePrevNext(5)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-green-gradient-overlay border-[#31B700] text-white shadow-inset-white cursor-pointer">
+                  <span className="text-btn-outline-gray">Next</span>
+                  </button>
+                </div>
+              </div>
+            )}
+            {/* enter date of birth */}
+            {prevNext == 5 && (
+              <div className="flex flex-col h-full mb-[26px]">
+                <div className="flex flex-col w-full h-[90%] gap-2" >
+                  <span className="text-welcome-card-title text-center min-w-[90%] sm:w-full mt-[42px] mb-[26px] px-6 sm:px-[39px]">
+                  Please enter your Date of Birth
+                  </span>
+                  <div className="h-auto w-[90%] sm:w-full pl-7 sm:pl-0 overflow-x-auto">  
+                  <CustomInputText
+                  name="date_of_birth"
+                  value={data.date_of_birth}
+                  type="date"
+                  mode = {mode} 
+                  onChange={(e) => setData(e.target.name, e.target.value)}
+                  errors={errors}
+                  />
+                  </div>
+                </div>
+                <div className="flex items-center justify-center gap-6">
+                  <button type='button' onClick={() => handlePrevNext(4)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border border-primary-14 text-primary-14 cursor-pointer">
+                  <span className="text-btn-outline-gray">Prev</span>
+
+                  </button>
+                  <button type='button' onClick={() => handlePrevNext(6)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-green-gradient-overlay border-[#31B700] text-white shadow-inset-white cursor-pointer">
+                  <span className="text-btn-outline-gray">Next</span>
+                  </button>
+                </div>
+              </div>
+            )}
+            {/* referral */}            
+            {prevNext == 6 && (
+              <div className="flex flex-col h-full mb-[26px]">
+                <div className="flex flex-col w-full h-[90%] gap-2 " >
+                  <span className="text-welcome-card-title text-center min-w-[90%] sm:w-full mt-[42px] mb-[26px] px-6 sm:px-[39px]">
+                  Where did you hear about us
+                  </span>
+                  <div className="h-auto w-[90%] sm:w-full pl-7 sm:pl-0 overflow-x-auto">
+                  {typeReferral?.map((referral, i) => (
+                  <CustomRadio
+                  key={referral.id}
+                  label={referral.name}
+                  name="referral_id"
+                  value={referral.id}
+                  checked={data.referral_id == referral.id.toString()}
+                  onChange={handleChange}
+                  errors={errors}
+                  />
+                  ))}
+                  </div>
+                </div> 
+                <div className="flex items-center justify-center gap-6">
+                  <button type='button' onClick={() => handlePrevNext(5)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border border-primary-14 text-primary-14 cursor-pointer">
+                  <span className="text-btn-outline-gray">Prev</span>
+
+                  </button>
+                  <button type='button' onClick={() => handlePrevNext(7)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-green-gradient-overlay border-[#31B700] text-white shadow-inset-white cursor-pointer">
+                  <span className="text-btn-outline-gray">Next</span>
+                  </button>
+                </div>
+              </div> 
+            )}
+            {/* Continent */}
+            {prevNext == 7 && (
+              <div className="flex flex-col w-full sm:w-auto h-full mb-[26px]">
+                <div className="flex flex-col w-full h-[90%] gap-2 " >
+                  <span className="text-welcome-card-title text-center min-w-[90%] sm:w-full mt-[42px] mb-[26px] px-6 sm:px-[39px]">
+                  Where are you from? Select your Continent
+                  </span>
+                  <div className="h-auto w-[90%] sm:w-full pl-7 sm:pl-0 overflow-x-auto">
+                  {continents?.map((continent, i) => (
+                  <CustomRadio
+                  key={continent.id}
+                  label={continent.name}
+                  name="continent_id"
+                  value={continent.id}
+                  checked={data.continent_id == continent.id.toString()}
+                  onChange={handleChange}
+                  errors={errors}
+                  />
+                  ))}
+                  </div>
+                </div>
+                <div className="flex items-center justify-center gap-6">
+                  <button type='button' onClick={() => handlePrevNext(6)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border border-primary-14 text-primary-14 cursor-pointer">
+                  <span className="text-btn-outline-gray">Prev</span>
+                  </button>
+                  <button type='button' onClick={() => handlePrevNext(8)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-green-gradient-overlay border-[#31B700] text-white shadow-inset-white cursor-pointer">
+                  <span className="text-btn-outline-gray">Next</span>
+                  </button>
+                </div>
+              </div> 
+            )}
+            {/* Country */}
+            {prevNext == 8 && (
+              <div className="flex flex-col w-full sm:w-auto h-full mb-[26px]">
+                <div className="flex flex-col w-full h-[90%] gap-2" >
+                  <span className="text-welcome-card-title text-center w-[90%] sm:w-full mt-[42px] mb-[26px] px-6 sm:px-[39px]">
+                      Country of Residence
+                    </span>
+                    <div className="h-auto w-[90%] sm:w-full pl-7 sm:pl-0 overflow-x-auto">
+                      {countries?.map((country, i) => (
+                      <CustomRadio
+                      key={country.id}
+                      label={country.name}
+                      name="country_id"
+                      value={country.id}
+                      checked={data.country_id == country.id.toString()}
+                      onChange={handleChange}
+                      errors={errors}
+                      />
+                      ))}
+                  </div>
+                </div>
+                <div className="flex items-center justify-center gap-6">
+                  <button type='button' onClick={() => handlePrevNext(7)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border border-primary-14 text-primary-14 cursor-pointer">
+                  <span className="text-btn-outline-gray">Prev</span>
+                  </button>
+                  <button type='button' onClick={() => handlePrevNext(9)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-green-gradient-overlay border-[#31B700] text-white shadow-inset-white cursor-pointer">
+                  <span className="text-btn-outline-gray">Next</span>
+                  </button>
+                </div>
+              </div> 
+            )}
+            {/* Province */}
+            {prevNext == 9 && (
+              <div className="flex flex-col w-full sm:w-auto h-full mb-[26px]">
+                <div className="flex flex-col w-full h-[90%] gap-2  " >
+                      <span className="text-welcome-card-title text-center sm:w-full sm:px-[39px] mt-[42px] mb-[26px] ">
+                      Select Province
+                      </span>
+                  <div className="h-auto w-[90%] sm:w-full pl-7 sm:pl-0 overflow-x-auto">
+                    {states?.map((state, i) => (
+                      <CustomRadio
+                      key={state.id}
+                      label={state.name}
+                      name="province_id"
+                      value={state.id}
+                      checked={data.province_id == state.id.toString()}
+                      onChange={handleChange}
+                      errors={errors}
+                      />
+                    ))}
+                  </div>
+                </div>
+                  <div className="flex items-center justify-center gap-6">
+                    <button type='button' onClick={() => handlePrevNext(8)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border border-primary-14 text-primary-14 cursor-pointer">
+                    <span className="text-btn-outline-gray">Prev</span>
+                    </button>
+                    <button type='button' onClick={() => handlePrevNext(10)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-green-gradient-overlay border-[#31B700] text-white shadow-inset-white cursor-pointer">
+                    <span className="text-btn-outline-gray">Next</span>
+                    </button>
+                  </div>                
+              </div>
+            )}
+            {/* Medical */}
+            {prevNext == 10 && (
+              <div className="flex flex-col w-full sm:w-auto h-full mb-[26px]">
+
+                    <div className="flex flex-col w-full h-[90%] gap-2  ">                    
+                    <span className="text-welcome-card-title text-center sm:w-full px-7 sm:px-[39px] mt-[42px] mb-[26px]">
+                        Dou you have any medical conditions we should be aware of?
+                    </span>
+
+                    <div className="h-auto w-[90%] sm:w-full pl-7 sm:pl-0 overflow-x-auto">  
+                    {typeConfirmation?.map((medical, i) => (
+                      <CustomRadio
+                          key={medical.id}
+                          label={medical.name}
+                          name="medical_id"
+                          value={medical.id}
+                          checked={data.medical_id == medical.id.toString()}
+                          onChange={handleChange}
+                          errors={errors}
+                      />
+                    ))}
+                    </div> 
+                    <div className="h-auto w-[90%] sm:w-[672px] pl-7 sm:pl-0 overflow-x-auto">
+                    <CustomInputText
+                        title="Please let us know what medical conditions you have and confirm that your doctor 
+                        has agreed that you may partake in this activity?"
+                        name="medical_detail"
+                        value={data.medical_detail}
+                        height="h-[52px]"
+                        type="text"
+                        mode = {mode}                   
+                        onChange={(e) => setData(e.target.name, e.target.value)}
+                    />
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-center gap-6">
+                    <button type='button' onClick={() => handlePrevNext(9)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border border-primary-14 text-primary-14 cursor-pointer">
+                    <span className="text-btn-outline-gray">Prev</span>
+                    </button>
+                    <button type='button' onClick={() => handlePrevNext(11)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-green-gradient-overlay border-[#31B700] text-white shadow-inset-white cursor-pointer">
+                    <span className="text-btn-outline-gray">Next</span>
+                    </button>
+                </div>
+              </div>
+            )}
+            {/* Fit */}
+            {prevNext == 11 && (
+            <div className="flex flex-col w-full sm:w-auto h-full mb-[26px]">
+              <div className="flex flex-col w-full h-[90%] gap-2  " >
+                <span className="text-welcome-card-title text-center sm:w-full sm:px-[39px] mt-[42px] mb-[26px]">
+                I am fit enough to walk 1km in steep terrain
+                </span>
+                <div className="h-auto w-[90%] sm:w-full pl-7 sm:pl-0 overflow-x-auto">  
+                  {typeConfirmation?.map((fit, i) => (
+                  <CustomRadio
+                  key={fit.id}
+                  label={fit.name}
+                  name="is_fit"
+                  value={fit.id}
+                  checked={data.is_fit == fit.id.toString()}
+                  onChange={handleChange}
+                  errors={errors}
+                  />
+                  ))}
+                </div> 
+              </div>                  
+                <div className="flex items-center justify-center gap-6">
+                  <button type='button' onClick={() => handlePrevNext(10)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border border-primary-14 text-primary-14 cursor-pointer">
+                  <span className="text-btn-outline-gray">Prev</span>
+                  </button>
+                  <button type='button' onClick={() => handlePrevNext(12)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-green-gradient-overlay border-[#31B700] text-white shadow-inset-white cursor-pointer">
+                  <span className="text-btn-outline-gray">Next</span>
+                  </button>
+                </div>
+
+            </div>
+            )}
+            {/* Agree */}
+            {prevNext == 12 && (
+              <div className="flex flex-col h-full mb-[26px]">
+                <div className="flex flex-col w-full h-[90%] gap-2 overflow-x-auto" >
+                  <span className="text-welcome-card-title text-center w-[90%] sm:w-full mt-[42px] mb-[8px] px-6 sm:px-[39px]">
+                  Please agree to the following terms and conditions
+                  </span>
+                  <span className="text-welcome-card-title text-center w-[90%] sm:w-full mb-[8px] px-6 sm:px-[39px]">
+                  By accessing and using this website, you acknowledge and agree to the terms outlined in this Indemnity Agreement. This form serves to protect the website owners, administrators, and affiliated parties from any liability arising from the use of the site, its content, or any services provided. By proceeding, you confirm that you understand and accept full responsibility for any risks associated with your use of this website and waive any claims against its owners for potential losses, damages, or liabilities.
+                  </span>
+                  <div className="w-[90%] sm:w-full mb-[8px] px-6 sm:px-[39px]">
+                  <CustomCheckboxQ
+                    label="I agree to the terms and conditions"
+                    name="is_agree"
+                    value={data.is_agree}
+                    checked={data.is_agree}
+                    onChange={handleChange}
+                    errors={errors}
+                  />
+                  </div>
+
+                </div>
+
+                <div className="flex items-center justify-center gap-6">
+                  <button type='button' onClick={() => handlePrevNext(11)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border border-primary-14 text-primary-14 cursor-pointer">
+                    <span className="text-btn-outline-gray">Prev</span>
+                  </button>
+                  <button type='button' onClick={() => handlePrevNext(13)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border border-primary-14 text-primary-14 cursor-pointer">
+                    <span className="text-btn-outline-gray">Prev</span>
+                  </button>
+                </div>
 
 
-              <h2 className="text-welcome-card-title w-[544px] mt-[42px] mb-[26px] px-[39px]">
-                Please enter your First and Last name
-              </h2>
+                </div>
+            )}
+            {/* Email */}
+            {prevNext == 13 && (
+            <div className="flex flex-col h-full mb-[26px]">
+                <div className="flex flex-col w-full h-[90%] gap-2" >
+                  <span className="text-welcome-card-title text-center min-w-[90%] sm:w-full mt-[42px] mb-[26px] px-6 sm:px-[39px]">
+                  Please enter your email address
+                  </span> 
+                  <div className="h-auto w-[90%] sm:w-full pl-7 sm:pl-0 overflow-x-auto">
+                    <CustomInputText
+                    name="email_address"
+                    value={data.email_address}
+                    type="text"
+                    mode = {mode} 
+                    onChange={(e) => setData(e.target.name, e.target.value)}
+                    errors={errors}
+                    />
+                    </div>
+                </div>
+                <div className="flex items-center justify-center gap-6">
+                  <button type='button' onClick={() => handlePrevNext(12)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border border-primary-14 text-primary-14 cursor-pointer">
+                  <span className="text-btn-outline-gray">Prev</span>
+
+                  </button>
+                  <button type='button' onClick={() => handlePrevNext(14)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-green-gradient-overlay border-[#31B700] text-white shadow-inset-white cursor-pointer">
+                  <span className="text-btn-outline-gray">Next</span>
+                  </button>
+                </div>
+              </div>
+            )}
+            {/* signature */}
+            {prevNext == 14 && (
+            <div className="flex flex-col h-full mb-[26px]">
+                <div className="flex flex-col w-full h-[90%] gap-2" >
+                  <span className="text-welcome-card-title text-center min-w-[90%] sm:w-full mt-[42px] mb-[26px] px-6 sm:px-[39px]">
+                  Please sign below
+                  </span> 
+                  <div className="h-auto w-[90%] sm:w-full pl-7 sm:pl-0 overflow-x-auto">
+                  <SignaturePad
+                          value={data.signature}
+                          onChange={(value) => setData('signature', value)}
+                        />
+                    {errors.signature && <div className="text-red-500 text-sm">{errors.signature}</div>}
+                    </div>
+                </div>
+                <div className="flex items-center justify-center gap-6">
+                  <button type='button' onClick={() => handlePrevNext(13)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border border-primary-14 text-primary-14 cursor-pointer">
+                  <span className="text-btn-outline-gray">Prev</span>
+
+                  </button>
+                  <button type='button' onClick={() => handlePrevNext(15)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-green-gradient-overlay border-[#31B700] text-white shadow-inset-white cursor-pointer">
+                  <span className="text-btn-outline-gray">Next</span>
+                  </button>
+                </div>
+              </div>
+            )}
+            {/* submit */}
+            {prevNext == 15 && (
+            <div className="flex flex-col h-full mb-[26px]">
+                <div className="flex flex-col w-full h-[90%] gap-2" >
+                  <span className="text-welcome-card-title text-center min-w-[90%] sm:w-full mt-[42px] mb-[26px] px-6 sm:px-[39px]">
+                  Your forms are ready to submit
+                  </span>
+                </div>
+                <div className="flex items-center justify-center gap-6">
+                  <button type='button' onClick={() => handlePrevNext(14)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border border-primary-14 text-primary-14 cursor-pointer">
+                  <span className="text-btn-outline-gray">Prev</span>
+
+                  </button>
+                  <button 
+                  type='button' 
+                  onClick={(e) => handleSubmit(e)}
+                  disabled={processing} 
+                  
+                  className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-green-gradient-overlay border-[#31B700] text-white shadow-inset-white cursor-pointer">
+                  <span className="text-btn-outline-gray">Submit</span>
+                  </button>
+                </div>
+              </div>
+            )}
+  <div> 
 
 
-              <h2 className="text-welcome-card-title w-[544px] mt-[42px] mb-[26px] px-[39px]">
-                Please enter your Date of Birth
-              </h2>
+</div>
 
 
-
-
-              <h2 className="text-welcome-card-title w-[544px] mt-[42px] mb-[26px] px-[39px]">
-                Where did you hear about us
-              </h2>
-
-              <h2 className="text-welcome-card-title w-[544px] mt-[42px] mb-[26px] px-[39px]">
-                Where are you from?
-              </h2>
+          </div>
+      </div>
+    </>
+  );
+}
+{/* <div> 
+              <span className="text-welcome-card-title w-[544px] mt-[42px] mb-[26px] px-[39px]">
+                Where are you from? Select your Continent
+              </span>
                 <select onChange={e => setSelectedContinent(e.target.value)}>
                 <option value="">Select Continent</option>
                 {continents.map(c => (
                     <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
                 </select>
+</div>
 
+<div> 
+              <span className="text-welcome-card-title w-[544px] mt-[42px] mb-[26px] px-[39px]">
+                Select your Country
+              </span>
                 <select onChange={e => setSelectedCountry(e.target.value)}>
                 <option value="">Select Country</option>
                 {countries.map(c => (
                     <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
                 </select>
+</div>
 
+
+<div> 
+              <span className="text-welcome-card-title w-[544px] mt-[42px] mb-[26px] px-[39px]">
+                Select your province
+              </span>
                 <select>
                 <option value="">Select State/Province</option>
                 {states.map(s => (
                     <option key={s.id} value={s.id}>{s.name}</option>
                 ))}
                 </select>
-
-              <h2 className="text-welcome-card-title w-[544px] mt-[42px] mb-[26px] px-[39px]">
-                Select your province
-              </h2>
-
-              <h2 className="text-welcome-card-title w-[544px] mt-[42px] mb-[26px] px-[39px]">
-                Dou you have any medical conditions we should be aware of?
-              </h2>
-              <h2 className="text-welcome-card-title w-[544px] mt-[42px] mb-[26px] px-[39px]">
-                I am fit enough to walk 1km in steep terrain
-              </h2>
-                            <h2 className="text-welcome-card-title w-[544px] mt-[42px] mb-[26px] px-[39px]">
-                Please agree to the following terms and conditions
-              </h2>
-              <p className="text-welcome-card-title-sub w-[856px] mb-[28px]">
-By accessing and using this website, you acknowledge and agree to the terms outlined in this Indemnity Agreement. This form serves to protect the website owners, administrators, and affiliated parties from any liability arising from the use of the site, its content, or any services provided. By proceeding, you confirm that you understand and accept full responsibility for any risks associated with your use of this website and waive any claims against its owners for potential losses, damages, or liabilities.
-              </p>
-
-
-
-              <CustomButton
-                title="Find my Booking"
-                bgColor="bg-[#31B700]"
-                textColor="text-white"
-                hoverColor="bg-green-700"
-                hoverTextColor="text-white"
-                type="button"
-                icon={
-                <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 11 11" fill="none">
-                <path fillRule="evenodd" clipRule="evenodd" d="M1.64749 4.97127C1.64749 4.0895 1.99774 3.24385 2.62118 2.62034C3.24462 1.99684 4.09019 1.64656 4.97187 1.64656C5.85355 1.64656 6.69911 1.99684 7.32256 2.62034C7.946 3.24385 8.29624 4.0895 8.29624 4.97127C8.29624 5.85303 7.946 6.69869 7.32256 7.32219C6.69911 7.94569 5.85355 8.29597 4.97187 8.29597C4.09019 8.29597 3.24462 7.94569 2.62118 7.32219C1.99774 6.69869 1.64749 5.85303 1.64749 4.97127ZM7.85599 9.02065C6.84046 9.74434 5.59006 10.0599 4.35278 9.90477C3.11549 9.74963 1.98169 9.13511 1.17623 8.18309C0.370768 7.23107 -0.0475282 6.01108 0.00429916 4.76506C0.0561265 3.51904 0.574292 2.33801 1.45603 1.45618C2.33777 0.574349 3.51869 0.0561321 4.76458 0.00429959C6.01048 -0.0475329 7.23035 0.370805 8.18227 1.17635C9.1342 1.98189 9.74865 3.11581 9.90378 4.35321C10.0589 5.59062 9.74337 6.84114 9.01975 7.85678L10.7379 9.57403C10.8188 9.64942 10.8837 9.74034 10.9287 9.84135C10.9737 9.94237 10.9979 10.0514 10.9999 10.162C11.0018 10.2726 10.9815 10.3824 10.9401 10.4849C10.8987 10.5875 10.837 10.6806 10.7588 10.7588C10.6806 10.837 10.5875 10.8986 10.485 10.9401C10.3824 10.9815 10.2726 11.0018 10.1621 10.9999C10.0515 10.9979 9.94247 10.9737 9.84147 10.9287C9.74046 10.8837 9.64956 10.8188 9.57418 10.7379L7.85599 9.02065Z" fill="white"/>
-                </svg>                 
-                }
-                onClick={(e) => handleSubmit(e)}
-              />
-
-            </div>
-      </div>
-
-
-    </>
-  );
-}
+</div>                 */}
