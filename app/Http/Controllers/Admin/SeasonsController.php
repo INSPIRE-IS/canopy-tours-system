@@ -6,24 +6,16 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreSeasonRequest;
 use App\Http\Requests\UpdateSeasonRequest;
 use App\Models\Season;
-use App\Models\User;
 use Gate;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Session;
 use Inertia\Inertia;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpKernel\DependencyInjection\SeasonsResetter;
-
-
 use App\Models\File;
 use App\Models\SeasonField;
 use App\Models\SeasonFieldValue;
 use App\Models\Service;
 use Illuminate\Support\Facades\Validator;
-
-
-
-
 
 class SeasonsController extends Controller
 {
@@ -155,7 +147,7 @@ class SeasonsController extends Controller
 
         //return redirect()->back()->with('success', 'Season created successfully');
 
-        return redirect()->route('seasons.index');
+        return redirect()->route('admin.seasons.index');
     }
 
     public function update(UpdateSeasonRequest $request, Season $season)
@@ -239,7 +231,7 @@ class SeasonsController extends Controller
         }
         // return redirect()->back()->with('success', 'Season updated successfully');
 
-        return redirect()->route('seasons.index');
+        return redirect()->route('admin.seasons.index');
     }
 
     public function show(Season $season)

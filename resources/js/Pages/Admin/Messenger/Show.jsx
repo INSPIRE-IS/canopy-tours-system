@@ -3,7 +3,8 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head } from '@inertiajs/react';
 
 import CustomTextarea from '@/Components/CustomTextarea';
-
+import RichTextDisplay from '@/Components/RichTextDisplay';
+import InputRichText from '@/Components/InputRichText';
 
 export default function Index({ auth, topic, unreads }) {
 const props = usePage();
@@ -17,9 +18,14 @@ const { data, setData,post, put, isDirty, reset, processing, errors } = useForm(
             }   
         }     
     );
+    const handleChange = (target, value) => {
+        setData(target, value);
+    };
+
     const handleSubmit = (e) => {
         e.preventDefault();
-
+        console.log('data ', data);
+        // return;
         post(route('admin.messenger.reply', [topic?.id]));
         //put(route('admin.checkins.store',{booking}));
     };
@@ -65,35 +71,34 @@ const { data, setData,post, put, isDirty, reset, processing, errors } = useForm(
                                         const formattedDate = date.toLocaleDateString();
                                         const formattedTime = date.toLocaleTimeString();
                                         return(
-                                            <>
+                                            <div key={message?.id}>
                                                 {auth.user.id === message.sender_id ? (
-                                                    <div key={message?.id} className={`flex flex-col items-start gap-2 pl-[300px] border-b border-gray-200`}>
+                                                    <div  className={`flex flex-col items-start gap-2 pl-[300px] border-b border-gray-200`}>
                                                         <span className="flex items-start gap-2">Sent: { formattedDate } { formattedTime }</span>
                                                         <span className="gap-2">
-                                                            Message: { message.content }
+                                                            Message: <RichTextDisplay content={ message.content } />
                                                         </span>
                                                     </div>
                                                 ):(
-                                                <div key={message?.id} className={`flex flex-col items-start gap-2 border-b border-gray-200`}>
+                                                <div className={`flex flex-col items-start gap-2 border-b border-gray-200`}>
                                                     <span className="flex items-start gap-2">Recieved: { formattedDate } { formattedTime }</span>
                                                     <span className="gap-2">
-                                                        Message: { message.content }
+                                                        Message: <RichTextDisplay content={ message.content } />
                                                     </span>
                                                 </div>
                                                 )}                                            
-                                            </>
+                                            </div>
                                     )})}
                                 </div>
                                 <div className="flex flex-col w-[60%]  mb-4">
-
-                                        <CustomTextarea
-                                            label="Reply*"
-                                            name="content"
-                                            value={data.content}
-                                            mode = {mode} 
-                                            onChange={(e) => setData(e.target.name, e.target.value)}
-                                            errors={errors}
-                                        />
+                                    <InputRichText
+                                    title="Reply*"
+                                    field="content"
+                                    value={data.content}
+                                    mode={mode}
+                                    handleChange={handleChange}
+                                    errors={errors}
+                                    />
                                     <button type="submit" 
                                     className="flex items-center justify-center w-[130px] h-[57px] gap-2 px-4 py-2 rounded-[10px] border border-primary-14 text-primary-14 cursor-pointer" 
                                     onClick={handleSubmit}><span className="text-btn-outline-gray">Reply</span>

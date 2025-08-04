@@ -49,14 +49,14 @@ class TeamController extends Controller
         $data['owner_id'] = auth()->user()->id;
         $team             = Team::create($data);
 
-        return redirect()->route('teams.index');
+        return redirect()->route('admin.teams.index');
     }
 
     public function update(UpdateTeamRequest $request, Team $team)
     {
         $team->update($request->all());
 
-        return redirect()->route('teams.index');
+        return redirect()->route('admin.teams.index');
     }
 
     public function show(Team $team)

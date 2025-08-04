@@ -5,6 +5,7 @@ import CustomCheckbox from "@/Components/CustomCheckbox";
 import CustomSelect from "@/Components/CustomSelect";
 import OutlineButton from "@/Components/OutlineButton";
 import BlueButton from "@/Components/BlueButton";
+import InputRichText from "@/Components/InputRichText";
 
 const SeasonModal = ({ isOpen, onClose, mode, season = null, services, seasonFields, auth, team}) => {
     // console.log("mode", mode);
@@ -33,7 +34,7 @@ const SeasonModal = ({ isOpen, onClose, mode, season = null, services, seasonFie
                 fields: Object.fromEntries(
                     seasonFields.map(f => {
                         const fieldValue = season?.seasonfield_values?.find(v => v.field_id === f.id);
-                        return [f.id, fieldValue?.value || ""];
+                        return [`${f.id}`, fieldValue?.value || ""];
                     })
                 ),
                 updated_by_id: auth?.user?.id,
@@ -42,13 +43,27 @@ const SeasonModal = ({ isOpen, onClose, mode, season = null, services, seasonFie
             reset(); // Clear form for create mode
         }
     }, [mode,season,team]);
-
+const handleFieldChange = (target, value) => {
+    console.log('target ', target);
+    console.log('value ', value);
+setData(prevData => ({
+  ...prevData,
+  fields: {
+    ...prevData.fields,
+    [`${target}`]: value,
+  },
+}));
+  console.log('data --------------------------', data);
+};
     const handleChange = (target, value) => {
+        console.log('target ', target);
+        console.log('value ', value);
         setData(target, value);
         //setData("name", e.target.value);
     };
 const handleSubmit = (e) => {
     e.preventDefault();
+    console.log('data ', data);
 
     const formData = new FormData();
     formData.append('service_id', data.service_id);
@@ -72,14 +87,14 @@ console.log('mode', mode);
 
     if(mode === "create") {
 
-        axios.post(route("seasons.store"), formData, {
+        axios.post(route("admin.seasons.store"), formData, {
             headers: {
                 "Content-Type": "multipart/form-data",
             },
         }).then(() => onClose());
     }else{
         formData.append('_method', 'PUT');
-        axios.post(route('seasons.update', season.id), formData, {
+        axios.post(route('admin.seasons.update', season.id), formData, {
             headers: {
                 'Content-Type': 'multipart/form-data',
             },
@@ -111,7 +126,7 @@ console.log('mode', mode);
                 `}
                 />
             );
-        case 2: // textarea
+        case 8: // textarea
             return (
                 <textarea
                     value={value}
@@ -183,6 +198,17 @@ console.log('mode', mode);
                 `}
                 />
             );
+            case 2: // rich text
+            return (
+                <InputRichText
+                    title={field.name}
+                    field={field.id}
+                    value={value}
+                    mode={mode}
+                    handleChange={handleFieldChange}
+                    errors={errors}
+                />
+            );
         default:
             return (
                 <input
@@ -234,9 +260,13 @@ console.log('mode', mode);
                             error={errors.service_id}
                             options={services}
                         /> 
+
+
+
                         <InputText
                             title="name"
                             field="name"
+                            height="h-[48px]"
                             value={data.name}
                             mode={mode}
                             handleChange={handleChange}
@@ -254,27 +284,27 @@ console.log('mode', mode);
                             )}
                         </div>
                     )})}
-{mode !== "create" && season?.file && (
-  <div className="mb-4">
-    <label className="block font-semibold mb-1">Current File</label>
-    {season.file.file_type.startsWith("image/") ? (
-      <img
-        src={`/storage/${season.file.path}`}
-        alt={season.file.file_name}
-        className="w-32 h-auto rounded shadow"
-      />
-    ) : (
-      <a
-        href={`/storage/${season.file.path}`}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="text-blue-600 underline"
-      >
-        Download {season.file.file_name}
-      </a>
-    )}
-  </div>
-)}
+                    {mode !== "create" && season?.file && (
+                    <div className="mb-4">
+                        <label className="block font-semibold mb-1">Current File</label>
+                        {season.file.file_type.startsWith("image/") ? (
+                        <img
+                            src={`/storage/${season.file.path}`}
+                            alt={season.file.file_name}
+                            className="w-32 h-auto rounded shadow"
+                        />
+                        ) : (
+                        <a
+                            href={`/storage/${season.file.path}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 underline"
+                        >
+                            Download {season.file.file_name}
+                        </a>
+                        )}
+                    </div>
+                    )}
 <div className="mb-4">
   <label className="block font-semibold mb-1">Upload New File (optional)</label>
   <input type="file" onChange={e => setFile(e.target.files[0])} />

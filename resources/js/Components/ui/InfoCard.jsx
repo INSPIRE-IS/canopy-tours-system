@@ -1,5 +1,6 @@
 // components/ui/InfoCard.tsx
 import React from 'react';
+import RichTextDisplay from '../RichTextDisplay';
 
 // type InfoCardProps = {
 //   title: string;
@@ -20,7 +21,7 @@ export default function InfoCard({ title, content, color = 'gray' }) {
         {title}
       </h3>
       <div className="text-sm leading-relaxed text-gray-700 space-y-2">
-        {content}
+        <RichTextDisplay content={ content } />
       </div>
     </div>
   );

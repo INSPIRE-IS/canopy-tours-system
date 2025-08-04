@@ -5,11 +5,16 @@ import { Head } from '@inertiajs/react';
 import CustomSelect from '@/Components/CustomSelect';
 import CustomInputText from '@/Components/CustomInputText';
 import CustomTextarea from '@/Components/CustomTextarea';
+import InputRichText from '@/Components/InputRichText';
+import RichTextEditor from '@/Components/RichTextEditor';
+
 
 
 export default function Index({auth, users, unreads }) {
 
 const mode = 'create';
+const [content, setContent] = useState('');
+
 const { data, setData,post, put, isDirty, reset, processing, errors } = useForm(()=>
         {
 
@@ -21,8 +26,14 @@ const { data, setData,post, put, isDirty, reset, processing, errors } = useForm(
             }   
         }     
     );
+    const handleChange = (target, value) => {
+        setData(target, value);
+    };
+
     const handleSubmit = (e) => {
         e.preventDefault();
+        console.log('data ', data);
+        //return;
         post(route('admin.messenger.storeTopic'));
     };
 
@@ -73,14 +84,25 @@ const { data, setData,post, put, isDirty, reset, processing, errors } = useForm(
                                       onChange={(e) => setData(e.target.name, e.target.value)}
                                       errors={errors}
                                   /> 
-                                  <CustomTextarea
+                                    <InputRichText
+                                    title="Content"
+                                    field="content"
+                                    value={data.content}
+                                    mode={mode}
+                                    handleChange={handleChange}
+                                    errors={errors}
+                                    />
+
+                                                                        {/* <label className="block text-sm font-medium text-gray-700">Content</label>
+                                    <RichTextEditor value={content} onChange={setContent} /> */}
+                                  {/* <CustomTextarea
                                       label="Content*"
                                       name="content"
                                       value={data.content}
                                       mode = {mode} 
                                       onChange={(e) => setData(e.target.name, e.target.value)}
                                       errors={errors}
-                                  />
+                                  /> */}
                             <button type="submit" 
                               className="flex items-center justify-center w-full h-[57px] gap-2 px-4 py-2 rounded-[10px] border border-primary-14 text-primary-14 cursor-pointer" 
                               onClick={handleSubmit}><span className="text-btn-outline-gray">Submit</span>

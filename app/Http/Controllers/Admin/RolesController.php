@@ -52,7 +52,7 @@ class RolesController extends Controller
         $role = Role::create($request->all());
         $role->permissions()->sync($request->input('permissions', []));
 
-        return redirect()->route('roles.index');
+        return redirect()->route('admin.roles.index');
     }
 
 
@@ -62,7 +62,7 @@ class RolesController extends Controller
         $role->update($request->all());
         $role->permissions()->sync($request->input('permissions', []));
 
-        return redirect()->route('roles.index');
+        return redirect()->route('admin.roles.index');
     }
 
     public function show(Role $role)

@@ -4,14 +4,14 @@ import InputText from "@/Components/InputText";
 import OutlineButton from "@/Components/OutlineButton";
 import BlueButton from "@/Components/BlueButton";
 import CustomTextarea from "@/Components/CustomTextarea";
-import Tiptap from "@/Components/Tiptap";
 import parse from "html-react-parser";
 import CustomSelect from "@/Components/CustomSelect";
-
+import InputRichText from '@/Components/InputRichText';
 
 const HelpQuestionModal = ({ isOpen, onClose, mode, helpQuestion = null, typeHelpQuestions, auth, team_id }) => {
     // console.log("mode", mode);
      console.log("helpQuestion", helpQuestion);
+     const [content, setContent] = useState('');
     // console.log("roles", roles);
 const [answer, setAnswer] = useState("");
 const [file, setFile] = useState(null);
@@ -42,7 +42,6 @@ const [file, setFile] = useState(null);
 
     const handleChange = (target, value) => {
         setData(target, value);
-        //setData("question", e.target.value);
     };
 
     const handleSubmit = (e) => {
@@ -91,17 +90,14 @@ const [file, setFile] = useState(null);
                             />
                         </div>
                         <div className="flex flex-row w-full items-center gap-2 justify-between mb-4">
-                        <InputText
-                            title="Answer"
-                            field="answer"
-                            value={data.answer}
-                            mode={mode}
-                            handleChange={handleChange}
-                            errors={errors}
-                            isRequired
-                            isReadOnly={mode === "view"}
-                        />                        
-
+                        <InputRichText
+                        title="Answer"
+                        field="answer"
+                        value={data.answer}
+                        mode={mode}
+                        handleChange={handleChange}
+                        errors={errors}
+                        />
                     </div>
 
                     <div className="flex justify-center gap-4">

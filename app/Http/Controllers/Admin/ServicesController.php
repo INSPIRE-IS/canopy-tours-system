@@ -53,14 +53,14 @@ class ServicesController extends Controller
         $service = Service::create($request->all());
 
 
-        return redirect()->route('services.index');
+        return redirect()->route('admin.services.index');
     }
 
     public function update(UpdateServiceRequest $request, Service $service)
     {
         $service->update($request->all());
 
-        return redirect()->route('services.index');
+        return redirect()->route('admin.services.index');
     }
 
     public function show(Service $service)

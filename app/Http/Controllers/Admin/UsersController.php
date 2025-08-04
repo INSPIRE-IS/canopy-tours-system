@@ -90,7 +90,7 @@ class UsersController extends Controller
         //     }
         // }
         //$user->roles()->sync($request->input('roles', []));
-        return redirect()->route('users.index');
+        return redirect()->route('admin.users.index');
     }
 
     public function update(UpdateUserRequest $request, User $user)
@@ -98,7 +98,7 @@ class UsersController extends Controller
         $user->update($request->all());
         $user->roles()->sync($request->input('roles', []));
 
-        return redirect()->route('users.index');
+        return redirect()->route('admin.users.index');
     }
 
     public function destroy(User $user)
