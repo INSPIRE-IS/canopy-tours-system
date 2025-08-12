@@ -22,7 +22,7 @@ class UsersController extends Controller
      */
     public function index(Request $request)
     {
-        abort_if(Gate::denies('user_access'), 403);
+        abort_if(Gate::denies('users_access'), 403);
         //abort_if(Gate::denies('team_access'), Response::HTTP_FORBIDDEN, '403 Forbidden');
         $searchTerm = $request->get('search', '');
         $sortColumn = $request->get('sort', 'name'); // Default to 'name' if no sort is provided

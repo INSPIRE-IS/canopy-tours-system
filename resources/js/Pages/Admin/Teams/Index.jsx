@@ -88,7 +88,7 @@ export default function Index({ user,permissions, teams, auth, searchTerm, sortC
                     <SearchBar search={search} handleSearchChange={(e) => handleSearchChange(e)} handleSearchSubmit={handleSearchSubmit} />
 
                     <span className="flex gap-2">
-                        {permissions?.team_create && (
+                        {permissions?.teams_create && (
                         <BlueButton title="Add Team" onClick={() => handleOpenModal("create")} icon={true}/>
                         )}
                     </span>
@@ -120,18 +120,18 @@ export default function Index({ user,permissions, teams, auth, searchTerm, sortC
                                 <td className="w-[95px] p-3">{team.name}</td>
 
                                 <td className="w-[185px] p-3 flex  gap-2">
-                                    {permissions.team_edit && (
+                                    {permissions.teams_edit && (
                                     <button onClick={() => handleOpenModal("edit",team)}
                                     className="flex items-center gap-1 text-green-600 hover:text-green-800">
                                     Edit
                                     </button>)}
 
-                                    {permissions.team_delete && (
+                                    {permissions.teams_delete && (
                                     <button onClick={() => handleDelete(team)}
                                     className="flex items-center gap-1 text-red-600 hover:text-red-800">
                                     Remove
                                     </button>)}
-                                    {permissions.team_show && (
+                                    {permissions.teams_show && (
                                     <button onClick={() => handleOpenModal("view",team)}
                                     className="flex items-center gap-1 text-blue-600 hover:text-blue-800">
                                     View

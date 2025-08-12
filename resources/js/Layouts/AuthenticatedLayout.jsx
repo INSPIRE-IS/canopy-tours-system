@@ -248,6 +248,7 @@ function selectOption(dropdownId, value) {
                     // { name: 'Roles', url: 'admin.roles.index' },
                     { name: 'Users', url: 'admin.users.index' },
                     { name: 'Teams', url: 'admin.teams.index' },
+                    { name: 'User Alerts', url: 'admin.user-alerts.index' },
                 ]}
             />)} 
             {/* {permissions?.user_management_access && (

@@ -15,6 +15,7 @@ use App\Http\Controllers\Admin\RolesController;
 use App\Http\Controllers\Admin\SeasonsController;
 use App\Http\Controllers\Admin\ServicesController;
 use App\Http\Controllers\Admin\TeamController;
+use App\Http\Controllers\Admin\UserAlertsController;
 use App\Http\Controllers\Admin\UsersController;
 use App\Http\Controllers\Admin\VoucherController;
 use App\Http\Controllers\Admin\WholesalerController;
@@ -111,6 +112,11 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['auth', 'v
     Route::resource('teams', TeamController::class);
     // Users
     Route::resource('users', UsersController::class);
+
+    // User Alerts
+    Route::get('user-alerts/read', [UserAlertsController::class, 'read'])->name('user-alerts.read');
+    Route::resource('user-alerts', UserAlertsController::class); // ['except' => ['edit', 'update']]
+
     // Services
     Route::resource('services', ServicesController::class);
     // Seasons

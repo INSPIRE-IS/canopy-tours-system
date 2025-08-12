@@ -77,7 +77,7 @@ export default function Index({ users,permissions,roles,teams,auth, searchTerm, 
                     <SearchBar search={search} handleSearchChange={(e) => handleSearchChange(e)} handleSearchSubmit={handleSearchSubmit} />
 
                     <span className="flex gap-2">
-                        {permissions.user_create && (
+                        {permissions.users_create && (
                         <BlueButton title="Add User" onClick={() => handleOpenModal("create")} icon={true}/>
                         )}
                     </span>
@@ -112,18 +112,18 @@ export default function Index({ users,permissions,roles,teams,auth, searchTerm, 
                                 <td className="w-[268px] p-3">{user.email}</td>
                                 <td className="w-[132px] p-3">{user.roles.map((r) => r.name).join(', ')}</td>
                                 <td className="w-[185px] p-3 flex  gap-2">
-                                    {permissions.user_edit && (
+                                    {permissions.users_edit && (
                                     <button onClick={() => handleOpenModal("edit",user)}
                                     className="flex items-center gap-1 text-green-600 hover:text-green-800">
                                     Edit
                                     </button>)}
 
-                                    {permissions.user_edit && (
+                                    {permissions.users_edit && (
                                     <button onClick={() => handleDelete(user)}
                                     className="flex items-center gap-1 text-red-600 hover:text-red-800">
                                     Remove
                                     </button>)}
-                                    {permissions.user_edit && (
+                                    {permissions.users_edit && (
                                     <button onClick={() => handleOpenModal("view",user)}
                                     className="flex items-center gap-1 text-blue-600 hover:text-blue-800">
                                     View
