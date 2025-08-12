@@ -9,6 +9,7 @@ use Gate;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Session;
 use Inertia\Inertia;
+use Symfony\Component\HttpFoundation\Response;
 
 class HelpQuestionsController extends Controller
 {
@@ -18,7 +19,7 @@ class HelpQuestionsController extends Controller
     public function index(Request $request)
     {
 
-        abort_if(Gate::denies('service_access'), 403);
+        abort_if(Gate::denies('help_questions_access'), Response::HTTP_FORBIDDEN, '403 Forbidden');
         $searchTerm = $request->get('search', '');
         $sortColumn = $request->get('sort', 'question');
         $sortDirection = $request->get('direction', 'asc');
