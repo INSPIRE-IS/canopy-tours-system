@@ -73,7 +73,11 @@ class ReportsController extends Controller
         // Additional fields as selected
         // Booking Note
 
+        // Bookings Report
 
+        // Total Value – value before pricing adjustment
+        // Pricing Adjustment – the value of the pricing adjustment on that booking (discounts or promotions)
+        // Net Value – value after the pricing adjustment
 
         return Inertia::render('Admin/Reports/Index', [
             'title' => 'All',
