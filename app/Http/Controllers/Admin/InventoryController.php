@@ -24,15 +24,15 @@ class InventoryController extends Controller
 {
     public function index(Request $request)
     {
-        abort_if(Gate::denies('inventory_access'), 403);
+        abort_if(Gate::denies('inventories_access'), 403);
         $searchTerm = $request->get('search', '');
-        $sortColumn = $request->get('sort', 'start_date');
+        $sortColumn = $request->get('sort', 'season_id');
         $sortDirection = $request->get('direction', 'asc');
         /** @var \App\Models\User $user */
         $teamId = Session::get('team_id');
         //$seasons = Season::with(['service', 'updated_by', 'team'])
-        $inventories = Inventory::with(['service', 'season', 'typeDays', 'timeSlots', 'team'])
-            ->where('start_date', 'like', '%' . $searchTerm . '%')
+        $inventories = Inventory::with(['service', 'season', 'inventory_type_days', 'inventory_time_slots', 'team'])
+            ->where('season_id', 'like', '%' . $searchTerm . '%')
             ->orderBy($sortColumn, $sortDirection)
             ->paginate(10);
         //dd($inventories);
@@ -66,7 +66,7 @@ class InventoryController extends Controller
         $inventory->timeSlots()->delete();
 
         // Prepare new day slot records
-        $daySlotRecords = collect($request->day_slots)->map(fn($typeDayId) => [
+        $daySlotRecords = collect($request->inventory_type_days)->map(fn($typeDayId) => [
             'inventory_id' => $inventory->id,
             'type_day_id' => $typeDayId,
             'created_at' => now(),
@@ -88,24 +88,7 @@ class InventoryController extends Controller
         InventoryTypeDay::insert($daySlotRecords);
         InventoryTimeSlot::insert($timeSlotRecords);
 
-        return redirect()->route('inventories.index');
-    }
-
-    public function edit(Inventory $inventory)
-    {
-        abort_if(Gate::denies('inventory_edit'), Response::HTTP_FORBIDDEN, '403 Forbidden');
-
-        $services = Service::pluck('name', 'id')->prepend(trans('global.pleaseSelect'), '');
-
-        $seasons = Season::pluck('name', 'id')->prepend(trans('global.pleaseSelect'), '');
-
-        $time_slots = TypeTimeSlot::pluck('name', 'id');
-
-        $updated_bies = User::pluck('name', 'id')->prepend(trans('global.pleaseSelect'), '');
-
-        $inventory->load('service', 'season', 'time_slots', 'updated_by', 'team');
-
-        return view('Admin.inventories.edit', compact('inventory', 'seasons', 'services', 'time_slots', 'updated_bies'));
+        return redirect()->route('admin.inventories.index');
     }
 
     public function update(UpdateInventoryRequest $request, Inventory $inventory)
@@ -113,11 +96,11 @@ class InventoryController extends Controller
         $inventory->update($request->all());
         //$inventory->time_slots()->sync($request->input('time_slots', []));
         // Clear existing related slots
-        $inventory->typeDays()->delete();
-        $inventory->timeSlots()->delete();
+        $inventory->inventory_type_days()->delete();
+        $inventory->inventory_time_slots()->delete();
 
         // Prepare new day slot records
-        $daySlotRecords = collect($request->day_slots)->map(fn($typeDayId) => [
+        $daySlotRecords = collect($request->inventory_type_days)->map(fn($typeDayId) => [
             'inventory_id' => $inventory->id,
             'type_day_id' => $typeDayId,
             'created_at' => now(),
@@ -141,7 +124,7 @@ class InventoryController extends Controller
 
 
 
-        return redirect()->route('inventories.index');
+        return redirect()->route('admin.inventories.index');
     }
 
     public function show(Inventory $inventory)

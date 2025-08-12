@@ -27,6 +27,17 @@ class Season extends Model
     protected $fillable = [
         'service_id',
         'name',
+        'start_date',
+        'end_date',
+        'rake_rate_adult',
+        'rake_rate_child',
+        'rake_rate_guide',
+        'allow_internal_price_override',
+        'duration',
+        'capacity',
+        'allow_internal_override',
+        'status',
+        'pillbox_conditions',
         'created_by_id',
         'updated_by_id',
         'created_at',
@@ -63,22 +74,5 @@ class Season extends Model
     public function inventory()
     {
         return $this->hasOne(Inventory::class); // ✅ correct
-    }
-
-    public function seasonfieldValues()
-    {
-        return $this->hasMany(SeasonFieldValue::class);
-    }
-
-    public function fields()
-    {
-        return $this->belongsToMany(SeasonField::class, 'season_field_values', 'season_id', 'field_id')
-            ->withPivot('value')
-            ->withTimestamps();
-    }
-
-    public function file()
-    {
-        return $this->hasOne(File::class, 'table_row_id')->where('table_name', 'seasons');
     }
 }

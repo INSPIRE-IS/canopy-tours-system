@@ -9,11 +9,11 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class SeasonField extends Model
+class ServiceField extends Model
 {
     use SoftDeletes, MultiTenantModelTrait, Auditable, HasFactory;
 
-    public $table = 'season_fields';
+    public $table = 'Service_fields';
 
     protected $dates = [
         'created_at',
@@ -57,6 +57,6 @@ class SeasonField extends Model
 
     public function values()
     {
-        return $this->hasMany(SeasonFieldValue::class, 'field_id');
+        return $this->hasMany(ServiceFieldValue::class, 'field_id');
     }
 }

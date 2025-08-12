@@ -14,7 +14,7 @@ class UpdateSeasonRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return Gate::allows('season_edit');
+        return Gate::allows('seasons_edit');
     }
 
     /**
@@ -33,6 +33,51 @@ class UpdateSeasonRequest extends FormRequest
                 'string',
                 'required',
             ],
+            'start_date' => [
+                'required',
+                'date_format:' . config('panel.date_format'),
+            ],
+            'end_date' => [
+                'required',
+                'date_format:' . config('panel.date_format'),
+            ],
+            'rake_rate_adult' => [
+                'numeric',
+                'required',
+            ],
+            'rake_rate_child' => [
+                'numeric',
+                'required',
+            ],
+            'rake_rate_guide' => [
+                'numeric',
+                'required',
+            ],
+            'duration' => [
+                'date_format:' . config('panel.time_format'),
+                'nullable',
+            ],
+            'capacity' => [
+                'required',
+                'integer',
+                'min:-2147483648',
+                'max:2147483647',
+            ],
+            'allow_internal_override' => [
+                'required',
+            ],
+            'status' => [
+                'required',
+            ],
+            'pillbox_conditions' => [
+                'string',
+                'nullable',
+            ],
+            'updated_by_id' => [
+                'required',
+                'integer',
+            ],
+
         ];
     }
 }

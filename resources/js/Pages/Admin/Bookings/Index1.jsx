@@ -5,7 +5,7 @@ import { usePage, router } from '@inertiajs/react';
 import CModal from '@/Components/CModal';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head } from '@inertiajs/react';
-import UserModal from './UserModal';
+import UserModal from './ManifestModal';
 import SearchBar from '@/Components/SearchBar';
 import BlueButton from '@/Components/BlueButton';
 import Pagination from '@/Components/Pagination';

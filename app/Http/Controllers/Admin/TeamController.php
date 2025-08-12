@@ -45,7 +45,10 @@ class TeamController extends Controller
 
     public function store(StoreTeamRequest $request)
     {
+        dd($request->all());
+        // TODO: add logic to save image and logo
         $data             = $request->all();
+
         $data['owner_id'] = auth()->user()->id;
         $team             = Team::create($data);
 
@@ -54,6 +57,8 @@ class TeamController extends Controller
 
     public function update(UpdateTeamRequest $request, Team $team)
     {
+        dd($request->all());
+        // TODO: add logic to save image and logo
         $team->update($request->all());
 
         return redirect()->route('admin.teams.index');

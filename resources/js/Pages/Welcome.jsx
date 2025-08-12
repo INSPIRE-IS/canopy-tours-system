@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link, Head, router } from '@inertiajs/react';
 import Card from '@/components/ui/card';
 import Button from '@/components/ui/button';
 import Calendar from '@/components/ui/calendar';
 import Input from '@/components/ui/input';
 import Select from '@/components/ui/select';
+import CustomSelect from '@/Components/CustomSelect';
+import NavSelect from '@/Components/NavSelect';
 
 // const activities = [
 //   {
@@ -69,9 +71,49 @@ import Select from '@/components/ui/select';
 //   },
 // ];
 
-export default function HomePage({activities}) {
+export default function HomePage({activities, teams, team_id}) {
   console.log('activities', activities);
-  const [date, setDate] = React.useState(new Date());
+  const [date, setDate] = useState(new Date());
+  const [teamId, setTeamId] = useState(team_id);
+  const [showServices, setShowServices] = useState(false);
+  const [showLocation, setShowLocation] = useState(false);
+  const [showLocationModal, setShowLocationModal] = useState(false);
+  const locationsRef = useRef();
+  const servicesRef = useRef();
+
+
+useEffect(() => {
+  console.log('team_id', team_id);
+  if (teamId != 0) {
+    setTeamId(team_id);
+    localStorage.setItem('preferred_team_id', team_id);
+    return;
+  }
+  const savedTeamId = localStorage.getItem('preferred_team_id');
+  console.log('savedTeamId', savedTeamId);
+  if (savedTeamId == null || savedTeamId == "undefined" || savedTeamId == 0) {
+    // Ask for location or show modal
+    // For now, show modal with team select
+    setShowLocationModal(true);
+  } else {
+    // Redirect to page with team_id
+    //localStorage.setItem('preferred_team_id', savedTeamId);
+    router.get(route('front.welcome', { team_id: savedTeamId }));
+  }
+}, []);
+
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (servicesRef.current && !servicesRef.current.contains(event.target)) {
+        setShowServices(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+
 
   return (
     <>
@@ -83,7 +125,52 @@ export default function HomePage({activities}) {
       </Link>
       <nav className="flex gap-6 text-sm text-gray-700">
         <Link href="/" className="hover:text-blue-600">Home</Link>
-        <Link href="/services" className="hover:text-blue-600">Services</Link>
+        {/* <Link href="/services" className="hover:text-blue-600">Services</Link> */}
+{/* Services with dropdown modal */}
+            <div className="relative" ref={locationsRef}>
+              <button
+                onClick={() => setShowLocation(!showLocation)}
+                className="hover:text-blue-600"
+              >
+                Locations
+              </button>
+
+              {showLocation && (
+                <div className="absolute top-full mt-2 w-64 bg-white border rounded shadow-lg p-4 z-50">
+                  <h3 className="text-sm font-semibold text-gray-700 mb-2">Choose a Location</h3>
+                  {/* <NavSelect name="All Locations" onChange={() => router.get('/locations')} /> */}
+                  {teams.map((team) => (              
+                    <NavSelect name={team.name} onChange={(e) => {
+                      localStorage.setItem('preferred_team_id',team.id);
+                      setShowLocationModal(false);
+                      router.get(route('front.welcome', { team_id: team.id }));          
+                      //setData(e.target.name, e.target.value);
+                    }} />
+                  ))}
+                </div>
+              )}
+            </div>
+
+
+            <div className="relative" ref={servicesRef}>
+              <button
+                onClick={() => setShowServices(!showServices)}
+                className="hover:text-blue-600"
+              >
+                Services
+              </button>
+
+              {showServices && (
+                <div className="absolute top-full mt-2 w-64 bg-white border rounded shadow-lg p-4 z-50">
+                  <h3 className="text-sm font-semibold text-gray-700 mb-2">Choose a Service</h3>
+                  {activities?.map((activity) => {
+                    console.log('activity', activity);
+                    return(
+                    <NavSelect name={activity.service} onChange={() => router.get(`/services/${activity.service_id}`)} />
+                  )})}
+                </div>
+              )}
+            </div>
         <Link href="/vouchers" className="hover:text-blue-600">Gift Vouchers</Link>
         <Link href="/cart" className="hover:text-blue-600">Cart</Link>
         <Link href="/questionnaire" className="hover:text-blue-600">Questionnaire</Link>
@@ -125,23 +212,66 @@ export default function HomePage({activities}) {
         </div>
 
       <div className="mt-10 grid md:grid-cols-3 sm:grid-cols-2 grid-cols-1 gap-6">
-        {activities?.map((activity) => {
-          console.log('activity', activity);
-          return(
-          <Card 
-          key={activity?.id} 
-          image={activity?.image} 
-          service={activity?.service} 
-          season={activity?.season}
-          price={activity?.price} 
-          badge={activity?.badge} 
-          gift={activity?.gift} 
-          onBook={() => router.get(route('front.activity',{activity_id: activity?.id}))}
-          onGift={() => router.get(route('front.voucher',{activity_id:activity?.id}))}
-          />
-        )})}
+        {activities.length >= 1 ? (
+          activities?.map((activity) => {
+            console.log('activity', activity);
+            return(
+            <Card 
+            key={activity?.id} 
+            image={activity?.image} 
+            service={activity?.service} 
+            season={activity?.season}
+            price={activity?.price} 
+            badge={activity?.badge} 
+            gift={activity?.gift} 
+            onBook={() => router.get(route('front.activity',{activity_id: activity?.id}))}
+            onGift={() => router.get(route('front.voucher',{activity_id:activity?.id}))}
+            />
+          )})        
+        ) :(
+          <div className="flex justify-center items-center">
+            <div className="text-center">
+              <h1 className="text-2xl md:text-4xl font-bold">No activities found</h1>
+              <p className="mt-2 text-lg md:text-xl">
+                Please try again later or contact us for more information.
+              </p>
+            </div>
+          </div>
+
+        )}
+
       </div>
-    </div>    
+    </div> 
+
+    {showLocationModal && (
+  <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-50">
+    <div className="bg-white p-6 rounded-lg shadow w-full max-w-md">
+      <CustomSelect
+        label="Select Location"
+        name="location"
+        value={teamId}
+        mode = "create"
+        onChange={(e) => {
+          localStorage.setItem('preferred_team_id', e.target.value);
+          setShowLocationModal(false);
+          router.get(route('front.welcome', { team_id: e.target.value }));          
+          //setData(e.target.name, e.target.value);
+        }}
+        options={teams}
+      />
+
+
+      {/* <Select
+        options={teams.map(team => ({ label: team.name, value: team.id }))}
+        onChange={(val) => {
+          console.log('val', val);
+
+        }}
+      /> */}
+    </div>
+  </div>
+)}
+
     </>
 
   );

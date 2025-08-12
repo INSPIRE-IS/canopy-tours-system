@@ -14,7 +14,7 @@ class UpdateServiceRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return Gate::allows('service_edit');
+        return Gate::allows('services_edit');
     }
 
     /**

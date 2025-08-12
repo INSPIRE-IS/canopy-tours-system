@@ -14,7 +14,7 @@ class StoreServiceRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return Gate::allows('season_create');
+        return Gate::allows('seasons_create');
     }
 
     /**

@@ -25,17 +25,7 @@ class Inventory extends Model
     protected $fillable = [
         'service_id',
         'season_id',
-        'start_date',
-        'end_date',
-        'rake_rate_adult',
-        'rake_rate_child',
-        'rake_rate_guide',
-        'allow_internal_price_override',
-        'duration',
-        'capacity',
-        'allow_internal_override',
-        'status',
-        'pillbox_conditions',
+
         'created_by_id',
         'updated_by_id',
         'created_at',
@@ -84,12 +74,12 @@ class Inventory extends Model
         return $this->belongsToMany(TypeDay::class);
     }
 
-    public function typeDays()
+    public function inventory_type_days()
     {
         return $this->hasMany(InventoryTypeDay::class);
     }
 
-    public function timeSlots()
+    public function inventory_time_slots()
     {
         return $this->hasMany(InventoryTimeSlot::class, 'inventory_id');
     }

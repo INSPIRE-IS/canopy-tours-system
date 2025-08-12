@@ -23,7 +23,6 @@ class Service extends Model
 
     protected $fillable = [
         'name',
-        'description',
         'created_by_id',
         'updated_by_id',
         'created_at',
@@ -50,6 +49,24 @@ class Service extends Model
     public function seasons()
     {
         return $this->hasMany(Season::class, 'service_id');
+    }
+
+
+    public function servicefieldValues()
+    {
+        return $this->hasMany(ServiceFieldValue::class);
+    }
+
+    public function fields()
+    {
+        return $this->belongsToMany(ServiceField::class, 'service_field_values', 'service_id', 'field_id')
+            ->withPivot('value')
+            ->withTimestamps();
+    }
+
+    public function file()
+    {
+        return $this->hasOne(File::class, 'table_row_id')->where('table_name', 'services');
     }
 
     public function team()

@@ -20,11 +20,15 @@ class Team extends Model
     ];
 
     protected $fillable = [
+        'name',
+        'owner_id',
+        'description',
+        'logo',
+        'image',
+        'color',
         'created_at',
         'updated_at',
         'deleted_at',
-        'name',
-        'owner_id',
     ];
 
     protected function serializeDate(DateTimeInterface $date)

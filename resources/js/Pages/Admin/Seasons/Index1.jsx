@@ -11,7 +11,7 @@ import Pagination from '@/Components/Pagination';
 import ServicesHeader from '@/Components/ServicesHeader';
 
 
-export default function Index({ permissions,seasons,services,seasonFields,auth, searchTerm, sortColumn, sortDirection }) {
+export default function Index({ permissions,seasons,services,auth, searchTerm, sortColumn, sortDirection }) {
   //const [modalOpen, setModalOpen] = useState(false);
 
 const [selectedSeason, setSelectedSeason] = useState(null);
@@ -83,7 +83,7 @@ const [selectedSeason, setSelectedSeason] = useState(null);
                     <SearchBar search={search} handleSearchChange={(e) => handleSearchChange(e)} handleSearchSubmit={handleSearchSubmit} />
 
                     <span className="flex gap-2">
-                        {permissions.season_create && (
+                        {permissions.seasons_create && (
                         <BlueButton title="Add Season" onClick={() => handleOpenModal("create")} icon={true}/>
                         )}
                     </span>
@@ -121,18 +121,18 @@ const [selectedSeason, setSelectedSeason] = useState(null);
                                 <td className="w-[132px] p-3">{season.end_date}</td>
 
                                 <td className="w-[185px] p-3 flex  gap-2">
-                                    {permissions.season_edit && (
+                                    {permissions.seasons_edit && (
                                     <button onClick={() => handleOpenModal("edit",season)}
                                     className="flex items-center gap-1 text-green-600 hover:text-green-800">
                                     Edit
                                     </button>)}
 
-                                    {permissions.season_edit && (
+                                    {permissions.seasons_edit && (
                                     <button onClick={() => handleDelete(season)}
                                     className="flex items-center gap-1 text-red-600 hover:text-red-800">
                                     Remove
                                     </button>)}
-                                    {permissions.season_edit && (
+                                    {permissions.seasons_edit && (
                                     <button onClick={() => handleOpenModal("view",season)}
                                     className="flex items-center gap-1 text-blue-600 hover:text-blue-800">
                                     View
@@ -158,7 +158,6 @@ const [selectedSeason, setSelectedSeason] = useState(null);
                 mode={modalMode}
                 season={selectedSeason}
                 services={services}
-                seasonFields={seasonFields}
                 team = {auth?.team}
                 auth = {auth}
             />

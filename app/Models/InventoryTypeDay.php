@@ -40,6 +40,16 @@ class InventoryTypeDay extends Model
 
     public function type_day()
     {
-        return $this->belongsToMany(TypeDay::class);
+        return $this->belongsTo(TypeDay::class, 'type_day_id');
+    }
+
+    public function team()
+    {
+        return $this->belongsTo(Team::class, 'team_id');
+    }
+
+    public function updated_by()
+    {
+        return $this->belongsTo(User::class, 'updated_by_id');
     }
 }

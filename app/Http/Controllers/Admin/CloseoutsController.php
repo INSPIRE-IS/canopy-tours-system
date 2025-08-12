@@ -27,19 +27,19 @@ class CloseoutsController extends Controller
 
         //return view('Admin.closeouts.index', compact('closeouts'));
 
-        abort_if(Gate::denies('service_access'), 403);
         $searchTerm = $request->get('search', '');
         $sortColumn = $request->get('sort', 'name');
         $sortDirection = $request->get('direction', 'asc');
         /** @var \App\Models\User $user */
         $teamId = Session::get('team_id');
-        $closeouts = Closeout::with(['service', 'season', 'updated_by', 'team'])
+        $closeouts = Closeout::with(['service', 'season.inventory', 'updated_by', 'team'])
             ->where('name', 'like', '%' . $searchTerm . '%')
             ->orderBy($sortColumn, $sortDirection)
             ->paginate(10);
 
-        $services = Service::with('seasons')->select('id', 'name')->get();
-
+        $services = Service::with('seasons', 'seasons.inventory', 'seasons.inventory.inventory_type_days.type_day', 'seasons.inventory.inventory_time_slots')->select('id', 'name')->get();
+        //dd($services[0]->seasons[0]->inventory->inventory_time_slots);
+        //dd($services[0]->seasons[0]->inventory->inventory_type_days);
         //$seasons = Season::select('id', 'name')->get();
 
 

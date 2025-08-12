@@ -7,23 +7,29 @@ import OutlineButton from "@/Components/OutlineButton";
 import BlueButton from "@/Components/BlueButton";
 import InputRichText from "@/Components/InputRichText";
 
-const SeasonModal = ({ isOpen, onClose, mode, season = null, services, seasonFields, auth, team}) => {
+const SeasonModal = ({ isOpen, onClose, mode, season = null, services, auth, team}) => {
     // console.log("mode", mode);
-     console.log("season", season);
-     console.log("services", services);
-     const [file, setFile] = useState(null);
+    console.log("season", season);
+    console.log("auth", auth);
+    console.log("services", services);
+
     const { data, setData, post, put, errors, reset, processing } = useForm({
         service_id: "",
+        season_id: "",
         name: "",
-        fields: Object.fromEntries(
-            seasonFields.map(f => {
-                const fieldValue = season?.seasonfield_values?.find(v => v.field_id === f.id);
-                return [f.id, fieldValue?.value || ""];
-            })
-        ),
+        start_date: "",
+        end_date: "",
+        rake_rate_adult: "",
+        rake_rate_child: "",
+        rake_rate_guide: "",
+        allow_internal_price_override: 0,
+        allow_internal_override: 0,
+        duration: "",
+        capacity: "",
+        status: 0,
+        pillbox_conditions: "",
         created_by_id: auth?.user?.id,
-        updated_by_id: auth?.user?.id,
-
+        team_id: auth?.user?.team_id,
     });
 
     useEffect(() => {
@@ -31,12 +37,18 @@ const SeasonModal = ({ isOpen, onClose, mode, season = null, services, seasonFie
             setData({
                 service_id: season.service_id || "",
                 name: season.name || "",
-                fields: Object.fromEntries(
-                    seasonFields.map(f => {
-                        const fieldValue = season?.seasonfield_values?.find(v => v.field_id === f.id);
-                        return [`${f.id}`, fieldValue?.value || ""];
-                    })
-                ),
+                start_date: season.start_date || "",
+                end_date: season.end_date || "",
+                rake_rate_adult: season.rake_rate_adult || "",
+                rake_rate_child: season.rake_rate_child || "",
+                rake_rate_guide: season.rake_rate_guide || "",
+                allow_internal_price_override: season.allow_internal_price_override || 0,
+                allow_internal_override: season.allow_internal_override || 0,
+                duration: season.duration || "",
+                capacity: season.capacity || "",
+                status: season.status || 0,
+                pillbox_conditions: season.pillbox_conditions || "",
+                updated_by_id: season.updated_by_id || "",
                 updated_by_id: auth?.user?.id,
             });
         } else if (mode === "create") {
@@ -61,183 +73,64 @@ setData(prevData => ({
         setData(target, value);
         //setData("name", e.target.value);
     };
-const handleSubmit = (e) => {
-    e.preventDefault();
-    console.log('data ', data);
+// const handleSubmit = (e) => {
+//     e.preventDefault();
+//     console.log('data ', data);
 
-    const formData = new FormData();
-    formData.append('service_id', data.service_id);
-    formData.append('name', data.name);
-    formData.append('created_by_id', data.created_by_id);
-    formData.append('updated_by_id', data.updated_by_id);
+//     const formData = new FormData();
+//     formData.append('service_id', data.service_id);
+//     formData.append('name', data.name);
+//     formData.append('created_by_id', data.created_by_id);
+//     formData.append('updated_by_id', data.updated_by_id);
 
-    // Dynamic fields
-    Object.entries(data.fields).forEach(([key, value]) => {
-        formData.append(`fields[${key}]`, value);
-    });
+//     // Dynamic fields
+//     Object.entries(data.fields).forEach(([key, value]) => {
+//         formData.append(`fields[${key}]`, value);
+//     });
 
-    // File (if present)
-    if (file) {
-        formData.append('file', file);
-    }
-for (let pair of formData.entries()) {
-    console.log(pair[0] + ':', pair[1]);
-}
-console.log('mode', mode);
+//     // File (if present)
+//     if (file) {
+//         formData.append('file', file);
+//     }
+// for (let pair of formData.entries()) {
+//     console.log(pair[0] + ':', pair[1]);
+// }
+// console.log('mode', mode);
 
-    if(mode === "create") {
+//     if(mode === "create") {
 
-        axios.post(route("admin.seasons.store"), formData, {
-            headers: {
-                "Content-Type": "multipart/form-data",
-            },
-        }).then(() => onClose());
-    }else{
-        formData.append('_method', 'PUT');
-        axios.post(route('admin.seasons.update', season.id), formData, {
-            headers: {
-                'Content-Type': 'multipart/form-data',
-            },
-        }).then(() => onClose());
+//         axios.post(route("admin.seasons.store"), formData, {
+//             headers: {
+//                 "Content-Type": "multipart/form-data",
+//             },
+//         }).then(() => onClose());
+//     }else{
+//         formData.append('_method', 'PUT');
+//         axios.post(route('admin.seasons.update', season.id), formData, {
+//             headers: {
+//                 'Content-Type': 'multipart/form-data',
+//             },
+//         }).then(() => onClose());
 
-        // router.post(route('services.update', service.id), formData, {
-        // method: 'put',
-        // preserveScroll: true,
-        // })
-    }
-};
+//         // router.post(route('services.update', service.id), formData, {
+//         // method: 'put',
+//         // preserveScroll: true,
+//         // })
+//     }
+// };
 
-    const renderField = (field) => {
-    const value = data.fields?.[field.id] || "";
-
-    switch (field.type_input_id) {
-        case 1: // text input
-            return (
-                <input
-                    type="text"
-                    value={value}
-                    onChange={(e) =>
-                        setData("fields", { ...data.fields, [field.id]: e.target.value })
-                    }
-                    required={field.required}
-                    className={`mt-1 block w-full ${errors.slug ? "border-red-500" : "border-gray-300"} shadow-sm input-text rounded-xl
-                hover:border-black  active:border-blue-600 
-                focus:outline-none focus:ring-0 focus:border-black
-                `}
-                />
-            );
-        case 8: // textarea
-            return (
-                <textarea
-                    value={value}
-                    onChange={(e) =>
-                        setData("fields", { ...data.fields, [field.id]: e.target.value })
-                    }
-                    required={field.required}
-                    rows={3}
-                    className={`w-full pl-[19px] pt-[11px] pb-[12px] bg-[#FBF9F7] border rounded-2xl focus:outline-none focus:ring-2 resize-none`}
-                />
-            );
-        case 3: // number
-            return (
-                <input
-                    type="number"
-                    value={value}
-                    onChange={(e) =>
-                        setData("fields", { ...data.fields, [field.id]: e.target.value })
-                    }
-                    required={field.required}
-                    className={`mt-1 block w-full ${errors.name ? "border-red-500" : "border-gray-300"} shadow-sm input-text rounded-xl
-                hover:border-black  active:border-blue-600 
-                focus:outline-none focus:ring-0 focus:border-black
-                `}
-                />
-            );
-        case 4: // date
-            return (
-                <input
-                    type="date"
-                    value={value}
-                    onChange={(e) =>
-                        setData("fields", { ...data.fields, [field.id]: e.target.value })
-                    }
-                    required={field.required}
-                    className={`mt-1 block w-full ${errors.name ? "border-red-500" : "border-gray-300"} shadow-sm input-text rounded-xl
-                hover:border-black  active:border-blue-600 
-                focus:outline-none focus:ring-0 focus:border-black
-                `}
-                />
-            );
-        case 5: // time
-            return (
-                <input
-                    type="time"
-                    value={value}
-                    onChange={(e) =>
-                        setData("fields", { ...data.fields, [field.id]: e.target.value })
-                    }
-                    required={field.required}
-                    className={`mt-1 block w-full ${errors.name ? "border-red-500" : "border-gray-300"} shadow-sm input-text rounded-xl
-                hover:border-black  active:border-blue-600 
-                focus:outline-none focus:ring-0 focus:border-black
-                `}
-                />
-            );
-        case 6: // checkbox
-            return (
-                <input
-                    type="text"
-                    value={value}
-                    onChange={(e) =>
-                        setData("fields", { ...data.fields, [field.id]: e.target.value })
-                    }
-                    required={field.required}
-                    className={`mt-1 block w-full ${errors.name ? "border-red-500" : "border-gray-300"} shadow-sm input-text rounded-xl
-                hover:border-black  active:border-blue-600 
-                focus:outline-none focus:ring-0 focus:border-black
-                `}
-                />
-            );
-            case 2: // rich text
-            return (
-                <InputRichText
-                    title={field.name}
-                    field={field.id}
-                    value={value}
-                    mode={mode}
-                    handleChange={handleFieldChange}
-                    errors={errors}
-                />
-            );
-        default:
-            return (
-                <input
-                    type="text"
-                    value={value}
-                    onChange={(e) =>
-                        setData("fields", { ...data.fields, [field.id]: e.target.value })
-                    }
-                    required={field.required}
-                    className={`mt-1 block w-full ${errors.name ? "border-red-500" : "border-gray-300"} shadow-sm input-text rounded-xl
-                    hover:border-black  active:border-blue-600 
-                    focus:outline-none focus:ring-0 focus:border-black
-                    `}
-                />
-            );
-    }
-};
-    // const handleSubmit = (e) => {
-    //     e.preventDefault();
-    //     if (mode === "create") {
-    //         post(route("seasons.store"), {
-    //             onSuccess: () => onClose(),
-    //         });
-    //     } else if (mode === "edit") {
-    //         put(route("seasons.update", season.id), {
-    //             onSuccess: () => onClose(),
-    //         });
-    //     }
-    // };
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        if (mode === "create") {
+            post(route("admin.seasons.store"), {
+                onSuccess: () => onClose(),
+            });
+        } else if (mode === "edit") {
+            put(route("admin.seasons.update", season.id), {
+                onSuccess: () => onClose(),
+            });
+        }
+    };
 
     if (!isOpen) return null;
 
@@ -260,9 +153,6 @@ console.log('mode', mode);
                             error={errors.service_id}
                             options={services}
                         /> 
-
-
-
                         <InputText
                             title="name"
                             field="name"
@@ -273,42 +163,126 @@ console.log('mode', mode);
                             errors={errors}
                         />
                     </div>
-                    {seasonFields.map(field => {
-                        console.log('field', field);
-                        return(
-                        <div key={field.id} className="mb-4">
-                            <label className="block font-semibold mb-1">{field.name}</label>
-                            {renderField(field)}
-                            {errors?.fields?.[field.id] && (
-                                <div className="text-red-500 text-sm">{errors.fields[field.id]}</div>
-                            )}
-                        </div>
-                    )})}
-                    {mode !== "create" && season?.file && (
-                    <div className="mb-4">
-                        <label className="block font-semibold mb-1">Current File</label>
-                        {season.file.file_type.startsWith("image/") ? (
-                        <img
-                            src={`/storage/${season.file.path}`}
-                            alt={season.file.file_name}
-                            className="w-32 h-auto rounded shadow"
+                    <div className="flex flex-row w-full items-center gap-2 justify-between mb-4">
+                        <InputText
+                            title="Start Date"
+                            field="start_date"
+                            type='date'
+                            value={data.start_date}
+                            mode={mode}
+                            handleChange={handleChange}
+                            errors={errors}
                         />
-                        ) : (
-                        <a
-                            href={`/storage/${season.file.path}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-600 underline"
-                        >
-                            Download {season.file.file_name}
-                        </a>
-                        )}
+                        
+                        <InputText
+                            title="End Date"
+                            field="end_date"
+                            type='date'
+                            value={data.end_date}
+                            mode={mode}
+                            handleChange={handleChange}
+                            errors={errors}
+                        />    
                     </div>
-                    )}
-<div className="mb-4">
-  <label className="block font-semibold mb-1">Upload New File (optional)</label>
-  <input type="file" onChange={e => setFile(e.target.files[0])} />
-</div>
+                    <div className="flex flex-row w-full items-center gap-2 justify-start mb-4">
+                        <InputText
+                            title="Rake Rate Adult"
+                            field="rake_rate_adult"
+                            value={data.rake_rate_adult}
+                            mode={mode}
+                            handleChange={handleChange}
+                            errors={errors}
+                        />
+                        <InputText
+                            title="Rake Rate Child"
+                            field="rake_rate_child"
+                            value={data.rake_rate_child}
+                            mode={mode}
+                            handleChange={handleChange}
+                            errors={errors}
+                        />
+                    </div>
+                    <div className="flex flex-row w-full items-center gap-2 justify-start mb-4">
+                        <InputText
+                            title="Rake Rate Guide"
+                            field="rake_rate_guide"
+                            value={data.rake_rate_guide}
+                            mode={mode}
+                            handleChange={handleChange}
+                            errors={errors}
+                        />
+                        <InputText
+                            title="Capacity (PAX)"
+                            field="capacity"
+                            value={data.capacity}
+                            mode={mode}
+                            handleChange={handleChange}
+                            errors={errors}
+                        />
+                    </div>
+                    <div className="flex flex-row w-full items-center gap-2 justify-start mb-4">
+
+                        {/* <div className="mb-4 w-full">                        
+                            <label className="block input-header">
+                                Time Slot
+                            </label>
+                            <input
+                                type="time"
+                                className={`mt-1 block w-full ${errors.name ? "border-red-500" : "border-gray-300"} shadow-sm input-text rounded-xl
+                hover:border-black  active:border-blue-600 
+                focus:outline-none focus:ring-0 focus:border-black
+                `}
+                                value={newTimeSlot ?? ""}
+                                onChange={(e) => {e.preventDefault(); setNewTimeSlot(e.target.value)}}
+                            />
+                        </div> */}
+                        <InputText
+                            title="Duration"
+                            field="duration"
+                            type='time'
+                            height="h-[48px]"
+                            value={data.duration}
+                            mode={mode}
+                            handleChange={handleChange}
+                            errors={errors}
+                        />
+
+                        <InputText
+                            title="Conditions"
+                            field="pillbox_conditions"
+                            height="h-[48px]"
+                            value={data.pillbox_conditions}
+                            mode={mode}
+                            handleChange={handleChange}
+                            errors={errors}
+                        />
+                    </div>
+                    <div className="flex flex-row w-full items-center gap-2 justify-start mb-4">
+                            <CustomCheckbox
+                                label="Allow Internal Price Override"
+                                name="allow_internal_price_override"
+                                checked={data.allow_internal_price_override}
+                                mode={mode}
+                                onChange={handleChange}
+                                errors={errors}
+                            />
+                            <CustomCheckbox
+                                label="Allow Time Slot Override"
+                                name="allow_internal_override"
+                                checked={data.allow_internal_override}
+                                mode={mode}
+                                onChange={handleChange}
+                                errors={errors}
+                            />
+                            <CustomCheckbox
+                                label="Close Booking"
+                                name="status"
+                                checked={data.status}
+                                mode={mode}
+                                onChange={handleChange}
+                                errors={errors}
+                            />
+                    </div>
                     <div className="flex justify-center gap-4">
                         <OutlineButton title="Cancel" onClick={onClose} width="w-[180px]"/>
                         {mode !== "view" && (

@@ -9,11 +9,11 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class SeasonFieldValue extends Model
+class ServiceFieldValue extends Model
 {
     use SoftDeletes, MultiTenantModelTrait, Auditable, HasFactory;
 
-    public $table = 'season_field_values';
+    public $table = 'service_field_values';
 
     protected $dates = [
         'created_at',
@@ -22,7 +22,7 @@ class SeasonFieldValue extends Model
     ];
 
     protected $fillable = [
-        'season_id',
+        'service_id',
         'field_id',
         'value',
         'created_at',
@@ -43,7 +43,7 @@ class SeasonFieldValue extends Model
 
     public function field()
     {
-        return $this->belongsTo(SeasonField::class, 'field_id');
+        return $this->belongsTo(ServiceField::class, 'field_id');
     }
 
     public function team()

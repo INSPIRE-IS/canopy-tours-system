@@ -11,18 +11,14 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('season_fields', function (Blueprint $table) {
+        Schema::create('service_field_values', function (Blueprint $table) {
             $table->id();
-            $table->string('name');
-            $table->string('slug');
-            $table->integer('order')->default(0)->nullable();
-            $table->boolean('required')->default(0)->nullable();
+            $table->longText('value');
             $table->timestamps();
             $table->softDeletes();
 
-            $table->foreignId('type_category_id')->nullable()->constrained('type_categories');
-            $table->foreignId('type_input_id')->nullable()->constrained('type_inputs');
-            $table->foreignId('type_data_id')->nullable()->constrained('type_datas');
+            $table->foreignId('service_id')->nullable()->constrained('services');
+            $table->foreignId('field_id')->nullable()->constrained('service_fields');
             $table->foreignId('created_by_id')->nullable()->constrained('users');
             $table->foreignId('updated_by_id')->nullable()->constrained('users');
             $table->foreignId('team_id')->nullable()->constrained('teams');
@@ -34,6 +30,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('season_fields');
+        Schema::dropIfExists('services_field_values');
     }
 };

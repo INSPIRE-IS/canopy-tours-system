@@ -17,8 +17,8 @@ use Illuminate\Console\Command;
 use App\Models\Permission;
 use App\Models\Role;
 use App\Models\Season;
-use App\Models\SeasonField;
-use App\Models\SeasonFieldValue;
+use App\Models\ServiceField;
+use App\Models\ServiceFieldValue;
 use App\Models\Service;
 use App\Models\Team;
 use App\Models\User;
@@ -642,7 +642,7 @@ class SeedCoreData extends Command
         ];
 
         foreach ($service_fields as $service_field) {
-            SeasonField::updateOrCreate(['id' => $service_field['id']], $service_field);
+            ServiceField::updateOrCreate(['id' => $service_field['id']], $service_field);
         }
 
         $type_files = [
@@ -704,58 +704,7 @@ class SeedCoreData extends Command
         foreach ($services as $service) {
             Service::updateOrCreate(['id' => $service['id']], $service);
         }
-        $this->info('Services seeded successfully.');
-        $seasons = [
-            [
-                'id' => 1,
-                'name' => 'Tsitsikamma Canopy Tour',
-                'created_by_id' => 1,
-                'updated_by_id' => 1,
-                'team_id' => 7,
-                'service_id' => 1,
-            ],
-            [
-                'id' => 2,
-                'name' => 'Tsitsikamma Woodcutters Journey',
-                'created_by_id' => 1,
-                'updated_by_id' => 1,
-                'team_id' => 7,
-                'service_id' => 2,
-            ],
-            [
-                'id' => 3,
-                'name' => 'Tsitsikamma Guided Hikes Green route: 5.09km',
 
-                'created_by_id' => 1,
-                'updated_by_id' => 1,
-                'team_id' => 7,
-                'service_id' => 3,
-            ],
-            [
-                'id' => 4,
-                'name' => 'Tsitsikamma Guided Hikes Red route: 7.78km',
-                'created_by_id' => 1,
-                'updated_by_id' => 1,
-                'team_id' => 7,
-                'service_id' => 3,
-            ],
-            [
-                'id' => 5,
-                'name' => 'Tsitsikamma Guided Hikes Yellow route 8.09km',
-                'created_by_id' => 1,
-                'updated_by_id' => 1,
-                'team_id' => 7,
-                'service_id' => 3,
-            ],
-            [
-                'id' => 6,
-                'name' => 'Tsitsikamma Canopy Tour Photographic Scavenger Hunt',
-                'created_by_id' => 1,
-                'updated_by_id' => 1,
-                'team_id' => 7,
-                'service_id' => 4,
-            ],
-        ];
 
         $description = "Come and Experience a World of Diversity in One Forest A Unique Tsitsikamma Experience You'll Never Forget!!!";
         $condition_text = "";
@@ -770,82 +719,57 @@ class SeedCoreData extends Command
 
 
 
-        $seasonFieldValues = [
-            ['season_id' => 1, 'field_id' => 1, 'value' => $description,],
-            ['season_id' => 1, 'field_id' => 2, 'value' => '1 Adult',],
-            ['season_id' => 1, 'field_id' => 3, 'value' => $activity,],
-            ['season_id' => 1, 'field_id' => 4, 'value' => $arrangements,],
-            ['season_id' => 1, 'field_id' => 5, 'value' => $requirements,],
-            ['season_id' => 1, 'field_id' => 6, 'value' => $inclusions,],
-            ['season_id' => 1, 'field_id' => 7, 'value' => $exclusions,],
-            ['season_id' => 1, 'field_id' => 8, 'value' => $notes,],
-            ['season_id' => 1, 'field_id' => 9, 'value' => $lat_lon_start,],
-            ['season_id' => 1, 'field_id' => 10, 'value' => $lat_long_end,],
-            ['season_id' => 2, 'field_id' => 1, 'value' => $description,],
-            ['season_id' => 2, 'field_id' => 2, 'value' => 'Requires a minimum of 2 People',],
-            ['season_id' => 2, 'field_id' => 3, 'value' => $activity,],
-            ['season_id' => 2, 'field_id' => 4, 'value' => $arrangements,],
-            ['season_id' => 2, 'field_id' => 5, 'value' => $requirements,],
-            ['season_id' => 2, 'field_id' => 6, 'value' => $inclusions,],
-            ['season_id' => 2, 'field_id' => 7, 'value' => $exclusions,],
-            ['season_id' => 2, 'field_id' => 8, 'value' => $notes,],
-            ['season_id' => 2, 'field_id' => 9, 'value' => $lat_lon_start,],
-            ['season_id' => 2, 'field_id' => 10, 'value' => $lat_long_end,],
-            ['season_id' => 3, 'field_id' => 1, 'value' => $description,],
-            ['season_id' => 3, 'field_id' => 2, 'value' => 'Book Now From 24 February 2025',],
-            ['season_id' => 3, 'field_id' => 3, 'value' => $activity,],
-            ['season_id' => 3, 'field_id' => 4, 'value' => $arrangements,],
-            ['season_id' => 3, 'field_id' => 5, 'value' => $requirements,],
-            ['season_id' => 3, 'field_id' => 6, 'value' => $inclusions,],
-            ['season_id' => 3, 'field_id' => 7, 'value' => $exclusions,],
-            ['season_id' => 3, 'field_id' => 8, 'value' => $notes,],
-            ['season_id' => 3, 'field_id' => 9, 'value' => $lat_lon_start,],
-            ['season_id' => 3, 'field_id' => 10, 'value' => $lat_long_end,],
-            ['season_id' => 4, 'field_id' => 1, 'value' => $description,],
-            ['season_id' => 4, 'field_id' => 2, 'value' => 'Requires a minimum of 2 People',],
-            ['season_id' => 4, 'field_id' => 3, 'value' => $activity,],
-            ['season_id' => 4, 'field_id' => 4, 'value' => $arrangements,],
-            ['season_id' => 4, 'field_id' => 5, 'value' => $requirements,],
-            ['season_id' => 4, 'field_id' => 6, 'value' => $inclusions,],
-            ['season_id' => 4, 'field_id' => 7, 'value' => $exclusions,],
-            ['season_id' => 4, 'field_id' => 8, 'value' => $notes,],
-            ['season_id' => 4, 'field_id' => 9, 'value' => $lat_lon_start,],
-            ['season_id' => 4, 'field_id' => 10, 'value' => $lat_long_end,],
-            ['season_id' => 5, 'field_id' => 1, 'value' => $description,],
-            ['season_id' => 5, 'field_id' => 2, 'value' => 'Requires a minimum of 2 People',],
-            ['season_id' => 5, 'field_id' => 3, 'value' => $activity,],
-            ['season_id' => 5, 'field_id' => 4, 'value' => $arrangements,],
-            ['season_id' => 5, 'field_id' => 5, 'value' => $requirements,],
-            ['season_id' => 5, 'field_id' => 6, 'value' => $inclusions,],
-            ['season_id' => 5, 'field_id' => 7, 'value' => $exclusions,],
-            ['season_id' => 5, 'field_id' => 8, 'value' => $notes,],
-            ['season_id' => 5, 'field_id' => 9, 'value' => $lat_lon_start,],
-            ['season_id' => 5, 'field_id' => 10, 'value' => $lat_long_end,],
-            ['season_id' => 6, 'field_id' => 1, 'value' => $description,],
-            ['season_id' => 6, 'field_id' => 2, 'value' => 'Requires a minimum of 2 People',],
-            ['season_id' => 6, 'field_id' => 3, 'value' => $activity,],
-            ['season_id' => 6, 'field_id' => 4, 'value' => $arrangements,],
-            ['season_id' => 6, 'field_id' => 5, 'value' => $requirements,],
-            ['season_id' => 6, 'field_id' => 6, 'value' => $inclusions,],
-            ['season_id' => 6, 'field_id' => 7, 'value' => $exclusions,],
-            ['season_id' => 6, 'field_id' => 8, 'value' => $notes,],
-            ['season_id' => 6, 'field_id' => 9, 'value' => $lat_lon_start,],
-            ['season_id' => 6, 'field_id' => 10, 'value' => $lat_long_end,],
+        $serviceFieldValues = [
+            ['service_id' => 1, 'field_id' => 1, 'value' => $description,],
+            ['service_id' => 1, 'field_id' => 2, 'value' => '1 Adult',],
+            ['service_id' => 1, 'field_id' => 3, 'value' => $activity,],
+            ['service_id' => 1, 'field_id' => 4, 'value' => $arrangements,],
+            ['service_id' => 1, 'field_id' => 5, 'value' => $requirements,],
+            ['service_id' => 1, 'field_id' => 6, 'value' => $inclusions,],
+            ['service_id' => 1, 'field_id' => 7, 'value' => $exclusions,],
+            ['service_id' => 1, 'field_id' => 8, 'value' => $notes,],
+            ['service_id' => 1, 'field_id' => 9, 'value' => $lat_lon_start,],
+            ['service_id' => 1, 'field_id' => 10, 'value' => $lat_long_end,],
+            ['service_id' => 2, 'field_id' => 1, 'value' => $description,],
+            ['service_id' => 2, 'field_id' => 2, 'value' => 'Requires a minimum of 2 People',],
+            ['service_id' => 2, 'field_id' => 3, 'value' => $activity,],
+            ['service_id' => 2, 'field_id' => 4, 'value' => $arrangements,],
+            ['service_id' => 2, 'field_id' => 5, 'value' => $requirements,],
+            ['service_id' => 2, 'field_id' => 6, 'value' => $inclusions,],
+            ['service_id' => 2, 'field_id' => 7, 'value' => $exclusions,],
+            ['service_id' => 2, 'field_id' => 8, 'value' => $notes,],
+            ['service_id' => 2, 'field_id' => 9, 'value' => $lat_lon_start,],
+            ['service_id' => 2, 'field_id' => 10, 'value' => $lat_long_end,],
+            ['service_id' => 3, 'field_id' => 1, 'value' => $description,],
+            ['service_id' => 3, 'field_id' => 2, 'value' => 'Book Now From 24 February 2025',],
+            ['service_id' => 3, 'field_id' => 3, 'value' => $activity,],
+            ['service_id' => 3, 'field_id' => 4, 'value' => $arrangements,],
+            ['service_id' => 3, 'field_id' => 5, 'value' => $requirements,],
+            ['service_id' => 3, 'field_id' => 6, 'value' => $inclusions,],
+            ['service_id' => 3, 'field_id' => 7, 'value' => $exclusions,],
+            ['service_id' => 3, 'field_id' => 8, 'value' => $notes,],
+            ['service_id' => 3, 'field_id' => 9, 'value' => $lat_lon_start,],
+            ['service_id' => 3, 'field_id' => 10, 'value' => $lat_long_end,],
+            ['service_id' => 4, 'field_id' => 1, 'value' => $description,],
+            ['service_id' => 4, 'field_id' => 2, 'value' => 'Requires a minimum of 2 People',],
+            ['service_id' => 4, 'field_id' => 3, 'value' => $activity,],
+            ['service_id' => 4, 'field_id' => 4, 'value' => $arrangements,],
+            ['service_id' => 4, 'field_id' => 5, 'value' => $requirements,],
+            ['service_id' => 4, 'field_id' => 6, 'value' => $inclusions,],
+            ['service_id' => 4, 'field_id' => 7, 'value' => $exclusions,],
+            ['service_id' => 4, 'field_id' => 8, 'value' => $notes,],
+            ['service_id' => 4, 'field_id' => 9, 'value' => $lat_lon_start,],
+            ['service_id' => 4, 'field_id' => 10, 'value' => $lat_long_end,],
         ];
 
-
-        foreach ($seasons as $season) {
-            Season::updateOrCreate(['id' => $season['id']], $season);
-        }
-        $this->info('Seasons seeded successfully.');
-        foreach ($seasonFieldValues as $seasonFieldValue) {
-            SeasonFieldValue::updateOrCreate(
+        foreach ($serviceFieldValues as $serviceFieldValue) {
+            ServiceFieldValue::updateOrCreate(
                 [
-                    'season_id' => $seasonFieldValue['season_id'],
-                    'field_id' => $seasonFieldValue['field_id'],
+                    'service_id' => $serviceFieldValue['service_id'],
+                    'field_id' => $serviceFieldValue['field_id'],
                 ],
                 [
-                    'value' => $seasonFieldValue['value'],
+                    'value' => $serviceFieldValue['value'],
                     'team_id' => null,
                 ]
             );
@@ -854,66 +778,66 @@ class SeedCoreData extends Command
         $files = [
             [
                 "id" => 1,
-                "table_name" => "seasons",
+                "table_name" => "services",
                 "table_row_id" => "1",
                 "file_name" => "card1.jpg",
                 "file_type" => "image/jpeg",
-                "path" => "seasons/1/VG1575vJQfQGmo6TFAk5gE0DknbgZ00qYNv5XR2Q.jpg",
+                "path" => "services/1/VG1575vJQfQGmo6TFAk5gE0DknbgZ00qYNv5XR2Q.jpg",
                 "expiry" => null,
                 "team_id" => null,
                 "type_file_id" => 1
             ],
             [
                 "id" => 2,
-                "table_name" => "seasons",
+                "table_name" => "services",
                 "table_row_id" => "6",
                 "file_name" => "card1.jpg",
                 "file_type" => "image/jpeg",
-                "path" => "seasons/6/A8f8mauVaWW4C6REWtltV3WXnrK1u7bRqNqvDMo0.jpg",
+                "path" => "services/6/A8f8mauVaWW4C6REWtltV3WXnrK1u7bRqNqvDMo0.jpg",
                 "expiry" => null,
                 "team_id" => null,
                 "type_file_id" => 1
             ],
             [
                 "id" => 3,
-                "table_name" => "seasons",
+                "table_name" => "services",
                 "table_row_id" => "3",
                 "file_name" => "card3.jpg",
                 "file_type" => "image/jpeg",
-                "path" => "seasons/3/gSjvgA1MyCqhhcxqdVOFNu4AAX9hAUdocjhZuVLV.jpg",
+                "path" => "services/3/gSjvgA1MyCqhhcxqdVOFNu4AAX9hAUdocjhZuVLV.jpg",
                 "expiry" => null,
                 "team_id" => null,
                 "type_file_id" => 1
             ],
             [
                 "id" => 4,
-                "table_name" => "seasons",
+                "table_name" => "services",
                 "table_row_id" => "4",
                 "file_name" => "card4.jpg",
                 "file_type" => "image/jpeg",
-                "path" => "seasons/4/ahRAMEjm1Udj3OGILUq9YnzSz7KNsSVl3KDRIxUc.jpg",
+                "path" => "services/4/ahRAMEjm1Udj3OGILUq9YnzSz7KNsSVl3KDRIxUc.jpg",
                 "expiry" => null,
                 "team_id" => null,
                 "type_file_id" => 1
             ],
             [
                 "id" => 5,
-                "table_name" => "seasons",
+                "table_name" => "services",
                 "table_row_id" => "5",
                 "file_name" => "card5.jpg",
                 "file_type" => "image/jpeg",
-                "path" => "seasons/5/P9BTOjmG1DiaLDMfxU7S7Tg3AewtJBitOzP1TTyd.jpg",
+                "path" => "services/5/P9BTOjmG1DiaLDMfxU7S7Tg3AewtJBitOzP1TTyd.jpg",
                 "expiry" => null,
                 "team_id" => null,
                 "type_file_id" => 1
             ],
             [
                 "id" => 6,
-                "table_name" => "seasons",
+                "table_name" => "services",
                 "table_row_id" => "2",
                 "file_name" => "card6.jpg",
                 "file_type" => "image/jpeg",
-                "path" => "seasons/2/2y6BtQAwOEuAEt98H5p0Nuyab00mhWM4yqgJHJXW.jpg",
+                "path" => "services/2/2y6BtQAwOEuAEt98H5p0Nuyab00mhWM4yqgJHJXW.jpg",
                 "expiry" => null,
                 "team_id" => null,
                 "type_file_id" => 1
@@ -924,7 +848,7 @@ class SeedCoreData extends Command
             File::updateOrCreate(
                 [
                     'team_id'      => null, // auth()->user()->team_id,
-                    'table_name'   => 'seasons',
+                    'table_name'   => 'services',
                     'table_row_id' => $file['table_row_id'],
                     'file_name'    => $file['file_name'],
                     'file_type'    => $file['file_type'],
@@ -936,11 +860,12 @@ class SeedCoreData extends Command
         }
         $this->info('Files seeded successfully.');
 
-        $inventory = [
+
+        $this->info('Services seeded successfully.');
+        $seasons = [
             [
                 'id' => 1,
-                'service_id' => 1,
-                'season_id' => 1,
+                'name' => 'Tsitsikamma Canopy Tour',
                 'start_date' => '2025-02-01',
                 'end_date' => '2026-02-28',
                 'rake_rate_adult' => '600.00',
@@ -952,11 +877,14 @@ class SeedCoreData extends Command
                 'allow_internal_override' => 1,
                 'status' => 0,
                 'pillbox_conditions' => 'Book Now From 21 February 2025',
+                'created_by_id' => 1,
+                'updated_by_id' => 1,
+                'team_id' => 7,
+                'service_id' => 1,
             ],
             [
                 'id' => 2,
-                'service_id' => 2,
-                'season_id' => 2,
+                'name' => 'Tsitsikamma Woodcutters Journey',
                 'start_date' => '2025-02-01',
                 'end_date' => '2026-10-28',
                 'rake_rate_adult' => '600.00',
@@ -968,27 +896,33 @@ class SeedCoreData extends Command
                 'allow_internal_override' => 1,
                 'status' => 0,
                 'pillbox_conditions' => 'Book Now From 21 February 2025',
+                'created_by_id' => 1,
+                'updated_by_id' => 1,
+                'team_id' => 7,
+                'service_id' => 2,
             ],
             [
                 'id' => 3,
-                'service_id' => 3,
-                'season_id' => 3,
+                'name' => 'Tsitsikamma Guided Hikes Green route: 5.09km',
                 'start_date' => '2025-02-01',
-                'end_date' => '2026-03-28',
+                'end_date' => '2026-10-28',
                 'rake_rate_adult' => '600.00',
                 'rake_rate_child' => '300.00',
                 'rake_rate_guide' => '200.00',
                 'allow_internal_price_override' => 1,
-                'duration' => '02:00:00',
-                'capacity' => 6,
+                'duration' => '04:00:00',
+                'capacity' => 4,
                 'allow_internal_override' => 1,
                 'status' => 0,
                 'pillbox_conditions' => 'Book Now From 21 February 2025',
+                'created_by_id' => 1,
+                'updated_by_id' => 1,
+                'team_id' => 7,
+                'service_id' => 3,
             ],
             [
                 'id' => 4,
-                'service_id' => 3,
-                'season_id' => 4,
+                'name' => 'Tsitsikamma Guided Hikes Red route: 7.78km',
                 'start_date' => '2025-02-01',
                 'end_date' => '2026-06-28',
                 'rake_rate_adult' => '600.00',
@@ -1000,11 +934,14 @@ class SeedCoreData extends Command
                 'allow_internal_override' => 1,
                 'status' => 0,
                 'pillbox_conditions' => 'Book Now From 21 February 2025',
+                'created_by_id' => 1,
+                'updated_by_id' => 1,
+                'team_id' => 7,
+                'service_id' => 3,
             ],
             [
                 'id' => 5,
-                'service_id' => 3,
-                'season_id' => 5,
+                'name' => 'Tsitsikamma Guided Hikes Yellow route 8.09km',
                 'start_date' => '2025-02-01',
                 'end_date' => '2026-08-28',
                 'rake_rate_adult' => '600.00',
@@ -1016,11 +953,14 @@ class SeedCoreData extends Command
                 'allow_internal_override' => 1,
                 'status' => 0,
                 'pillbox_conditions' => 'Book Now From 21 February 2025',
+                'created_by_id' => 1,
+                'updated_by_id' => 1,
+                'team_id' => 7,
+                'service_id' => 3,
             ],
             [
                 'id' => 6,
-                'service_id' => 4,
-                'season_id' => 6,
+                'name' => 'Tsitsikamma Canopy Tour Photographic Scavenger Hunt',
                 'start_date' => '2025-02-01',
                 'end_date' => '2026-12-28',
                 'rake_rate_adult' => '600.00',
@@ -1032,14 +972,66 @@ class SeedCoreData extends Command
                 'allow_internal_override' => 1,
                 'status' => 0,
                 'pillbox_conditions' => 'Book Now From 21 February 2025',
+                'created_by_id' => 1,
+                'updated_by_id' => 1,
+                'team_id' => 7,
+                'service_id' => 4,
+            ],
+        ];
+
+
+
+
+        foreach ($seasons as $season) {
+            $season['rake_rate_adult'] = floatval(str_replace('R', '', $season['rake_rate_adult']));
+            $season['rake_rate_child'] = floatval(str_replace('R', '', $season['rake_rate_child']));
+            $season['rake_rate_guide'] = floatval(str_replace('R', '', $season['rake_rate_guide']));
+
+            Season::updateOrCreate(['id' => $season['id']], $season);
+        }
+        $this->info('Seasons seeded successfully.');
+
+
+        $inventory = [
+            [
+                'id' => 1,
+                'service_id' => 1,
+                'season_id' => 1,
+
+            ],
+            [
+                'id' => 2,
+                'service_id' => 2,
+                'season_id' => 2,
+
+            ],
+            [
+                'id' => 3,
+                'service_id' => 3,
+                'season_id' => 3,
+
+            ],
+            [
+                'id' => 4,
+                'service_id' => 3,
+                'season_id' => 4,
+
+            ],
+            [
+                'id' => 5,
+                'service_id' => 3,
+                'season_id' => 5,
+
+            ],
+            [
+                'id' => 6,
+                'service_id' => 4,
+                'season_id' => 6,
+
             ],
         ];
 
         foreach ($inventory as $inv) {
-            $inv['rake_rate_adult'] = floatval(str_replace('R', '', $inv['rake_rate_adult']));
-            $inv['rake_rate_child'] = floatval(str_replace('R', '', $inv['rake_rate_child']));
-            $inv['rake_rate_guide'] = floatval(str_replace('R', '', $inv['rake_rate_guide']));
-
             Inventory::updateOrCreate(['id' => $inv['id']], $inv);
         }
 
@@ -1411,7 +1403,7 @@ class SeedCoreData extends Command
         $customerManifests = [
             [
                 'id'             => 1,
-                'position'       => '0',
+                'position'       => '1',
                 'notes'          => '',
                 'is_indemnity'   => 0,
                 'customer_id'    => 1,
@@ -1423,7 +1415,7 @@ class SeedCoreData extends Command
             ],
             [
                 'id'             => 2,
-                'position'       => '0',
+                'position'       => '2',
                 'notes'          => '',
                 'is_indemnity'   => 0,
                 'customer_id'    => 2,
@@ -1435,11 +1427,11 @@ class SeedCoreData extends Command
             ],
             [
                 'id'             => 3,
-                'position'       => '0',
+                'position'       => '3',
                 'notes'          => '',
                 'is_indemnity'   => 0,
                 'customer_id'    => 3,
-                'booking_id'     => 2,
+                'booking_id'     => 1,
                 'created_at'     => now(),
                 'updated_at'     => now(),
                 'deleted_at'     => null,
@@ -1447,7 +1439,7 @@ class SeedCoreData extends Command
             ],
             [
                 'id'             => 4,
-                'position'       => '0',
+                'position'       => '1',
                 'notes'          => '',
                 'is_indemnity'   => 0,
                 'customer_id'    => 4,
@@ -1457,10 +1449,82 @@ class SeedCoreData extends Command
                 'deleted_at'     => null,
                 'team_id'        => null,
             ],
+            [
+                'id'             => 5,
+                'position'       => '2',
+                'notes'          => '',
+                'is_indemnity'   => 0,
+                'customer_id'    => 5,
+                'booking_id'     => 2,
+                'created_at'     => now(),
+                'updated_at'     => now(),
+                'deleted_at'     => null,
+                'team_id'        => null,
+            ],
+            [
+                'id'             => 6,
+                'position'       => '3',
+                'notes'          => '',
+                'is_indemnity'   => 0,
+                'customer_id'    => 6,
+                'booking_id'     => 2,
+                'created_at'     => now(),
+                'updated_at'     => now(),
+                'deleted_at'     => null,
+                'team_id'        => null,
+            ],
+            [
+                'id'             => 7,
+                'position'       => '1',
+                'notes'          => '',
+                'is_indemnity'   => 0,
+                'customer_id'    => 7,
+                'booking_id'     => 3,
+                'created_at'     => now(),
+                'updated_at'     => now(),
+                'deleted_at'     => null,
+                'team_id'        => null,
+            ],
+            [
+                'id'             => 8,
+                'position'       => '2',
+                'notes'          => '',
+                'is_indemnity'   => 0,
+                'customer_id'    => 8,
+                'booking_id'     => 3,
+                'created_at'     => now(),
+                'updated_at'     => now(),
+                'deleted_at'     => null,
+                'team_id'        => null,
+            ],
+            [
+                'id'             => 9,
+                'position'       => '1',
+                'notes'          => '',
+                'is_indemnity'   => 0,
+                'customer_id'    => 9,
+                'booking_id'     => 4,
+                'created_at'     => now(),
+                'updated_at'     => now(),
+                'deleted_at'     => null,
+                'team_id'        => null,
+            ],
+            [
+                'id'             => 10,
+                'position'       => '2',
+                'notes'          => '',
+                'is_indemnity'   => 0,
+                'customer_id'    => 10,
+                'booking_id'     => 4,
+                'created_at'     => now(),
+                'updated_at'     => now(),
+                'deleted_at'     => null,
+                'team_id'        => null,
+            ],
         ];
 
         foreach ($customerManifests as $customerManifest) {
-            // CustomerManifest::updateOrCreate(['id' => $customerManifest['id']], $customerManifest);
+            CustomerManifest::updateOrCreate(['id' => $customerManifest['id']], $customerManifest);
         }
 
 

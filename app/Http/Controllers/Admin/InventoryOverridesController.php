@@ -16,7 +16,7 @@ class InventoryOverridesController extends Controller
 {
     public function index()
     {
-        abort_if(Gate::denies('inventory_override_access'), Response::HTTP_FORBIDDEN, '403 Forbidden');
+        abort_if(Gate::denies('inventory_overrides_access'), Response::HTTP_FORBIDDEN, '403 Forbidden');
 
         $inventoryOverrides = InventoryOverride::with(['inventory', 'team'])->get();
 

@@ -11,7 +11,7 @@ const InputText = ({ title, field, value,mode,type="text", width="w-full" , heig
                 type={type}
                 id={field}
                 name={field}
-                value={value}
+                value={value || ""}
                 onChange={(e) => handleChange(field, e.target.value)}
                 className={`mt-1 block ${width} ${height} ${errors.name ? "border-red-500" : "border-gray-300"} shadow-sm input-text rounded-[10px]
                 hover:border-black  active:border-blue-600 

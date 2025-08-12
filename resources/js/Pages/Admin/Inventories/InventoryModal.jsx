@@ -17,36 +17,17 @@ const InventoryModal = ({ isOpen, onClose, mode, inventory = null,services, seas
     const { data, setData, post, put, errors, reset, processing } = useForm({
         service_id: "",
         season_id: "",
-        start_date: "",
-        end_date: "",
-        rake_rate_adult: "",
-        rake_rate_child: "",
-        rake_rate_guide: "",
-        allow_internal_price_override: 0,
         day_slots: [1,2,3,4,5,6,7],
         time_slots: [],
-        capacity: "",
-        allow_internal_override: "",
-        status: 0,
         created_by_id: auth?.user?.id,
-        updated_by_id: auth?.user?.id,
     });
     useEffect(() => {
         if (inventory && mode !== "create") {
             setData({
                 service_id: inventory.service_id || "",
                 season_id: inventory.season_id || "",
-                start_date: inventory.start_date || "",
-                end_date: inventory.end_date || "",
-                rake_rate_adult: inventory.rake_rate_adult || "",
-                rake_rate_child: inventory.rake_rate_child || "",
-                rake_rate_guide: inventory.rake_rate_guide || "",
-                allow_internal_price_override: inventory.allow_internal_price_override || 0,
                 day_slots: inventory.day_slots || [1,2,3,4,5,6,7],
                 time_slots: inventory?.time_slots?.map(slot => slot.start_time) || [],
-                capacity: inventory.capacity || "",
-                allow_internal_override: inventory.allow_internal_override || "",
-                status: inventory.status || 0,
                 updated_by_id: inventory.updated_by_id || "",
                 //roles: inventory.roles.map((role) => role.id),
 
@@ -94,14 +75,14 @@ const InventoryModal = ({ isOpen, onClose, mode, inventory = null,services, seas
         e.preventDefault();
         console.log('data', data);
         if (mode === "create") {
-            post(route("inventories.store"), {
+            post(route("admin.inventories.store"), {
                 onSuccess: () => {
                     reset();
                     onClose();
                 },
             });
         } else if (mode === "edit") {
-            put(route("inventories.update", inventory.id), {
+            put(route("admin.inventories.update", inventory.id), {
                 onSuccess: () => {
                     reset();
                     onClose();
@@ -141,63 +122,7 @@ const InventoryModal = ({ isOpen, onClose, mode, inventory = null,services, seas
                         options={filteredSeasons}
                     />
                     </div>
-                    <div className="flex flex-row w-full items-center gap-2 justify-between mb-4">
-                        <InputText
-                            title="Start Date"
-                            field="start_date"
-                            type='date'
-                            value={data.start_date}
-                            mode={mode}
-                            handleChange={handleChange}
-                            errors={errors}
-                        />
-                        
-                        <InputText
-                            title="End Date"
-                            field="end_date"
-                            type='date'
-                            value={data.end_date}
-                            mode={mode}
-                            handleChange={handleChange}
-                            errors={errors}
-                        />    
-                    </div>
-                    <div className="flex flex-row w-full items-center gap-2 justify-start mb-4">
-                        <InputText
-                            title="Rake Rate Adult"
-                            field="rake_rate_adult"
-                            value={data.rake_rate_adult}
-                            mode={mode}
-                            handleChange={handleChange}
-                            errors={errors}
-                        />
-                        <InputText
-                            title="Rake Rate Child"
-                            field="rake_rate_child"
-                            value={data.rake_rate_child}
-                            mode={mode}
-                            handleChange={handleChange}
-                            errors={errors}
-                        />
-                    </div>
-                    <div className="flex flex-row w-full items-center gap-2 justify-start mb-4">
-                        <InputText
-                            title="Rak Rate Guide"
-                            field="rake_rate_guide"
-                            value={data.rake_rate_guide}
-                            mode={mode}
-                            handleChange={handleChange}
-                            errors={errors}
-                        />
-                        <InputText
-                            title="Capacity (PAX)"
-                            field="capacity"
-                            value={data.capacity}
-                            mode={mode}
-                            handleChange={handleChange}
-                            errors={errors}
-                        />
-                    </div>
+
                     {/* Identification Section */}
                     <div className="flex flex-row w-full items-center gap-2 justify-start mb-4">
                         <div className="mb-4 w-full">                        
@@ -207,9 +132,7 @@ const InventoryModal = ({ isOpen, onClose, mode, inventory = null,services, seas
                             <input
                                 type="time"
                                 className={`mt-1 block w-full ${errors.name ? "border-red-500" : "border-gray-300"} shadow-sm input-text rounded-xl
-                hover:border-black  active:border-blue-600 
-                focus:outline-none focus:ring-0 focus:border-black
-                `}
+                                            hover:border-black  active:border-blue-600 focus:outline-none focus:ring-0 focus:border-black`}
                                 value={newTimeSlot ?? ""}
                                 onChange={(e) => {e.preventDefault(); setNewTimeSlot(e.target.value)}}
                             />
@@ -225,11 +148,11 @@ const InventoryModal = ({ isOpen, onClose, mode, inventory = null,services, seas
                         </div>
 
 
-                        </div>
-                            <label className="inline-flex input-header">
-                                Time Slots
-                            </label>                        
-<div className="flex flex-row w-full items-center justify-start mb-4">
+                    </div>
+                    <label className="inline-flex input-header">
+                        Time Slots
+                    </label>                        
+                    <div className="flex flex-row w-full items-center justify-start mb-4">
                         {/* List of added time_slots */}
 
                         {data.time_slots.length > 0 ? (
@@ -246,27 +169,6 @@ const InventoryModal = ({ isOpen, onClose, mode, inventory = null,services, seas
                                 ))}
                             </ul>
                         ):(<span className="block text-red-400">No time slots added</span>)}
-                    </div>
-                    add status open for booking and close for booking
-                    add condition for booking pill box text
-                
-                    <div className="flex flex-row w-full items-center gap-2 justify-start mb-4">
-                        <CustomCheckbox
-                            label="Allow Internal Price Override"
-                            name="allow_internal_price_override"
-                            checked={data.allow_internal_price_override}
-                            mode={mode}
-                            onChange={handleChange}
-                            errors={errors}
-                        />
-                        <CustomCheckbox
-                            label="Allow Internal Time Slot Override"
-                            name="allow_internal_override"
-                            checked={data.allow_internal_override}
-                            mode={mode}
-                            onChange={handleChange}
-                            errors={errors}
-                        />
                     </div>
                     <div className="flex justify-center gap-4">
                         <OutlineButton title="Cancel" onClick={onClose} width="w-[180px]"/>

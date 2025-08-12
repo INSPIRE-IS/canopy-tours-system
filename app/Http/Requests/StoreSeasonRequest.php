@@ -14,7 +14,7 @@ class StoreSeasonRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return Gate::allows('season_create');
+        return Gate::allows('seasons_create');
     }
 
     /**
@@ -32,6 +32,50 @@ class StoreSeasonRequest extends FormRequest
             'name' => [
                 'string',
                 'required',
+            ],
+            'start_date' => [
+                'required',
+                'date_format:' . config('panel.date_format'),
+            ],
+            'end_date' => [
+                'required',
+                'date_format:' . config('panel.date_format'),
+            ],
+            'rake_rate_adult' => [
+                'numeric',
+                'required',
+            ],
+            'rake_rate_child' => [
+                'numeric',
+                'required',
+            ],
+            'rake_rate_guide' => [
+                'numeric',
+                'required',
+            ],
+            'capacity' => [
+                'required',
+                'integer',
+                'min: 1',
+                'max:100',
+            ],
+            'allow_internal_override' => [
+                'required',
+            ],
+            'duration' => [
+                'date_format:' . config('panel.time_format'),
+                'nullable',
+            ],
+            'status' => [
+                'required',
+            ],
+            'pillbox_conditions' => [
+                'string',
+                'nullable',
+            ],
+            'created_by_id' => [
+                'required',
+                'integer',
             ],
         ];
     }

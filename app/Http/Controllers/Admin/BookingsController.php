@@ -83,14 +83,14 @@ class BookingsController extends Controller
                 //     $q->where('id', $booking->booking_inventory->inventory_time_slot_id);
                 // }])->find($booking->booking_inventory->booking_id);
                 // dd($inventory);
-                $inventory = Inventory::find($booking->inventory_id);
-                $timeSlot = InventoryTimeSlot::find($inventory->id);
+                $season = Season::find($booking->season_id);
+                $timeSlot = InventoryTimeSlot::find($season->id);
 
                 $time = $timeSlot->start_time;
                 $start_time = Carbon::parse($time);
                 // assuming $inventory->duration = '02:00:00'
                 //dd($inventory->duration);
-                list($hours, $minutes, $seconds) = explode(':', $inventory->duration);
+                list($hours, $minutes, $seconds) = explode(':', $season->duration);
                 $end_time = $start_time->copy()->addHours($hours)->addMinutes($minutes)->addSeconds($seconds);
                 // dd($end_time->format('H:i:s'));
 
@@ -99,7 +99,7 @@ class BookingsController extends Controller
                     'reference' => $booking->reference,
                     'lead_name' => $booking->lead_name,
                     'bookingPax' => $booking->booking_inventory->pax, // $booking->customers->count(),
-                    'maxPax' => $inventory->capacity, // $booking->customers->count(),
+                    'maxPax' => $season->capacity, // $booking->customers->count(),
                     'service' => $booking->service->name,
                     'time' => $start_time->format('H:i:s') . ' ' . $end_time->format('H:i:s'), // optional($booking->booking_inventory)->inventory_time_slot_id ?? '' . ' - ' . optional($booking->booking_inventory)->inventory_time_slot_id ?? '',
                     'price' => number_format($price ?? 0, 2),
@@ -144,7 +144,7 @@ class BookingsController extends Controller
         //     'dueStatus' => 'Overdue', // Could be 'Normal', 'Overdue', or 'Paid'
         // ],
 
-        // dd($formatted);
+        //dd($formatted);
         return Inertia::render('Admin/Bookings/Index', ['bookings' => $formatted]);
 
         // return view('admin.bookings.index', compact('bookings'));
@@ -157,9 +157,10 @@ class BookingsController extends Controller
         $status_bookings = StatusBooking::select('name', 'id')->get();
         $wholesalers = Wholesaler::select('id', 'name')->get();
         //$services = Service::select('id', 'name')->get();
-        $services = Service::select('id', 'name')->with('seasons:id,name,service_id', 'seasons.inventory', 'seasons.inventory.timeSlots')->get();
+        $services = Service::select('id', 'name')->with('seasons:id,name,service_id', 'seasons.inventory', 'seasons.inventory.inventory_time_slots')->get();
         //$seasons = Season::select('id', 'name', 'service_id')->get();
-        $inventories = Inventory::select('start_date', 'id')->get();
+        $seasons = Season::select('start_date', 'id')->get();
+        // $inventories = Inventory::select('start_date', 'id')->get();
         $type_affiliates = TypeReferral::select('name', 'id')->get();
         $updated_bies = User::select('name', 'id')->get();
         $customers = Customer::select('full_name as name', 'id')->get();
@@ -190,7 +191,7 @@ class BookingsController extends Controller
             'wholesalers' => $wholesalers,
             'services' => $services,
             //'seasons' => $seasons,
-            'inventories' => $inventories,
+            'inventories' => $seasons,
             'type_affiliates' => $type_affiliates,
             'updated_bies' => $updated_bies,
             'users' => $users,
@@ -476,7 +477,7 @@ class BookingsController extends Controller
             'season',
             'inventory',
             'customers', // :id,name,email,contact_number
-            'customer_manifests', // :id,position,notes,is_indemnity,customer_id,booking_id\
+            'customer_manifests.customer.booking_questionnaire', // :id,position,notes,is_indemnity,customer_id,booking_id\
             'booking_infos', // :id,booking_id,type_location_id,location,time,created_at,updated_at,deleted_at
             'customers.booking_questionnaire', // :id,booking_id,customer_id,guide_id,safety_guide_id,type_group_id,fullname,email,signature,birth_date,type_referral,country_id,province_id,is_medical,medical_detail,is_fit,is_agree
             'booking_details', //:id,booking_id ,start_time,end_time
@@ -524,7 +525,7 @@ class BookingsController extends Controller
         //         return "{$user->name} - {$role->name}";
         //     });
         // });
-
+        //dd($booking);
         return Inertia::render('Admin/Bookings/Edit', ['booking' => $booking, 'staff' => $staff]);
 
 
@@ -613,9 +614,9 @@ class BookingsController extends Controller
         return back();
     }
 
-
     public function calendar(Request $request)
     {
+
         $activityId = $request->input('activity_id');
         $viewMode = $request->input('view_mode', 'week');
         $startDate = Carbon::parse($request->input('start_date', now()));
@@ -628,9 +629,11 @@ class BookingsController extends Controller
         };
         $endDate = (clone $startDate)->addDays($days - 1);
         //dd($endDate);
+        $season = Season::findOrFail($activityId);
 
-        $inventory = Inventory::with(['timeSlots', 'typeDays'])->findOrFail($activityId);
-        if ($startDate->lt(Carbon::parse($inventory->start_date)) || $endDate->gt(Carbon::parse($inventory->end_date))) {
+        $inventory = Inventory::with(['inventory_type_days', 'inventory_time_slots'])->where('season_id', $season->id)->first();
+        //dd($inventory);
+        if ($startDate->lt(Carbon::parse($season->start_date)) || $endDate->gt(Carbon::parse($season->end_date))) {
             return response()->json([
                 'schedule' => [],
                 'days' => [],
@@ -657,10 +660,10 @@ class BookingsController extends Controller
                 ->get()
                 ->keyBy(fn($row) => $row->date . '_' . $row->time);
         }
-        //dd($bookingData);
+        // dd($bookingData);
 
         //dd($inventory);
-        $allowedDays = $inventory->typeDays->pluck('type_day_id')->toArray();
+        $allowedDays = $inventory->inventory_type_days->pluck('type_day_id')->toArray();
 
         $closeouts = Closeout::where('service_id', $inventory->service_id)
             ->where('season_id', $inventory->season_id)
@@ -682,8 +685,8 @@ class BookingsController extends Controller
 
             return collect($dates)->map(fn($d) => $d->format('Y-m-d'));
         })->unique()->values()->toArray();
-        // dd($blockedDates);
-        $timeSlots = $inventory->timeSlots->pluck('start_time')->unique()->sort();
+        //dd($blockedDates);
+        $timeSlots = $inventory->inventory_time_slots->pluck('start_time')->unique()->sort();
         $schedule = [];
 
         foreach ($timeSlots as $time) {
@@ -721,7 +724,7 @@ class BookingsController extends Controller
                 if (true) {
                     $dateTimeStr = $dateStr . '_' . $time;
                     $booked = $bookingData[$dateTimeStr]->total ?? 0;
-                    $remaining = $inventory->capacity - $booked;
+                    $remaining = $season->capacity - $booked;
                     if ($remaining < $totalRequested) {
                         $row['days'][$label] = [
                             'date' => $date->format('Y-m-d'),
@@ -734,7 +737,7 @@ class BookingsController extends Controller
                             'date' => $date->format('Y-m-d'),
                             'slots' => $remaining,
                             'status' => 'available',
-                            'rake_rate_adult' => $inventory->rake_rate_adult,
+                            'rake_rate_adult' => $season->rake_rate_adult,
                         ];
                     }
                 }
@@ -742,9 +745,9 @@ class BookingsController extends Controller
                 if (false) {
                     $row['days'][$label] = [
                         'date' => $date->format('Y-m-d'),
-                        'slots' => $inventory->capacity,
+                        'slots' => $season->capacity,
                         'status' => 'available',
-                        'rake_rate_adult' => $inventory->rake_rate_adult,
+                        'rake_rate_adult' => $season->rake_rate_adult,
                     ];
                 }
             }

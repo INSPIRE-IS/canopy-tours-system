@@ -15,6 +15,7 @@ use App\Models\InventoryTimeSlot;
 use App\Models\InventoryTypeDay;
 use App\Models\Season;
 use App\Models\Service;
+use App\Models\Team;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
@@ -29,15 +30,24 @@ use Str;
 class ActivityController extends Controller
 {
 
-    public function index(Request $request)
+    public function index($team_id = 0)
     {
+        $teamId = $team_id;
+        //dd($request);
+
+        $teams = Team::select('id', 'name')->get();
         $services = Service::with([
 
-            'seasons.file',
-            'seasons.seasonfieldValues.field',
+            'file',
+            'servicefieldValues.field',
             'seasons.inventory',
-        ])->get();
-        //dd($services);
+        ]);
+
+        if ($teamId) {
+            $services->where('team_id', $teamId);
+        }
+
+        $services = $services->get();
         // $services->each(function ($service) {
         //     $service->setRelation('seasons', $service->seasons->filter(function ($season) {
         //         return $season->inventory !== null;
@@ -75,27 +85,27 @@ class ActivityController extends Controller
                 // }
                 //Log::info('inventory ' . $inventory->season_id);
                 //dd($inventory);
-                $fieldValues = $season->seasonFieldValues->mapWithKeys(function ($fv) {
+                $fieldValues = $service->serviceFieldValues->mapWithKeys(function ($fv) {
                     return [$fv->field->name => $fv->value];
                 });
-
+                //dd($fieldValues);
                 return [
                     'id'         => optional($inventory)->id,
                     'service_id'      => $service->id,
                     'service'      => $service->name,
-                    'season'   => $season->name,
                     'season_id'      => $season->id,
-                    'image'      => $season->file ? '/storage/' . $season->file->path : null,
+                    'image'      => $service->file ? '/storage/' . $service->file->path : null,
                     'badge'      => $fieldValues['badge'] ?? null,
                     'gift'       => filter_var($fieldValues['gift'] ?? false, FILTER_VALIDATE_BOOLEAN),
                     'minPeople'  => (int) ($fieldValues['min_people'] ?? 1),
-                    'price'      => optional($inventory)->rake_rate_adult ?? null,
-                    'start_date' => optional($inventory)->start_date ?? null,
-                    'end_date'   => optional($inventory)->end_date ?? null,
-                    'capacity'   => optional($inventory)->capacity ?? null,
+                    'price'      => optional($season)->rake_rate_adult ?? null,
+                    'start_date' => optional($season)->start_date ?? null,
+                    'end_date'   => optional($season)->end_date ?? null,
+                    'capacity'   => optional($season)->capacity ?? null,
                 ];
             })->filter(); // remove nulls
         });
+        //dd($activities);
 
         return Inertia::render('Welcome', [
             'canLogin' => Route::has('login'),
@@ -103,6 +113,8 @@ class ActivityController extends Controller
             'laravelVersion' => Application::VERSION,
             'phpVersion' => PHP_VERSION,
             'activities' => $activities,
+            'teams' => $teams,
+            'team_id' => $teamId ?? 0,
         ]);
     }
 
@@ -116,18 +128,18 @@ class ActivityController extends Controller
         $viewMode = $request->input('view_mode', 'week');
         $season = Season::with([
             'service',
-            'file',
-            'seasonFieldValues.field',
+            'service.file',
+            'service.serviceFieldValues.field',
             'inventory'
         ])->findOrFail($activity_id);
-
+        // dd($season->service);
         $inventory = $season->inventory;
 
         if (!$inventory) {
             abort(404, 'This season has no inventory.');
         }
 
-        $fieldValues = $season->seasonFieldValues->mapWithKeys(function ($fv) {
+        $fieldValues = $season->service->serviceFieldValues->mapWithKeys(function ($fv) {
             return [$fv->field->name => $fv->value];
         });
         //dd($fieldValues);
@@ -182,21 +194,24 @@ class ActivityController extends Controller
 
     public function calendar(Request $request)
     {
+
         $activityId = $request->input('activity_id');
         $viewMode = $request->input('view_mode', 'week');
         $startDate = Carbon::parse($request->input('start_date', now()));
         $totalRequested = (int) $request->input('adults', 0) + (int) $request->input('children', 0);
         $days = match ($viewMode) {
             'day' => 1,
-            'week' => 5,
+            'week' => 7,
             'month' => 30,
-            default => 5
+            default => 7
         };
         $endDate = (clone $startDate)->addDays($days - 1);
         //dd($endDate);
+        $season = Season::findOrFail($activityId);
 
-        $inventory = Inventory::with(['timeSlots', 'typeDays'])->findOrFail($activityId);
-        if ($startDate->lt(Carbon::parse($inventory->start_date)) || $endDate->gt(Carbon::parse($inventory->end_date))) {
+        $inventory = Inventory::with(['inventory_type_days', 'inventory_time_slots'])->where('season_id', $season->id)->first();
+        //dd($inventory);
+        if ($startDate->lt(Carbon::parse($season->start_date)) || $endDate->gt(Carbon::parse($season->end_date))) {
             return response()->json([
                 'schedule' => [],
                 'days' => [],
@@ -223,10 +238,10 @@ class ActivityController extends Controller
                 ->get()
                 ->keyBy(fn($row) => $row->date . '_' . $row->time);
         }
-        //dd($bookingData);
+        // dd($bookingData);
 
         //dd($inventory);
-        $allowedDays = $inventory->typeDays->pluck('type_day_id')->toArray();
+        $allowedDays = $inventory->inventory_type_days->pluck('type_day_id')->toArray();
 
         $closeouts = Closeout::where('service_id', $inventory->service_id)
             ->where('season_id', $inventory->season_id)
@@ -248,8 +263,8 @@ class ActivityController extends Controller
 
             return collect($dates)->map(fn($d) => $d->format('Y-m-d'));
         })->unique()->values()->toArray();
-        // dd($blockedDates);
-        $timeSlots = $inventory->timeSlots->pluck('start_time')->unique()->sort();
+        //dd($blockedDates);
+        $timeSlots = $inventory->inventory_time_slots->pluck('start_time')->unique()->sort();
         $schedule = [];
 
         foreach ($timeSlots as $time) {
@@ -287,7 +302,7 @@ class ActivityController extends Controller
                 if (true) {
                     $dateTimeStr = $dateStr . '_' . $time;
                     $booked = $bookingData[$dateTimeStr]->total ?? 0;
-                    $remaining = $inventory->capacity - $booked;
+                    $remaining = $season->capacity - $booked;
                     if ($remaining < $totalRequested) {
                         $row['days'][$label] = [
                             'date' => $date->format('Y-m-d'),
@@ -300,7 +315,7 @@ class ActivityController extends Controller
                             'date' => $date->format('Y-m-d'),
                             'slots' => $remaining,
                             'status' => 'available',
-                            'rake_rate_adult' => $inventory->rake_rate_adult,
+                            'rake_rate_adult' => $season->rake_rate_adult,
                         ];
                     }
                 }
@@ -308,9 +323,9 @@ class ActivityController extends Controller
                 if (false) {
                     $row['days'][$label] = [
                         'date' => $date->format('Y-m-d'),
-                        'slots' => $inventory->capacity,
+                        'slots' => $season->capacity,
                         'status' => 'available',
-                        'rake_rate_adult' => $inventory->rake_rate_adult,
+                        'rake_rate_adult' => $season->rake_rate_adult,
                     ];
                 }
             }

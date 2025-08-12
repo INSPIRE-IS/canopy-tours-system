@@ -54,17 +54,14 @@ use Inertia\Inertia;
 // Route::get('/activities', function () {
 //     return Inertia::render('Activities');
 // })->name('activities');
-
-Route::redirect('dashboard', '/admin/dashboard');
-
-Route::get('/test-order', [ActivityController::class, 'showTestOrder']);
-Route::get('/', [ActivityController::class, 'index'])->name('welcome');
-Route::get('front/welcome', [ActivityController::class, 'index'])->name('front.welcome');
+// Route::get('/', [ActivityController::class, 'index'])->name('welcome');
+Route::redirect('/', '/front/welcome');
+Route::get('/front/welcome/{team_id?}', [ActivityController::class, 'index'])->name('front.welcome');
 Route::get('/activity', [ActivityController::class, 'activity'])->name('front.activity');
 Route::get('/activity/calendar', [ActivityController::class, 'calendar'])->name('front.activity.calendar');
 Route::post('/booking/store', [ActivityController::class, 'store'])->name('front.booking.store');
 
-// Review payment screen
+Route::get('/test-order', [ActivityController::class, 'showTestOrder']); // Review payment screen
 Route::get('/payment/review/{booking}', [PaymentController::class, 'review'])->name('front.payment.review');
 
 // Fake PayFast screen
@@ -94,7 +91,7 @@ Route::get('/states/{country_id}', [BookingQuestionnaireController::class, 'getS
 // Route::get('/scan-booking', function () {
 //     return Inertia::render('QRScanner');
 // });
-
+Route::redirect('dashboard', '/admin/dashboard');
 
 //Route::middleware('auth')->group(function () {, 'namespace' => 'Admin'
 Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['auth', 'verified']], function () {

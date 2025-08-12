@@ -11,7 +11,7 @@ import Pagination from '@/Components/Pagination';
 import ServicesHeader from '@/Components/ServicesHeader';
 
 
-export default function Index({ permissions,services, auth, searchTerm, sortColumn, sortDirection }) {
+export default function Index({ permissions,services,serviceFields, auth, searchTerm, sortColumn, sortDirection }) {
   //const [modalOpen, setModalOpen] = useState(false);
 
   const [selectedService, setSelectedService] = useState(null);
@@ -82,7 +82,7 @@ export default function Index({ permissions,services, auth, searchTerm, sortColu
                     <SearchBar search={search} handleSearchChange={(e) => handleSearchChange(e)} handleSearchSubmit={handleSearchSubmit} />
 
                     <span className="flex gap-2">
-                        {permissions.service_create && (
+                        {permissions.services_create && (
                         <BlueButton title="Add service" onClick={() => handleOpenModal("create")} icon={true}/>
                         )}
                     </span>
@@ -102,29 +102,29 @@ export default function Index({ permissions,services, auth, searchTerm, sortColu
                         <table className="min-w-full divide-y divide-gray-200 text-sm">
                             <thead className="bg-gray-50 text-left text-gray-500">
                             <tr className='flex justify-between items-center'>
-                                <th className="w-[95px] p-3">ID</th>
-                                <th className="w-[95px] p-3">Name</th>
-                                <th className="w-[185px] p-3">Actions</th>
+                                <th className="w-[10%] p-3">ID</th>
+                                <th className="w-[70%] p-3">Name</th>
+                                <th className="w-[20%] p-3">Actions</th>
                             </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100">
                             {services?.data.map((service, i) => (
                                 <tr key={service.id} className="flex justify-between items-center hover:bg-gray-50">
-                                <td className="w-[95px] p-3">{service.id}</td>
-                                <td className="w-[95px] p-3">{service.name}</td>
-                                <td className="w-[185px] p-3 flex  gap-2">
-                                    {permissions.service_edit && (
+                                <td className="w-[10%] p-3">{service.id}</td>
+                                <td className="w-[70%] p-3">{service.name}</td>
+                                <td className="w-[20%] p-3 flex  gap-2">
+                                    {permissions.services_edit && (
                                     <button onClick={() => handleOpenModal("edit",service)}
                                     className="flex items-center gap-1 text-green-600 hover:text-green-800">
                                     Edit
                                     </button>)}
 
-                                    {permissions.service_edit && (
+                                    {permissions.services_edit && (
                                     <button onClick={() => handleDelete(service)}
                                     className="flex items-center gap-1 text-red-600 hover:text-red-800">
                                     Remove
                                     </button>)}
-                                    {permissions.service_edit && (
+                                    {permissions.services_edit && (
                                     <button onClick={() => handleOpenModal("view",service)}
                                     className="flex items-center gap-1 text-blue-600 hover:text-blue-800">
                                     View
@@ -150,6 +150,7 @@ export default function Index({ permissions,services, auth, searchTerm, sortColu
                 onClose={handleCloseModal}
                 mode={modalMode}
                 service={selectedService}
+                serviceFields={serviceFields}
                 auth={auth}
                 team = {auth?.team}
             />
