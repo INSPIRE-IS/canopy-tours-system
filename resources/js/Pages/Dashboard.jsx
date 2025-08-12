@@ -1,8 +1,43 @@
 import Header from '@/Components/Header';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head } from '@inertiajs/react';
+import { Line } from 'react-chartjs-2';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend
+} from 'chart.js';
 
-export default function Dashboard({ auth }) {
+// Register Chart.js components
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend
+);
+
+export default function Dashboard({ auth, chart1, latestBookings,statusBookings, notifications, customerManifest }) {
+console.log('latestBookings', latestBookings);
+  const data = {
+    labels: chart1.labels || [],
+
+    datasets: chart1.datasets.map(ds => ({
+      label: ds.label,
+      data: ds.data,
+      borderColor: 'rgba(75,192,192,1)',
+      backgroundColor: 'rgba(75,192,192,0.2)',
+      fill: true,
+    })),
+  };
+//console.log('data', data);
     return (
         <AuthenticatedLayout
             user={auth.user}
@@ -19,7 +54,158 @@ export default function Dashboard({ auth }) {
             <div className="py-12">
                 <div className="max-w-7xl mx-auto sm:px-6 lg:px-8">
                     <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                        <div className="p-6 text-gray-900">You're logged in!</div>
+                <div className="py-6 max-w-7xl mx-auto space-y-8">
+                {/* Chart 1 */}
+                <div className="bg-white p-4 shadow rounded-lg">
+                    <h3 className="text-lg font-bold mb-4">{chart1.title}</h3>
+                    <div className="flex w-full h-[300px] gap-2">
+                    <Line data={data} options={chart1.options} />
+                    </div>
+                </div>
+                <div className="flex w-full h-[300px] gap-2">
+                    {/* Latest Bookings Table */}
+                    <div className="flex-1 bg-white p-4 shadow rounded-lg overflow-x-auto">
+                        <h3 className="text-lg font-bold mb-4">{latestBookings?.chart_title}</h3>
+                        <table className="min-w-full border border-gray-200 text-sm">
+                            <thead className="bg-gray-50">
+                                <tr>
+                                    {Object?.keys(latestBookings?.fields)?.map((field, i) => (
+                                        <th key={i} className="px-4 py-2 border">{field}</th>
+                                    ))}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {latestBookings?.data.length > 0 ? (
+                                    latestBookings?.data.map((row, i) => (
+                                        <tr key={i} className="odd:bg-white even:bg-gray-50">
+                                            {Object.entries(latestBookings?.fields).map(([field, relation], j) => (
+                                                <td key={j} className="px-4 py-2 border">
+                                                    {relation
+                                                        ? row[field]?.[relation]
+                                                        : row[field]}
+                                                </td>
+                                            ))}
+                                        </tr>
+                                    ))
+                                ) : (
+                                    <tr>
+                                        <td colSpan={Object.keys(latestBookings?.fields).length} className="text-center p-4">
+                                            No entries found
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {/* status Bookings Table */}
+                    <div className="flex-1 bg-white p-4 shadow rounded-lg overflow-x-auto">
+                        <h3 className="text-lg font-bold mb-4">{statusBookings?.chart_title}</h3>
+                        <table className="min-w-full border border-gray-200 text-sm">
+                            <thead className="bg-gray-50">
+                                <tr>
+                                    {Object?.keys(statusBookings?.fields)?.map((field, i) => (
+                                        <th key={i} className="px-4 py-2 border">{field}</th>
+                                    ))}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {statusBookings?.data.length > 0 ? (
+                                    statusBookings?.data.map((row, i) => (
+                                        <tr key={i} className="odd:bg-white even:bg-gray-50">
+                                            {Object.entries(statusBookings?.fields).map(([field, relation], j) => (
+                                                <td key={j} className="px-4 py-2 border">
+                                                    {relation
+                                                        ? row[field]?.[relation]
+                                                        : row[field]}
+                                                </td>
+                                            ))}
+                                        </tr>
+                                    ))
+                                ) : (
+                                    <tr>
+                                        <td colSpan={Object.keys(latestBookings?.fields).length} className="text-center p-4">
+                                            No entries found
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div className="flex w-full h-[300px] gap-2">
+                    {/* notifications Table */}
+                    <div className="flex-1 bg-white p-4 shadow rounded-lg overflow-x-auto">
+                        <h3 className="text-lg font-bold mb-4">{notifications?.chart_title}</h3>
+                        <table className="min-w-full border border-gray-200 text-sm">
+                            <thead className="bg-gray-50">
+                                <tr>
+                                    {Object?.keys(notifications?.fields)?.map((field, i) => (
+                                        <th key={i} className="px-4 py-2 border">{field}</th>
+                                    ))}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {notifications?.data.length > 0 ? (
+                                    notifications?.data.map((row, i) => (
+                                        <tr key={i} className="odd:bg-white even:bg-gray-50">
+                                            {Object.entries(notifications?.fields).map(([field, relation], j) => (
+                                                <td key={j} className="px-4 py-2 border">
+                                                    {relation
+                                                        ? row[field]?.[relation]
+                                                        : row[field]}
+                                                </td>
+                                            ))}
+                                        </tr>
+                                    ))
+                                ) : (
+                                    <tr>
+                                        <td colSpan={Object.keys(latestBookings?.fields).length} className="text-center p-4">
+                                            No entries found
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {/* customerManifest */}
+                    <div className="flex-1 bg-white p-4 shadow rounded-lg overflow-x-auto">
+                        <h3 className="text-lg font-bold mb-4">{customerManifest?.chart_title}</h3>
+                        <table className="min-w-full border border-gray-200 text-sm">
+                            <thead className="bg-gray-50">
+                                <tr>
+                                    {Object?.keys(customerManifest?.fields)?.map((field, i) => (
+                                        <th key={i} className="px-4 py-2 border">{field}</th>
+                                    ))}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {customerManifest?.data.length > 0 ? (
+                                    customerManifest?.data.map((row, i) => (
+                                        <tr key={i} className="odd:bg-white even:bg-gray-50">
+                                            {Object.entries(customerManifest?.fields).map(([field, relation], j) => (
+                                                <td key={j} className="px-4 py-2 border">
+                                                    {relation
+                                                        ? row[field]?.[relation]
+                                                        : row[field]}
+                                                </td>
+                                            ))}
+                                        </tr>
+                                    ))
+                                ) : (
+                                    <tr>
+                                        <td colSpan={Object.keys(latestBookings?.fields).length} className="text-center p-4">
+                                            No entries found
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>                              
+            </div>
                     </div>
                 </div>
             </div>
