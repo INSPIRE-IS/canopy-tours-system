@@ -58,13 +58,13 @@ console.log('chart1', chart1);
                 <div className="max-w-7xl mx-auto sm:px-6 lg:px-8">
                     <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                         <div className="py-6 max-w-7xl mx-auto space-y-8">
-                            {/* Chart 1 */}
+                            {/* Chart 1 
                             <div className="bg-white p-4 shadow rounded-lg">
                                 <h3 className="text-lg font-bold mb-4">{chart1.title}</h3>
                                 <div className="flex w-full h-[300px] gap-2">
                                 <Line data={data} options={chart1.options} />
                                 </div>
-                            </div>
+                            </div>*/}
                             <div className="flex w-full h-[300px] gap-2">
                                 {/* Latest Bookings Table */}
                                 <BookingsTable
