@@ -1,6 +1,7 @@
 import React from "react";
 
 const CustomSelect = ({ label, name, value, width="w-full" , height="h-[48px]", onChange, error,mode, options }) => {
+  console.log('options ', options);
   return (
     <div className="w-full mb-3">
       {label && (

@@ -4,12 +4,14 @@ use App\Http\Controllers\Admin\AuditLogsController;
 use App\Http\Controllers\Admin\BookingsController;
 use App\Http\Controllers\Admin\CheckinsController;
 use App\Http\Controllers\Admin\CloseoutsController;
+use App\Http\Controllers\Admin\DiscountController;
 use App\Http\Controllers\Admin\HelpQuestionsController;
 use App\Http\Controllers\Admin\HomeController;
 use App\Http\Controllers\Admin\InventoryController;
 use App\Http\Controllers\Admin\InventoryOverridesController;
 use App\Http\Controllers\Admin\MessengerController;
 use App\Http\Controllers\Admin\PermissionsController;
+use App\Http\Controllers\Admin\PromotionController;
 use App\Http\Controllers\Admin\ReportsController;
 use App\Http\Controllers\Admin\RolesController;
 use App\Http\Controllers\Admin\SeasonsController;
@@ -19,6 +21,7 @@ use App\Http\Controllers\Admin\UserAlertsController;
 use App\Http\Controllers\Admin\UsersController;
 use App\Http\Controllers\Admin\VoucherController;
 use App\Http\Controllers\Admin\WholesalerController;
+use App\Http\Controllers\Admin\WholesalerRateController;
 use App\Http\Controllers\Front\ActivityController;
 use App\Http\Controllers\Front\BookingQuestionnaireController;
 use App\Http\Controllers\Front\PaymentController;
@@ -80,6 +83,11 @@ Route::get('/continents', [BookingQuestionnaireController::class, 'getContinents
 Route::get('/countries/{continent_id}', [BookingQuestionnaireController::class, 'getCountries']);
 Route::get('/states/{country_id}', [BookingQuestionnaireController::class, 'getStates']);
 
+// options endpoints for selects (swap to policies/middleware as needed)
+Route::get('services/options', fn() => \App\Models\Service::select('id', 'name')->orderBy('name')->get())->name('services.options');
+Route::get('seasons/options', fn() => \App\Models\Season::select('id', 'name')->orderBy('name')->get())->name('seasons.options');
+Route::get('wholesalers/options', fn() => \App\Models\Wholesaler::select('id', 'name')->orderBy('name')->get())->name('wholesalers.options');
+
 // Route::get('/questionnaire-welcome', function () {
 //     return Inertia::render('Questionnaire-Welcome');
 // });
@@ -129,6 +137,10 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['auth', 'v
     Route::resource('wholesalers', WholesalerController::class);
     // Vouchers
     Route::resource('vouchers', VoucherController::class);
+
+    Route::resource('wholesaler-rates', WholesalerRateController::class)->names('wholesaler_rates');
+    Route::resource('discounts', DiscountController::class);
+    Route::resource('promotions', PromotionController::class);
 
     // Inventory Overrides
     Route::resource('inventories-overrides', InventoryOverridesController::class);
