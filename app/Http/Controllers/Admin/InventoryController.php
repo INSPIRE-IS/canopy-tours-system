@@ -31,11 +31,11 @@ class InventoryController extends Controller
         /** @var \App\Models\User $user */
         $teamId = Session::get('team_id');
         //$seasons = Season::with(['service', 'updated_by', 'team'])
-        $inventories = Inventory::with(['service', 'season', 'inventory_type_days', 'inventory_time_slots', 'team'])
+        $inventories = Inventory::with(['service', 'season', 'inventory_type_days.type_day', 'inventory_time_slots', 'team'])
             ->where('season_id', 'like', '%' . $searchTerm . '%')
             ->orderBy($sortColumn, $sortDirection)
             ->paginate(10);
-        //dd($inventories);
+        // dd($inventories->items()[0]);
         $services = Service::select('name', 'id')->get();
         $seasons = Season::select('name', 'id', 'service_id')->get();
         $day_slots = TypeDay::select('name', 'id')->get();

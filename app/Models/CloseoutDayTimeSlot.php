@@ -24,8 +24,8 @@ class CloseoutDayTimeSlot extends Model
     protected $fillable = [
         'closeout_id',
         'day_id',
-        'created_at',
         'time_slot_id',
+        'created_at',
         'updated_at',
         'deleted_at',
         'team_id',

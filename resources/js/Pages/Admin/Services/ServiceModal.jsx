@@ -14,6 +14,16 @@ const ServiceModal = ({ isOpen, onClose, mode, service, serviceFields, auth, tea
     const { data, setData, post, put, errors, reset, processing } = useForm({
         service_id: "",
         name: "",
+        tag: "",
+        duration: "",
+        pillbox_conditions: "",
+        allow_internal_capacity_override: 0,
+        // pillbox_text: "",
+        // arrangements: "",
+        // inclusions_exclusions: "",
+        // notes: "",
+        // lat_lon_start: "",
+        // lat_long_end: "",
         fields: Object.fromEntries(
             serviceFields.map(f => {
                 const fieldValue = service?.servicefield_values?.find(v => v.field_id === f.id);
@@ -30,12 +40,23 @@ const ServiceModal = ({ isOpen, onClose, mode, service, serviceFields, auth, tea
             setData({
                 service_id: service.service_id || "",
                 name: service.name || "",
+                tag: service.tag || "",
+                duration: service.duration || "",
+                pillbox_conditions: service.pillbox_conditions || "",
+                allow_internal_capacity_override: service.allow_internal_capacity_override || 0,
+                // pillbox_text: service.pillbox_text || "",
+                // arrangements: service.arrangements || "",
+                // inclusions_exclusions: service.inclusions_exclusions || "",
+                // notes: service.notes || "",
+                // lat_lon_start: service.lat_lon_start || "",
+                // lat_long_end: service.lat_long_end || "",
                 fields: Object.fromEntries(
                     serviceFields.map(f => {
                         const fieldValue = service?.servicefield_values?.find(v => v.field_id === f.id);
                         return [`${f.id}`, fieldValue?.value || ""];
                     })
                 ),
+                created_by_id: auth?.user?.id,
                 updated_by_id: auth?.user?.id,
             });
         } else if (mode === "create") {
@@ -67,6 +88,10 @@ const handleSubmit = (e) => {
     const formData = new FormData();
     formData.append('service_id', data.service_id);
     formData.append('name', data.name);
+    formData.append('tag', data.tag);
+    formData.append('duration', data.duration);
+    formData.append('pillbox_conditions', data.pillbox_conditions);
+    formData.append('allow_internal_capacity_override', data.allow_internal_capacity_override);
     formData.append('created_by_id', data.created_by_id);
     formData.append('updated_by_id', data.updated_by_id);
 
@@ -251,6 +276,17 @@ console.log('mode', mode);
                 <form onSubmit={handleSubmit}>
                     <div className="flex flex-row w-full items-center gap-2 justify-between mb-4">
                         <InputText
+                            title="tag"
+                            field="tag"
+                            height="h-[48px]"
+                            value={data.tag}
+                            mode={mode}
+                            handleChange={handleChange}
+                            errors={errors}
+                        />
+                    </div>
+                    <div className="flex flex-row w-full items-center gap-2 justify-between mb-4">
+                        <InputText
                             title="name"
                             field="name"
                             height="h-[48px]"
@@ -260,6 +296,35 @@ console.log('mode', mode);
                             errors={errors}
                         />
                     </div>
+
+                                            <InputText
+                            title="Duration (estimated completion time)"
+                            field="duration"
+                            type='time'
+                            height="h-[48px]"
+                            value={data.duration}
+                            mode={mode}
+                            handleChange={handleChange}
+                            errors={errors}
+                        />
+
+                        <InputText
+                            title="Conditions"
+                            field="pillbox_conditions"
+                            height="h-[48px]"
+                            value={data.pillbox_conditions}
+                            mode={mode}
+                            handleChange={handleChange}
+                            errors={errors}
+                        />
+                                                    <CustomCheckbox
+                                label="Allow Time Capacity(PAX) Override"
+                                name="allow_internal_capacity_override"
+                                checked={data.allow_internal_capacity_override}
+                                mode={mode}
+                                onChange={handleChange}
+                                errors={errors}
+                            />
                     {serviceFields.map(field => {
                         console.log('field', field);
                         return(
@@ -292,10 +357,10 @@ console.log('mode', mode);
                         )}
                     </div>
                     )}
-<div className="mb-4">
-  <label className="block font-semibold mb-1">Upload New File (optional)</label>
-  <input type="file" onChange={e => setFile(e.target.files[0])} />
-</div>
+                    <div className="mb-4">
+                    <label className="block font-semibold mb-1">Upload New File (optional)</label>
+                    <input type="file" onChange={e => setFile(e.target.files[0])} />
+                    </div>
                     <div className="flex justify-center gap-4">
                         <OutlineButton title="Cancel" onClick={onClose} width="w-[180px]"/>
                         {mode !== "view" && (

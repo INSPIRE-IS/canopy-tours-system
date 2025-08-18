@@ -30,27 +30,37 @@ class UpdateServiceRequest extends FormRequest
                 'required',
                 'unique:services,name,' . request()->route('service')->id,
             ],
-            'pillbox_text' => [
+            // 'duration' => [
+            //     'date_format:' . config('panel.time_format'),
+            //     'nullable',
+            // ],
+            'pillbox_conditions' => [
                 'string',
+                'nullable',
+            ],
+            'allow_internal_capacity_override' => [
                 'required',
             ],
-            'arrangements' => [
-                'required',
-            ],
-            'inclusions_exclusions' => [
-                'required',
-            ],
-            'notes' => [
-                'required',
-            ],
-            'lat_lon_start' => [
-                'string',
-                'required',
-            ],
-            'lat_long_end' => [
-                'string',
-                'required',
-            ],
+
+            // 'pillbox_text' => [
+            //     'string',
+            //     'required',
+            // ],
+            // 'arrangements' => [
+            //     'required',
+            // ],
+            // 'inclusions_exclusions' => [
+            //     'required',
+            // ],
+            // 'notes' => [
+            //     'required',
+            // ],
+            // 'lat_lon_start' => [
+            //     'required',
+            // ],
+            // 'lat_long_end' => [
+            //     'required',
+            // ],
         ];
     }
 }

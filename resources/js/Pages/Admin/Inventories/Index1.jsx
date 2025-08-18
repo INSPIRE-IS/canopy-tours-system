@@ -119,20 +119,20 @@ console.log('timeSlots:', inventories?.data?.[0]?.time_slots);
                                 <td className="w-[95px] p-3">{inventory?.season?.name}</td>
                                 <td className="w-[185px] p-3">{inventory?.season?.start_date}</td>
                                 <td className="w-[185px] p-3">{inventory?.season?.end_date}</td>
-                                <td className="w-[132px] p-3">{inventory?.time_slots?.map((r) => r.start_time).join(', ')}</td>
+                                <td className="w-[132px] p-3">{inventory?.inventory_time_slots?.map((r) => r.start_time).join(', ')}</td>
                                 <td className="w-[185px] p-3 flex  gap-2">
-                                    {permissions.inventory_edit && (
+                                    {permissions.inventories_edit && (
                                     <button onClick={() => handleOpenModal("edit",inventory)}
                                     className="flex items-center gap-1 text-green-600 hover:text-green-800">
                                     Edit
                                     </button>)}
 
-                                    {permissions.inventory_edit && (
+                                    {permissions.inventories_edit && (
                                     <button onClick={() => handleDelete(inventory)}
                                     className="flex items-center gap-1 text-red-600 hover:text-red-800">
                                     Remove
                                     </button>)}
-                                    {permissions.inventory_edit && (
+                                    {permissions.inventories_edit && (
                                     <button onClick={() => handleOpenModal("view",inventory)}
                                     className="flex items-center gap-1 text-blue-600 hover:text-blue-800">
                                     View

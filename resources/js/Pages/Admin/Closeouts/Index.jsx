@@ -13,10 +13,12 @@ import ServicesHeader from '@/Components/ServicesHeader';
 
 export default function Index({ permissions,closeouts, seasons, services, auth, searchTerm, sortColumn, sortDirection }) {
   //const [modalOpen, setModalOpen] = useState(false);
+  console.log('auth on user ', auth);
+  console.log('closeouts ', closeouts);
 
   const [selectedCloseout, setSelectedCloseout] = useState(null);
   const { props } = usePage();
-  console.log('auth on user ', auth);
+
   const [search, setSearch] = useState(searchTerm);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isOpenTab, setIsOpenTab] = useState('Closeouts');

@@ -14,6 +14,10 @@ return new class extends Migration
         Schema::create('services', function (Blueprint $table) {
             $table->id();
             $table->string('name')->unique();
+            $table->string('tag')->nullable();
+            $table->time('duration')->nullable();
+            $table->string('pillbox_conditions')->nullable();
+            $table->boolean('allow_internal_capacity_override')->default(0)->nullable();
             $table->timestamps();
             $table->softDeletes();
 

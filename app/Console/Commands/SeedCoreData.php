@@ -8,6 +8,7 @@ use App\Models\BookingFee;
 use App\Models\BookingInventory;
 use App\Models\BookingPayment;
 use App\Models\Closeout;
+use App\Models\CloseoutDayTimeSlot;
 use App\Models\Customer;
 use App\Models\CustomerManifest;
 use App\Models\Inventory;
@@ -682,22 +683,56 @@ class SeedCoreData extends Command
         $services = [
             [
                 'id' => 1,
-                'name' => 'Canopy Tour',
+                'tag' => 'Canopy Tour',
+                'name' => 'Tsitsikamma Canopy Tour',
+                'duration' => '02:00:00',
+                'allow_internal_capacity_override' => 1,
+                'pillbox_conditions' => 'Book Now From 21 February 2025',
                 'team_id' => 7,
             ],
             [
                 'id' => 2,
-                'name' => 'Woodcutters',
+                'tag' => 'Woodcutters',
+                'name' => 'Tsitsikamma Woodcutters Journey',
+                'duration' => '02:00:00',
+                'allow_internal_capacity_override' => 1,
+                'pillbox_conditions' => 'Book Now From 21 February 2025',
                 'team_id' => 7,
             ],
             [
                 'id' => 3,
-                'name' => 'Guided Hikes',
+                'tag' => 'Guided Hikes',
+                'name' => 'Tsitsikamma Guided Hikes Green route: 5.09km',
+                'duration' => '02:00:00',
+                'allow_internal_capacity_override' => 1,
+                'pillbox_conditions' => 'Book Now From 21 February 2025',
                 'team_id' => 7,
             ],
             [
                 'id' => 4,
-                'name' => 'Team Building',
+                'tag' => 'Guided Hikes',
+                'name' => 'Tsitsikamma Guided Hikes Red route: 7.78km',
+                'duration' => '02:00:00',
+                'allow_internal_capacity_override' => 1,
+                'pillbox_conditions' => 'Book Now From 21 February 2025',
+                'team_id' => 7,
+            ],
+            [
+                'id' => 5,
+                'tag' => 'Guided Hikes',
+                'name' => 'Tsitsikamma Guided Hikes Yellow route 8.09km',
+                'duration' => '02:00:00',
+                'allow_internal_capacity_override' => 1,
+                'pillbox_conditions' => 'Book Now From 21 February 2025',
+                'team_id' => 7,
+            ],
+            [
+                'id' => 6,
+                'tag' => 'Team Building',
+                'name' => 'Tsitsikamma Canopy Tour Photographic Scavenger Hunt',
+                'duration' => '02:00:00',
+                'allow_internal_capacity_override' => 1,
+                'pillbox_conditions' => 'Book Now From 21 February 2025',
                 'team_id' => 7,
             ],
         ];
@@ -865,18 +900,16 @@ class SeedCoreData extends Command
         $seasons = [
             [
                 'id' => 1,
-                'name' => 'Tsitsikamma Canopy Tour',
+                'name' => 'february 2025',
                 'start_date' => '2025-02-01',
-                'end_date' => '2026-02-28',
+                'end_date' => '2025-02-28',
                 'rake_rate_adult' => '600.00',
                 'rake_rate_child' => '300.00',
                 'rake_rate_guide' => '200.00',
                 'allow_internal_price_override' => 1,
-                'duration' => '02:00:00',
                 'capacity' => 8,
-                'allow_internal_override' => 1,
+
                 'status' => 0,
-                'pillbox_conditions' => 'Book Now From 21 February 2025',
                 'created_by_id' => 1,
                 'updated_by_id' => 1,
                 'team_id' => 7,
@@ -884,18 +917,15 @@ class SeedCoreData extends Command
             ],
             [
                 'id' => 2,
-                'name' => 'Tsitsikamma Woodcutters Journey',
+                'name' => 'year 2025',
                 'start_date' => '2025-02-01',
                 'end_date' => '2026-10-28',
                 'rake_rate_adult' => '600.00',
                 'rake_rate_child' => '300.00',
                 'rake_rate_guide' => '200.00',
                 'allow_internal_price_override' => 1,
-                'duration' => '04:00:00',
                 'capacity' => 4,
-                'allow_internal_override' => 1,
                 'status' => 0,
-                'pillbox_conditions' => 'Book Now From 21 February 2025',
                 'created_by_id' => 1,
                 'updated_by_id' => 1,
                 'team_id' => 7,
@@ -903,18 +933,15 @@ class SeedCoreData extends Command
             ],
             [
                 'id' => 3,
-                'name' => 'Tsitsikamma Guided Hikes Green route: 5.09km',
+                'name' => 'year 2025',
                 'start_date' => '2025-02-01',
                 'end_date' => '2026-10-28',
                 'rake_rate_adult' => '600.00',
                 'rake_rate_child' => '300.00',
                 'rake_rate_guide' => '200.00',
                 'allow_internal_price_override' => 1,
-                'duration' => '04:00:00',
                 'capacity' => 4,
-                'allow_internal_override' => 1,
                 'status' => 0,
-                'pillbox_conditions' => 'Book Now From 21 February 2025',
                 'created_by_id' => 1,
                 'updated_by_id' => 1,
                 'team_id' => 7,
@@ -922,60 +949,67 @@ class SeedCoreData extends Command
             ],
             [
                 'id' => 4,
-                'name' => 'Tsitsikamma Guided Hikes Red route: 7.78km',
-                'start_date' => '2025-02-01',
-                'end_date' => '2026-06-28',
+                'name' => 'autumn 2025',
+                'start_date' => '2025-03-01',
+                'end_date' => '2026-06-01',
                 'rake_rate_adult' => '600.00',
                 'rake_rate_child' => '300.00',
                 'rake_rate_guide' => '200.00',
-                'allow_internal_price_override' => 1,
-                'duration' => '03:00:00',
                 'capacity' => 8,
-                'allow_internal_override' => 1,
                 'status' => 0,
-                'pillbox_conditions' => 'Book Now From 21 February 2025',
                 'created_by_id' => 1,
                 'updated_by_id' => 1,
                 'team_id' => 7,
-                'service_id' => 3,
+                'service_id' => 4,
             ],
             [
                 'id' => 5,
-                'name' => 'Tsitsikamma Guided Hikes Yellow route 8.09km',
+                'name' => 'half year 2025',
                 'start_date' => '2025-02-01',
                 'end_date' => '2026-08-28',
                 'rake_rate_adult' => '600.00',
                 'rake_rate_child' => '300.00',
                 'rake_rate_guide' => '200.00',
                 'allow_internal_price_override' => 1,
-                'duration' => '05:00:00',
                 'capacity' => 5,
-                'allow_internal_override' => 1,
                 'status' => 0,
-                'pillbox_conditions' => 'Book Now From 21 February 2025',
                 'created_by_id' => 1,
                 'updated_by_id' => 1,
                 'team_id' => 7,
-                'service_id' => 3,
+                'service_id' => 5,
             ],
             [
                 'id' => 6,
-                'name' => 'Tsitsikamma Canopy Tour Photographic Scavenger Hunt',
-                'start_date' => '2025-02-01',
-                'end_date' => '2026-12-28',
+                'name' => 'year 2025',
+                'start_date' => '2025-03-01',
+                'end_date' => '2026-02-28',
                 'rake_rate_adult' => '600.00',
                 'rake_rate_child' => '300.00',
                 'rake_rate_guide' => '200.00',
-                'allow_internal_price_override' => 1,
-                'duration' => '03:00:00',
                 'capacity' => 6,
                 'allow_internal_override' => 1,
                 'status' => 0,
-                'pillbox_conditions' => 'Book Now From 21 February 2025',
                 'created_by_id' => 1,
                 'updated_by_id' => 1,
                 'team_id' => 7,
-                'service_id' => 4,
+                'service_id' => 6,
+            ],
+
+            [
+                'id' => 7,
+                'name' => 'year 2026',
+                'start_date' => '2026-03-01',
+                'end_date' => '2027-02-28',
+                'rake_rate_adult' => '600.00',
+                'rake_rate_child' => '300.00',
+                'rake_rate_guide' => '200.00',
+                'capacity' => 6,
+                'allow_internal_override' => 1,
+                'status' => 0,
+                'created_by_id' => 1,
+                'updated_by_id' => 1,
+                'team_id' => 7,
+                'service_id' => 6,
             ],
         ];
 
@@ -995,38 +1029,51 @@ class SeedCoreData extends Command
         $inventory = [
             [
                 'id' => 1,
+                'allow_internal_override' => 1,
                 'service_id' => 1,
                 'season_id' => 1,
 
             ],
             [
                 'id' => 2,
+                'allow_internal_override' => 1,
                 'service_id' => 2,
                 'season_id' => 2,
 
             ],
             [
                 'id' => 3,
+                'allow_internal_override' => 1,
                 'service_id' => 3,
                 'season_id' => 3,
 
             ],
             [
                 'id' => 4,
-                'service_id' => 3,
+                'allow_internal_override' => 1,
+                'service_id' => 4,
                 'season_id' => 4,
 
             ],
             [
                 'id' => 5,
-                'service_id' => 3,
+                'allow_internal_override' => 1,
+                'service_id' => 5,
                 'season_id' => 5,
 
             ],
             [
                 'id' => 6,
-                'service_id' => 4,
+                'allow_internal_override' => 1,
+                'service_id' => 6,
                 'season_id' => 6,
+
+            ],
+            [
+                'id' => 7,
+                'allow_internal_override' => 1,
+                'service_id' => 6,
+                'season_id' => 7,
 
             ],
         ];
@@ -1094,6 +1141,16 @@ class SeedCoreData extends Command
             [
                 'id' => 12,
                 'inventory_id' => 6,
+                'start_time' => '10:00:00',
+            ],
+            [
+                'id' => 13,
+                'inventory_id' => 7,
+                'start_time' => '08:00:00',
+            ],
+            [
+                'id' => 14,
+                'inventory_id' => 7,
                 'start_time' => '10:00:00',
             ],
         ];
@@ -1185,7 +1242,42 @@ class SeedCoreData extends Command
         }
 
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        $closeoutDayTimeSlots = [
+            [
+                'id' => 1,
+                'closeout_id' => 1,
+                'day_id' => 6,
+                'time_slot_id' => 1,
+            ],
+            [
+                'id' => 2,
+                'closeout_id' => 1,
+                'day_id' => 7,
+                'time_slot_id' => 2,
+            ],
+            [
+                'id' => 3,
+                'closeout_id' => 2,
+                'day_id' => 6,
+                'time_slot_id' => 3,
+            ],
+            [
+                'id' => 4,
+                'closeout_id' => 2,
+                'day_id' => 7,
+                'time_slot_id' => 4,
+            ],
+            [
+                'id' => 5,
+                'closeout_id' => 3,
+                'day_id' => 7,
+                'time_slot_id' => 5,
+            ]
+        ];
 
+        foreach ($closeoutDayTimeSlots as $closeoutDayTimeSlot) {
+            CloseoutDayTimeSlot::updateOrCreate(['id' => $closeoutDayTimeSlot['id']], $closeoutDayTimeSlot);
+        }
 
         $customers = [
             [
@@ -1304,7 +1396,7 @@ class SeedCoreData extends Command
                 'status_booking_id' => 1,
                 'is_sms'         => 0,
                 'is_corporate'   => 0,
-                'due_date'       => '2025-07-01',
+                'due_date'       => '2025-03-01',
                 'tot_paid'       => 0,
                 'grand_tot_due'  => 1700.00,
                 'reference'      => 'REF-' . strtoupper(Str::random(6)), //Str::uuid(),
@@ -1325,7 +1417,7 @@ class SeedCoreData extends Command
                 'status_booking_id' => 1,
                 'is_sms'         => 0,
                 'is_corporate'   => 0,
-                'due_date'       => '2025-07-02',
+                'due_date'       => '2025-04-02',
                 'tot_paid'       => 0,
                 'grand_tot_due'  => 2000.00,
                 'reference'      => 'REF-' . strtoupper(Str::random(6)), //Str::uuid(),
@@ -1596,7 +1688,7 @@ class SeedCoreData extends Command
                 'id'             => 1,
                 'booking_id'     => 1,
                 'booking_detail_id' => 1,
-                'date'           => '2025-07-01',
+                'date'           => '2025-03-01',
                 'tot_adults'     => 2,
                 'tot_children'   => 1,
                 'tot_guides'     => 1,
@@ -1613,7 +1705,7 @@ class SeedCoreData extends Command
                 'id'             => 2,
                 'booking_id'     => 2,
                 'booking_detail_id' => 2,
-                'date'           => '2025-07-02',
+                'date'           => '2025-04-02',
                 'tot_adults'     => 3,
                 'tot_children'   => 0,
                 'tot_guides'     => 1,

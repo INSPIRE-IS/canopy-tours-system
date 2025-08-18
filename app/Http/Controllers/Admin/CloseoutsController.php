@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreCloseoutRequest;
 use App\Http\Requests\UpdateCloseoutRequest;
 use App\Models\Closeout;
+use App\Models\CloseoutDayTimeSlot;
 use App\Models\Season;
 use App\Models\Service;
 use App\Models\User;
@@ -32,7 +33,7 @@ class CloseoutsController extends Controller
         $sortDirection = $request->get('direction', 'asc');
         /** @var \App\Models\User $user */
         $teamId = Session::get('team_id');
-        $closeouts = Closeout::with(['service', 'season.inventory', 'updated_by', 'team'])
+        $closeouts = Closeout::with(['service', 'season.inventory', 'closeout_day_time_slots'])
             ->where('name', 'like', '%' . $searchTerm . '%')
             ->orderBy($sortColumn, $sortDirection)
             ->paginate(10);
@@ -56,8 +57,33 @@ class CloseoutsController extends Controller
 
     public function store(StoreCloseoutRequest $request)
     {
-        //dd($request->all());
-        $closeout = Closeout::create($request->all());
+        dd($request->all());
+        //$closeout = Closeout::create($request->all());
+        $closeout = Closeout::create($request->only([
+            'service_id',
+            'season_id',
+            'name',
+            'start_date',
+            'end_date',
+            'reason',
+            'team_id',
+            'created_by_id',
+            'updated_by_id'
+        ]));
+
+        foreach ($request->day_id as $index => $dayId) {
+            logger()->info('dayId ' . $dayId);
+            logger()->info('time_slot_id ' . $request->time_slot_id[$index]);
+            $res = CloseoutDayTimeSlot::create([
+                'closeout_id' => $closeout->id,
+                'day_id' => $dayId,
+                'time_slot_id' => $request->time_slot_id[$index],
+                'team_id' => $closeout->team_id,
+            ]);
+            logger()->info('res ' . $res);
+        }
+
+
 
         return redirect()->route('admin.closeouts.index');
     }
@@ -65,7 +91,29 @@ class CloseoutsController extends Controller
 
     public function update(UpdateCloseoutRequest $request, Closeout $closeout)
     {
-        $closeout->update($request->all());
+        $closeout->update($request->only([
+            'service_id',
+            'season_id',
+            'name',
+            'start_date',
+            'end_date',
+            'reason',
+            'team_id',
+            'created_by_id',
+            'updated_by_id'
+        ]));
+        $closeout_day_time_slots = CloseoutDayTimeSlot::where('closeout_id', $closeout->id)->get();
+        foreach ($closeout_day_time_slots as $closeout_day_time_slot) {
+            $closeout_day_time_slot->delete();
+        }
+        foreach ($request->day_id as $index => $dayId) {
+            CloseoutDayTimeSlot::create([
+                'closeout_id' => $closeout->id,
+                'day_id' => $dayId,
+                'time_slot_id' => $request->time_slot_id[$index],
+                'team_id' => $closeout->team_id,
+            ]);
+        }
 
         return redirect()->route('admin.closeouts.index');
     }

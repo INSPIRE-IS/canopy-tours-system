@@ -84,4 +84,9 @@ class Closeout extends Model
     {
         return $this->belongsTo(Team::class, 'team_id');
     }
+
+    public function closeout_day_time_slots()
+    {
+        return $this->hasMany(CloseoutDayTimeSlot::class, 'closeout_id');
+    }
 }

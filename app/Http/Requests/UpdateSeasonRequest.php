@@ -53,26 +53,17 @@ class UpdateSeasonRequest extends FormRequest
                 'numeric',
                 'required',
             ],
-            'duration' => [
-                'date_format:' . config('panel.time_format'),
-                'nullable',
-            ],
+
             'capacity' => [
                 'required',
                 'integer',
                 'min:-2147483648',
                 'max:2147483647',
             ],
-            'allow_internal_override' => [
-                'required',
-            ],
             'status' => [
                 'required',
             ],
-            'pillbox_conditions' => [
-                'string',
-                'nullable',
-            ],
+
             'updated_by_id' => [
                 'required',
                 'integer',

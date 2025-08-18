@@ -19,6 +19,7 @@ const InventoryModal = ({ isOpen, onClose, mode, inventory = null,services, seas
         season_id: "",
         day_slots: [1,2,3,4,5,6,7],
         time_slots: [],
+        allow_internal_override: 0,
         created_by_id: auth?.user?.id,
     });
     useEffect(() => {
@@ -28,6 +29,7 @@ const InventoryModal = ({ isOpen, onClose, mode, inventory = null,services, seas
                 season_id: inventory.season_id || "",
                 day_slots: inventory.day_slots || [1,2,3,4,5,6,7],
                 time_slots: inventory?.time_slots?.map(slot => slot.start_time) || [],
+                allow_internal_override: inventory.allow_internal_override || 0,
                 updated_by_id: inventory.updated_by_id || "",
                 //roles: inventory.roles.map((role) => role.id),
 
@@ -122,7 +124,14 @@ const InventoryModal = ({ isOpen, onClose, mode, inventory = null,services, seas
                         options={filteredSeasons}
                     />
                     </div>
-
+                            <CustomCheckbox
+                                label="Allow Time Slot Override"
+                                name="allow_internal_override"
+                                checked={data.allow_internal_override}
+                                mode={mode}
+                                onChange={handleChange}
+                                errors={errors}
+                            />
                     {/* Identification Section */}
                     <div className="flex flex-row w-full items-center gap-2 justify-start mb-4">
                         <div className="mb-4 w-full">                        
