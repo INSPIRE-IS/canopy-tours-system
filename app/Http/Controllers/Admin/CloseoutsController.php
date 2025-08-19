@@ -37,7 +37,7 @@ class CloseoutsController extends Controller
             ->where('name', 'like', '%' . $searchTerm . '%')
             ->orderBy($sortColumn, $sortDirection)
             ->paginate(10);
-
+        //dd($closeouts);
         $services = Service::with('seasons', 'seasons.inventory', 'seasons.inventory.inventory_type_days.type_day', 'seasons.inventory.inventory_time_slots')->select('id', 'name')->get();
         //dd($services[0]->seasons[0]->inventory->inventory_time_slots);
         //dd($services[0]->seasons[0]->inventory->inventory_type_days);
@@ -57,7 +57,7 @@ class CloseoutsController extends Controller
 
     public function store(StoreCloseoutRequest $request)
     {
-        dd($request->all());
+        //dd($request->all());
         //$closeout = Closeout::create($request->all());
         $closeout = Closeout::create($request->only([
             'service_id',
