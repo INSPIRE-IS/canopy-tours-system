@@ -19,12 +19,10 @@ return new class extends Migration
             $table->float('rake_rate_adult', 8, 2);
             $table->float('rake_rate_child', 8, 2);
             $table->float('rake_rate_guide', 8, 2);
-            $table->boolean('allow_internal_price_override')->default(0)->nullable();
-            $table->time('duration')->nullable();
+            $table->boolean('allow_internal_price_override')->nullable()->default(0);
             $table->integer('capacity');
-            $table->boolean('allow_internal_override')->default(0);
             $table->boolean('status')->default(0);
-            $table->string('pillbox_conditions')->nullable();
+
             $table->timestamps();
             $table->softDeletes();
 

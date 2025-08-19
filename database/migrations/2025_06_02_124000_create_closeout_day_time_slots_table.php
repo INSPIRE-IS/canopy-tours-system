@@ -16,7 +16,6 @@ return new class extends Migration
             $table->timestamps();
             $table->softDeletes();
 
-
             $table->foreignId('closeout_id')->nullable()->constrained('closeouts');
             $table->foreignId('day_id')->nullable()->constrained('type_days');
             $table->foreignId('time_slot_id')->nullable()->constrained('inventory_time_slots');

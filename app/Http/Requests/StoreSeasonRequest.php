@@ -59,19 +59,8 @@ class StoreSeasonRequest extends FormRequest
                 'min: 1',
                 'max:100',
             ],
-            'allow_internal_override' => [
-                'required',
-            ],
-            'duration' => [
-                'date_format:' . config('panel.time_format'),
-                'nullable',
-            ],
             'status' => [
                 'required',
-            ],
-            'pillbox_conditions' => [
-                'string',
-                'nullable',
             ],
             'created_by_id' => [
                 'required',

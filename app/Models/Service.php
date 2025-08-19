@@ -23,6 +23,10 @@ class Service extends Model
 
     protected $fillable = [
         'name',
+        'tag',
+        'duration',
+        'pillbox_conditions',
+        'allow_internal_capacity_override',
         'created_by_id',
         'updated_by_id',
         'created_at',

@@ -25,7 +25,7 @@ class Inventory extends Model
     protected $fillable = [
         'service_id',
         'season_id',
-
+        'allow_internal_override',
         'created_by_id',
         'updated_by_id',
         'created_at',

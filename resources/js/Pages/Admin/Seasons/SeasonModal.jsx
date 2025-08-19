@@ -23,11 +23,8 @@ const SeasonModal = ({ isOpen, onClose, mode, season = null, services, auth, tea
         rake_rate_child: "",
         rake_rate_guide: "",
         allow_internal_price_override: 0,
-        allow_internal_override: 0,
-        duration: "",
         capacity: "",
         status: 0,
-        pillbox_conditions: "",
         created_by_id: auth?.user?.id,
         team_id: auth?.user?.team_id,
     });
@@ -43,11 +40,8 @@ const SeasonModal = ({ isOpen, onClose, mode, season = null, services, auth, tea
                 rake_rate_child: season.rake_rate_child || "",
                 rake_rate_guide: season.rake_rate_guide || "",
                 allow_internal_price_override: season.allow_internal_price_override || 0,
-                allow_internal_override: season.allow_internal_override || 0,
-                duration: season.duration || "",
                 capacity: season.capacity || "",
                 status: season.status || 0,
-                pillbox_conditions: season.pillbox_conditions || "",
                 updated_by_id: season.updated_by_id || "",
                 updated_by_id: auth?.user?.id,
             });
@@ -236,40 +230,13 @@ setData(prevData => ({
                                 onChange={(e) => {e.preventDefault(); setNewTimeSlot(e.target.value)}}
                             />
                         </div> */}
-                        <InputText
-                            title="Duration"
-                            field="duration"
-                            type='time'
-                            height="h-[48px]"
-                            value={data.duration}
-                            mode={mode}
-                            handleChange={handleChange}
-                            errors={errors}
-                        />
 
-                        <InputText
-                            title="Conditions"
-                            field="pillbox_conditions"
-                            height="h-[48px]"
-                            value={data.pillbox_conditions}
-                            mode={mode}
-                            handleChange={handleChange}
-                            errors={errors}
-                        />
                     </div>
                     <div className="flex flex-row w-full items-center gap-2 justify-start mb-4">
                             <CustomCheckbox
                                 label="Allow Internal Price Override"
                                 name="allow_internal_price_override"
                                 checked={data.allow_internal_price_override}
-                                mode={mode}
-                                onChange={handleChange}
-                                errors={errors}
-                            />
-                            <CustomCheckbox
-                                label="Allow Time Slot Override"
-                                name="allow_internal_override"
-                                checked={data.allow_internal_override}
                                 mode={mode}
                                 onChange={handleChange}
                                 errors={errors}

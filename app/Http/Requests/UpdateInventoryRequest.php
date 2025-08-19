@@ -53,6 +53,9 @@ class UpdateInventoryRequest extends FormRequest
                 'required',
                 'integer',
             ],
+            'allow_internal_override' => [
+                'required',
+            ],
         ];
     }
 }

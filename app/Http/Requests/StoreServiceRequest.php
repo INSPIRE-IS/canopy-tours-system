@@ -25,11 +25,22 @@ class StoreServiceRequest extends FormRequest
     public function rules(): array
     {
         return [
-            // 'name' => [
-            //     'string',
-            //     'required',
-            //     'unique:services',
+            'name' => [
+                'string',
+                'required',
+                'unique:services',
+            ],
+            // 'duration' => [
+            //     'date_format:' . config('panel.time_format'),
+            //     'nullable',
             // ],
+            'pillbox_conditions' => [
+                'string',
+                'nullable',
+            ],
+            'allow_internal_capacity_override' => [
+                'required',
+            ],
             // 'pillbox_text' => [
             //     'string',
             //     'required',
@@ -44,11 +55,9 @@ class StoreServiceRequest extends FormRequest
             //     'required',
             // ],
             // 'lat_lon_start' => [
-            //     'string',
             //     'required',
             // ],
             // 'lat_long_end' => [
-            //     'string',
             //     'required',
             // ],
         ];

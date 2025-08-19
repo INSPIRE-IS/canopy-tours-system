@@ -51,6 +51,9 @@ class StoreInventoryRequest extends FormRequest
                 'required',
                 'integer',
             ],
+            'allow_internal_override' => [
+                'required',
+            ],
         ];
     }
 }
