@@ -124,7 +124,7 @@ console.log("booking----------tool-------- ", booking)
                             </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100">
-                            {bookings.map((item, i) => (
+                            {bookings?.map((item, i) => (
                                 <React.Fragment key={i}>
                                 {/* Main Booking Row */}
                                 <tr className="hover:bg-gray-50">
@@ -132,7 +132,7 @@ console.log("booking----------tool-------- ", booking)
                                     <div className="flex justify-between items-center gap-2">
                                         <div className="flex items-center gap-2">
                                         <span className="w-5 h-5 block border border-gray-500 rounded-md"></span>
-                                        {item.time}
+                                        {item?.time}
                                         </div>
                                         <img
                                         src={`/assets/icons/${expanded === i ? 'arrow-down' : 'arrow-left'}.svg`}
@@ -142,17 +142,17 @@ console.log("booking----------tool-------- ", booking)
                                         />
                                     </div>
                                     </td>
-                                    <td className="w-[95px] p-3">{item.bookingPax} ({item.maxPax})</td>
-                                    <td className="w-[268px] p-3">{item.service}</td>
-                                    <td className="w-[132px] p-3">R{item.price.toLocaleString()}</td>
-                                    <td className="w-[111px] p-3">R{item.paid.toLocaleString()}</td>
+                                    <td className="w-[95px] p-3">{item?.bookingPax} ({item?.maxPax})</td>
+                                    <td className="w-[268px] p-3">{item?.service}</td>
+                                    <td className="w-[132px] p-3">R{item?.price.toLocaleString()}</td>
+                                    <td className="w-[111px] p-3">R{item?.paid.toLocaleString()}</td>
                                     <td className="w-[107px] p-3">
                                     <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                                        item.due === 0 ? 'bg-blue-100 text-blue-600'
-                                        : item.dueStatus === 'Normal' ? 'bg-orange-100 text-orange-600'
+                                        item?.due === 0 ? 'bg-blue-100 text-blue-600'
+                                        : item?.dueStatus === 'Normal' ? 'bg-orange-100 text-orange-600'
                                         : 'bg-red-100 text-red-600'
                                     }`}>
-                                        • {item.due === 0 ? 'R0.00' : item.dueStatus === 'Normal' ? 'Normal' : `R${item.due.toLocaleString()}`}
+                                        • {item?.due === 0 ? 'R0.00' : item?.dueStatus === 'Normal' ? 'Normal' : `R${item?.due.toLocaleString()}`}
                                     </span>
                                     </td>
                                     <td className="w-[185px] p-3 flex gap-2">
@@ -163,7 +163,7 @@ console.log("booking----------tool-------- ", booking)
                                             </button>
                                         ) : (
                                             <>
-                                                <button type='button' onClick={() => router.get(route('admin.bookings.edit', item.id))} className="btn-tool">{icons.plus_alt} Add</button>
+                                                <button type='button' onClick={() => router.get(route('admin.bookings.edit', item?.id))} className="btn-tool">{icons.plus_alt} Add</button>
                                                 <button type='button' onClick={(e) => openBookingToolsModal(e, item)} className="btn-tool">{icons.tools} Tools</button>                                            
                                             </>                                            
                                         )}

@@ -92,36 +92,7 @@ const VoucherModal = ({ isOpen, onClose, mode, voucher = null, services, auth, t
                 </h2>
                 <form onSubmit={handleSubmit}>
                     <div className="flex flex-row w-full items-center gap-2 justify-between mb-4">
-                        <InputText
-                            title="Voucher"
-                            field="voucher_code"
-                            value={data.voucher_code}
-                            mode={mode}
-                            handleChange={handleChange}
-                            errors={errors}
-                        />
-                        <CustomInputText
-                            title="Amount"
-                            id="amount"
-                            name="amount"
-                            type='number'
-                            value={data.amount}
-                            
-                            onChange={(e) => {handleChange(e.target.name, e.target.value);}}
-                            errors={errors}
-                        />
-                    </div>
-                    <div className="flex flex-row w-full items-center gap-2 justify-between mb-4">
-                        <InputText
-                            title="Note"
-                            field="note"
-                            value={data.note}
-                            mode={mode}
-                            handleChange={handleChange}
-                            errors={errors}
-                            isRequired
-                            isReadOnly={mode === "view"}
-                        />
+
                         <CustomSelect
                             label="Service"
                             name="service_id"
@@ -130,9 +101,6 @@ const VoucherModal = ({ isOpen, onClose, mode, voucher = null, services, auth, t
                             error={errors.service_id}
                             options={services}
                         /> 
-
-                    </div>
-                    <div className="flex flex-row w-full items-center gap-2 justify-between mb-4">
                         <CustomSelect
                             label="Season"
                             name="season_id"
@@ -141,7 +109,39 @@ const VoucherModal = ({ isOpen, onClose, mode, voucher = null, services, auth, t
                             onChange={(e) => handleChange(e.target.name, e.target.value)}
                             error={errors.season_id}
                             options={seasons}
+                        /> 
+                    </div>                    
+                    <div className="flex flex-row w-full items-center gap-2 justify-between mb-4">
+                        <CustomInputText
+                            title="Voucher"
+                            id="voucher_code"
+                            name="voucher_code"
+                            type='text'
+                            value={data.voucher_code}
+                            onChange={(e) => {handleChange(e.target.name, e.target.value);}}
+                            errors={errors}
                         />                        
+                        <CustomInputText
+                            title="Amount"
+                            id="amount"
+                            name="amount"
+                            type='number'
+                            value={data.amount}
+                            onChange={(e) => {handleChange(e.target.name, e.target.value);}}
+                            errors={errors}
+                        />
+                    </div>
+
+                    <div className="flex flex-row w-full items-center gap-2 justify-between mb-4">
+                        <CustomInputText
+                            title="Note"
+                            id="note"
+                            name="note"
+                            type='text'
+                            value={data.note}
+                            onChange={(e) => {handleChange(e.target.name, e.target.value);}}
+                            errors={errors}
+                        />
                         <CustomInputText
                             title="Expire Date"
                             id="expire_date"

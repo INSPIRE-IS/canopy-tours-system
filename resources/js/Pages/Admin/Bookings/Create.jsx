@@ -16,24 +16,87 @@ import WhiteButton from '@/Components/WhiteButton';
 import BlueButton from '@/Components/BlueButton';
 import CustomTextarea from '@/Components/CustomTextarea';
 
-export default function Dashboard({ auth, wholesalers = [], services = [], schedule, start_date, view_mode, days,availableTimes, type_affiliates }) {
+export default function Dashboard({ auth, wholesalers = [], services = [], schedule, start_date, view_mode, days, type_affiliates, vouchers, discounts, wholesaler_rates }) {
 //seasons = [],, adults, children, guides
     const page = usePage();
     const mode = 'create';
     const [date, setDate] = useState(() => new Date(start_date));
     const [viewMode, setViewMode] = useState(view_mode); // 'day', 'week', or 'month'
     const [activityId, setActivityId] = useState('');
-    const [adults, setAdults] = useState('0');
-    const [children, setChildren] = useState('0');
-    const [guides, setGuides] = useState('0');
-    const [selectedSlot, setSelectedSlot] = useState(null); // stores {date: string, day: string, time: string }
     const [scheduleData, setScheduleData] = useState({ schedule, days });
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
     const [seasons, setSeasons] = useState([]);
     const [timeslots, setTimeslots] = useState([]);
     const [toggleCalendar, setToggleCalendar] = useState(true);
+    const [toggleRate, setToggleRate] = useState(true);
+    const [selectedService, setSelectedService] = useState(null);
+    const [selectedSeason, setSelectedSeason] = useState(null);
+    const [selectedWholesaler, setSelectedWholesaler] = useState(null);
+    const [adults, setAdults] = useState('0');
+    const [children, setChildren] = useState('0');
+    const [guides, setGuides] = useState('0');
+    const [selectedSlot, setSelectedSlot] = useState(null); // stores {date: string, day: string, time: string }
+    const [wholesalerRateList, setWholesalerRateList] = useState([]);
+    const [discountList, setDiscountList] = useState([]);
+    const [promoCode, setPromoCode] = useState(null);
+    const [discountCode, setDiscountCode] = useState(null);
+    const [selectedDate, setSelectedDate] = useState(null);
+    const [pricing, setPricing] = useState(null);
     console.log('schedule ',schedule);
+    const { data, setData, post, processing, errors } = useForm({
+        is_wholesaler: false,
+        wholesaler_id: '',
+        add_consultant: false,
+        consultant_name: '',
+        consultant_email: '',
+        consultant_mobile: '',
+        service_id: '',
+        season_id: '',
+        booking_date: '',
+        start_time: '',
+        end_time: '',
+        adults: '',
+        children: '',
+        guides: '',        
+        web_booking: false,
+        needs_pickup: false,
+        override_timeslots: false,
+        exclusive_resource: false,
+        //rates
+        include_media: false,        
+        selected_slot: [],        
+        override_rates: false,
+        override_reason: '',        
+        adult: 0,
+        child: 0,
+        guide: 0,
+        rate_per_adult: 0,
+        rate_per_child: 0,
+        rate_per_guide: 0,
+        //redeem
+        redeem_voucher: '',
+        redeem_discount: '',
+        redeem_wholesaler_rate: '',
+        invoice_note: '', 
+        email_reminder: '', 
+        booking_note: '',
+        // booking details
+        corporate_customer: false, 
+        send_sms: false,
+        is_lead: true,
+        lead_person: '', 
+        lead_email: '', 
+        lead_mobile: '', 
+        referral_source: '',
+        // booking payment
+        booking_total: 0,
+        deposit_due: 0,
+        due_today: 0,
+        rack_value: 0,
+        bill_back: 0,
+    });
+
 
     useEffect(() => {
         console.log('activityId', activityId);
@@ -67,6 +130,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
     }, [adults, children, guides]);
 
     const loadCalendar = async () => {
+        console.log('-----------------loadCalendar-------------');
         if (activityId) {
             setLoading(true);
             try {
@@ -89,6 +153,73 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
         }
     };
 
+    useEffect(() => {
+    if (selectedService && selectedSeason) {
+        fetchCalculatedPrice();
+    }
+    }, [selectedService, selectedSeason, selectedWholesaler, promoCode, adults, children, guides, selectedDate]);
+
+    const fetchCalculatedPrice = async () => {
+        console.log('selectedService', selectedService);
+        console.log('selectedSeason', selectedSeason);
+        console.log('selectedWholesaler', selectedWholesaler);
+        console.log('promoCode', promoCode);
+        console.log('discountCode', discountCode);
+        console.log('adults', adults);
+        console.log('children', children);
+        console.log('guides', guides);
+        console.log('selectedDate', selectedDate);
+        if(!selectedService || !selectedSeason || !adults || !children || !guides || !selectedDate) return; // || !selectedWholesaler || !promoCode || !discountCode 
+        try {
+            const res = await axios.post('/admin/bookings/calculate-price', {
+            service_id: selectedService,
+            season_id: selectedSeason,
+            wholesaler_id: selectedWholesaler,
+            promo_code: promoCode,
+            discount_code: discountCode, // optional
+            pax: { adults, children, guides },
+            booking_date: selectedDate,
+            });
+            setPricing(res.data);
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
+
+    useEffect(() => {
+        // console.log('selectedWholesaler', selectedWholesaler);
+        // console.log('wholesaler_rates', wholesaler_rates);
+        if(selectedWholesaler){
+            const wholesaler_rates_list = wholesaler_rates.filter(s => s.id === parseInt(selectedWholesaler));
+            //console.log('wholesaler_rates_list', wholesaler_rates_list);
+            let wholesalerList = [];
+            wholesaler_rates_list.forEach(rate=>{
+                //console.log('rate', rate);
+                const filtered = {id: rate.id, name: rate.season?.name, price_adult: rate.price_adult, price_child: rate.price_child, price_guide: rate.price_guide};
+                //console.log('filtered', filtered);
+                //setWholesalerRateList(prev => [...prev, filtered]);
+                wholesalerList.push(filtered);
+            });
+            setWholesalerRateList(wholesalerList);
+
+        }
+    },[selectedWholesaler]);
+
+
+    useEffect(() => {
+        if(selectedService){
+            console.log('discounts', discounts);
+            const discount_rates_list = discounts.filter(s => s.service_id === parseInt(selectedService));
+            let discountList = [];
+            discount_rates_list.forEach(rate=>{
+                const filtered = {id: rate.id, name: rate.name, percent_off: rate.percent_off, applies_to: rate.applies_to};
+                discountList.push(filtered);
+            });
+            setDiscountList(discountList);
+        }
+    },[selectedService]);
+
   // useEffect(() => {
   //   // reload calendar from Laravel with view_mode=day and date +/- 2 days
   //   router.get(route('front.activity'), {
@@ -109,98 +240,24 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
         setSelectedSlot(null); // reset selected slotdatedate.toDateString() // 
     };
 
-
-    const { data, setData, post, processing, errors } = useForm({
-        is_wholesaler: false,
-        wholesaler_id: '',
-        add_consultant: false,
-        consultant_name: '',
-        consultant_email: '',
-        consultant_mobile: '',
-        service_id: '',
-        season_id: '',
-        booking_date: '',
-        start_time: '',
-        end_time: '',
-        selected_slot: [],
-        adults: '',
-        children: '',
-        guides: '',
-        include_media: false,
-        override_rates: false,
-        adult: 0,
-        child: 0,
-        guide: 0,
-        booking_total: 0,
-        redeem_voucher: '',
-        invoice_note: '', 
-        email_reminder: '', 
-        booking_note: '',
-        corporate_customer: false, 
-        send_sms: false,
-        lead_person: '', 
-        lead_email: '', 
-        lead_mobile: '', 
-        referral_source: '',
-        web_booking: false,
-        needs_pickup: false,
-        override_timeslots: false,
-        exclusive_resource: false,
-        rate_per_adult: 0,
-        rate_per_child: 0,
-        rate_per_guide: 0,
-        // override_reason: '',
-        // time_slot: null,
-        // inventory_override_id: null,
-        // date: null,
-        // time: null,
-        // customers: [],
-        // team_id: null,
-        // is_lead: false,
-        // is_wholesaler: false,
-        // wholesaler_id: null,
-        // add_consultant: false,
-        // consultant_name: '',
-        // consultant_email: '',
-        // consultant_mobile: '',
-        // season_id: null,
-        // service_id: null,
-        // booking_date: null,
-        // start_time: null,
-        // end_time: null,
-        // selected_slot: [],
-        // adults: 0,
-        // children: 0,
-        // guides: 0,
-        // include_media: true,
-        // override_rates: false,
-        // adult: 0,
-        // child: 0,
-        // guide: 0,
-        // booking_total: 0,
-        // redeem_voucher: '',
-        // invoice_note: '', 
-        // email_reminder: '', 
-        // booking_note: '',
-    });
-
     useEffect(() => {
-        const selectedService = services.find(s => {
+        const service = services.find(s => {
             console.log('service', s);
             console.log('service_id ', data.service_id);
             const selected = s.id === parseInt(data.service_id);
             console.log(selected);
-
+            setSeasons([]);
             return selected;
         });
-        console.log(selectedService);
-        const seasons = selectedService ? setSeasons(selectedService.seasons) : [];
-        console.log('seasons', selectedService?.seasons);
+        console.log(service);
+        setSelectedService(service?.id ?? null);
+        const seasons = service ? setSeasons(service.seasons) : [];
+        console.log('seasons', service?.seasons);
 
     }, [data.service_id]);
 
     useEffect(() => {
-        const selectedSeason = seasons.find(s => {
+        const season = seasons.find(s => {
             console.log('season', s);
             console.log('season_id ', data.season_id);
             const selected = s.id === parseInt(data.season_id);
@@ -208,33 +265,31 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
 
             return selected;
         });
-        console.log('selectedSeason', selectedSeason);
+        console.log('selectedSeason', season);
+        setSelectedSeason(season?.id ?? null);
         //const time_slots = selectedSeason ? setTimeslots(selectedSeason?.inventory?.time_slots) : [];
         //console.log('time_slots', selectedSeason?.inventory?.time_slots);
-        if (selectedSeason) {
-        const formattedTimeSlots = selectedSeason?.inventory?.time_slots?.map(slot => ({
-            id: slot.id,
-            name: slot.start_time.slice(0, 5), // e.g., '08:00' from '08:00:00'
-        })) || [];
-        console.log('formattedTimeSlots--------------------', formattedTimeSlots);
-        // setData('adult', selectedSeason?.inventory?.rake_rate_adult || 0);
-        // setData('child', selectedSeason?.inventory?.rake_rate_child || 0);
-        // setData('guide', selectedSeason?.inventory?.rake_rate_guide || 0);
-        setData({
-            ...data,
-            adult: selectedSeason?.inventory?.rake_rate_adult || 0,
-            child: selectedSeason?.inventory?.rake_rate_child || 0,
-            guide: selectedSeason?.inventory?.rake_rate_guide || 0,
-            rate_per_adult: selectedSeason?.inventory?.rake_rate_adult || 0,
-            rate_per_child: selectedSeason?.inventory?.rake_rate_child || 0,
-            rate_per_guide: selectedSeason?.inventory?.rake_rate_guide || 0,
-        });
-
-
-
-        setTimeslots(formattedTimeSlots);
+        if (season) {
+            const formattedTimeSlots = season?.inventory?.inventory_time_slots?.map(slot => ({
+                id: slot.id,
+                name: slot.start_time.slice(0, 5), // e.g., '08:00' from '08:00:00'
+            })) || [];
+            console.log('formattedTimeSlots--------------------', formattedTimeSlots);
+            // setData('adult', selectedSeason?.inventory?.rake_rate_adult || 0);
+            // setData('child', selectedSeason?.inventory?.rake_rate_child || 0);
+            // setData('guide', selectedSeason?.inventory?.rake_rate_guide || 0);
+            setData({
+                ...data,
+                adult: season?.inventory?.rake_rate_adult || 0,
+                child: season?.inventory?.rake_rate_child || 0,
+                guide: season?.inventory?.rake_rate_guide || 0,
+                rate_per_adult: season?.inventory?.rake_rate_adult || 0,
+                rate_per_child: season?.inventory?.rake_rate_child || 0,
+                rate_per_guide: season?.inventory?.rake_rate_guide || 0,
+            });
+            setTimeslots(formattedTimeSlots);
         } else {
-        setTimeslots([]); // fallback
+            setTimeslots([]); // fallback
         }
 
     }, [data.season_id]);
@@ -316,7 +371,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
             <div className="bg-secondary-100 border border-secondary-200">
                 <div className="space-y-6 max-w-full overflow-hidden mx-auto p-6 bg-white shadow rounded">
                     <h1 className="text-booking-heading">New Booking</h1>
-{page.props.error && <div className="text-red-600">{page.props.error}</div>}
+                        {page.props.error && <div className="text-red-600">{page.props.error}</div>}
                         {/* Wholesaler Booking */}
                             <CustomCheckbox
                                 label="Wholesaler Booking"
@@ -333,7 +388,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                             name="wholesaler_id"
                             value={data.wholesaler_id}
                             
-                            onChange={(e) => setData(e.target.name, e.target.value)}
+                            onChange={(e) => {setData(e.target.name, e.target.value); setSelectedWholesaler(e.target.value);}}
                             error={errors.wholesaler_id}
                             options={wholesalers}
                         /> 
@@ -491,16 +546,6 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
 
                         </div>
 
-                        {/* <div className="flex items-center space-x-2">
-                            <input
-                                type="checkbox"
-                                checked={data.include_media}
-                                onChange={(e) => setData('include_media', e.target.checked)}
-                                className="h-4 w-4"
-                            />
-                            <label>Include Photos and Videos</label>
-                        </div> */}
-
                         {/* Inventory Calendar Table */}
                         <section className="md:col-span-3 bg-white p-6">
                             <div className="flex justify-between items-center mb-4">
@@ -533,7 +578,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
 
                             </div>
                             {loading ? (
-                            <div className="text-center py-20 text-gray-500">Loading calendar...</div>
+                            <div className={`${toggleCalendar ? 'block' : 'hidden'} text-center py-20 text-gray-500`}>Loading calendar...</div>
                             ) : (
                             <div className="overflow-x-auto">
                                 {scheduleData.days.length === 0 ? (
@@ -570,6 +615,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                                     if (cell?.status === 'available') {
                                                         setSelectedSlot({ date: cell.date, day: day, time: row.time });
                                                         setData('selected_slot', { date: cell.date, day: day, time: row.time });
+                                                        setSelectedDate(cell.date);
                                                     }
                                                     }}
                                                 >
@@ -609,11 +655,11 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                             </div>
                             )}
 
-                             {errors?.['selected_slot'] && (
-                <p className="text-red-500 text-sm mt-2">
-                    {errors['selected_slot']}
-                </p>
-            )}
+                            {errors?.['selected_slot'] && (
+                                <p className="text-red-500 text-sm mt-2">
+                                    {errors['selected_slot']}
+                                </p>
+                            )}
                         </section>
 
                         <div className="mt-10 p-6 bg-white space-y-4">
@@ -641,21 +687,21 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                             errors={errors}
                                         />
                                     ))}
-                                    {/* <WhiteButton 
+                                    <WhiteButton 
                                         title="Edit Manifest" 
                                         icon={true}
                                         iconName={icons.plus}
                                         width="w-[152px]"
                                         className="mt-4"
                                         onClick={() => handleSubmit(e)}
-                                    /> */}
-                                    <div onClick={() => setToggleCalendar(!toggleCalendar)}>
-                                        {toggleCalendar ? icons.cheveron_down : icons.cheveron_up}
+                                    />
+                                    <div onClick={() => setToggleRate(!toggleRate)}>
+                                        {toggleRate ? icons.cheveron_down : icons.cheveron_up}
                                     </div>   
                                 </div>
                             </div>
                             {/* Rates */}
-                            <div className="mt-10 p-6 bg-white rounded-[10px] border border-secondary-100 shadow space-y-4 ">
+                            <div className={`${toggleRate ? 'block' : 'hidden'} mt-10 p-6 bg-white rounded-[10px] border border-secondary-100 shadow space-y-4`}>
 
                                 <div className="flex items-center gap-[66px] mt-4">
                                     <CustomCheckbox
@@ -770,34 +816,36 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                         <WhiteButton 
                                             title="Recalucate from Rack" 
                                             icon={true}
+                                            type="button"
                                             iconName={icons.spanners}
                                             textColor='text-[#4D81E7]'
                                             width="w-[189px]"
                                             className="mt-4"
-                                            onClick={() => handleSubmit(e)}
+                                            onClick={()=>{}}
                                         />                                                    
                                     </div>
                                 </div>
                             </div>
                             
                             <div className="mt-10 p-6 bg-white rounded-[10px] border border-secondary-100 shadow space-y-4 ">
-                                <div className="flex w-full items-center justify-start space-x-4 ">
-                                    <span className="text-booking-lbl-main w-[129px]">Redeem Voucher</span>
+                                {/*  */}
+                                {/* <div className="flex w-full items-center justify-start space-x-4 ">
+                                    <span className="text-booking-lbl-main w-[129px]">Redeem Discount</span>
                                     <span className="w-[572px] mt-2">
                                         <CustomInputText
-                                            id="redeem_voucher"
-                                            name="redeem_voucher"
+                                            id="redeem_discount"
+                                            name="redeem_discount"
                                             type='text'
-                                            value={data.redeem_voucher}
-                                            placeholder="Redeem Voucher"
-                                            onChange={(e) => setData('redeem_voucher', e.target.value)}
+                                            value={data.redeem_discount}
+                                            placeholder="Redeem Discount"
+                                            onChange={(e) => setData('redeem_discount', e.target.value)}
                                             errors={errors}
                                         />                                        
                                     </span>
 
                                     <BlueButton
                                     title="Redeem" 
-                                    onClick={handleSubmit} 
+                                    onClick={()=>{}} 
                                     disabled={processing} 
                                     type="button" />
                                     <WhiteButton 
@@ -806,9 +854,149 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                         width="w-[108px]"
                                         className="mt-4"
                                         disabled={processing}
-                                        onClick={() => handleSubmit(e)}
+                                        onClick={()=>{}}
                                     />
+                                </div> */}
+                                {/* <div className="flex w-full items-center justify-start space-x-4 ">
+                                    <span className="text-booking-lbl-main w-[129px]">Redeem Wholesaver Rate</span>
+                                    <span className="w-[572px] mt-2">
+                                        <CustomInputText
+                                            id="redeem_promotion"
+                                            name="redeem_promotion"
+                                            type='text'
+                                            value={data.redeem_promotion}
+                                            placeholder="Redeem Promotion"
+                                            onChange={(e) => setData('redeem_promotion', e.target.value)}
+                                            errors={errors}
+                                        />                                        
+                                    </span>
+
+                                    <BlueButton
+                                    title="Redeem" 
+                                    onClick={()=>{}} 
+                                    disabled={processing} 
+                                    type="button" />
+                                    <WhiteButton 
+                                        title="Remove" 
+                                        textColor='text-[#7C7C7C]'
+                                        width="w-[108px]"
+                                        className="mt-4"
+                                        type="button"
+                                        disabled={processing}
+                                        onClick={()=>{}}
+                                    />
+                                </div> */}
+                                <div className="flex w-full items-center justify-start space-x-4 ">
+                                    <div className="flex w-full items-center justify-start space-x-4 ">
+                                        <CustomInputText
+                                            title="Redeem Voucher"
+                                            id="redeem_voucher"
+                                            name="redeem_voucher"
+                                            type='text'
+                                            value={data.redeem_voucher}
+                                            placeholder="Redeem Voucher"
+                                            onChange={(e) => setData('redeem_voucher', e.target.value)}
+                                            errors={errors}
+                                        />
+                                        <div className="flex items-center gap-2 mt-2">
+                                            <BlueButton
+                                            title="Redeem" 
+                                            onClick={()=>{}} 
+                                            disabled={processing} 
+                                            type="button" />
+                                            <WhiteButton 
+                                            title="Remove" 
+                                            type="button"
+                                            textColor='text-[#7C7C7C]'
+                                            width="w-[108px]"
+                                            className="mt-4"
+                                            disabled={processing}
+                                            onClick={()=>{}}
+                                            />    
+                                        </div>
                                 </div>
+                                <div className="flex w-full items-center justify-start space-x-4 ">
+                                    {discountList.length > 0 && (
+                                        <div className="flex w-full items-center justify-start space-x-4 ">
+                                            <CustomSelect
+                                                label="Redeem Discount"
+                                                name="redeem_discount"
+                                                value={data.redeem_discount}
+                                                
+                                                onChange={(e) => {setData('redeem_discount', e.target.value);}}
+                                                error={errors.redeem_discount}
+                                                options={discountList}
+                                            />
+                                            <div className="flex items-center gap-2 mt-2">
+                                            <BlueButton
+                                            title="Apply" 
+                                            onClick={()=>{}} 
+                                            disabled={processing} 
+                                            type="button" />
+                                            <WhiteButton 
+                                                title="Remove" 
+                                                textColor='text-[#7C7C7C]'
+                                                width="w-[108px]"
+                                                className="mt-4"
+                                                type="button"
+                                                disabled={processing}
+                                                onClick={()=>{}}
+                                            />
+                                            </div>
+                                        </div>
+                                        )}   
+                                </div>
+                                <div className="flex w-full items-center justify-start space-x-4 ">
+                                    {wholesalerRateList.length > 0 && (
+                                    <div className="flex w-full items-center justify-start space-x-4 ">
+                                    <CustomSelect
+                                        label="Wholesaler Rate"
+                                        name="redeem_wholesaler_rate"
+                                        value={data.redeem_wholesaler_rate}
+                                        
+                                        onChange={(e) => {setData('redeem_wholesaler_rate', e.target.value);}}
+                                        error={errors.redeem_wholesaler_rate}
+                                        options={wholesalerRateList}
+                                    />
+                                    <div className="flex items-center gap-2 mt-2">
+                                    <BlueButton
+                                    title="Apply" 
+                                    onClick={()=>{}} 
+                                    disabled={processing} 
+                                    type="button" />
+                                    <WhiteButton 
+                                        title="Remove" 
+                                        textColor='text-[#7C7C7C]'
+                                        width="w-[108px]"
+                                        className="mt-4"
+                                        type="button"
+                                        disabled={processing}
+                                        onClick={()=>{}}
+                                    />
+                                    </div>
+                                    </div>
+                                    )}    
+                                </div>
+
+                            </div>
+
+
+
+
+                        {pricing && (
+                        <div className="mt-4 p-4 border rounded bg-gray-50">
+                            <h3 className="font-bold">Pricing</h3>
+                            <p>Adult: {pricing.applied_rates.adult}</p>
+                            <p>Child: {pricing.applied_rates.child}</p>
+                            <p>Guide: {pricing.applied_rates.guide}</p>
+                            <p className="font-semibold">Total: {pricing.total_price}</p>
+                            {pricing.applied_promotion && <p>Promotion Applied: {pricing.applied_promotion.name}</p>}
+                            {pricing.applied_discount && <p>Discount Applied: {pricing.applied_discount.name}</p>}
+                        </div>
+                        )}
+
+
+
                                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                                     <div className="flex flex-col items-start  rounded-2xl p-6 w-full border border-secondary-100 shadow">
                                             <div className="flex items-center justify-start mb-2 gap-[18px]">
@@ -959,25 +1147,25 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                     <div className="flex items-center space-x-[37px]">
                                         <span className="text-booking-lbl-main w-[160px] font-normal text-right">Deposit Due Today</span>
                                         <div className="flex items-center justify-between w-[417px] h-[43px] bg-[#DBECFD4D] pl-[17px] py-[12.5px] rounded-[6px]">
-                                            <span className="text-booking-lbl-main-sub text-[#AFAFAF]">R{(data?.booking_total * .1).toFixed() || 0}</span>                                                  
+                                            <span className="text-booking-lbl-main-sub text-[#AFAFAF]">R{(data?.deposit_due * .1).toFixed() || 0}</span>                                                  
                                         </div>
                                     </div>
                                     <div className="flex items-center space-x-[37px]">
                                         <span className="text-booking-lbl-main w-[160px] text-right">Total Due Today</span>
                                         <div className="flex items-center justify-between w-[417px] h-[43px] bg-[#DBECFD4D] pl-[17px] py-[12.5px] rounded-[6px]">
-                                            <span className="text-booking-lbl-main-sub text-[#FF0000]">R{(data?.booking_total * .1).toFixed() || 0}</span>                                                  
+                                            <span className="text-booking-lbl-main-sub text-[#FF0000]">R{(data?.due_today * .1).toFixed() || 0}</span>                                                  
                                         </div>
                                     </div>
                                     <div className="flex items-center space-x-[37px]">
                                         <span className="text-booking-lbl-main w-[160px] text-right text-[#4D81E7]">Total Rack Value</span>
                                         <div className="flex items-center justify-between w-[417px] h-[43px] bg-[#DBECFD4D] pl-[17px] py-[12.5px] rounded-[6px]">
-                                            <span className="text-booking-lbl-main-sub text-[#4D81E7]">R{data?.booking_total || 0}</span>                                                  
+                                            <span className="text-booking-lbl-main-sub text-[#4D81E7]">R{data?.rack_value || 0}</span>                                                  
                                         </div>
                                     </div>                                    
                                 </div>
 
                                 <span className="text-booking-lbl-main w-full text-center font-normal my-7">
-                                    Bill Back - The Wholesaler will be invoiced for R{data?.booking_total || 0} after the service is delivered.
+                                    Bill Back - The Wholesaler will be invoiced for R{data?.bill_back || 0} after the service is delivered.
                                 </span>
                                 <BlueButton
                                     title="Submit Booking"

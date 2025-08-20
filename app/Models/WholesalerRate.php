@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 class WholesalerRate extends Model
 {
     use HasFactory;
+    public $table = 'wholesaler_rates';
 
     protected $fillable = [
         'wholesaler_id',

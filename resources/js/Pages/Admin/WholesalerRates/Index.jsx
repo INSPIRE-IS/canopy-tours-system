@@ -8,7 +8,8 @@ import Pagination from '@/Components/Pagination';
 import Modal from './Modal';
 import ServicesHeader from '@/Components/ServicesHeader';
 
-export default function Index({ rates, searchTerm, sortColumn, sortDirection, permissions,wholesalers,seasons }) {
+export default function Index({ auth, rates, searchTerm, sortColumn, sortDirection, permissions,wholesalers,seasons }) {
+    console.log('auth on user ', auth);
   const [selected, setSelected] = useState(null);
   const [search, setSearch] = useState(searchTerm || '');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -27,7 +28,7 @@ export default function Index({ rates, searchTerm, sortColumn, sortDirection, pe
   };
 
   const handleSearchSubmit = () => {
-    window.location.href = route('wholesaler_rates.index', {
+    window.location.href = route('admin.wholesaler_rates.index', {
       search: search,
       sort: sortColumn,
       direction: sortDirection
@@ -36,7 +37,7 @@ export default function Index({ rates, searchTerm, sortColumn, sortDirection, pe
 
   const handleDelete = (item) => {
     if (confirm("Are you sure?")) {
-      router.delete(route('wholesaler_rates.destroy', item), { preserveScroll: true });
+      router.delete(route('admin.wholesaler_rates.destroy', item), { preserveScroll: true });
     }
   };
   function toggleDropdown (tab, routeName) {
@@ -79,6 +80,7 @@ export default function Index({ rates, searchTerm, sortColumn, sortDirection, pe
                     <th className="w-[140px] p-3">Adult</th>
                     <th className="w-[140px] p-3">Child</th>
                     <th className="w-[140px] p-3">Guide</th>
+                    <th className="w-[185px] p-3"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -114,7 +116,7 @@ export default function Index({ rates, searchTerm, sortColumn, sortDirection, pe
         </div>
       </div>
 
-      <Modal isOpen={isModalOpen} onClose={handleCloseModal} mode={modalMode} item={selected} permissions={permissions} wholesalers={wholesalers} seasons={seasons} />
+      <Modal isOpen={isModalOpen} onClose={handleCloseModal} mode={modalMode} item={selected} permissions={permissions} wholesalers={wholesalers} seasons={seasons} auth={auth} />
     </AuthenticatedLayout>
   );
 }

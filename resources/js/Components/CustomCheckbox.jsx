@@ -1,4 +1,4 @@
-const CustomCheckbox = ({ label,side="right", name, checked, onChange, errors }) => {
+const CustomCheckbox = ({ label,side="right", name, checked = false, mode, onChange, errors = {} }) => {
 
     return (
         <div className="mb-4">

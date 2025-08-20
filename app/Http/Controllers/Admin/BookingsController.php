@@ -13,9 +13,11 @@ use App\Models\BookingInfo;
 use App\Models\BookingInventory;
 use App\Models\Closeout;
 use App\Models\Customer;
+use App\Models\Discount;
 use App\Models\Inventory;
 use App\Models\InventoryOverride;
 use App\Models\InventoryTimeSlot;
+use App\Models\Promotion;
 use App\Models\Season;
 use App\Models\Service;
 use App\Models\StatusBooking;
@@ -23,8 +25,10 @@ use App\Models\TypeAffiliate;
 use App\Models\TypeLocation;
 use App\Models\TypeReferral;
 use App\Models\User;
+use App\Models\Voucher;
 use App\Models\Wholesaler;
 use App\Models\WholesalerBooking;
+use App\Models\WholesalerRate;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
 use Illuminate\Support\Facades\DB;
@@ -39,7 +43,7 @@ class BookingsController extends Controller
 {
     public function index()
     {
-        //abort_if(Gate::denies('booking_access'), Response::HTTP_FORBIDDEN, '403 Forbidden');
+        abort_if(Gate::denies('bookings_access'), Response::HTTP_FORBIDDEN, '403 Forbidden');
         $bookings = Booking::with([
             'customers', // :id,name,email,contact_number
             'booking_details', //:id,booking_id ,start_time,end_time
@@ -65,7 +69,7 @@ class BookingsController extends Controller
         //dd($bookings);
         $formatted = $bookings->map(function ($booking) {
             try {
-
+                //dd($booking);
 
                 $price = 0;
                 foreach ($booking->booking_fees as $fee) {
@@ -83,6 +87,7 @@ class BookingsController extends Controller
                 //     $q->where('id', $booking->booking_inventory->inventory_time_slot_id);
                 // }])->find($booking->booking_inventory->booking_id);
                 // dd($inventory);
+                $service = Service::find($booking->service_id);
                 $season = Season::find($booking->season_id);
                 $timeSlot = InventoryTimeSlot::find($season->id);
 
@@ -90,11 +95,11 @@ class BookingsController extends Controller
                 $start_time = Carbon::parse($time);
                 // assuming $inventory->duration = '02:00:00'
                 //dd($inventory->duration);
-                list($hours, $minutes, $seconds) = explode(':', $season->duration);
+                list($hours, $minutes, $seconds) = explode(':', $service->duration);
                 $end_time = $start_time->copy()->addHours($hours)->addMinutes($minutes)->addSeconds($seconds);
                 // dd($end_time->format('H:i:s'));
 
-                return [
+                $info = [
                     'id' => $booking->id,
                     'reference' => $booking->reference,
                     'lead_name' => $booking->lead_name,
@@ -123,6 +128,8 @@ class BookingsController extends Controller
                     'dueStatus' => $booking->status_booking_id,
                     'due_date' => $booking->due_date,
                 ];
+                //dd($info);
+                return $info;
             } catch (\Throwable $e) {
                 Log::error('Booking', [
                     'message' => $e->getMessage(),
@@ -144,10 +151,12 @@ class BookingsController extends Controller
         //     'dueStatus' => 'Overdue', // Could be 'Normal', 'Overdue', or 'Paid'
         // ],
 
+        // $promotions = Promotion::with('service')->get();
         //dd($formatted);
-        return Inertia::render('Admin/Bookings/Index', ['bookings' => $formatted]);
-
-        // return view('admin.bookings.index', compact('bookings'));
+        return Inertia::render('Admin/Bookings/Index', [
+            'bookings' => $formatted,
+            // 'promotions' => $promotions
+        ]);
     }
 
     public function create(Request $request)
@@ -168,17 +177,7 @@ class BookingsController extends Controller
         $viewMode = $request->input('view_mode', 'week');
         $startDate = Carbon::parse($request->input('start_date', now()));
         $timeslots = Booking::TIME_SLOTS;
-        //$timeslotCollection = collect($timeslots);
-        $slots = [];
-        // foreach ($timeslots as $value => $label) {
-        //     $slots[] = [
-        //         'id' => (string)$value,  // Convert value to string
-        //         'name' => $label
-        //     ];
-        // }
-        //dd($services);
 
-        $formatted = [];
         $schedule = [];
         $days = match ($viewMode) {
             'day' => 1,
@@ -187,16 +186,19 @@ class BookingsController extends Controller
             default => 7
         };
         $endDate = (clone $startDate)->addDays($days - 1);
+
+        $vouchers = Voucher::select('id', 'voucher_code as name', 'amount', 'note', 'expire_date', 'season_id', 'service_id')->with('season', 'service')->get();
+        $discounts = Discount::select('id', 'name', 'service_id', 'applies_to', 'percent_off')->with('service')->get();
+        $wholesaler_rates = WholesalerRate::select('id', 'wholesaler_id', 'season_id', 'price_adult', 'price_child', 'price_guide')->with('season', 'wholesaler')->get();
+
         return Inertia::render('Admin/Bookings/Create', [
             'wholesalers' => $wholesalers,
             'services' => $services,
-            //'seasons' => $seasons,
             'inventories' => $seasons,
             'type_affiliates' => $type_affiliates,
             'updated_bies' => $updated_bies,
             'users' => $users,
             'status_bookings' => $status_bookings,
-            'timeslots' => $slots,
             'schedule' => $schedule,
             'start_date' => $startDate->toDateString(),
             'view_mode' => $viewMode,
@@ -207,8 +209,10 @@ class BookingsController extends Controller
             'children' => 0,
             'guides' => 0,
             'availableTimes' => [],
+            'vouchers' => $vouchers,
+            'discounts' => $discounts,
+            'wholesaler_rates' => $wholesaler_rates,
         ]);
-        //return view('admin.bookings.create', compact('customers', 'inventories', 'seasons', 'services', 'status_bookings', 'updated_bies', 'users'));
     }
 
     public function store(StoreBookingRequest $request)
@@ -616,7 +620,7 @@ class BookingsController extends Controller
 
     public function calendar(Request $request)
     {
-
+        //dd($request->all());
         $activityId = $request->input('activity_id');
         $viewMode = $request->input('view_mode', 'week');
         $startDate = Carbon::parse($request->input('start_date', now()));
@@ -642,6 +646,7 @@ class BookingsController extends Controller
         }
 
         if (true) {
+            //DB::enableQueryLog();
             $bookingData = DB::table('bookings as b')
                 ->leftJoin('booking_inventories as bi', 'bi.booking_id', '=', 'b.id')
                 ->leftJoin('inventory_type_days as itd', 'itd.id', '=', 'bi.inventory_type_day_id')
@@ -659,6 +664,7 @@ class BookingsController extends Controller
                 ->groupBy('bi.date', 'td.name', 'its.start_time')
                 ->get()
                 ->keyBy(fn($row) => $row->date . '_' . $row->time);
+            //dd(DB::getQueryLog());
         }
         // dd($bookingData);
 
@@ -685,7 +691,7 @@ class BookingsController extends Controller
 
             return collect($dates)->map(fn($d) => $d->format('Y-m-d'));
         })->unique()->values()->toArray();
-        //dd($blockedDates);
+        logger("blocked Dates: ", $blockedDates);
         $timeSlots = $inventory->inventory_time_slots->pluck('start_time')->unique()->sort();
         $schedule = [];
 
@@ -754,6 +760,8 @@ class BookingsController extends Controller
 
             $schedule[] = $row;
         }
+        logger("schedule: ", $schedule);
+
 
         return response()->json([
             'schedule' => $schedule,
@@ -761,6 +769,104 @@ class BookingsController extends Controller
                 ->map(fn($d) => $d->format('D d'))
                 ->values(),
             'message' => '',
+        ]);
+    }
+
+    public function calculate(Request $request)
+    {
+        //dd($request->all());
+        $data = $request->validate([
+            'service_id' => 'required|exists:services,id',
+            'season_id' => 'required|exists:seasons,id',
+            'wholesaler_id' => 'nullable|exists:wholesalers,id',
+            'discount_code' => 'nullable|string',
+            'promo_code' => 'nullable|string',
+            'pax.adults' => 'required|integer|min:0',
+            'pax.children' => 'required|integer|min:0',
+            'pax.guides' => 'required|integer|min:0',
+            'booking_date' => 'required|date',
+        ]);
+
+        $season = Season::findOrFail($data['season_id']);
+
+        // Step 1: Base rack rates from season
+        $rates = [
+            'adult' => $season->price_adult,
+            'child' => $season->price_child,
+            'guide' => $season->price_guide,
+        ];
+
+        // Step 2: Override with wholesaler rates if set
+        if (!empty($data['wholesaler_id'])) {
+            $wr = WholesalerRate::where('wholesaler_id', $data['wholesaler_id'])
+                ->where('season_id', $season->id)
+                ->first();
+            if ($wr) {
+                $rates['adult'] = $wr->price_adult ?? $rates['adult'];
+                $rates['child'] = $wr->price_child ?? $rates['child'];
+                $rates['guide'] = $wr->price_guide ?? $rates['guide'];
+            }
+        }
+
+        $appliedDiscount = null;
+        $appliedPromo = null;
+
+        // Step 3: Apply promo (mutually exclusive with discounts)
+        if (!empty($data['promo_code'])) {
+            $promo = Promotion::where('promo_code', $data['promo_code'])
+                ->where('service_id', $data['service_id'])
+                ->whereDate('start_date', '<=', $data['booking_date'])
+                ->whereDate('end_date', '>=', $data['booking_date'])
+                ->first();
+
+            if ($promo) {
+                $appliedPromo = $promo;
+                if ($promo->type === 'percent') {
+                    foreach ($rates as $k => $v) {
+                        $rates[$k] = $v - ($v * ($promo->value / 100));
+                    }
+                } elseif ($promo->type === 'fixed_value') {
+                    $rates['adult'] = max(0, $rates['adult'] - $promo->value);
+                }
+                // add logic for graduated / varied child here later
+            }
+        }
+        // Step 4: Apply discount (only if no promo)
+        elseif (!empty($data['discount_code'])) {
+            $discount = Discount::where('name', $data['discount_code'])
+                ->where('service_id', $data['service_id'])
+                ->first();
+            if ($discount) {
+                $appliedDiscount = $discount;
+                foreach ($rates as $k => $v) {
+                    $rates[$k] = $v - ($v * ($discount->percent_off / 100));
+                }
+            }
+        }
+
+        // Step 5: Calculate total
+        $total = ($rates['adult'] * $data['pax']['adults'])
+            + ($rates['child'] * $data['pax']['children'])
+            + ($rates['guide'] * $data['pax']['guides']);
+
+        return response()->json([
+            'base_rates' => [
+                'adult' => $season->price_adult,
+                'child' => $season->price_child,
+                'guide' => $season->price_guide,
+            ],
+            'applied_rates' => $rates,
+            'applied_discount' => $appliedDiscount ? [
+                'id' => $appliedDiscount->id,
+                'name' => $appliedDiscount->name,
+            ] : null,
+            'applied_promotion' => $appliedPromo ? [
+                'id' => $appliedPromo->id,
+                'name' => $appliedPromo->name,
+                'type' => $appliedPromo->type,
+                'value' => $appliedPromo->value,
+            ] : null,
+            'total_price' => $total,
         ]);
     }
 }

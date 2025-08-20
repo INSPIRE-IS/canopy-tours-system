@@ -9,6 +9,8 @@ class Promotion extends Model
 {
     use HasFactory;
 
+    public $table = 'promotions';
+
     protected $fillable = [
         'name',
         'promo_code',

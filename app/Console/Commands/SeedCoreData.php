@@ -900,9 +900,9 @@ class SeedCoreData extends Command
         $seasons = [
             [
                 'id' => 1,
-                'name' => 'february 2025',
+                'name' => '2025',
                 'start_date' => '2025-02-01',
-                'end_date' => '2025-02-28',
+                'end_date' => '2026-02-28',
                 'rake_rate_adult' => '600.00',
                 'rake_rate_child' => '300.00',
                 'rake_rate_guide' => '200.00',

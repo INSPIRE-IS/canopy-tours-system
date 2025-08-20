@@ -8,7 +8,7 @@ import Pagination from '@/Components/Pagination';
 import Modal from './Modal';
 import ServicesHeader from '@/Components/ServicesHeader';
 
-export default function Index({ promos, searchTerm, sortColumn, sortDirection, permissions }) {
+export default function Index({ promos, searchTerm, sortColumn, sortDirection, permissions,services }) {
   const [selected, setSelected] = useState(null);
   const [search, setSearch] = useState(searchTerm || '');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -27,7 +27,7 @@ export default function Index({ promos, searchTerm, sortColumn, sortDirection, p
   };
 
   const handleSearchSubmit = () => {
-    window.location.href = route('promotions.index', {
+    window.location.href = route('admin.promotions.index', {
       search: search,
       sort: sortColumn,
       direction: sortDirection
@@ -36,7 +36,7 @@ export default function Index({ promos, searchTerm, sortColumn, sortDirection, p
 
   const handleDelete = (item) => {
     if (confirm("Are you sure?")) {
-      router.delete(route('promotions.destroy', item), { preserveScroll: true });
+      router.delete(route('admin.promotions.destroy', item), { preserveScroll: true });
     }
   };
   function toggleDropdown (tab, routeName) {
@@ -82,6 +82,7 @@ export default function Index({ promos, searchTerm, sortColumn, sortDirection, p
                     <th className="w-[140px] p-3">Start</th>
                     <th className="w-[140px] p-3">End</th>
                     <th className="w-[120px] p-3">Internal</th>
+                    <th className="w-[185px] p-3"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -93,8 +94,8 @@ export default function Index({ promos, searchTerm, sortColumn, sortDirection, p
                       <td className="w-[140px] p-3">{item.type}</td>
                       <td className="w-[120px] p-3">{item.value}</td>
                       <td className="w-[180px] p-3">{item.service?.name}</td>
-                      <td className="w-[140px] p-3">{item.start_date}</td>
-                      <td className="w-[140px] p-3">{item.end_date}</td>
+                      <td className="w-[140px] p-3">{item?.start_date?.split('T')[0]}</td>
+                      <td className="w-[140px] p-3">{item?.end_date?.split('T')[0]}</td>
                       <td className="w-[120px] p-3">{item.internal_use_only ? 'Yes' : 'No'}</td>
                       <td className="w-[185px] p-3 flex gap-2">
                         {permissions?.promotions_edit && (
@@ -120,7 +121,7 @@ export default function Index({ promos, searchTerm, sortColumn, sortDirection, p
         </div>
       </div>
 
-      <Modal isOpen={isModalOpen} onClose={handleCloseModal} mode={modalMode} item={selected} permissions={permissions} />
+      <Modal isOpen={isModalOpen} onClose={handleCloseModal} mode={modalMode} item={selected} permissions={permissions} services={services} />
     </AuthenticatedLayout>
   );
 }

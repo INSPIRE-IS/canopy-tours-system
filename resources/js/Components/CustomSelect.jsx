@@ -1,7 +1,7 @@
 import React from "react";
 
-const CustomSelect = ({ label, name, value, width="w-full" , height="h-[48px]", onChange, error,mode, options }) => {
-  console.log('options ', options);
+const CustomSelect = ({ label, name, value = null, width="w-full" , height="h-[48px]", onChange, error,mode, options }) => {
+  //console.log('options ', options);
   return (
     <div className="w-full mb-3">
       {label && (
@@ -27,11 +27,15 @@ const CustomSelect = ({ label, name, value, width="w-full" , height="h-[48px]", 
         <option value="" disabled className="input-text">
           -- Select an option --
         </option>
-        {options.map((option, index) => (
-          <option key={index} value={option.id} className="input-text">
-            {option.name}
+        {options?.map((option, index) => {
+          //console.log('option', option);
+          const value = typeof option === "object" ? option.id : option;
+          const label = typeof option === "object" ? option.name : option;
+        return (
+          <option key={index} value={value} className="input-text">
+            {label}
           </option>
-        ))}
+        )})}
       </select>
       {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
     </div>

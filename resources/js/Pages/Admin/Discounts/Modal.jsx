@@ -21,9 +21,9 @@ const Modal = ({ isOpen, onClose, mode, item = null, permissions, services }) =>
   const handleSubmit = (e) => {
     e.preventDefault();
     if (mode === "create") {
-      post(route('discounts.store'), { onSuccess: () => onClose() });
+      post(route('admin.discounts.store'), { onSuccess: () => onClose() });
     } else if (mode === "edit") {
-      put(route('discounts.update', item.id), { onSuccess: () => onClose() });
+      put(route('admin.discounts.update', item.id), { onSuccess: () => onClose() });
     }
   };
 
@@ -33,39 +33,39 @@ const Modal = ({ isOpen, onClose, mode, item = null, permissions, services }) =>
     <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
       <div className="bg-white rounded-lg shadow-lg p-6 w-[50%] h-[98%] overflow-y-auto">
         <h2 className="text-xl font-bold mb-4">
-          {mode === "create" && "Create"}
-          {mode === "edit" && "Edit"}
-          {mode === "view" && "View"}
+          {mode === "create" && "Discount Create"}
+          {mode === "edit" && "Discount Edit"}
+          {mode === "view" && "Discount View"}
         </h2>
-
         <form onSubmit={handleSubmit}>
-<div className="flex flex-col gap-4">
-            <InputText title="Name" field="name" value={data.name} mode={mode} handleChange={handleChange} errors={errors} />
-
-                    <CustomSelect
-                        label="Service"
-                        name="service_id"
-                        value={data.service_id}
-                        mode={mode}
-                        onChange={(e) => handleChange(e.target.name, e.target.value)}
-                        error={errors.service_id}
-                        options={services}
-                    />
-                    <CustomSelect
-                        label="Applies To"
-                        name="applies_to"
-                        value={data.applies_to}
-                        mode={mode}
-                        onChange={(e) => handleChange(e.target.name, e.target.value)}
-                        error={errors.applies_to}
-                        options={[
-                { id: 'line_item', name: 'Line Item' },
-                { id: 'invoice', name: 'Invoice' }
-              ]}
-                    />
-              
-
-            <InputText title="% Off" field="percent_off" value={data.percent_off} mode={mode} handleChange={handleChange} errors={errors} />
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-row w-full items-center gap-2 justify-between mb-4">
+              <CustomSelect
+                  label="Service"
+                  name="service_id"
+                  value={data.service_id}
+                  mode={mode}
+                  onChange={(e) => handleChange(e.target.name, e.target.value)}
+                  error={errors.service_id}
+                  options={services}
+              />
+              <CustomSelect
+                  label="Applies To"
+                  name="applies_to"
+                  value={data.applies_to}
+                  mode={mode}
+                  onChange={(e) => handleChange(e.target.name, e.target.value)}
+                  error={errors.applies_to}
+                  options={[
+                  { id: 'line_item', name: 'Line Item' },
+                  { id: 'invoice', name: 'Invoice' }
+                  ]}
+                      />    
+            </div>
+            <div className="flex flex-row w-full items-center gap-2 justify-between mb-4">
+              <InputText title="Name" field="name" value={data.name} mode={mode} handleChange={handleChange} errors={errors} />
+              <InputText title="% Off" field="percent_off" value={data.percent_off} mode={mode} handleChange={handleChange} errors={errors} />              
+            </div>
           </div>
 
           <div className="flex justify-center gap-4 mt-6">

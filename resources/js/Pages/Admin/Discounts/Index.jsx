@@ -27,7 +27,7 @@ export default function Index({ discounts, searchTerm, sortColumn, sortDirection
   };
 
   const handleSearchSubmit = () => {
-    window.location.href = route('discounts.index', {
+    window.location.href = route('admin.discounts.index', {
       search: search,
       sort: sortColumn,
       direction: sortDirection
@@ -36,7 +36,7 @@ export default function Index({ discounts, searchTerm, sortColumn, sortDirection
 
   const handleDelete = (item) => {
     if (confirm("Are you sure?")) {
-      router.delete(route('discounts.destroy', item), { preserveScroll: true });
+      router.delete(route('admin.discounts.destroy', item), { preserveScroll: true });
     }
   };
   function toggleDropdown (tab, routeName) {
@@ -78,6 +78,7 @@ export default function Index({ discounts, searchTerm, sortColumn, sortDirection
                     <th className="w-[180px] p-3">Service</th>
                     <th className="w-[140px] p-3">Applies To</th>
                     <th className="w-[120px] p-3">% Off</th>
+                    <th className="w-[185px] p-3"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
