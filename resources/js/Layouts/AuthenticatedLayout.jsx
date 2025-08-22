@@ -284,19 +284,19 @@ function selectOption(dropdownId, value) {
 
 
                 <div className="group px-4">
-                <div className="pl-[10px] mt-auto border-t pt-[13px] pb-4 flex items-center gap-3">
+                <div className={`${isOpen ? 'pl-[6px]' : ''} mt-auto border-t pt-[13px] pb-4 flex items-center gap-3`}>
                     <div className=" w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center text-sm font-semibold">
                         {icons.user}
                     </div>
-                    <div className="flex flex-col text-sm">
+                    <div className={`${isOpen ? '' : 'hidden'}flex flex-col text-sm`}>
                         <span className={`${isOpen ? '' : 'hidden'} font-medium text-gray-800`}>{user?.name}</span>
-                        <span className={`${isOpen ? '' : 'hidden'} text-gray-500 text-xs`}>{user?.email}</span>
+                        {/* <span className={`${isOpen ? '' : 'hidden'} text-gray-500 text-xs`}>{user?.email}</span> */}
                     </div>
-                    <div className={`${isOpen ? '' : 'hidden'}`}>
+                    {/* <div className={`${isOpen ? '' : 'hidden'}`}>
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 14 14" fill="none">
                         <path d="M11.62 5.22083L7.81667 9.02416C7.3675 9.47333 6.6325 9.47333 6.18334 9.02416L2.38 5.22083" stroke="#BEBEC8" strokeWidth="1.5" strokeMiterlimit="10" strokeLinecap="round" strokeLinejoin="round"/>
                         </svg>
-                    </div>          
+                    </div>           */}
                 </div>        
                 </div>
             </aside>
