@@ -7,6 +7,7 @@ import UserAlertModal from './UserAlertModal';
 import SearchBar from '@/Components/SearchBar';
 import BlueButton from '@/Components/BlueButton';
 import Pagination from '@/Components/Pagination';
+import SettingsHeader from '@/Components/SettingsHeader';
 
 
 export default function Index({ useralerts, users,auth,permissions, searchTerm, sortColumn, sortDirection }) {
@@ -18,6 +19,7 @@ export default function Index({ useralerts, users,auth,permissions, searchTerm, 
     const [search, setSearch] = useState(searchTerm);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalMode, setModalMode] = useState("create");
+    const [isOpenTab, setIsOpenTab] = useState('User_Alerts');
 
     const handleOpenModal = (mode, useralert = null) => {
         console.log('mode ', mode);
@@ -70,6 +72,7 @@ export default function Index({ useralerts, users,auth,permissions, searchTerm, 
             </div>
         </header> */}
             <div className="bg-white p-6 ">
+                <SettingsHeader isOpenTab={isOpenTab} setIsOpenTab={setIsOpenTab} />
                 {/* top */}
                 <div className="flex justify-between items-center mb-6">
                     <SearchBar search={search} handleSearchChange={(e) => handleSearchChange(e)} handleSearchSubmit={handleSearchSubmit} />

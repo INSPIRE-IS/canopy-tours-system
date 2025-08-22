@@ -916,7 +916,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                         </div>
                                 </div>
                                 <div className="flex w-full items-center justify-start space-x-4 ">
-                                    {discountList.length > 0 && (
+                                    
                                         <div className="flex w-full items-center justify-start space-x-4 ">
                                             <CustomSelect
                                                 label="Redeem Discount"
@@ -944,7 +944,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                             />
                                             </div>
                                         </div>
-                                        )}   
+                                           
                                 </div>
                                 <div className="flex w-full items-center justify-start space-x-4 ">
                                     {wholesalerRateList.length > 0 && (

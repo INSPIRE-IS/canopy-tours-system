@@ -231,13 +231,13 @@ function selectOption(dropdownId, value) {
                 url= 'admin.help-questions.index'
                 iconName="helpcenter"
             />
-            {/* <SidebarMenuItem
+             <SidebarMenuItem
                 label="Settings"
                 isOpen={isOpen}
-                url= 'admin.roles.index'
+                url= 'admin.teams.index'
                 iconName="settings"
-            /> */}
-            {permissions?.user_management_access && (
+            /> 
+            {/*{permissions?.user_management_access && (
             <SidebarMenuItem
                 label="Settings"
                 isOpen={isOpen}
@@ -250,7 +250,7 @@ function selectOption(dropdownId, value) {
                     { name: 'Teams', url: 'admin.teams.index' },
                     { name: 'User Alerts', url: 'admin.user-alerts.index' },
                 ]}
-            />)} 
+            />)} */}
             {/* {permissions?.user_management_access && (
             <SidebarMenuItem
                 label="User Management"

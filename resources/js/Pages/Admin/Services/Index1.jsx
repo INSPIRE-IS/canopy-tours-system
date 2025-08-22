@@ -72,7 +72,7 @@ export default function Index({ permissions,services,serviceFields, auth, search
         user={props.auth.user}
             header={<h2 className="font-semibold text-xl text-gray-800 leading-tight">Users</h2>}
     >
-        <Head title="Users" />
+        <Head title="Services" />
         <div className="overflow-x-auto px-[15px]">
           <ServicesHeader isOpenTab={isOpenTab} setIsOpenTab={setIsOpenTab} />
             <div id="Services-content" className="tab-content">

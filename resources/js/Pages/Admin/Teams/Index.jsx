@@ -9,6 +9,7 @@ import TeamModal from './TeamModal';
 import SearchBar from '@/Components/SearchBar';
 import BlueButton from '@/Components/BlueButton';
 import Pagination from '@/Components/Pagination';
+import SettingsHeader from '@/Components/SettingsHeader';
 
 
 export default function Index({ user,permissions, teams, auth, searchTerm, sortColumn, sortDirection }) {
@@ -22,6 +23,7 @@ export default function Index({ user,permissions, teams, auth, searchTerm, sortC
     const [search, setSearch] = useState(searchTerm);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalMode, setModalMode] = useState("create");
+    const [isOpenTab, setIsOpenTab] = useState('Teams');
 
     const handleOpenModal = (mode, team = null) => {
         console.log('mode ', mode);
@@ -83,6 +85,7 @@ export default function Index({ user,permissions, teams, auth, searchTerm, sortC
             </div>
         </header> */}
             <div className="bg-white p-6 ">
+                <SettingsHeader isOpenTab={isOpenTab} setIsOpenTab={setIsOpenTab} />
                 {/* top */}
                 <div className="flex justify-between items-center mb-6">
                     <SearchBar search={search} handleSearchChange={(e) => handleSearchChange(e)} handleSearchSubmit={handleSearchSubmit} />
