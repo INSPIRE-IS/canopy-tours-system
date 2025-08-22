@@ -91,17 +91,18 @@ class ActivityController extends Controller
                 //dd($fieldValues);
                 return [
                     'id'         => optional($inventory)->id,
+                    'tag'        => $service->tag,
                     'service_id'      => $service->id,
                     'service'      => $service->name,
                     'season_id'      => $season->id,
                     'image'      => $service->file ? '/storage/' . $service->file->path : null,
-                    'badge'      => $fieldValues['badge'] ?? null,
+                    'pillbox_conditions'      => $service->pillbox_conditions ?? null,
                     'gift'       => filter_var($fieldValues['gift'] ?? false, FILTER_VALIDATE_BOOLEAN),
                     'minPeople'  => (int) ($fieldValues['min_people'] ?? 1),
                     'price'      => optional($season)->rake_rate_adult ?? null,
                     'start_date' => optional($season)->start_date ?? null,
                     'end_date'   => optional($season)->end_date ?? null,
-                    'capacity'   => optional($season)->capacity ?? null,
+                    'capacity'   => optional($service)->capacity ?? null,
                 ];
             })->filter(); // remove nulls
         });
@@ -145,16 +146,17 @@ class ActivityController extends Controller
         //dd($fieldValues);
         $activity = [
             'id'         => $inventory->id,
+            'tag'        => $season->service?->tag,
             'service'    => $season->service?->name,
             'season'     => $season->name,
             'image'      => $season->file ? '/storage/' . $season->file->path : null,
             'badge'      => $fieldValues['badge'] ?? null,
             'gift'       => filter_var($fieldValues['gift'] ?? false, FILTER_VALIDATE_BOOLEAN),
             'minPeople'  => (int) ($fieldValues['min_people'] ?? 1),
-            'price'      => $inventory->rake_rate_adult ?? null,
-            'start_date' => $inventory->start_date,
-            'end_date'   => $inventory->end_date,
-            'capacity'   => $inventory->capacity,
+            'price'      => $season->rake_rate_adult ?? null,
+            'start_date' => $season->start_date,
+            'end_date'   => $season->end_date,
+            'capacity'   => $season->service?->capacity,
             'description' => $fieldValues['Description'] ?? null,
             'condition_text' => $fieldValues['Condition Text'] ?? null,
             'activity' => $fieldValues['Activity Description'] ?? null,

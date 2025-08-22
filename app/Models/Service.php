@@ -26,6 +26,7 @@ class Service extends Model
         'tag',
         'duration',
         'pillbox_conditions',
+        'capacity',
         'allow_internal_capacity_override',
         'created_by_id',
         'updated_by_id',

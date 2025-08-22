@@ -40,9 +40,7 @@ const SeasonModal = ({ isOpen, onClose, mode, season = null, services, auth, tea
                 rake_rate_child: season.rake_rate_child || "",
                 rake_rate_guide: season.rake_rate_guide || "",
                 allow_internal_price_override: season.allow_internal_price_override || 0,
-                capacity: season.capacity || "",
                 status: season.status || 0,
-                updated_by_id: season.updated_by_id || "",
                 updated_by_id: auth?.user?.id,
             });
         } else if (mode === "create") {
@@ -195,8 +193,6 @@ setData(prevData => ({
                             handleChange={handleChange}
                             errors={errors}
                         />
-                    </div>
-                    <div className="flex flex-row w-full items-center gap-2 justify-start mb-4">
                         <InputText
                             title="Rake Rate Guide"
                             field="rake_rate_guide"
@@ -204,16 +200,11 @@ setData(prevData => ({
                             mode={mode}
                             handleChange={handleChange}
                             errors={errors}
-                        />
-                        <InputText
-                            title="Capacity (PAX)"
-                            field="capacity"
-                            value={data.capacity}
-                            mode={mode}
-                            handleChange={handleChange}
-                            errors={errors}
-                        />
+                        />                        
                     </div>
+                    {/* <div className="flex flex-row w-full items-center gap-2 justify-start mb-4">
+
+                    </div> */}
                     <div className="flex flex-row w-full items-center gap-2 justify-start mb-4">
 
                         {/* <div className="mb-4 w-full">                        

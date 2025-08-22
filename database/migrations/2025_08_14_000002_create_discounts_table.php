@@ -10,13 +10,12 @@ return new class extends Migration {
         Schema::create('discounts', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->unsignedBigInteger('service_id');
-            $table->enum('applies_to', ['line_item','invoice'])->default('line_item');
+            $table->enum('applies_to', ['line_item', 'invoice'])->default('line_item');
             $table->decimal('percent_off', 5, 2); // 0-100
             $table->timestamps();
 
-            $table->foreign('service_id')->references('id')->on('services')->cascadeOnDelete();
-            $table->index(['service_id','applies_to']);
+            // $table->foreign('service_id')->references('id')->on('services')->cascadeOnDelete();
+            // $table->index(['service_id', 'applies_to']);
         });
     }
 

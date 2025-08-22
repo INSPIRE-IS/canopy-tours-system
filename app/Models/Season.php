@@ -34,7 +34,7 @@ class Season extends Model
         'rake_rate_guide',
         'allow_internal_price_override',
 
-        'capacity',
+
 
         'status',
 

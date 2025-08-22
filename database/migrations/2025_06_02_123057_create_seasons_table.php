@@ -20,7 +20,7 @@ return new class extends Migration
             $table->float('rake_rate_child', 8, 2);
             $table->float('rake_rate_guide', 8, 2);
             $table->boolean('allow_internal_price_override')->nullable()->default(0);
-            $table->integer('capacity');
+
             $table->boolean('status')->default(0);
 
             $table->timestamps();

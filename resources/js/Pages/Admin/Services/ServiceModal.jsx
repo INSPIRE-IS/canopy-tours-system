@@ -17,6 +17,7 @@ const ServiceModal = ({ isOpen, onClose, mode, service, serviceFields, auth, tea
         tag: "",
         duration: "",
         pillbox_conditions: "",
+        capacity: "",
         allow_internal_capacity_override: 0,
         // pillbox_text: "",
         // arrangements: "",
@@ -43,6 +44,7 @@ const ServiceModal = ({ isOpen, onClose, mode, service, serviceFields, auth, tea
                 tag: service.tag || "",
                 duration: service.duration || "",
                 pillbox_conditions: service.pillbox_conditions || "",
+                capacity: service.capacity || "",
                 allow_internal_capacity_override: service.allow_internal_capacity_override || 0,
                 // pillbox_text: service.pillbox_text || "",
                 // arrangements: service.arrangements || "",
@@ -91,6 +93,7 @@ const handleSubmit = (e) => {
     formData.append('tag', data.tag);
     formData.append('duration', data.duration);
     formData.append('pillbox_conditions', data.pillbox_conditions);
+    formData.append('capacity', data.capacity);
     formData.append('allow_internal_capacity_override', data.allow_internal_capacity_override);
     formData.append('created_by_id', data.created_by_id);
     formData.append('updated_by_id', data.updated_by_id);
@@ -284,8 +287,6 @@ console.log('mode', mode);
                             handleChange={handleChange}
                             errors={errors}
                         />
-                    </div>
-                    <div className="flex flex-row w-full items-center gap-2 justify-between mb-4">
                         <InputText
                             title="name"
                             field="name"
@@ -294,10 +295,10 @@ console.log('mode', mode);
                             mode={mode}
                             handleChange={handleChange}
                             errors={errors}
-                        />
+                        />                        
                     </div>
-
-                                            <InputText
+                    <div className="flex flex-row w-full items-center gap-2 justify-between mb-4">
+                        <InputText
                             title="Duration (estimated completion time)"
                             field="duration"
                             type='time'
@@ -307,6 +308,18 @@ console.log('mode', mode);
                             handleChange={handleChange}
                             errors={errors}
                         />
+                        <InputText
+                            title="Capacity (PAX)"
+                            field="capacity"
+                            height="h-[48px]"
+                            value={data.capacity}
+                            mode={mode}
+                            handleChange={handleChange}
+                            errors={errors}
+                        />                        
+                    </div>
+
+
 
                         <InputText
                             title="Conditions"
@@ -317,14 +330,15 @@ console.log('mode', mode);
                             handleChange={handleChange}
                             errors={errors}
                         />
-                                                    <CustomCheckbox
-                                label="Allow Time Capacity(PAX) Override"
-                                name="allow_internal_capacity_override"
-                                checked={data.allow_internal_capacity_override}
-                                mode={mode}
-                                onChange={handleChange}
-                                errors={errors}
-                            />
+
+                        <CustomCheckbox
+                            label="Allow Time Capacity(PAX) Override"
+                            name="allow_internal_capacity_override"
+                            checked={data.allow_internal_capacity_override}
+                            mode={mode}
+                            onChange={handleChange}
+                            errors={errors}
+                        />
                     {serviceFields.map(field => {
                         console.log('field', field);
                         return(

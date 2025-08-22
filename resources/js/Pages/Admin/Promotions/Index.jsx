@@ -94,8 +94,8 @@ export default function Index({ promos, searchTerm, sortColumn, sortDirection, p
                       <td className="w-[140px] p-3">{item.type}</td>
                       <td className="w-[120px] p-3">{item.value}</td>
                       <td className="w-[180px] p-3">{item.service?.name}</td>
-                      <td className="w-[140px] p-3">{item?.start_date?.split('T')[0]}</td>
-                      <td className="w-[140px] p-3">{item?.end_date?.split('T')[0]}</td>
+                      <td className="w-[140px] p-3">{item?.booking_start_date?.split('T')[0]}</td>
+                      <td className="w-[140px] p-3">{item?.booking_end_date?.split('T')[0]}</td>
                       <td className="w-[120px] p-3">{item.internal_use_only ? 'Yes' : 'No'}</td>
                       <td className="w-[185px] p-3 flex gap-2">
                         {permissions?.promotions_edit && (

@@ -12,13 +12,12 @@ class Discount extends Model
 
     protected $fillable = [
         'name',
-        'service_id',
         'applies_to',
         'percent_off',
     ];
 
-    public function service()
+    public function services()
     {
-        return $this->belongsTo(Service::class);
+        return $this->belongsToMany(Service::class, 'discount_services');
     }
 }

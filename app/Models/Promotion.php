@@ -17,8 +17,10 @@ class Promotion extends Model
         'type',
         'value',
         'service_id',
-        'start_date',
-        'end_date',
+        'booking_start_date',
+        'booking_end_date',
+        'activity_start_date',
+        'activity_end_date',
         'valid_days',
         'internal_use_only',
     ];

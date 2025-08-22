@@ -18,8 +18,8 @@ class PromotionController extends Controller
 
         $promos = Promotion::with('service')
             ->when($search, function ($q) use ($search) {
-                $q->where('name', 'like', '%'.$search.'%')
-                  ->orWhere('promo_code','like','%'.$search.'%');
+                $q->where('name', 'like', '%' . $search . '%')
+                    ->orWhere('promo_code', 'like', '%' . $search . '%');
             })
             ->orderBy($sort, $direction)
             ->paginate(10)
@@ -30,49 +30,53 @@ class PromotionController extends Controller
             'searchTerm' => $search,
             'sortColumn' => $sort,
             'sortDirection' => $direction,
-            'services' => Service::select('id','name')->orderBy('name')->get(),
+            'services' => Service::select('id', 'name')->orderBy('name')->get(),
         ]);
     }
 
     public function store(Request $request)
     {
         $data = $request->validate([
-            'name' => ['required','string','max:255'],
-            'promo_code' => ['required','string','max:50','unique:promotions,promo_code'],
-            'type' => ['required','in:percent,fixed_value,graduated,varied_child'],
-            'value' => ['required','numeric','min:0'],
-            'service_id' => ['required','exists:services,id'],
-            'start_date' => ['required','date'],
-            'end_date' => ['required','date','after_or_equal:start_date'],
-            'valid_days' => ['nullable','string'],
+            'name' => ['required', 'string', 'max:255'],
+            'promo_code' => ['required', 'string', 'max:50', 'unique:promotions,promo_code'],
+            'type' => ['required', 'in:percent,fixed_value,graduated,varied_child'],
+            'value' => ['required', 'numeric', 'min:0'],
+            'service_id' => ['required', 'exists:services,id'],
+            'booking_start_date' => ['required', 'date'],
+            'booking_end_date' => ['required', 'date', 'after_or_equal:booking_start_date'],
+            'activity_start_date' => ['required', 'date'],
+            'activity_end_date' => ['required', 'date', 'after_or_equal:activity_start_date'],
+            'valid_days' => ['nullable', 'string'],
             'internal_use_only' => ['boolean'],
         ]);
 
         Promotion::create($data);
-        return redirect()->back()->with('message','Promotion created.');
+        return redirect()->back()->with('message', 'Promotion created.');
     }
 
     public function update(Request $request, Promotion $promotion)
     {
         $data = $request->validate([
-            'name' => ['required','string','max:255'],
-            'promo_code' => ['required','string','max:50','unique:promotions,promo_code,'.$promotion->id],
-            'type' => ['required','in:percent,fixed_value,graduated,varied_child'],
-            'value' => ['required','numeric','min:0'],
-            'service_id' => ['required','exists:services,id'],
-            'start_date' => ['required','date'],
-            'end_date' => ['required','date','after_or_equal:start_date'],
-            'valid_days' => ['nullable','string'],
+            'name' => ['required', 'string', 'max:255'],
+            'promo_code' => ['required', 'string', 'max:50', 'unique:promotions,promo_code,' . $promotion->id],
+            'type' => ['required', 'in:percent,fixed_value,graduated,varied_child'],
+            'value' => ['required', 'numeric', 'min:0'],
+            'service_id' => ['required', 'exists:services,id'],
+            'booking_start_date' => ['required', 'date'],
+            'booking_end_date' => ['required', 'date', 'after_or_equal:booking_start_date'],
+            'activity_start_date' => ['required', 'date'],
+            'activity_end_date' => ['required', 'date', 'after_or_equal:activity_start_date'],
+            'valid_days' => ['nullable', 'string'],
             'internal_use_only' => ['boolean'],
         ]);
 
         $promotion->update($data);
-        return redirect()->back()->with('message','Promotion updated.');
+        return redirect()->back()->with('message', 'Promotion updated.');
     }
 
     public function destroy(Promotion $promotion)
     {
         $promotion->delete();
-        return redirect()->back()->with('message','Promotion removed.');
+        return redirect()->back()->with('message', 'Promotion removed.');
     }
 }

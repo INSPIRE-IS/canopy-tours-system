@@ -16,9 +16,9 @@ class DiscountController extends Controller
         $sort = $request->get('sort', 'id');
         $direction = $request->get('direction', 'desc');
 
-        $discounts = Discount::with('service')
+        $discounts = Discount::with('services')
             ->when($search, function ($q) use ($search) {
-                $q->where('name', 'like', '%'.$search.'%');
+                $q->where('name', 'like', '%' . $search . '%');
             })
             ->orderBy($sort, $direction)
             ->paginate(10)
@@ -29,39 +29,47 @@ class DiscountController extends Controller
             'searchTerm' => $search,
             'sortColumn' => $sort,
             'sortDirection' => $direction,
-            'services' => Service::select('id','name')->orderBy('name')->get(),
+            'services' => Service::select('id', 'name')->orderBy('name')->get(),
         ]);
     }
 
     public function store(Request $request)
     {
+        // dd($request->all());
         $data = $request->validate([
-            'name' => ['required','string','max:255'],
-            'service_id' => ['required','exists:services,id'],
-            'applies_to' => ['required','in:line_item,invoice'],
-            'percent_off' => ['required','numeric','min:0','max:100'],
+            'name' => ['required', 'string', 'max:255'],
+            'service_ids' => ['required', 'array'], // , 'exists:services,id'
+            'applies_to' => ['required', 'in:line_item,invoice'],
+            'percent_off' => ['required', 'numeric', 'min:0', 'max:100'],
         ]);
 
-        Discount::create($data);
-        return redirect()->back()->with('message','Discount created.');
+        $discount = Discount::create($data);
+        $discount->services()->sync($data['service_ids']);
+
+        return redirect()->back()->with('message', 'Discount created.');
     }
 
     public function update(Request $request, Discount $discount)
     {
         $data = $request->validate([
-            'name' => ['required','string','max:255'],
-            'service_id' => ['required','exists:services,id'],
-            'applies_to' => ['required','in:line_item,invoice'],
-            'percent_off' => ['required','numeric','min:0','max:100'],
+            'name' => ['required', 'string', 'max:255'],
+            'service_ids' => ['required', 'array'],
+            'service_ids.*' => ['exists:services,id'],
+            'applies_to' => ['required', 'in:line_item,invoice'],
+            'percent_off' => ['required', 'numeric', 'min:0', 'max:100'],
         ]);
 
+        // update the discount's own fields
         $discount->update($data);
-        return redirect()->back()->with('message','Discount updated.');
+
+        // sync pivot (replace old services with new ones)
+        $discount->services()->sync($data['service_ids']);
+        return redirect()->back()->with('message', 'Discount updated.');
     }
 
     public function destroy(Discount $discount)
     {
         $discount->delete();
-        return redirect()->back()->with('message','Discount removed.');
+        return redirect()->back()->with('message', 'Discount removed.');
     }
 }

@@ -86,7 +86,7 @@ export default function Index({ discounts, searchTerm, sortColumn, sortDirection
                     <tr key={item.id} className="flex justify-between items-center hover:bg-gray-50">
                       <td className="w-[80px] p-3">{item.id}</td>
                       <td className="w-[200px] p-3">{item.name}</td>
-                      <td className="w-[180px] p-3">{item.service?.name}</td>
+                      <td className="w-[180px] p-3">{item.services?.map((r) => r.name).join(', ')}</td>
                       <td className="w-[140px] p-3">{item.applies_to}</td>
                       <td className="w-[120px] p-3">{item.percent_off}</td>
                       <td className="w-[185px] p-3 flex gap-2">

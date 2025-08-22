@@ -218,11 +218,12 @@ useEffect(() => {
             return(
             <Card 
             key={activity?.id} 
-            image={activity?.image} 
+            image={activity?.image}
+            tag={activity?.tag} 
             service={activity?.service} 
             season={activity?.season}
             price={activity?.price} 
-            badge={activity?.badge} 
+            badge={activity?.pillbox_conditions} 
             gift={activity?.gift} 
             onBook={() => router.get(route('front.activity',{activity_id: activity?.id}))}
             onGift={() => router.get(route('front.voucher',{activity_id:activity?.id}))}

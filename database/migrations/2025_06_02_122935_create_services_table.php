@@ -18,6 +18,7 @@ return new class extends Migration
             $table->time('duration')->nullable();
             $table->string('pillbox_conditions')->nullable();
             $table->boolean('allow_internal_capacity_override')->default(0)->nullable();
+            $table->integer('capacity');
             $table->timestamps();
             $table->softDeletes();
 

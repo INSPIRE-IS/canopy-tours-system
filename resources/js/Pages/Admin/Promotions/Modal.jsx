@@ -82,11 +82,18 @@ const Modal = ({ isOpen, onClose, mode, item = null, services }) => {
               <CustomInputText title="Name" name="name" value={data.name} mode={mode} onChange={(e) => {handleChange(e.target.name, e.target.value);}} errors={errors} />
               <CustomInputText title="Promo Code" name="promo_code" value={data.promo_code} mode={mode} onChange={(e) => {handleChange(e.target.name, e.target.value);}} errors={errors} />    
             </div>
-
+                <span className="text-booking-card-title">Booking Dates</span>
             <div className="flex flex-row w-full items-center gap-2 justify-between mb-4">
-              <CustomInputText title="Start Date (YYYY-MM-DD)" type="date" name="start_date" value={data.start_date} mode={mode} onChange={(e) => {handleChange(e.target.name, e.target.value);}} errors={errors} />  
-              <CustomInputText title="End Date (YYYY-MM-DD)" type="date" name="end_date" value={data.end_date} mode={mode} onChange={(e) => {handleChange(e.target.name, e.target.value);}} errors={errors} />            
+              <CustomInputText title="Start Date (YYYY-MM-DD)" type="date" name="booking_start_date" value={data.booking_start_date} mode={mode} onChange={(e) => {handleChange(e.target.name, e.target.value);}} errors={errors} />  
+              <CustomInputText title="End Date (YYYY-MM-DD)" type="date" name="booking_end_date" value={data.booking_end_date} mode={mode} onChange={(e) => {handleChange(e.target.name, e.target.value);}} errors={errors} />            
             </div>
+            <span className="text-booking-card-title">Activity Dates</span>
+            <div className="flex flex-row w-full items-center gap-2 justify-between mb-4">
+              <CustomInputText title="Start Date (YYYY-MM-DD)" type="date" name="activity_start_date" value={data.activity_start_date} mode={mode} onChange={(e) => {handleChange(e.target.name, e.target.value);}} errors={errors} />
+              <CustomInputText title="End Date (YYYY-MM-DD)" type="date" name="activity_end_date" value={data.activity_end_date} mode={mode} onChange={(e) => {handleChange(e.target.name, e.target.value);}} errors={errors} />            
+            </div>
+        
+
             <div className="flex flex-row w-[90%] items-center justify-evenly gap-2 mb-4">
               <CustomCheckbox
                   label="Mon"
