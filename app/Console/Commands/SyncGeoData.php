@@ -32,29 +32,29 @@ class SyncGeoData extends Command
     {
         $this->info('Fetching country data...');
         ini_set('memory_limit', '512M'); // or '1G' for 1GB if needed
-        // $countries = Http::get('https://raw.githubusercontent.com/dr5hn/countries-states-cities-database/master/json/countries.json')->json();
+        $countries = Http::get('https://raw.githubusercontent.com/dr5hn/countries-states-cities-database/master/json/countries.json')->json();
 
 
-        // $continentMap = [];
+        $continentMap = [];
 
-        // foreach ($countries as $country) {
-        //     $continentName = $country['region'] ?? 'Unknown';
-        //     if (!isset($continentMap[$continentName])) {
-        //         $continent = Continent::firstOrCreate(['name' => $continentName]);
-        //         $continentMap[$continentName] = $continent->id;
-        //     }
+        foreach ($countries as $country) {
+            $continentName = $country['region'] ?? 'Unknown';
+            if (!isset($continentMap[$continentName])) {
+                $continent = Continent::firstOrCreate(['name' => $continentName]);
+                $continentMap[$continentName] = $continent->id;
+            }
 
-        //     Country::updateOrCreate(
-        //         ['iso2' => $country['iso2']],
-        //         [
-        //             'name' => $country['name'],
-        //             'iso3' => $country['iso3'],
-        //             'continent_id' => $continentMap[$continentName],
-        //             'nationality' => $country['nationality'],
-        //             'phonecode' => $country['phonecode'],
-        //         ]
-        //     );
-        // }
+            Country::updateOrCreate(
+                ['iso2' => $country['iso2']],
+                [
+                    'name' => $country['name'],
+                    'iso3' => $country['iso3'],
+                    'continent_id' => $continentMap[$continentName],
+                    'nationality' => $country['nationality'],
+                    'phonecode' => $country['phonecode'],
+                ]
+            );
+        }
         $this->info('Countries and continents synced.');
         $states = Http::get('https://raw.githubusercontent.com/dr5hn/countries-states-cities-database/master/json/states.json')->json();
 
