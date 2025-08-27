@@ -53,12 +53,7 @@ class StoreSeasonRequest extends FormRequest
                 'numeric',
                 'required',
             ],
-            'capacity' => [
-                'required',
-                'integer',
-                'min: 1',
-                'max:100',
-            ],
+
             'status' => [
                 'required',
             ],

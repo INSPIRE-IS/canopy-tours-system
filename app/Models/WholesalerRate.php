@@ -12,11 +12,17 @@ class WholesalerRate extends Model
 
     protected $fillable = [
         'wholesaler_id',
+        'service_id',
         'season_id',
         'price_adult',
         'price_child',
         'price_guide',
     ];
+
+    public function service()
+    {
+        return $this->belongsTo(Service::class);
+    }
 
     public function season()
     {

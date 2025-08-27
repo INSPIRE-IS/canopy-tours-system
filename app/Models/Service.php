@@ -56,6 +56,21 @@ class Service extends Model
         return $this->hasMany(Season::class, 'service_id');
     }
 
+    public function promotions()
+    {
+        return $this->hasMany(Promotion::class, 'service_id');
+    }
+
+    public function activePromotions()
+    {
+        $today = now()->toDateString();
+
+        return $this->hasMany(Promotion::class, 'service_id')
+            ->where('booking_start_date', '<=', $today)
+            ->where('booking_end_date', '>=', $today)
+            ->where('internal_use_only', false);
+    }
+
 
     public function servicefieldValues()
     {

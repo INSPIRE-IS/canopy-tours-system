@@ -34,6 +34,12 @@ class UpdateServiceRequest extends FormRequest
             //     'date_format:' . config('panel.time_format'),
             //     'nullable',
             // ],
+            'capacity' => [
+                'required',
+                'integer',
+                'min:-2147483648',
+                'max:2147483647',
+            ],
             'pillbox_conditions' => [
                 'string',
                 'nullable',

@@ -97,56 +97,56 @@ const Modal = ({ isOpen, onClose, mode, item = null, services }) => {
             <div className="flex flex-row w-[90%] items-center justify-evenly gap-2 mb-4">
               <CustomCheckbox
                   label="Mon"
-                  name="mon"
-                  checked={checkDays.includes('mon')}
+                  name="1"
+                  checked={checkDays.includes('1')}
                   mode={mode}
                   onChange={handleCheckChange}
                   errors={errors}
               />
               <CustomCheckbox
                   label="Tue"
-                  name="tue"
-                  checked={checkDays.includes('tue')}
+                  name="2"
+                  checked={checkDays.includes('2')}
                   mode={mode}
                   onChange={handleCheckChange}
                   errors={errors}
               />
               <CustomCheckbox
                   label="Wed"
-                  name="wed"
-                  checked={checkDays.includes('wed')}
+                  name="3"
+                  checked={checkDays.includes('3')}
                   mode={mode}
                   onChange={handleCheckChange}
                   errors={errors}
               />
               <CustomCheckbox
                   label="Thur"
-                  name="thur"
-                  checked={checkDays.includes('thur')}
+                  name="4"
+                  checked={checkDays.includes('4')}
                   mode={mode}
                   onChange={handleCheckChange}
                   errors={errors}
                   />
               <CustomCheckbox
                   label="Fri"
-                  name="fri"
-                  checked={checkDays.includes('fri')}
+                  name="5"
+                  checked={checkDays.includes('5')}
                   mode={mode}
                   onChange={handleCheckChange}
                   errors={errors}
               />
               <CustomCheckbox
                   label="Sat"
-                  name="sat"
-                  checked={checkDays.includes('sat')}
+                  name="6"
+                  checked={checkDays.includes('6')}
                   mode={mode}
                   onChange={handleCheckChange}
                   errors={errors}
               />
               <CustomCheckbox
                   label="Sun"
-                  name="sun"
-                  checked={checkDays.includes('sun')}
+                  name="7"
+                  checked={checkDays.includes('7')}
                   mode={mode}
                   onChange={handleCheckChange}
                   errors={errors}

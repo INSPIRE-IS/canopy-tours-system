@@ -54,12 +54,7 @@ class UpdateSeasonRequest extends FormRequest
                 'required',
             ],
 
-            'capacity' => [
-                'required',
-                'integer',
-                'min:-2147483648',
-                'max:2147483647',
-            ],
+
             'status' => [
                 'required',
             ],

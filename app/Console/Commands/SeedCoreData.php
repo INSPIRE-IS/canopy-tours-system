@@ -11,6 +11,8 @@ use App\Models\Closeout;
 use App\Models\CloseoutDayTimeSlot;
 use App\Models\Customer;
 use App\Models\CustomerManifest;
+use App\Models\Discount;
+use App\Models\DiscountService;
 use App\Models\Inventory;
 use App\Models\InventoryTimeSlot;
 use App\Models\InventoryTypeDay;
@@ -41,6 +43,7 @@ use App\Models\TypeGender;
 use App\Models\TypeLocation;
 use App\Models\TypeReferral;
 use App\Models\Wholesaler;
+use App\Models\WholesalerRate;
 use Illuminate\Support\Facades\DB;
 use Mockery\Matcher\Type;
 use Str;
@@ -906,7 +909,7 @@ class SeedCoreData extends Command
         $seasons = [
             [
                 'id' => 1,
-                'name' => '2025',
+                'name' => '2025-2026',
                 'start_date' => '2025-02-01',
                 'end_date' => '2026-02-28',
                 'rake_rate_adult' => '600.00',
@@ -921,9 +924,9 @@ class SeedCoreData extends Command
             ],
             [
                 'id' => 2,
-                'name' => 'year 2025',
-                'start_date' => '2025-02-01',
-                'end_date' => '2026-10-28',
+                'name' => '2025-2026',
+                'start_date' => '2025-03-01',
+                'end_date' => '2026-02-28',
                 'rake_rate_adult' => '600.00',
                 'rake_rate_child' => '300.00',
                 'rake_rate_guide' => '200.00',
@@ -936,9 +939,9 @@ class SeedCoreData extends Command
             ],
             [
                 'id' => 3,
-                'name' => 'year 2025',
-                'start_date' => '2025-02-01',
-                'end_date' => '2026-10-28',
+                'name' => '2025-2026',
+                'start_date' => '2025-03-01',
+                'end_date' => '2026-02-28',
                 'rake_rate_adult' => '600.00',
                 'rake_rate_child' => '300.00',
                 'rake_rate_guide' => '200.00',
@@ -951,7 +954,7 @@ class SeedCoreData extends Command
             ],
             [
                 'id' => 4,
-                'name' => 'autumn 2025',
+                'name' => '2025 mar-june',
                 'start_date' => '2025-03-01',
                 'end_date' => '2026-06-01',
                 'rake_rate_adult' => '600.00',
@@ -965,9 +968,9 @@ class SeedCoreData extends Command
             ],
             [
                 'id' => 5,
-                'name' => 'half year 2025',
+                'name' => '2025 feb-aug',
                 'start_date' => '2025-02-01',
-                'end_date' => '2026-08-28',
+                'end_date' => '2025-08-28',
                 'rake_rate_adult' => '600.00',
                 'rake_rate_child' => '300.00',
                 'rake_rate_guide' => '200.00',
@@ -980,7 +983,7 @@ class SeedCoreData extends Command
             ],
             [
                 'id' => 6,
-                'name' => 'year 2025',
+                'name' => '2025-2026',
                 'start_date' => '2025-03-01',
                 'end_date' => '2026-02-28',
                 'rake_rate_adult' => '600.00',
@@ -996,7 +999,7 @@ class SeedCoreData extends Command
 
             [
                 'id' => 7,
-                'name' => 'year 2026',
+                'name' => '2026-2027',
                 'start_date' => '2026-03-01',
                 'end_date' => '2027-02-28',
                 'rake_rate_adult' => '600.00',
@@ -1023,6 +1026,218 @@ class SeedCoreData extends Command
             Season::updateOrCreate(['id' => $season['id']], $season);
         }
         $this->info('Seasons seeded successfully.');
+
+
+        $wholesaler_rates = [
+            [
+                'id' => 1,
+                'wholesaler_id' => 1,
+                'service_id' => 1,
+                'season_id' => 1,
+                'price_adult' => 200.00,
+                'price_child' => 100.00,
+                'price_guide' => null,
+            ],
+            [
+                'id' => 2,
+                'wholesaler_id' => 1,
+                'service_id' => 4,
+                'season_id' => 4,
+                'price_adult' => 200.00,
+                'price_child' => 100.00,
+                'price_guide' => null,
+            ],
+            [
+                'id' => 3,
+                'wholesaler_id' => 1,
+                'service_id' => 5,
+                'season_id' => 5,
+                'price_adult' => 200.00,
+                'price_child' => 100.00,
+                'price_guide' => null,
+            ],
+            [
+                'id' => 4,
+                'wholesaler_id' => 2,
+                'service_id' => 2,
+                'season_id' => 2,
+                'price_adult' => 300.00,
+                'price_child' => 200.00,
+                'price_guide' => null,
+            ],
+            [
+                'id' => 5,
+                'wholesaler_id' => 3,
+                'service_id' => 3,
+                'season_id' => 3,
+                'price_adult' => 300.00,
+                'price_child' => 200.00,
+                'price_guide' => null,
+            ],
+            [
+                'id' => 6,
+                'wholesaler_id' => 4,
+                'service_id' => 4,
+                'season_id' => 4,
+                'price_adult' => 400.00,
+                'price_child' => 200.00,
+                'price_guide' => null,
+            ],
+        ];
+
+        foreach ($wholesaler_rates as $wholesaler_rate) {
+            WholesalerRate::updateOrCreate(['id' => $wholesaler_rate['id']], $wholesaler_rate);
+        }
+
+        $discounts = [
+            [
+                'id' => 1,
+                'name' => 'Pensioner',
+                'applies_to' => 'line_item',
+                'percent_off' => 8,
+            ],
+            [
+                'id' => 2,
+                'name' => 'Student',
+                'applies_to' => 'line_item',
+                'percent_off' => 5,
+            ],
+            [
+                'id' => 3,
+                'name' => 'Regular',
+                'applies_to' => 'line_item',
+                'percent_off' => 10,
+            ],
+            [
+                'id' => 4,
+                'name' => 'Local',
+                'applies_to' => 'line_item',
+                'percent_off' => 10,
+            ],
+            [
+                'id' => 5,
+                'name' => '3% Invoice Pax(8)',
+                'applies_to' => 'invoice',
+                'percent_off' => 3,
+            ],
+            [
+                'id' => 6,
+                'name' => '5% Invoice Pax(15)',
+                'applies_to' => 'invoice',
+                'percent_off' => 5,
+            ]
+        ];
+
+        foreach ($discounts as $discount) {
+            Discount::updateOrCreate(['id' => $discount['id']], $discount);
+        }
+
+        $discount_services = [
+            [
+                'id' => 1,
+                'discount_id' => 1,
+                'service_id' => 1,
+            ],
+            [
+                'id' => 2,
+                'discount_id' => 2,
+                'service_id' => 1,
+            ],
+            [
+                'id' => 3,
+                'discount_id' => 3,
+                'service_id' => 1,
+            ],
+            [
+                'id' => 4,
+                'discount_id' => 4,
+                'service_id' => 1,
+            ],
+            [
+                'id' => 5,
+                'discount_id' => 5,
+                'service_id' => 1,
+            ],
+            [
+                'id' => 6,
+                'discount_id' => 6,
+                'service_id' => 1,
+            ],
+            [
+                'id' => 7,
+                'discount_id' => 1,
+                'service_id' => 2,
+            ],
+            [
+                'id' => 8,
+                'discount_id' => 2,
+                'service_id' => 2,
+            ],
+            [
+                'id' => 9,
+                'discount_id' => 3,
+                'service_id' => 2,
+            ],
+            [
+                'id' => 10,
+                'discount_id' => 4,
+                'service_id' => 2,
+            ],
+            [
+                'id' => 11,
+                'discount_id' => 5,
+                'service_id' => 2,
+            ],
+            [
+                'id' => 12,
+                'discount_id' => 6,
+                'service_id' => 2,
+            ],
+            [
+                'id' => 13,
+                'discount_id' => 1,
+                'service_id' => 3,
+            ],
+            [
+                'id' => 14,
+                'discount_id' => 2,
+                'service_id' => 3,
+            ],
+            [
+                'id' => 15,
+                'discount_id' => 3,
+                'service_id' => 3,
+            ],
+            [
+                'id' => 16,
+                'discount_id' => 4,
+                'service_id' => 3,
+            ],
+            [
+                'id' => 17,
+                'discount_id' => 5,
+                'service_id' => 3,
+            ],
+            [
+                'id' => 18,
+                'discount_id' => 6,
+                'service_id' => 3,
+            ],
+            [
+                'id' => 19,
+                'discount_id' => 1,
+                'service_id' => 4,
+            ],
+            [
+                'id' => 20,
+                'discount_id' => 2,
+                'service_id' => 4,
+            ],
+        ];
+
+        foreach ($discount_services as $discount_service) {
+            DiscountService::updateOrCreate(['id' => $discount_service['id']], $discount_service);
+        }
 
 
         $inventory = [

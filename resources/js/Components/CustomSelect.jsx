@@ -3,7 +3,7 @@ import React from "react";
 const CustomSelect = ({ label, name, value = null, width="w-full" , height="h-[48px]", onChange, error,mode, options }) => {
   //console.log('options ', options);
   return (
-    <div className="w-full mb-3">
+    <div className="w-full mb-4">
       {label && (
             <label
                 htmlFor={name}

@@ -18,9 +18,10 @@ import CustomTextarea from '@/Components/CustomTextarea';
 
 export default function Dashboard({ auth, wholesalers = [], services = [], schedule, start_date, view_mode, days, type_affiliates, vouchers, discounts, wholesaler_rates }) {
 //seasons = [],, adults, children, guides
+console.log('---------------services---------------- ', services);
     const page = usePage();
     const mode = 'create';
-    const [date, setDate] = useState(() => new Date(start_date));
+
     const [viewMode, setViewMode] = useState(view_mode); // 'day', 'week', or 'month'
     const [activityId, setActivityId] = useState('');
     const [scheduleData, setScheduleData] = useState({ schedule, days });
@@ -30,17 +31,25 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
     const [timeslots, setTimeslots] = useState([]);
     const [toggleCalendar, setToggleCalendar] = useState(true);
     const [toggleRate, setToggleRate] = useState(true);
+    const [selectedWholesaler, setSelectedWholesaler] = useState(null);    
     const [selectedService, setSelectedService] = useState(null);
     const [selectedSeason, setSelectedSeason] = useState(null);
-    const [selectedWholesaler, setSelectedWholesaler] = useState(null);
+    const [date, setDate] = useState(() => new Date(start_date));    
+    const [selectedTime, setSelectedTime] = useState(null);
     const [adults, setAdults] = useState('0');
     const [children, setChildren] = useState('0');
     const [guides, setGuides] = useState('0');
     const [selectedSlot, setSelectedSlot] = useState(null); // stores {date: string, day: string, time: string }
     const [wholesalerRateList, setWholesalerRateList] = useState([]);
-    const [discountList, setDiscountList] = useState([]);
+    const [discountList, setDiscountList] = useState(null);
+    const [showDiscount, setShowDiscount] = useState(false);
+    const [discountId, setDiscountId] = useState(null);
+    const [discountPax, setDiscountPax] = useState(null);
+    const [paxGroups, setPaxGroups] = useState([]);
+    const [discountCode, setDiscountCode] = useState(null);    
+    const [showPromo, setShowPromo] = useState(false);
     const [promoCode, setPromoCode] = useState(null);
-    const [discountCode, setDiscountCode] = useState(null);
+
     const [selectedDate, setSelectedDate] = useState(null);
     const [pricing, setPricing] = useState(null);
     console.log('schedule ',schedule);
@@ -52,28 +61,34 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
         consultant_email: '',
         consultant_mobile: '',
         service_id: '',
+        override_capacity: false, 
+        capacity: 0,
+        duration: 0,
         season_id: '',
+        override_price: false,
+        
+        rate_per_adult: 0,
+        rate_per_child: 0,
+        rate_per_guide: 0,
+        override_timeslots: false,        
         booking_date: '',
         start_time: '',
         end_time: '',
         adults: '',
         children: '',
-        guides: '',        
-        web_booking: false,
-        needs_pickup: false,
-        override_timeslots: false,
-        exclusive_resource: false,
-        //rates
-        include_media: false,        
-        selected_slot: [],        
-        override_rates: false,
-        override_reason: '',        
+        guides: '',
         adult: 0,
         child: 0,
-        guide: 0,
-        rate_per_adult: 0,
-        rate_per_child: 0,
-        rate_per_guide: 0,
+        guide: 0,        
+        include_media: false,           
+        web_booking: false,
+        needs_pickup: false,
+        exclusive_resource: false,
+        //rates
+        selected_slot: [],   
+        override_rates: false,     
+        override_reason: '',        
+        discount_lines: [],
         //redeem
         redeem_voucher: '',
         redeem_discount: '',
@@ -97,16 +112,15 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
         bill_back: 0,
     });
 
-
     useEffect(() => {
         console.log('activityId', activityId);
         console.log('date', date);
+        console.log('start_time', selectedTime);
         console.log('view_mode', view_mode);
         console.log('adults', adults);
         console.log('children', children);
         loadCalendar();
-    }, [activityId,date, view_mode, adults, children]);
-
+    }, [activityId,date, view_mode, selectedTime, adults, children]);
 
     useEffect(() => {
         console.log('adults', adults);
@@ -118,14 +132,26 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
             const child_total = (parseFloat(children || 0) * parseFloat(data?.rate_per_child || 0));
             const guide_total = (parseFloat(guides || 0) * parseFloat(data?.rate_per_guide || 0));
             //console.log('data--------------------', data);
-            console.log('adult_total', adult_total);
-            console.log('child_total', child_total);
-            console.log('guide_total', guide_total);
+            // console.log('adult_total', adult_total);
+            // console.log('child_total', child_total);
+            // console.log('guide_total', guide_total);
             const booking_total = (parseFloat(adult_total || 0) + parseFloat(child_total || 0) + parseFloat(guide_total || 0)).toFixed(2);
             setData({
                 ...data,
                 booking_total: booking_total || 0,
             });
+            let groups = [];
+
+            if (adults > 0) {
+                groups.push({ type: "adult", count: parseInt(adults), discount_id: null });
+            }
+            if (children > 0) {
+                groups.push({ type: "child", count: parseInt(children), discount_id: null });
+            }
+            if (guides > 0) {
+                groups.push({ type: "guide", count: parseInt(guides), discount_id: null });
+            }
+            setPaxGroups(groups);
         }
     }, [adults, children, guides]);
 
@@ -139,6 +165,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                 activity_id: activityId,
                 view_mode: view_mode,
                 start_date: format(date, 'yyyy-MM-dd'),
+                start_time: selectedTime,
                 adults,
                 children
                 }
@@ -172,8 +199,8 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
         if(!selectedService || !selectedSeason || !adults || !children || !guides || !selectedDate) return; // || !selectedWholesaler || !promoCode || !discountCode 
         try {
             const res = await axios.post('/admin/bookings/calculate-price', {
-            service_id: selectedService,
-            season_id: selectedSeason,
+            service_id: selectedService.id,
+            season_id: selectedSeason.id,
             wholesaler_id: selectedWholesaler,
             promo_code: promoCode,
             discount_code: discountCode, // optional
@@ -197,28 +224,54 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
             wholesaler_rates_list.forEach(rate=>{
                 //console.log('rate', rate);
                 const filtered = {id: rate.id, name: rate.season?.name, price_adult: rate.price_adult, price_child: rate.price_child, price_guide: rate.price_guide};
-                //console.log('filtered', filtered);
-                //setWholesalerRateList(prev => [...prev, filtered]);
+                console.log('filtered', filtered);
+            setData({
+                ...data,
+                override_price: false,
+                override_rates: false,
+                adult: rate.price_adult || 0,
+                child: rate.price_child || 0,
+                guide: rate.price_guide || 0,
+                rate_per_adult: rate.price_adult || 0,
+                rate_per_child: rate.price_child || 0,
+                rate_per_guide: rate.price_guide || 0,
+            });
                 wholesalerList.push(filtered);
             });
             setWholesalerRateList(wholesalerList);
-
         }
-    },[selectedWholesaler]);
-
-
-    useEffect(() => {
-        if(selectedService){
-            console.log('discounts', discounts);
-            const discount_rates_list = discounts.filter(s => s.service_id === parseInt(selectedService));
-            let discountList = [];
-            discount_rates_list.forEach(rate=>{
-                const filtered = {id: rate.id, name: rate.name, percent_off: rate.percent_off, applies_to: rate.applies_to};
-                discountList.push(filtered);
-            });
-            setDiscountList(discountList);
+        if(data.is_wholesaler){
+            setWholesalerRateList([]);
+            setShowDiscount(false);
+            setPaxGroups([]);
+            setAdults(0);
+            setChildren(0);
+            setGuides(0);            
         }
-    },[selectedService]);
+
+    },[selectedWholesaler, data.is_wholesaler]);
+
+
+useEffect(() => {
+    if (selectedService) {
+        console.log('discounts', discounts);
+        const discount_rates_list = discounts.filter(discount => 
+            discount.services.some(service => service.id === parseInt(selectedService.id))
+        );
+        const discountList = discount_rates_list.map(rate => ({
+            id: rate.id,
+            name: rate.name,
+            percent_off: rate.percent_off,
+            applies_to: rate.applies_to
+        }));
+        console.log('----------------------------------------------------------discountList', discountList);
+        if(discountList.length > 0){
+            setShowDiscount(true);
+            setDiscountList(discountList);            
+        }
+    }
+    
+}, [selectedService]);
 
   // useEffect(() => {
   //   // reload calendar from Laravel with view_mode=day and date +/- 2 days
@@ -250,49 +303,123 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
             return selected;
         });
         console.log(service);
-        setSelectedService(service?.id ?? null);
+        setSelectedService(service ?? null);
         const seasons = service ? setSeasons(service.seasons) : [];
         console.log('seasons', service?.seasons);
+            setData({
+                ...data,
+                override_capacity: service?.allow_internal_capacity_override || false,
+                capacity: service?.capacity || 0,
+                duration: service?.duration || 0,
+                season_id: null,
+                booking_date: null,
+                override_price: false,
+                override_rates: false,
+                override_timeslots: false,
+                adult: 0,
+                child: 0,
+                guide: 0,
+                rate_per_adult: 0,
+                rate_per_child: 0,
+                rate_per_guide: 0,
+            });
+            setSelectedSeason(null);
+            setActivityId(null);
+            setDate(() => new Date(start_date));
+            setTimeslots([]);
+
+
+
 
     }, [data.service_id]);
 
     useEffect(() => {
-        const season = seasons.find(s => {
-            console.log('season', s);
-            console.log('season_id ', data.season_id);
-            const selected = s.id === parseInt(data.season_id);
-            console.log(selected);
+        // const season = seasons.find(s => {
+        //     console.log('season', s);
+        //     console.log('season_id ', data.season_id);
+        //     const selected = s.id === parseInt(data.season_id);
+        //     console.log(selected);
 
-            return selected;
-        });
-        console.log('selectedSeason', season);
-        setSelectedSeason(season?.id ?? null);
-        //const time_slots = selectedSeason ? setTimeslots(selectedSeason?.inventory?.time_slots) : [];
-        //console.log('time_slots', selectedSeason?.inventory?.time_slots);
-        if (season) {
-            const formattedTimeSlots = season?.inventory?.inventory_time_slots?.map(slot => ({
-                id: slot.id,
-                name: slot.start_time.slice(0, 5), // e.g., '08:00' from '08:00:00'
-            })) || [];
-            console.log('formattedTimeSlots--------------------', formattedTimeSlots);
-            // setData('adult', selectedSeason?.inventory?.rake_rate_adult || 0);
-            // setData('child', selectedSeason?.inventory?.rake_rate_child || 0);
-            // setData('guide', selectedSeason?.inventory?.rake_rate_guide || 0);
-            setData({
-                ...data,
-                adult: season?.inventory?.rake_rate_adult || 0,
-                child: season?.inventory?.rake_rate_child || 0,
-                guide: season?.inventory?.rake_rate_guide || 0,
-                rate_per_adult: season?.inventory?.rake_rate_adult || 0,
-                rate_per_child: season?.inventory?.rake_rate_child || 0,
-                rate_per_guide: season?.inventory?.rake_rate_guide || 0,
-            });
-            setTimeslots(formattedTimeSlots);
-        } else {
-            setTimeslots([]); // fallback
-        }
+        //     return selected;
+        // });
+        // console.log('selectedSeason', season);
+        // setSelectedSeason(season?.id ?? null);
+        // //const time_slots = selectedSeason ? setTimeslots(selectedSeason?.inventory?.time_slots) : [];
+        // //console.log('time_slots', selectedSeason?.inventory?.time_slots);
+        // if (season) {
+        //     const formattedTimeSlots = season?.inventory?.inventory_time_slots?.map(slot => ({
+        //         id: slot.id,
+        //         name: slot.start_time.slice(0, 5), // e.g., '08:00' from '08:00:00'
+        //     })) || [];
+        //     console.log('formattedTimeSlots--------------------', formattedTimeSlots);
+        //     // setData('adult', selectedSeason?.inventory?.rake_rate_adult || 0);
+        //     // setData('child', selectedSeason?.inventory?.rake_rate_child || 0);
+        //     // setData('guide', selectedSeason?.inventory?.rake_rate_guide || 0);
+        //     setData({
+        //         ...data,
+        //         adult: season?.inventory?.rake_rate_adult || 0,
+        //         child: season?.inventory?.rake_rate_child || 0,
+        //         guide: season?.inventory?.rake_rate_guide || 0,
+        //         rate_per_adult: season?.inventory?.rake_rate_adult || 0,
+        //         rate_per_child: season?.inventory?.rake_rate_child || 0,
+        //         rate_per_guide: season?.inventory?.rake_rate_guide || 0,
+        //     });
+        //     setTimeslots(formattedTimeSlots);
+        // } else {
+        //     setTimeslots([]); // fallback
+        // }
 
     }, [data.season_id]);
+
+const addDiscountGroup = () => {
+  if (!discountId || !discountPax) return;
+
+  const countToMove = parseInt(discountPax);
+  const selectedDiscount = parseInt(discountId);
+
+  setPaxGroups(prevGroups => {
+    let updated = [...prevGroups];
+    
+    // Find the first group of adults WITHOUT a discount (the pool to split from)
+    const idx = updated.findIndex(g => g.type === "adult" && g.discount_id === null);
+
+    if (idx === -1) {
+      // No base adult group to split from
+      return updated;
+    }
+
+    const baseGroup = updated[idx];
+
+    if (baseGroup.count <= countToMove) {
+      // All base adults are moved to discounted group
+      updated[idx] = {
+        type: "adult",
+        count: countToMove,
+        discount_id: selectedDiscount
+      };
+    } else {
+      // Split: reduce base group, add new discounted group
+      updated[idx].count -= countToMove;
+      updated.push({
+        type: "adult",
+        count: countToMove,
+        discount_id: selectedDiscount
+      });
+    }
+
+    return updated;
+  });
+
+  // reset UI inputs
+  setDiscountId(null);
+  setDiscountPax(0);
+};
+function calculateDiscountedRate(baseRate, discountId) {
+  if (!discountId) return baseRate;
+  const discount = discountList.find(d => d.id === discountId);
+  return baseRate * (1 - discount.percent_off / 100);
+}
+
 
     // useEffect(() => {
     //     if (!data.override_rates) {
@@ -338,8 +465,72 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
     const handleChange = (target, value) => {
         setData(target, value);
         //setData("name", e.target.value);
-        console.log('data----- ', data);
+        console.log('target----- ', target);
+        console.log('value----- ', value);
+
     };
+    const parseDate = (str) => {
+        const [datePart] = str.split(" "); // strip time if present
+        const [y, m, d] = datePart.split("-").map(Number);
+        return new Date(y, m - 1, d); // local midnight
+    };
+
+    useEffect(() => {
+            if(data?.booking_date){
+            console.log('booking_date', data.booking_date);
+            //const selectedDate = new Date(value);
+            const selectedDate = parseDate(data.booking_date);
+            console.log('selectedDate', selectedDate);
+            const season = seasons.find(s => {
+                const start = new Date(s.start_date);console.log('start', start);
+                const end = new Date(s.end_date);console.log('end', end);
+                const selected = selectedDate >= start && selectedDate <= end;
+                console.log('selected----------ooooooooooooooooooooooooooo', selected);
+                return selected;
+            });
+
+            console.log('-------------selectedSeason---------', season);
+            //const time_slots = selectedSeason ? setTimeslots(selectedSeason?.inventory?.time_slots) : [];
+            //console.log('time_slots', selectedSeason?.inventory?.time_slots);
+            if (season) {
+                console.log('-------------Season-----gggggggggggggggggg----', season);
+                const formattedTimeSlots = season?.inventory?.inventory_time_slots?.map(slot => ({
+                    id: slot.id,
+                    name: slot.start_time.slice(0, 5), // e.g., '08:00' from '08:00:00'
+                })) || [];
+                console.log('formattedTimeSlots-----------ffffffffffffffff---------', formattedTimeSlots);
+
+                setData({
+                    ...data,
+                    season_id: season.id,
+                    override_timeslots: season?.inventory?.allow_internal_override || false,
+                });
+                if(!selectedWholesaler && !data.is_wholesaler){
+                    setData({
+                        ...data,
+                        override_price: season?.allow_internal_price_override || false,
+                        override_rates: season?.allow_internal_price_override || false,
+                        adult: season?.rake_rate_adult || 0,
+                        child: season?.rake_rate_child || 0,
+                        guide: season?.rake_rate_guide || 0,
+                        rate_per_adult: season?.rake_rate_adult || 0,
+                        rate_per_child: season?.rake_rate_child || 0,
+                        rate_per_guide: season?.rake_rate_guide || 0,
+                    });                    
+                }
+
+                setSelectedSeason(season);
+                setActivityId(season.id);
+                setDate(selectedDate);
+                setTimeslots(formattedTimeSlots);
+                console.log('data', data);
+            } else {
+                setTimeslots([]); // fallback
+                setSelectedSeason(null);
+            }                
+        }
+ 
+    }, [data.booking_date]);
 
     const handleCheveronDateChange = (direction) => {
         let newDate;
@@ -360,6 +551,39 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
         post(route('admin.bookings.store'));
     };
 
+    const totalAdult = paxGroups.reduce((sum, g) => {
+        if (g.type === "adult") {
+            const baseRate = data.rate_per_adult;
+            const rate = calculateDiscountedRate(baseRate, g.discount_id);
+            return sum + (rate * g.count);   // ✅ add to sum
+        }
+        return sum; // ✅ always return sum if not adult
+    }, 0);
+    const totalChild = paxGroups.reduce((sum, g) => {
+        if (g.type === "child") {
+            const baseRate = data.rate_per_child;
+            const rate = calculateDiscountedRate(baseRate, g.discount_id);
+            return sum + (rate * g.count);   // ✅ add to sum
+        }
+        return sum; // ✅ always return sum if not adult
+    }, 0);
+    const totalGuide = paxGroups.reduce((sum, g) => {
+        if (g.type === "guide") {
+            const baseRate = data.rate_per_guide;
+            const rate = calculateDiscountedRate(baseRate, g.discount_id);
+            return sum + (rate * g.count);   // ✅ add to sum
+        }
+        return sum; // ✅ always return sum if not adult
+    }, 0);
+    const total = paxGroups.reduce((sum, g) => {
+    const baseRate = g.type === "adult" ? data.rate_per_adult 
+                    : g.type === "child" ? data.rate_per_child 
+                    : data.rate_per_guide;
+    const rate = calculateDiscountedRate(baseRate, g.discount_id);
+    return sum + (rate * g.count);
+    }, 0);
+    // find currently selected discount from the list
+    const selectedDiscount = discountList?.find(d => d.id === parseInt(discountId));
     return (
         <AuthenticatedLayout
             user={auth.user}
@@ -433,7 +657,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                         )}
 
                         {/* Service + Date */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <CustomSelect
                             label="Service"
                             name="service_id"
@@ -443,7 +667,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                             error={errors.service_id}
                             options={services}
                         /> 
-                        <CustomSelect
+                        {/* <CustomSelect
                             label="Season"
                             name="season_id"
                             value={data.season_id}
@@ -451,8 +675,27 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                             onChange={(e) => {handleChange(e.target.name, e.target.value); setActivityId(e.target.value)}}
                             error={errors.season_id}
                             options={seasons}
-                        /> 
+                        />  */}
+                        <CustomInputText
+                            title="Booking Date"
+                            name="booking_date"
+                            type='date'
+                            value={data.booking_date}
+                            
+                            onChange={(e) => {handleChange(e.target.name, e.target.value); }}
+                            errors={errors}
+                        />                        
+                        <CustomSelect
+                            label="Start Time"
+                            name="start_time"
+                            value={data.start_time}
+                            
+                            onChange={(e) => {setData('start_time', e.target.value);setSelectedTime(e.target.value);}}
+                            error={errors.start_time}
+                            options={timeslots}
+                        />                         
                         </div>
+
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         {/* Time slots */}
                         {/* <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -462,24 +705,8 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                 onChange={(e) => {setData('booking_date', e.target.value); setDate(new Date(e.target.value))}}
                                 className="border rounded p-2"
                             /> */}
-                        <CustomInputText
-                            title="Booking Date"
-                            name="booking_date"
-                            type='date'
-                            value={data.booking_date}
-                            
-                            onChange={(e) => {handleChange(e.target.name, e.target.value); setDate(new Date(e.target.value))}}
-                            errors={errors}
-                        />
-                        <CustomSelect
-                            label="Start Time"
-                            name="start_time"
-                            value={data.start_time}
-                            
-                            onChange={(e) => {setData('start_time', e.target.value);}}
-                            error={errors.start_time}
-                            options={timeslots}
-                        /> 
+
+
 
                         </div>
 
@@ -627,19 +854,63 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                                             ? 'bg-[#D6FBE6] border border-[#E5E5EC] text-green-700 hover:bg-green-200'
                                                             : 'bg-[#FCE4DF] border border-[#E5E5EC] text-gray-400 cursor-not-allowed'
                                                         }`}>
-                                                        {cell?.status === 'available' && (
-                                                        <>
-                                                            <div className="text-xs">{row.time.slice(0, 5)}</div>
-                                                            <div className="text-xs">{cell?.slots} Slots Open</div>
-                                                            {cell?.rake_rate_adult && <div className="text-xs">From R{cell.rake_rate_adult}</div>}                           
-                                                        </>
-                                                        )}
-                                                        {cell?.status === 'blocked' && (
-                                                        <div>No Timeslot Yet</div>
-                                                        )}
-                                                        {cell?.status === 'full' &&(
-                                                        <div>Fully Booked</div>
-                                                        )}
+                            {/* Discount Badge */}
+                            {cell?.promo && (
+                              <span className="absolute top-1 right-1 bg-red-500  text-[10px] px-2 py-[2px] rounded-full shadow z-10">
+                                -{cell.promo.value}%
+                              </span>
+                            )}
+
+                            {cell?.status === 'available' && (
+                              <>
+                                <div className="text-xs">{row.time.slice(0, 5)}</div>
+                                <div className="text-xs">{cell?.slots} Slots Open</div>
+
+                                {/* Price with discount handling */}
+                                {cell?.rake_rate_adult && (
+                                  <div className="text-xs">
+                                    {cell?.promo ? (
+                                      <>
+                                        <span className="line-through text-gray-500 mr-1">
+                                          R{cell.rake_rate_adult}
+                                        </span>
+                                        <span className="font-bold text-green-700">
+                                          R{(
+                                            cell.rake_rate_adult -
+                                            (cell.rake_rate_adult * parseFloat(cell.promo.value)) / 100
+                                          ).toFixed(0)}
+                                        </span>
+                                      </>
+                                    ) : (
+                                      <span>From R{cell.rake_rate_adult}</span>
+                                    )}
+                                  </div>
+                                )}
+                              </>
+                            )}
+
+                          {/* 
+                          {cell?.status === 'available' && (
+                            <>
+                              <div className="text-xs">{row.time.slice(0, 5)}</div>
+                              <div className="text-xs">{cell?.slots} Slots Open</div>
+                              {cell?.rake_rate_adult && <div className="text-xs">From R{cell.rake_rate_adult}</div>}                           
+                            </>
+                          )} */}
+                          {cell?.status === 'full' && (
+                            <div className="text-xs text-red-500">Fully Booked</div>
+                          )}
+
+                          {cell?.status === 'blocked_day' && (
+                            <div className="text-xs text-black">Day Closed</div>
+                          )}
+
+                          {cell?.status === 'blocked_slot' && (
+                            <div className="text-xs text-black">Slot Closed</div>
+                          )}
+                          {cell?.status === 'unavailable' && (
+                            <div className="text-xs text-black">Not Available</div>
+                          )}
                                                     </div>                        
                                                     </div>
 
@@ -661,10 +932,8 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                 </p>
                             )}
                         </section>
-
+                        {/* Rate cards */}
                         <div className="mt-10 p-6 bg-white space-y-4">
-
-
                             {/* Top-level toggles */}
                             <div className="flex flex-wrap gap-4 items-center justify-between w-full ">
                                 <div className="flex flex-wrap gap-4 items-center justify-start ">
@@ -704,115 +973,367 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                             <div className={`${toggleRate ? 'block' : 'hidden'} mt-10 p-6 bg-white rounded-[10px] border border-secondary-100 shadow space-y-4`}>
 
                                 <div className="flex items-center gap-[66px] mt-4">
-                                    <CustomCheckbox
-                                        label="Override Rates"
-                                        name="override_rates"
-                                        checked={data.override_rates || false}
-                                        
-                                        onChange={handleChange}
-                                        errors={errors}
-                                    />
-                                    <div className="mb-4 flex items-center gap-4">
-                                        <label
-                                            htmlFor='override_reason'
-                                            className="text-booking-lbl-overide mt-2"
-                                        >
-                                            Reason for Override
-                                        </label>
-                                        <input
-                                            type="text"
-                                            id='override_reason'
-                                            name="Reason for Override"
-                                            value={data.override_reason || ''}
-                                            onChange={(e) => setData('override_reason', e.target.value)}
-                                            className={`mt-1 block w-[639px] h-12 ${errors.override_reason ? "border-red-500" : "border-gray-300"} shadow-sm input-text rounded-xl
-                                            hover:border-black  active:border-blue-600 
-                                            focus:outline-none focus:ring-0 focus:border-black
-                                            `}
-                                            required
+                                    <div className="flex w-[50%] items-center justify-start space-x-4 ">
+                                        <CustomCheckbox
+                                            label="Override Rates"
+                                            name="override_rates"
+                                            checked={data.override_rates || false}
+                                            
+                                            onChange={handleChange}
+                                            errors={errors}
                                         />
-                                        {errors.override_reason && (
-                                            <p className="text-red-500 text-sm mt-2">
-                                                {errors.override_reason}
-                                            </p>
-                                        )}
+                                        <div className="flex items-center w-full  gap-4">
+                                            <CustomInputText
+                                                title="Reason for Override"
+                                                id="override_reason"
+                                                name="override_reason"
+                                                type='text'
+                                                width='w-[100%]'
+                                                required
+                                                value={data.override_reason || ''}
+                                                
+                                                onChange={(e) => setData('override_reason', e.target.value)}
+                                                errors={errors}
+                                            />
+                                        </div>
                                     </div>
+                                    <div className="flex w-[50%] items-center justify-start ">
+                                        {showDiscount && (
+                                        <div className="flex flex-none items-center gap-2">
+                                            <CustomSelect
+                                                label="Discount"
+                                                name="discountId"
+                                                value={discountId}
+                                                width={"w-auto"}
+                                                
+                                                onChange={(e) => {setDiscountId(e.target.value);}}
+                                                error={errors.redeem_discount}
+                                                options={discountList}
+                                            />
+                                            {selectedDiscount?.applies_to === 'line_item' && (
+                                                <CustomInputText
+                                                    title="Discount PAX"
+                                                    id="discountPax"
+                                                    name="discountPax"
+                                                    type="number"
+                                                    min="0"
+                                                    width="w-[100px]"
+                                                    value={discountPax}
+                                                    onChange={(e) => setDiscountPax(e.target.value)}
+                                                    errors={errors}
+                                                />
+                                                )}
+                                            <BlueButton
+                                            title="Apply" 
+                                            width='w-[100px]'
+                                            onClick={addDiscountGroup} 
+                                            disabled={processing} 
+                                            type="button" />                                        
+                                        </div>)}
+                                    </div>
+                                    <div className="flex w-[50%] items-center justify-start ">
+                                        {showPromo && (
+                                        <div className="flex flex-none items-center gap-2">
+                                            <CustomSelect
+                                                label="Discount"
+                                                name="discountId"
+                                                value={discountId}
+                                                width={"w-auto"}
+                                                
+                                                onChange={(e) => {setDiscountId(e.target.value);}}
+                                                error={errors.redeem_discount}
+                                                options={discountList}
+                                            />
+                                            <BlueButton
+                                            title="Apply" 
+                                            width='w-[100px]'
+                                            onClick={addDiscountGroup} 
+                                            disabled={processing} 
+                                            type="button" />                                        
+                                        </div>)}
+                                    </div>
+                                    {/* {paxGroups?.map((g, i) => (
+                                    <div key={i}>
+                                        {g.count} {g.type}(s) with {discountList.find(d => d.id === g.discount_id)?.name}
+                                    </div>
+                                    ))} */}
                                 </div>
-                                {/* Rate cards */}
                                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
-                                    {[
-                                        { label: 'Adult', key: 'adult', count: adults, rateKey: 'rate_per_adult', iconCol:'#2D99FE' },
-                                        { label: 'Child', key: 'child', count: children, rateKey: 'rate_per_child', iconCol:'#A7D3FD' },
-                                        { label: 'Guide', key: 'guide', count: guides, rateKey: 'rate_per_guide', iconCol:'#D6D6D6' },
-                                    ].map(({ label, key, count, rateKey, iconCol }) => (
-                                        <div key={key} className="p-4 bg-white rounded-[10px] border border-secondary-100 shadow ">
-                                            <div className="flex items-center justify-start mb-2 gap-[18px]">
-                                                <div className={`flex items-center justify-center w-[36px] h-[38px] gap-2 bg-[${iconCol}] rounded-full p-2`}>
-                                                    {icons[key]}
-                                                </div>
-                                                <div className="flex flex-col items-start ">
-                                                    <span className="text-booking-card-title">{label}</span>
-                                                    <span className="text-booking-card-title-sub">Rack Rate per: <span className="text-booking-card-body ml-2">{data[key].toFixed(2)}</span></span>
-                                                </div>
+                                    {/* Adult */}
+                                    <div className="p-4 bg-white rounded-[10px] border shadow">
+                                        {/* Header */}
+                                        <div className="flex items-center gap-4 mb-4">
+                                            <div className="flex items-center justify-center w-[36px] h-[32px] gap-2 bg-[#2D99FE] rounded-full p-2">
+                                            {icons.adult}
                                             </div>
-                                            <div className="space-y-2">
-                                                <div className="mb-4 flex items-center justify-between gap-2">
-                                                    <label
-                                                        htmlFor='override_reason'
-                                                        className="text-booking-card-lbl w-[128px] h-[34px] mt-2"
-                                                    >
-                                                        Rate per
-                                                    </label>
-                                                    <input
-                                                        type="number"
-                                                        id={rateKey}
-                                                        name={rateKey}
-                                                        disabled={!data.override_rates}
-                                                        value={data[rateKey] || ''}
-                                                        onChange={(e) => setData(rateKey, e.target.value)}
-                                                        className={`mt-1 block w-full h-[34px] ${errors.rateKey ? "border-red-500" : "border-gray-300"} shadow-sm text-booking-card-body rounded-xl
-                                                        hover:border-black  active:border-blue-600 
-                                                        focus:outline-none focus:ring-0 focus:border-black
-                                                        `}
-                                                        required
-                                                    />
-                                                    {errors.override_reason && (
-                                                        <p className="text-red-500 text-sm mt-2">
-                                                            {errors.override_reason}
-                                                        </p>
-                                                    )}
-                                                </div>
-                                                <div className="mb-4 flex items-center justify-between gap-2">
-                                                    <label
-                                                        htmlFor='override_reason'
-                                                        className="text-booking-lbl-overide w-[128px] h-[34px] mt-2"
-                                                    >
-                                                        Total Price
-                                                    </label>
-                                                    <input
-                                                        type="text"
-                                                        disabled='disabled'
-                                                        value={calculateTotal(count, data[rateKey])}
-                                                        className={`mt-1 block w-full h-[34px] ${errors.override_reason ? "border-red-500" : "border-gray-300"} shadow-sm input-text rounded-xl
-                                                        hover:border-black  active:border-blue-600 
-                                                        focus:outline-none focus:ring-0 focus:border-black
-                                                        `}
-                                                        required
-                                                    />
-                                                    {errors.override_reason && (
-                                                        <p className="text-red-500 text-sm mt-2">
-                                                            {errors.override_reason}
-                                                        </p>
-                                                    )}
-                                                </div>
+                                            <div className="flex flex-col">
+                                            <span className="text-booking-card-title">Adult</span>
+                                            <div className="flex items-center justify-start w-[417px] h-[43px] gap-2">
+                                                <span className="text-booking-card-title-sub">
+                                                Rack Rate: 
+                                                </span>
+                                                <span>
+                                                <input
+                                                    type="number"
+                                                    id={'rate_per_adult'}
+                                                    name={'rate_per_adult'}
+                                                    disabled={!data.override_rates}
+                                                    value={data['rate_per_adult'] || ''}
+                                                    onChange={(e) => setData('rate_per_adult', e.target.value)}
+                                                    className={`mt-1 block w-full h-[24px] ${errors.rate_per_adult ? "border-red-500" : "border-gray-300"} shadow-sm text-booking-card-body rounded-xl
+                                                    hover:border-black  active:border-blue-600 
+                                                    focus:outline-none focus:ring-0 focus:border-black
+                                                    `}
+                                                    required
+                                                />
+                                                {errors.rate_per_adult && (
+                                                    <p className="text-red-500 text-sm mt-2">
+                                                        {errors.rate_per_adult}
+                                                    </p>
+                                                )}            
+                                                </span>
+                                            </div>
                                             </div>
                                         </div>
-                                    ))}
+
+                                        {/* Line items */}
+                                        <div className="space-y-2">
+                                            {paxGroups
+                                            .filter((g) => g.type === "adult")
+                                            .map((group, i) => {
+                                                const baseAdultRate = data?.rate_per_adult || 0;
+                                                const rate =  calculateDiscountedRate(baseAdultRate, group.discount_id);
+                                                const amount = group.count * rate;
+
+                                                return (
+                                                    <div  key={i} className="mb-4 flex items-center justify-between gap-2">
+                                                        <label
+                                                            htmlFor='override_reason'
+                                                            className="text-booking-card-lbl w-[128px] h-[34px] mt-2"
+                                                        >
+                                                            <span>
+                                                            {group.discount_id
+                                                                ? discountList.find((d) => d.id === group.discount_id)?.name
+                                                                : "Adult"} {group.count}
+                                                            </span>
+                                                        </label>
+                                                        <input
+                                                            type="text"
+                                                            disabled='disabled'
+                                                            value={amount?.toFixed(2)}
+                                                            className={`mt-1 block w-full h-[34px] border-gray-300 shadow-sm text-booking-card-body rounded-xl
+                                                            hover:border-black  active:border-blue-600 
+                                                            focus:outline-none focus:ring-0 focus:border-black
+                                                            `}
+                                                        />
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                        <div className="mb-4 flex items-center justify-between gap-2">
+                                            <label
+                                                htmlFor='override_reason'
+                                                className="text-booking-lbl-overide w-[128px] h-[34px] mt-2"
+                                            >
+                                                Total Price
+                                            </label>
+                                            <input
+                                                type="text"
+                                                disabled='disabled'
+                                                value={totalAdult?.toFixed(2)}
+                                                className={`mt-1 block w-full h-[34px] border-gray-300 shadow-sm input-text rounded-xl
+                                                hover:border-black  active:border-blue-600 
+                                                focus:outline-none focus:ring-0 focus:border-black
+                                                `}
+                                            />
+                                        </div>
+
+                                    </div>
+                                    {/* Child */}
+                                    <div className="p-4 bg-white rounded-[10px] border shadow">
+                                        {/* Header */}
+                                        <div className="flex items-center gap-4 mb-4">
+                                            <div className="flex items-center justify-center w-[36px] h-[32px] gap-2 bg-[#A7D3FD] rounded-full p-2">
+                                            {icons.child}
+                                            </div>
+                                            <div className="flex flex-col">
+                                            <span className="text-booking-card-title">Child</span>
+                                            <div className="flex items-center justify-start w-[417px] h-[43px] gap-2">
+                                                <span className="text-booking-card-title-sub">
+                                                Rack Rate: 
+                                                </span>
+                                                <span>
+                                                <input
+                                                    type="number"
+                                                    id={'rate_per_child'}
+                                                    name={'rate_per_child'}
+                                                    disabled={!data.override_rates}
+                                                    value={data['rate_per_child'] || ''}
+                                                    onChange={(e) => setData('rate_per_child', e.target.value)}
+                                                    className={`mt-1 block w-full h-[24px] ${errors.rate_per_child ? "border-red-500" : "border-gray-300"} shadow-sm text-booking-card-body rounded-xl
+                                                    hover:border-black  active:border-blue-600 
+                                                    focus:outline-none focus:ring-0 focus:border-black
+                                                    `}
+                                                    required
+                                                />
+                                                {errors.rate_per_child && (
+                                                    <p className="text-red-500 text-sm mt-2">
+                                                        {errors.rate_per_child}
+                                                    </p>
+                                                )}            
+                                                </span>
+                                            </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Line items */}
+                                        <div className="space-y-2">
+                                            {paxGroups
+                                            .filter((g) => g.type === "child")
+                                            .map((group, i) => {
+                                                const baseChildRate = data?.rate_per_child || 0;
+                                                const rate =  calculateDiscountedRate(baseChildRate, group.discount_id);
+                                                const amount = group.count * rate;
+
+                                                return (
+                                                    <div  key={i} className="mb-4 flex items-center justify-between gap-2">
+                                                        <label
+                                                            htmlFor='override_reason'
+                                                            className="text-booking-card-lbl w-[128px] h-[34px] mt-2"
+                                                        >
+                                                            <span>
+                                                            {group.discount_id
+                                                                ? discountList.find((d) => d.id === group.discount_id)?.name
+                                                                : "Child"} {group.count}
+                                                            </span>
+                                                        </label>
+                                                        <input
+                                                            type="text"
+                                                            disabled='disabled'
+                                                            value={amount?.toFixed(2)}
+                                                            className={`mt-1 block w-full h-[34px] border-gray-300 shadow-sm text-booking-card-body rounded-xl
+                                                            hover:border-black  active:border-blue-600 
+                                                            focus:outline-none focus:ring-0 focus:border-black
+                                                            `}
+                                                        />
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                        <div className="mb-4 flex items-center justify-between gap-2">
+                                            <label
+                                                htmlFor='override_reason'
+                                                className="text-booking-lbl-overide w-[128px] h-[34px] mt-2"
+                                            >
+                                                Total Price
+                                            </label>
+                                            <input
+                                                type="text"
+                                                disabled='disabled'
+                                                value={totalChild?.toFixed(2)}
+                                                className={`mt-1 block w-full h-[34px] border-gray-300 shadow-sm input-text rounded-xl
+                                                hover:border-black  active:border-blue-600 
+                                                focus:outline-none focus:ring-0 focus:border-black
+                                                `}
+                                            />
+                                        </div>
+
+                                    </div>
+                                    {/* Guide */}
+                                    <div className="p-4 bg-white rounded-[10px] border shadow">
+                                        {/* Header */}
+                                        <div className="flex items-center gap-4 mb-4">
+                                            <div className="flex items-center justify-center w-[36px] h-[32px] gap-2 bg-[#D6D6D6] rounded-full p-2">
+                                            {icons.guide}
+                                            </div>
+                                            <div className="flex flex-col">
+                                            <span className="text-booking-card-title">Guide</span>
+                                            <div className="flex items-center justify-start w-[417px] h-[43px] gap-2">
+                                                <span className="text-booking-card-title-sub">
+                                                Rack Rate: 
+                                                </span>
+                                                <span>
+                                                <input
+                                                    type="number"
+                                                    id={'rate_per_guide'}
+                                                    name={'rate_per_guide'}
+                                                    disabled={!data.override_rates}
+                                                    value={data['rate_per_guide'] || ''}
+                                                    onChange={(e) => setData('rate_per_guide', e.target.value)}
+                                                    className={`mt-1 block w-full h-[24px] ${errors.rate_per_guide ? "border-red-500" : "border-gray-300"} shadow-sm text-booking-card-body rounded-xl
+                                                    hover:border-black  active:border-blue-600 
+                                                    focus:outline-none focus:ring-0 focus:border-black
+                                                    `}
+                                                    required
+                                                />
+                                                {errors.rate_per_guide && (
+                                                    <p className="text-red-500 text-sm mt-2">
+                                                        {errors.rate_per_guide}
+                                                    </p>
+                                                )}            
+                                                </span>
+                                            </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Line items */}
+                                        <div className="space-y-2">
+                                            {paxGroups
+                                            .filter((g) => g.type === "guide")
+                                            .map((group, i) => {
+                                                const baseGuideRate = data?.rate_per_guide || 0;
+                                                const rate =  calculateDiscountedRate(baseGuideRate, group.discount_id);
+                                                const amount = group.count * rate;
+
+                                                return (
+                                                    <div  key={i} className="mb-4 flex items-center justify-between gap-2">
+                                                        <label
+                                                            htmlFor='override_reason'
+                                                            className="text-booking-card-lbl w-[128px] h-[34px] mt-2"
+                                                        >
+                                                            <span>
+                                                            {group.discount_id
+                                                                ? discountList.find((d) => d.id === group.discount_id)?.name
+                                                                : "Guide"} {group.count}
+                                                            </span>
+                                                        </label>
+                                                        <input
+                                                            type="text"
+                                                            disabled='disabled'
+                                                            value={amount?.toFixed(2)}
+                                                            className={`mt-1 block w-full h-[34px] border-gray-300 shadow-sm text-booking-card-body rounded-xl
+                                                            hover:border-black  active:border-blue-600 
+                                                            focus:outline-none focus:ring-0 focus:border-black
+                                                            `}
+                                                        />
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                        <div className="mb-4 flex items-center justify-between gap-2">
+                                            <label
+                                                htmlFor='override_reason'
+                                                className="text-booking-lbl-overide w-[128px] h-[34px] mt-2"
+                                            >
+                                                Total Price
+                                            </label>
+                                            <input
+                                                type="text"
+                                                disabled='disabled'
+                                                value={totalGuide?.toFixed(2)}
+                                                className={`mt-1 block w-full h-[34px] border-gray-300 shadow-sm input-text rounded-xl
+                                                hover:border-black  active:border-blue-600 
+                                                focus:outline-none focus:ring-0 focus:border-black
+                                                `}
+                                            />
+                                        </div>
+
+                                    </div>
                                 </div>
                                 <div className="flex items-center space-x-4">
                                     <label className="text-booking-lbl-main">Booking Total</label>
                                     <div className="flex items-center justify-between w-[417px] h-[43px] bg-[#DBECFD4D] pl-[7px] pr-[7px] py-[7px] rounded-[6px]">
-                                        <span className="text-booking-lbl-main-sub">R {data.booking_total || '0.00'}</span>
+                                        <span className="text-booking-lbl-main-sub">R {total?.toFixed(2) || '0.00'}</span>
                                         <WhiteButton 
                                             title="Recalucate from Rack" 
                                             icon={true}
@@ -828,7 +1349,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                             </div>
                             
                             <div className="mt-10 p-6 bg-white rounded-[10px] border border-secondary-100 shadow space-y-4 ">
-                                {/*  */}
+
                                 {/* <div className="flex w-full items-center justify-start space-x-4 ">
                                     <span className="text-booking-lbl-main w-[129px]">Redeem Discount</span>
                                     <span className="w-[572px] mt-2">
@@ -858,7 +1379,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                     />
                                 </div> */}
                                 {/* <div className="flex w-full items-center justify-start space-x-4 ">
-                                    <span className="text-booking-lbl-main w-[129px]">Redeem Wholesaver Rate</span>
+                                    <span className="text-booking-lbl-main w-[129px]">Promotion Rate</span>
                                     <span className="w-[572px] mt-2">
                                         <CustomInputText
                                             id="redeem_promotion"
@@ -886,65 +1407,40 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                         onClick={()=>{}}
                                     />
                                 </div> */}
+                            <div className="flex w-full items-center justify-start space-x-4 ">
                                 <div className="flex w-full items-center justify-start space-x-4 ">
-                                    <div className="flex w-full items-center justify-start space-x-4 ">
-                                        <CustomInputText
-                                            title="Redeem Voucher"
-                                            id="redeem_voucher"
-                                            name="redeem_voucher"
-                                            type='text'
-                                            value={data.redeem_voucher}
-                                            placeholder="Redeem Voucher"
-                                            onChange={(e) => setData('redeem_voucher', e.target.value)}
-                                            errors={errors}
-                                        />
-                                        <div className="flex items-center gap-2 mt-2">
-                                            <BlueButton
-                                            title="Redeem" 
-                                            onClick={()=>{}} 
-                                            disabled={processing} 
-                                            type="button" />
-                                            <WhiteButton 
-                                            title="Remove" 
-                                            type="button"
-                                            textColor='text-[#7C7C7C]'
-                                            width="w-[108px]"
-                                            className="mt-4"
-                                            disabled={processing}
-                                            onClick={()=>{}}
-                                            />    
-                                        </div>
+                                    <CustomInputText
+                                        title="Redeem Voucher"
+                                        id="redeem_voucher"
+                                        name="redeem_voucher"
+                                        type='text'
+                                        value={data.redeem_voucher}
+                                        placeholder="Redeem Voucher"
+                                        onChange={(e) => setData('redeem_voucher', e.target.value)}
+                                        errors={errors}
+                                    />
+                                    <div className="flex items-center gap-2 mt-2">
+                                        <BlueButton
+                                        title="Redeem" 
+                                        onClick={()=>{}} 
+                                        disabled={processing} 
+                                        type="button" />
+
+                                        <WhiteButton 
+                                        title="Remove" 
+                                        type="button"
+                                        textColor='text-[#7C7C7C]'
+                                        width="w-[108px]"
+                                        className="mt-4"
+                                        disabled={processing}
+                                        onClick={()=>{}}
+                                        />    
+                                    </div>
                                 </div>
                                 <div className="flex w-full items-center justify-start space-x-4 ">
-                                    
-                                        <div className="flex w-full items-center justify-start space-x-4 ">
-                                            <CustomSelect
-                                                label="Redeem Discount"
-                                                name="redeem_discount"
-                                                value={data.redeem_discount}
-                                                
-                                                onChange={(e) => {setData('redeem_discount', e.target.value);}}
-                                                error={errors.redeem_discount}
-                                                options={discountList}
-                                            />
-                                            <div className="flex items-center gap-2 mt-2">
-                                            <BlueButton
-                                            title="Apply" 
-                                            onClick={()=>{}} 
-                                            disabled={processing} 
-                                            type="button" />
-                                            <WhiteButton 
-                                                title="Remove" 
-                                                textColor='text-[#7C7C7C]'
-                                                width="w-[108px]"
-                                                className="mt-4"
-                                                type="button"
-                                                disabled={processing}
-                                                onClick={()=>{}}
-                                            />
-                                            </div>
-                                        </div>
-                                           
+                                
+
+                                        
                                 </div>
                                 <div className="flex w-full items-center justify-start space-x-4 ">
                                     {wholesalerRateList.length > 0 && (
@@ -977,7 +1473,6 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                     </div>
                                     )}    
                                 </div>
-
                             </div>
 
 

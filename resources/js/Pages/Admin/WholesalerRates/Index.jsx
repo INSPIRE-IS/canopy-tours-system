@@ -8,7 +8,7 @@ import Pagination from '@/Components/Pagination';
 import Modal from './Modal';
 import ServicesHeader from '@/Components/ServicesHeader';
 
-export default function Index({ auth, rates, searchTerm, sortColumn, sortDirection, permissions,wholesalers,seasons }) {
+export default function Index({ auth, rates, searchTerm, sortColumn, sortDirection, permissions,wholesalers,services }) {
     console.log('auth on user ', auth);
   const [selected, setSelected] = useState(null);
   const [search, setSearch] = useState(searchTerm || '');
@@ -78,6 +78,7 @@ export default function Index({ auth, rates, searchTerm, sortColumn, sortDirecti
                     <tr className='flex justify-between items-center'>
                       <th className="w-[80px] p-3">ID</th>
                       <th className="w-[180px] p-3">Wholesaler</th>
+                      <th className="w-[180px] p-3">Service</th>
                       <th className="w-[180px] p-3">Season</th>
                       <th className="w-[140px] p-3">Adult</th>
                       <th className="w-[140px] p-3">Child</th>
@@ -90,6 +91,7 @@ export default function Index({ auth, rates, searchTerm, sortColumn, sortDirecti
                       <tr key={item.id} className="flex justify-between items-center hover:bg-gray-50">
                         <td className="w-[80px] p-3">{item.id}</td>
                         <td className="w-[180px] p-3">{item.wholesaler?.name}</td>
+                        <td className="w-[180px] p-3">{item.service?.name}</td>
                         <td className="w-[180px] p-3">{item.season?.name ?? item.season?.id}</td>
                         <td className="w-[140px] p-3">{item.price_adult}</td>
                         <td className="w-[140px] p-3">{item.price_child}</td>
@@ -119,7 +121,7 @@ export default function Index({ auth, rates, searchTerm, sortColumn, sortDirecti
         </div>
       </div>
       </div>
-      <Modal isOpen={isModalOpen} onClose={handleCloseModal} mode={modalMode} item={selected} permissions={permissions} wholesalers={wholesalers} seasons={seasons} auth={auth} />
+      <Modal isOpen={isModalOpen} onClose={handleCloseModal} mode={modalMode} item={selected} permissions={permissions} wholesalers={wholesalers} services={services} auth={auth} />
     </AuthenticatedLayout>
   );
 }

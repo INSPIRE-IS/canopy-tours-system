@@ -1,12 +1,12 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useForm } from "@inertiajs/react";
 import InputText from "@/Components/InputText";
 import CustomSelect from "@/Components/CustomSelect";
 import OutlineButton from "@/Components/OutlineButton";
 import BlueButton from "@/Components/BlueButton";
 
-const Modal = ({ isOpen, onClose, mode, item = null, permissions, wholesalers, seasons,auth }) => {
-
+const Modal = ({ isOpen, onClose, mode, item = null, permissions, wholesalers, services,auth }) => {
+    const [seasons, setSeasons] = useState([]);
     const { data, setData, post, put, errors, reset, processing } = useForm({
         wholesaler_id: "",
         season_id: "",
@@ -35,6 +35,20 @@ const Modal = ({ isOpen, onClose, mode, item = null, permissions, wholesalers, s
         }
     }, [mode,item,auth]);
 
+    useEffect(() => {
+        const selectedService = services.find(s => {
+            console.log('service', s);
+            console.log('service_id ', data.service_id);
+            const selected = s.id === parseInt(data.service_id);
+            console.log(selected);
+
+            return selected;
+        });
+        console.log(selectedService);
+        const seasons = selectedService ? setSeasons(selectedService.seasons) : [];
+        console.log('seasons', selectedService?.seasons);
+
+    }, [data.service_id]);
 
   //const handleChange = (target, value) => setData(target, value);
       const handleChange = (target, value) => {
@@ -77,14 +91,21 @@ const Modal = ({ isOpen, onClose, mode, item = null, permissions, wholesalers, s
                           errors={errors.wholesaler_id}
                         />
                         <CustomSelect
-                          label="Season"
-                          name="season_id"
-                          value={data.season_id}
-                          //optionsUrl={route('seasons.options')}
-                          options={seasons}
-                          mode={mode}
-                          onChange={(e) => handleChange(e.target.name, e.target.value)}
-                          errors={errors.season_id}
+                            label="Service"
+                            name="service_id"
+                            value={data.service_id}
+                            onChange={(e) => handleChange(e.target.name, e.target.value)}
+                            error={errors.service_id}
+                            options={services}
+                        /> 
+                        <CustomSelect
+                            label="Season"
+                            name="season_id"
+                            value={data.season_id}
+                            
+                            onChange={(e) => handleChange(e.target.name, e.target.value)}
+                            error={errors.season_id}
+                            options={seasons}
                         />  
             </div>
 

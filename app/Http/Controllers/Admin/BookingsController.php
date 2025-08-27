@@ -166,7 +166,7 @@ class BookingsController extends Controller
         $status_bookings = StatusBooking::select('name', 'id')->get();
         $wholesalers = Wholesaler::select('id', 'name')->get();
         //$services = Service::select('id', 'name')->get();
-        $services = Service::select('id', 'name')->with('seasons:id,name,service_id', 'seasons.inventory', 'seasons.inventory.inventory_time_slots')->get();
+        $services = Service::select('id', 'name', 'allow_internal_capacity_override', 'duration', 'capacity')->with('seasons:id,name,start_date,end_date,service_id,rake_rate_adult,rake_rate_child,rake_rate_guide,allow_internal_price_override,status', 'seasons.inventory', 'seasons.inventory.inventory_time_slots')->get();
         //$seasons = Season::select('id', 'name', 'service_id')->get();
         $seasons = Season::select('start_date', 'id')->get();
         // $inventories = Inventory::select('start_date', 'id')->get();
@@ -188,7 +188,7 @@ class BookingsController extends Controller
         $endDate = (clone $startDate)->addDays($days - 1);
 
         $vouchers = Voucher::select('id', 'voucher_code as name', 'amount', 'note', 'expire_date', 'season_id', 'service_id')->with('season', 'service')->get();
-        $discounts = Discount::select('id', 'name', 'service_id', 'applies_to', 'percent_off')->with('service')->get();
+        $discounts = Discount::select('id', 'name', 'applies_to', 'percent_off')->with('services')->get();
         $wholesaler_rates = WholesalerRate::select('id', 'wholesaler_id', 'season_id', 'price_adult', 'price_child', 'price_guide')->with('season', 'wholesaler')->get();
 
         return Inertia::render('Admin/Bookings/Create', [
@@ -620,10 +620,83 @@ class BookingsController extends Controller
 
     public function calendar(Request $request)
     {
+        $activityId = $request->input('activity_id');
+        $viewMode   = $request->input('view_mode', 'week');
+        $startDate  = Carbon::parse($request->input('start_date', now()));
+        $viewMode != 'day' ? $startDate->addDays(-2) : $startDate;
+        $startTime = $request->input('start_time');
+        $totalRequested = (int) $request->input('adults', 0) + (int) $request->input('children', 0);
+
+        $days = match ($viewMode) {
+            'day'   => 1,
+            'week'  => 7,
+            'month' => 30,
+            default => 7
+        };
+
+        $endDate = (clone $startDate)->addDays($days - 1);
+
+        $season  = Season::findOrFail($activityId);
+        $service = Service::findOrFail($season->service_id);
+
+        $inventory = Inventory::with(['inventory_type_days', 'inventory_time_slots'])
+            ->where('season_id', $season->id)
+            ->first();
+
+        // outside season bounds
+        if ($startDate->lt(Carbon::parse($season->start_date)) || $endDate->gt(Carbon::parse($season->end_date))) {
+            return response()->json([
+                'schedule' => [],
+                'days'     => collect(CarbonPeriod::create($startDate, $endDate))
+                    ->map(fn($d) => $d->format('D d'))
+                    ->values(),
+                'message'  => 'Selected date is outside the inventory availability period.',
+            ], 200);
+        }
+
+        // booking data
+        $bookingData = DB::table('bookings as b')
+            ->leftJoin('booking_inventories as bi', 'bi.booking_id', '=', 'b.id')
+            ->leftJoin('inventory_type_days as itd', 'itd.id', '=', 'bi.inventory_type_day_id')
+            ->leftJoin('type_days as td', 'td.id', '=', 'itd.type_day_id')
+            ->leftJoin('inventory_time_slots as its', 'its.id', '=', 'bi.inventory_time_slot_id')
+            ->leftJoin('inventory_overrides as io', 'io.id', '=', 'bi.inventory_override_id')
+            ->where('b.inventory_id', $activityId)
+            ->whereBetween('bi.date', [$startDate->toDateString(), $endDate->toDateString()])
+            ->select([
+                'bi.date',
+                'td.name as day',
+                'its.start_time as time',
+                DB::raw('SUM(bi.pax) as total')
+            ])
+            ->groupBy('bi.date', 'td.name', 'its.start_time')
+            ->get()
+            ->keyBy(fn($row) => $row->date . '_' . $row->time);
+
+        // allowed days from inventory
+
+
+        // build schedule (still extendable with promo/closeout)
+        $schedule = app(\App\Services\Calendar\ServiceCalendarBuilder::class)
+            ->build($inventory, $season, $service, $bookingData, $startDate, $endDate, $totalRequested, $startTime);
+
+        return response()->json([
+            'schedule' => $schedule,
+            'days'     => collect(CarbonPeriod::create($startDate, $endDate))
+                ->map(fn($d) => $d->format('D d'))
+                ->values(),
+            'message'  => '',
+        ]);
+    }
+
+    public function calendar1(Request $request)
+    {
         //dd($request->all());
         $activityId = $request->input('activity_id');
         $viewMode = $request->input('view_mode', 'week');
         $startDate = Carbon::parse($request->input('start_date', now()));
+        $viewMode != 'day' ? $startDate->addDays(-2) : $startDate;
+        $startTime = $request->input('start_time');
         $totalRequested = (int) $request->input('adults', 0) + (int) $request->input('children', 0);
         $days = match ($viewMode) {
             'day' => 1,
@@ -634,6 +707,9 @@ class BookingsController extends Controller
         $endDate = (clone $startDate)->addDays($days - 1);
         //dd($endDate);
         $season = Season::findOrFail($activityId);
+        $service = Service::findOrFail($season->service_id);
+
+
 
         $inventory = Inventory::with(['inventory_type_days', 'inventory_time_slots'])->where('season_id', $season->id)->first();
         //dd($inventory);
@@ -692,7 +768,14 @@ class BookingsController extends Controller
             return collect($dates)->map(fn($d) => $d->format('Y-m-d'));
         })->unique()->values()->toArray();
         logger("blocked Dates: ", $blockedDates);
-        $timeSlots = $inventory->inventory_time_slots->pluck('start_time')->unique()->sort();
+        $timeSlots = $inventory->inventory_time_slots
+            ->when($startTime, function ($collection, $startTime) {
+                // filter the collection by start_time
+                return $collection->where('id', $startTime);
+            })
+            ->pluck('start_time')
+            ->unique()->sort();
+        //dd($timeSlots);
         $schedule = [];
 
         foreach ($timeSlots as $time) {
@@ -730,7 +813,7 @@ class BookingsController extends Controller
                 if (true) {
                     $dateTimeStr = $dateStr . '_' . $time;
                     $booked = $bookingData[$dateTimeStr]->total ?? 0;
-                    $remaining = $season->capacity - $booked;
+                    $remaining = $service->capacity - $booked;
                     if ($remaining < $totalRequested) {
                         $row['days'][$label] = [
                             'date' => $date->format('Y-m-d'),
@@ -751,7 +834,7 @@ class BookingsController extends Controller
                 if (false) {
                     $row['days'][$label] = [
                         'date' => $date->format('Y-m-d'),
-                        'slots' => $season->capacity,
+                        'slots' => $service->capacity,
                         'status' => 'available',
                         'rake_rate_adult' => $season->rake_rate_adult,
                     ];

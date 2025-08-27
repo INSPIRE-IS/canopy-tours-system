@@ -34,6 +34,12 @@ class StoreServiceRequest extends FormRequest
             //     'date_format:' . config('panel.time_format'),
             //     'nullable',
             // ],
+            'capacity' => [
+                'required',
+                'integer',
+                'min: 1',
+                'max:100',
+            ],
             'pillbox_conditions' => [
                 'string',
                 'nullable',

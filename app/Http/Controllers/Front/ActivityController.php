@@ -16,6 +16,7 @@ use App\Models\InventoryTypeDay;
 use App\Models\Season;
 use App\Models\Service;
 use App\Models\Team;
+use App\Services\Calendar\ServiceCalendarBuilder;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
@@ -37,10 +38,10 @@ class ActivityController extends Controller
 
         $teams = Team::select('id', 'name')->get();
         $services = Service::with([
-
             'file',
             'servicefieldValues.field',
             'seasons.inventory',
+            'activePromotions',
         ]);
 
         if ($teamId) {
@@ -48,6 +49,7 @@ class ActivityController extends Controller
         }
 
         $services = $services->get();
+        //dd($services[0]->activePromotions);
         // $services->each(function ($service) {
         //     $service->setRelation('seasons', $service->seasons->filter(function ($season) {
         //         return $season->inventory !== null;
@@ -95,6 +97,7 @@ class ActivityController extends Controller
                     'service_id'      => $service->id,
                     'service'      => $service->name,
                     'season_id'      => $season->id,
+                    'promo'      => $service->activePromotions->first(),
                     'image'      => $service->file ? '/storage/' . $service->file->path : null,
                     'pillbox_conditions'      => $service->pillbox_conditions ?? null,
                     'gift'       => filter_var($fieldValues['gift'] ?? false, FILTER_VALIDATE_BOOLEAN),
@@ -194,7 +197,78 @@ class ActivityController extends Controller
         ]);
     }
 
+
     public function calendar(Request $request)
+    {
+        $activityId = $request->input('activity_id');
+        $viewMode   = $request->input('view_mode', 'week');
+        $startDate  = Carbon::parse($request->input('start_date', now()));
+        $totalRequested = (int) $request->input('adults', 0) + (int) $request->input('children', 0);
+
+        $days = match ($viewMode) {
+            'day'   => 1,
+            'week'  => 7,
+            'month' => 30,
+            default => 7
+        };
+
+        $endDate = (clone $startDate)->addDays($days - 1);
+
+        $season  = Season::findOrFail($activityId);
+        $service = Service::findOrFail($season->service_id);
+
+        $inventory = Inventory::with(['inventory_type_days', 'inventory_time_slots'])
+            ->where('season_id', $season->id)
+            ->first();
+
+        // outside season bounds
+        if ($startDate->lt(Carbon::parse($season->start_date)) || $endDate->gt(Carbon::parse($season->end_date))) {
+            return response()->json([
+                'schedule' => [],
+                'days'     => collect(CarbonPeriod::create($startDate, $endDate))
+                    ->map(fn($d) => $d->format('D d'))
+                    ->values(),
+                'message'  => 'Selected date is outside the inventory availability period.',
+            ], 200);
+        }
+
+        // booking data
+        $bookingData = DB::table('bookings as b')
+            ->leftJoin('booking_inventories as bi', 'bi.booking_id', '=', 'b.id')
+            ->leftJoin('inventory_type_days as itd', 'itd.id', '=', 'bi.inventory_type_day_id')
+            ->leftJoin('type_days as td', 'td.id', '=', 'itd.type_day_id')
+            ->leftJoin('inventory_time_slots as its', 'its.id', '=', 'bi.inventory_time_slot_id')
+            ->leftJoin('inventory_overrides as io', 'io.id', '=', 'bi.inventory_override_id')
+            ->where('b.inventory_id', $activityId)
+            ->whereBetween('bi.date', [$startDate->toDateString(), $endDate->toDateString()])
+            ->select([
+                'bi.date',
+                'td.name as day',
+                'its.start_time as time',
+                DB::raw('SUM(bi.pax) as total')
+            ])
+            ->groupBy('bi.date', 'td.name', 'its.start_time')
+            ->get()
+            ->keyBy(fn($row) => $row->date . '_' . $row->time);
+
+        // allowed days from inventory
+
+
+        // build schedule (still extendable with promo/closeout)
+        $schedule = app(\App\Services\Calendar\ServiceCalendarBuilder::class)
+            ->build($inventory, $season, $service, $bookingData, $startDate, $endDate, $totalRequested);
+
+        return response()->json([
+            'schedule' => $schedule,
+            'days'     => collect(CarbonPeriod::create($startDate, $endDate))
+                ->map(fn($d) => $d->format('D d'))
+                ->values(),
+            'message'  => '',
+        ]);
+    }
+
+
+    public function calendar1(Request $request)
     {
 
         $activityId = $request->input('activity_id');
@@ -210,6 +284,7 @@ class ActivityController extends Controller
         $endDate = (clone $startDate)->addDays($days - 1);
         //dd($endDate);
         $season = Season::findOrFail($activityId);
+        $service = Service::findOrFail($season->service_id);
 
         $inventory = Inventory::with(['inventory_type_days', 'inventory_time_slots'])->where('season_id', $season->id)->first();
         //dd($inventory);
@@ -245,33 +320,40 @@ class ActivityController extends Controller
         //dd($inventory);
         $allowedDays = $inventory->inventory_type_days->pluck('type_day_id')->toArray();
 
-        $closeouts = Closeout::where('service_id', $inventory->service_id)
+        $closeouts = Closeout::with('closeout_day_time_slots')->where('service_id', $inventory->service_id)
             ->where('season_id', $inventory->season_id)
             ->get();
-        //dd($closeouts);
-        $blockedDates = $closeouts->flatMap(function ($c) {
-            logger("Closeout: {$c->start_date} to {$c->end_date}");
-            // $start = Carbon::parse($c->start_date);
-            // $end = Carbon::parse($c->end_date);
+        logger()->info("$closeouts");
+        // Build a map of blocked time slots keyed by date
+        $blockedSlots = [];
 
-            // return CarbonPeriod::create($start, $end)
-            //     ->map(fn($d) => $d->format('Y-m-d'));
-
+        foreach ($closeouts as $c) {
             $start = Carbon::parse($c->start_date);
-            $end = Carbon::parse($c->end_date);
+            $end   = Carbon::parse($c->end_date);
 
-            $dates = CarbonPeriod::create($start, $end)->toArray();
-            logger("Generated dates: ", $dates);
+            foreach (CarbonPeriod::create($start, $end) as $date) {
+                $dateStr = $date->format('Y-m-d');
+                $dayOfWeek = $date->dayOfWeekIso; // 1 (Mon) - 7 (Sun)
 
-            return collect($dates)->map(fn($d) => $d->format('Y-m-d'));
-        })->unique()->values()->toArray();
-        //dd($blockedDates);
+                // If no slots defined → whole day blocked
+                if ($c->closeout_day_time_slots->isEmpty()) {
+                    $blockedSlots[$dateStr] = 'ALL';
+                } else {
+                    foreach ($c->closeout_day_time_slots as $slot) {
+                        if ((int)$slot->day_id === $dayOfWeek) {
+                            $blockedSlots[$dateStr][$slot->time_slot_id] = true;
+                        }
+                    }
+                }
+            }
+        }
+
         $timeSlots = $inventory->inventory_time_slots->pluck('start_time')->unique()->sort();
         $schedule = [];
 
-        foreach ($timeSlots as $time) {
+        foreach ($timeSlots as $timeSlot) {
             $row = [
-                'time' => $time,
+                'time' => $timeSlot,
                 'days' => []
             ];
 
@@ -282,7 +364,7 @@ class ActivityController extends Controller
 
                 if (!in_array($dayOfWeek, $allowedDays)) {
                     $row['days'][$label] = [
-                        'date' => $date->format('Y-m-d'),
+                        'date' => $dateStr,
                         'slots' => 0,
                         'status' => 'unavailable',
                         'note' => 'Not an allowed day',
@@ -290,31 +372,44 @@ class ActivityController extends Controller
                     continue;
                 }
 
-                if (in_array($dateStr, $blockedDates)) {
-                    $row['days'][$label] = [
-                        'date' => $date->format('Y-m-d'),
-                        'slots' => 0,
-                        'status' => 'blocked',
-                        'note' => 'Blocked due to closeout',
-                    ];
-                    continue;
+                if (isset($blockedSlots[$dateStr])) {
+                    if ($blockedSlots[$dateStr] === 'ALL') {
+                        // Full-day closeout
+                        $row['days'][$label] = [
+                            'date' => $dateStr,
+                            'slots' => 0,
+                            'status' => 'blocked_day',
+                            'note' => 'Blocked whole day',
+                        ];
+                        continue;
+                    }
+                    // Slot-level closeout
+                    $slotModel = $inventory->inventory_time_slots->firstWhere('start_time', $timeSlot);
+                    if ($slotModel && isset($blockedSlots[$dateStr][$slotModel->id])) {
+                        $row['days'][$label] = [
+                            'date' => $dateStr,
+                            'slots' => 0,
+                            'status' => 'blocked_slot',
+                            'note' => 'Blocked slot',
+                        ];
+                        continue;
+                    }
                 }
-
                 // once we have the booking data, we can calculate the remaining slots
                 if (true) {
-                    $dateTimeStr = $dateStr . '_' . $time;
+                    $dateTimeStr = $dateStr . '_' . $timeSlot;
                     $booked = $bookingData[$dateTimeStr]->total ?? 0;
-                    $remaining = $season->capacity - $booked;
+                    $remaining = $service->capacity - $booked;
                     if ($remaining < $totalRequested) {
                         $row['days'][$label] = [
-                            'date' => $date->format('Y-m-d'),
+                            'date' => $dateStr,
                             'slots' => $remaining,
                             'status' => 'full',
                             'note' => 'Fully booked',
                         ];
                     } else {
                         $row['days'][$label] = [
-                            'date' => $date->format('Y-m-d'),
+                            'date' => $dateStr,
                             'slots' => $remaining,
                             'status' => 'available',
                             'rake_rate_adult' => $season->rake_rate_adult,
@@ -324,8 +419,8 @@ class ActivityController extends Controller
                 // if we don't have the booking data, we can't calculate the remaining slots
                 if (false) {
                     $row['days'][$label] = [
-                        'date' => $date->format('Y-m-d'),
-                        'slots' => $season->capacity,
+                        'date' => $dateStr,
+                        'slots' => $service->capacity,
                         'status' => 'available',
                         'rake_rate_adult' => $season->rake_rate_adult,
                     ];
@@ -334,7 +429,7 @@ class ActivityController extends Controller
 
             $schedule[] = $row;
         }
-
+        //dd($schedule);
         return response()->json([
             'schedule' => $schedule,
             'days' => collect(CarbonPeriod::create($startDate, $endDate))

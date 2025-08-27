@@ -21,7 +21,6 @@ class Promotion extends Model
         'booking_end_date',
         'activity_start_date',
         'activity_end_date',
-        'valid_days',
         'internal_use_only',
     ];
 
@@ -34,5 +33,11 @@ class Promotion extends Model
     public function service()
     {
         return $this->belongsTo(Service::class);
+    }
+
+
+    public function promo_day_time_slots()
+    {
+        return $this->hasMany(PromotionDayTimeSlot::class);
     }
 }

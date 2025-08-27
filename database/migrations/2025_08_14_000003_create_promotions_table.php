@@ -13,16 +13,15 @@ return new class extends Migration {
             $table->string('promo_code')->unique();
             $table->enum('type', ['percent', 'fixed_value', 'graduated', 'varied_child'])->default('percent');
             $table->decimal('value', 10, 2)->default(0); // meaning depends on type
-            $table->unsignedBigInteger('service_id');
             $table->date('booking_start_date'); // so basically like black friday weekend we pick a start friday
             $table->date('booking_end_date'); // so basically like black friday weekend we pick a end monday
             $table->date('activity_start_date'); // we say which period of the activity we want to apply this promotion to start
             $table->date('activity_end_date');  // we say which period of the activity we want to apply this promotion to end
-            $table->string('valid_days')->nullable(); // comma-separated: mon,tue,wed,thu,fri,sat,sun
+            //$table->string('valid_days')->nullable(); // comma-separated: mon,tue,wed,thu,fri,sat,sun
             $table->boolean('internal_use_only')->default(false);
             $table->timestamps();
 
-            $table->foreign('service_id')->references('id')->on('services')->cascadeOnDelete();
+            $table->foreignId('service_id')->constrained('services')->onDelete('cascade');
             $table->index(['service_id', 'booking_start_date', 'booking_end_date']);
         });
     }
