@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('country_id')->constrained()->cascadeOnDelete();
             $table->string('name');
-            $table->string('state_code')->nullable(); // optional
+            $table->string('type')->nullable(); // optional
             $table->timestamps();
             $table->softDeletes();
         });

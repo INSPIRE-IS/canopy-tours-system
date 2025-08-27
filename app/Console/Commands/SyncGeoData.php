@@ -32,46 +32,47 @@ class SyncGeoData extends Command
     {
         $this->info('Fetching country data...');
         ini_set('memory_limit', '512M'); // or '1G' for 1GB if needed
-        $countries = Http::get('https://raw.githubusercontent.com/dr5hn/countries-states-cities-database/master/json/countries.json')->json();
-        $states = Http::get('https://raw.githubusercontent.com/dr5hn/countries-states-cities-database/master/json/states.json')->json();
-        $cities = Http::get('https://raw.githubusercontent.com/dr5hn/countries-states-cities-database/master/json/cities.json')->json();
+        // $countries = Http::get('https://raw.githubusercontent.com/dr5hn/countries-states-cities-database/master/json/countries.json')->json();
 
-        $continentMap = [];
 
-        foreach ($countries as $country) {
-            $continentName = $country['region'] ?? 'Unknown';
-            if (!isset($continentMap[$continentName])) {
-                $continent = Continent::firstOrCreate(['name' => $continentName]);
-                $continentMap[$continentName] = $continent->id;
-            }
+        // $continentMap = [];
 
-            Country::updateOrCreate(
-                ['iso2' => $country['iso2']],
-                [
-                    'name' => $country['name'],
-                    'iso3' => $country['iso3'],
-                    'continent_id' => $continentMap[$continentName],
-                    'nationality' => $country['nationality'],
-                    'phonecode' => $country['phonecode'],
-                ]
-            );
-        }
+        // foreach ($countries as $country) {
+        //     $continentName = $country['region'] ?? 'Unknown';
+        //     if (!isset($continentMap[$continentName])) {
+        //         $continent = Continent::firstOrCreate(['name' => $continentName]);
+        //         $continentMap[$continentName] = $continent->id;
+        //     }
 
+        //     Country::updateOrCreate(
+        //         ['iso2' => $country['iso2']],
+        //         [
+        //             'name' => $country['name'],
+        //             'iso3' => $country['iso3'],
+        //             'continent_id' => $continentMap[$continentName],
+        //             'nationality' => $country['nationality'],
+        //             'phonecode' => $country['phonecode'],
+        //         ]
+        //     );
+        // }
         $this->info('Countries and continents synced.');
+        $states = Http::get('https://raw.githubusercontent.com/dr5hn/countries-states-cities-database/master/json/states.json')->json();
 
         foreach ($states as $state) {
+
             $country = Country::where('iso2', $state['country_code'])->first();
             if (!$country) continue;
 
             State::updateOrCreate(
                 ['name' => $state['name'], 'country_id' => $country->id],
-                ['state_code' => $state['state_code']]
+                ['type' => $state['type']]
             );
         }
 
         $this->info('States synced.');
-
+        $cities = Http::get('https://raw.githubusercontent.com/dr5hn/countries-states-cities-database/master/json/cities.json')->json();
         foreach ($cities as $city) {
+
             $state = State::where('name', $city['state_name'])
                 ->whereHas('country', fn($q) => $q->where('iso2', $city['country_code']))
                 ->first();
