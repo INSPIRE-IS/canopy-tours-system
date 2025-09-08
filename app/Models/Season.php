@@ -33,11 +33,7 @@ class Season extends Model
         'rake_rate_child',
         'rake_rate_guide',
         'allow_internal_price_override',
-
-
-
         'status',
-
         'created_by_id',
         'updated_by_id',
         'created_at',

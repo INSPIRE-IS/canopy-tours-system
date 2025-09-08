@@ -8,7 +8,7 @@ import CloseoutModal from './CloseoutModal';
 import SearchBar from '@/Components/SearchBar';
 import BlueButton from '@/Components/BlueButton';
 import Pagination from '@/Components/Pagination';
-import ServicesHeader from '@/Components/ServicesHeader';
+import HeaderServices from '@/Components/HeaderServices';
 
 
 export default function Index({ permissions,closeouts, seasons, services, auth, searchTerm, sortColumn, sortDirection }) {
@@ -76,7 +76,7 @@ export default function Index({ permissions,closeouts, seasons, services, auth, 
     >
         <Head title="Users" />
         <div className="overflow-x-auto px-[15px]">
-          <ServicesHeader isOpenTab={isOpenTab} setIsOpenTab={setIsOpenTab} />
+          <HeaderServices isOpenTab={isOpenTab} setIsOpenTab={setIsOpenTab} />
             <div id="Closeouts-content" className="tab-content">
                 <div className="bg-white p-6 ">
                 {/* top */}

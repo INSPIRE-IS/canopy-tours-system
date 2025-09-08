@@ -37,6 +37,7 @@ use App\Models\TypeGroup;
 use App\Models\TypeInput;
 use App\Models\File;
 use App\Models\Gateway;
+use App\Models\Promotion;
 use App\Models\StatusPayment;
 use App\Models\TypeConfirmation;
 use App\Models\TypeGender;
@@ -1237,6 +1238,111 @@ class SeedCoreData extends Command
 
         foreach ($discount_services as $discount_service) {
             DiscountService::updateOrCreate(['id' => $discount_service['id']], $discount_service);
+        }
+
+        $promotions = [
+            [
+                'id' => 1,
+                'name' => 'Percent',
+                'promo_code' => 'PERCENT',
+                'type' => 'percent',
+                'value' => 10,
+                'params' => null,
+                'service_id' => 1,
+                'booking_start_date' => '2025-08-01',
+                'booking_end_date' => '2025-08-31',
+                'activity_start_date' => '2025-08-01',
+                'activity_end_date' => '2025-08-31',
+                'internal_use_only' => 0,
+            ],
+            [
+                'id' => 2,
+                'name' => 'Fixed Value',
+                'promo_code' => 'FIXED_VALUE',
+                'type' => 'fixed_value',
+                'value' => 10,
+                'params' => null,
+                'service_id' => 1,
+                'booking_start_date' => '2025-08-01',
+                'booking_end_date' => '2025-12-31',
+                'activity_start_date' => '2025-11-01',
+                'activity_end_date' => '2025-12-31',
+                'internal_use_only' => 0,
+            ],
+            [
+                'id' => 3, // {"lookup":{"1":"300","2":"300","3":"300","4":"250","5":"250","6":"200","7":"200","8":"200"}}
+                'name' => 'Graduated',
+                'promo_code' => 'GRADUATED',
+                'type' => 'graduated',
+                'value' => 0,
+                'params' => [
+                    'lookup' => [
+                        '1' => '300',
+                        '2' => '300',
+                        '3' => '300',
+                        '4' => '250',
+                        '5' => '250',
+                        '6' => '200',
+                        '7' => '200',
+                        '8' => '200',
+                    ],
+                ],
+                'service_id' => 1,
+                'booking_start_date' => '2025-08-01',
+                'booking_end_date' => '2025-12-31',
+                'activity_start_date' => '2025-10-01',
+                'activity_end_date' => '2025-12-31',
+                'internal_use_only' => 0,
+            ],
+            [ // {"min_adults":"5","child_discount_percent":"10"} 
+                'id' => 4,
+                'name' => 'Varied Child',
+                'promo_code' => 'VARIED_CHILD',
+                'type' => 'varied_child',
+                'value' => 0,
+                'params' =>
+                [
+                    'min_adults' => 2,
+                    'child_discount_percent' => 20,
+                ],
+                'service_id' => 1,
+                'booking_start_date' => '2025-08-01',
+                'booking_end_date' => '2025-12-31',
+                'activity_start_date' => '2025-11-01',
+                'activity_end_date' => '2025-12-31',
+                'internal_use_only' => 0,
+            ],
+            [
+                'id' => 5, // {"tiers":[{"pax":"6","type":"percent","value":"4"},{"pax":"10","type":"percent","value":"6"},{"pax":"20","type":"percent","value":"8"}]}
+                'name' => 'Volume Discount',
+                'promo_code' => 'VOLUME_DISCOUNT',
+                'type' => 'volume_discount',
+                'value' => 0,
+                'params' => [
+                    'tiers' => [
+                        [
+                            'pax' => 4,
+                            'type' => "percent",
+                            'value' => 5,
+                        ],
+                        [
+                            'pax' => 8,
+                            'type' => "percent",
+                            'value' => 10,
+                        ],
+                    ],
+                ],
+                'service_id' => 1,
+                'booking_start_date' => '2025-08-01',
+                'booking_end_date' => '2025-12-31',
+                'activity_start_date' => '2025-08-01',
+                'activity_end_date' => '2025-12-31',
+                'internal_use_only' => 0,
+            ],
+        ];
+
+        foreach ($promotions as $promo) {
+            Promotion::updateOrCreate(['id' => $promo['id']], $promo);
         }
 
 

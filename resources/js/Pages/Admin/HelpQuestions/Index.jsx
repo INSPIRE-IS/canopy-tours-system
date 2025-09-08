@@ -8,7 +8,7 @@ import HelpQuestionModal from './HelpQuestionModal';
 import SearchBar from '@/Components/SearchBar';
 import BlueButton from '@/Components/BlueButton';
 import Pagination from '@/Components/Pagination';
-import ServicesHeader from '@/Components/ServicesHeader';
+import ServicesHeader from '@/Components/HeaderServices';
 
 
 export default function Index({ permissions,helpQuestions,typeHelpQuestions, auth, searchTerm, sortColumn, sortDirection }) {

@@ -8,7 +8,7 @@ import ServiceModal from './ServiceModal';
 import SearchBar from '@/Components/SearchBar';
 import BlueButton from '@/Components/BlueButton';
 import Pagination from '@/Components/Pagination';
-import ServicesHeader from '@/Components/ServicesHeader';
+import HeaderServices from '@/Components/HeaderServices';
 
 
 export default function Index({ permissions,services,serviceFields, auth, searchTerm, sortColumn, sortDirection }) {
@@ -74,7 +74,7 @@ export default function Index({ permissions,services,serviceFields, auth, search
     >
         <Head title="Services" />
         <div className="overflow-x-auto px-[15px]">
-          <ServicesHeader isOpenTab={isOpenTab} setIsOpenTab={setIsOpenTab} />
+          <HeaderServices isOpenTab={isOpenTab} setIsOpenTab={setIsOpenTab} />
             <div id="Services-content" className="tab-content">
                 <div className="bg-white p-6 ">
                 {/* top */}

@@ -163,10 +163,13 @@ class BookingsController extends Controller
     {
 
         $users = User::select('name', 'id')->get();
+        $today = now()->toDateString();
         $status_bookings = StatusBooking::select('name', 'id')->get();
         $wholesalers = Wholesaler::select('id', 'name')->get();
         //$services = Service::select('id', 'name')->get();
-        $services = Service::select('id', 'name', 'allow_internal_capacity_override', 'duration', 'capacity')->with('seasons:id,name,start_date,end_date,service_id,rake_rate_adult,rake_rate_child,rake_rate_guide,allow_internal_price_override,status', 'seasons.inventory', 'seasons.inventory.inventory_time_slots')->get();
+        $services = Service::select('id', 'name', 'allow_internal_capacity_override', 'duration', 'capacity')
+            ->with('seasons:id,name,start_date,end_date,service_id,rake_rate_adult,rake_rate_child,rake_rate_guide,allow_internal_price_override,status', 'seasons.inventory', 'seasons.inventory.inventory_time_slots')
+            ->get();
         //$seasons = Season::select('id', 'name', 'service_id')->get();
         $seasons = Season::select('start_date', 'id')->get();
         // $inventories = Inventory::select('start_date', 'id')->get();
@@ -190,6 +193,12 @@ class BookingsController extends Controller
         $vouchers = Voucher::select('id', 'voucher_code as name', 'amount', 'note', 'expire_date', 'season_id', 'service_id')->with('season', 'service')->get();
         $discounts = Discount::select('id', 'name', 'applies_to', 'percent_off')->with('services')->get();
         $wholesaler_rates = WholesalerRate::select('id', 'wholesaler_id', 'season_id', 'price_adult', 'price_child', 'price_guide')->with('season', 'wholesaler')->get();
+        $promos = Promotion::select('id', 'name', 'promo_code', 'type', 'value', 'service_id', 'booking_start_date', 'booking_end_date', 'activity_start_date', 'activity_end_date')
+            ->where('booking_start_date', '<=', $today)
+            ->where('booking_end_date', '>=', $today)
+            ->where('internal_use_only', false)
+            ->with('service')
+            ->get();
 
         return Inertia::render('Admin/Bookings/Create', [
             'wholesalers' => $wholesalers,
@@ -212,6 +221,7 @@ class BookingsController extends Controller
             'vouchers' => $vouchers,
             'discounts' => $discounts,
             'wholesaler_rates' => $wholesaler_rates,
+            'promos' => $promos,
         ]);
     }
 
@@ -857,22 +867,312 @@ class BookingsController extends Controller
 
     public function calculate(Request $request)
     {
+        //return response()->json($request->all());
+        $data = $request->validate([
+            'service_id'   => 'required|exists:services,id',
+            'season_id'    => 'required|exists:seasons,id',
+            'wholesaler_id' => 'nullable|exists:wholesalers,id',
+            'promo_code'   => 'nullable|string',
+            'pax_groups'   => 'required|array|min:1',
+            'pax_groups.*.type' => 'required|in:adult,child,guide',
+            'pax_groups.*.count' => 'required|integer|min:0',
+            'pax_groups.*.discount_id' => 'nullable|exists:discounts,id',
+            'booking_date' => 'required|date',
+        ]);
+
+        try {
+            // Step 1: Base rack rates            
+            $season = Season::findOrFail($data['season_id']);
+            logger()->info('************** ' . now()->toDateString());
+            logger()->info('season ' . $season->id);
+            logger()->info('season ', [$season]);
+
+            // --- Season rates with safe fallbacks for column names ---
+            $seasonAdult = $season->price_adult ?? $season->rake_rate_adult ?? 0;
+            $seasonChild = $season->price_child ?? $season->rake_rate_child ?? 0;
+            $seasonGuide = $season->price_guide ?? $season->rake_rate_guide ?? 0;
+
+            // Step 1: Base rack rates
+            $rates = [
+                'adult' => (float) $seasonAdult,
+                'child' => (float) $seasonChild,
+                'guide' => (float) $seasonGuide,
+            ];
+            logger()->info('season rates ' . var_export($rates, true));
+            // Step 2: Override with wholesaler rates (if present)
+            if (!empty($data['wholesaler_id'])) {
+                $wr = WholesalerRate::where('wholesaler_id', $data['wholesaler_id'])
+                    ->where('season_id', $season->id)
+                    ->first();
+                if ($wr) {
+                    $rates['adult'] = $wr->price_adult ?? $rates['adult'];
+                    $rates['child'] = $wr->price_child ?? $rates['child'];
+                    $rates['guide'] = $wr->price_guide ?? $rates['guide'];
+                }
+                logger()->info('wholesaler rates ' . var_export($rates, true));
+            }
+
+            // Keep a copy of base (post-wholesaler, pre-promo)
+            $baseRates = $rates;
+
+            $appliedPromo = null;
+            $appliedDiscounts = [];
+            $total = 0.0;
+
+            // Step 3: Check if promotion is applied (mutually exclusive with discounts)
+            if (!empty($data['promo_code'])) {
+                // $promo = Promotion::where('promo_code', $data['promo_code'])
+                //     ->where('service_id', $data['service_id'])
+                //     ->whereDate('booking_start_date', '<=', $data['booking_date'])
+                //     ->whereDate('booking_end_date', '>=', $data['booking_date'])
+                //     ->first();
+
+                // $query = Promotion::where('promo_code', $data['promo_code'])
+                //     ->where('service_id', $data['service_id'])
+                //     ->whereDate('booking_start_date', '<=', now())
+                //     ->whereDate('booking_end_date', '>=', now());
+
+                // if ($promo->activity_start_date && $promo->activity_end_date) {
+                //     $query->whereDate('activity_start_date', '<=', $data['booking_date'])
+                //         ->whereDate('activity_end_date', '>=', $data['booking_date']);
+                // }
+
+                // $promo = $query->first();
+                $today = now()->toDateString();
+                $activityDate = $data['booking_date'];
+
+                $promo = Promotion::where('promo_code', $data['promo_code'])
+                    ->where('service_id', $data['service_id'])
+                    // Booking period check (today is when booking is made)
+                    ->whereDate('booking_start_date', '<=', $today)
+                    ->whereDate('booking_end_date', '>=', $today)
+                    // Activity period check (customer’s chosen date)
+                    ->whereDate('activity_start_date', '<=', $activityDate)
+                    ->whereDate('activity_end_date', '>=', $activityDate)
+                    ->first();
+                logger()->info('promo ' . $promo->id);
+
+
+                if ($promo) {
+                    $appliedPromo = [
+                        'id' => $promo->id,
+                        'name' => $promo->name,
+                        'type' => $promo->type,
+                        'promo_code' => $promo->promo_code,
+                        'value' => (float) $promo->value,
+                        'booking_start_date' => $promo->booking_start_date,
+                        'booking_end_date'   => $promo->booking_end_date,
+                        'activity_start_date' => $promo->activity_start_date,
+                        'activity_end_date'  => $promo->activity_end_date,
+                        'internal_use_only'  => (bool) $promo->internal_use_only,
+                    ];
+                    logger()->info('appliedPromo ' . var_export($appliedPromo, true));
+
+                    // Normalize params (supports casted array or raw JSON string)
+                    $rawParams = $promo->params;
+                    if (is_string($rawParams)) {
+                        $decoded = json_decode($rawParams, true);
+                        $params = is_array($decoded) ? $decoded : [];
+                    } elseif (is_array($rawParams)) {
+                        $params = $rawParams;
+                    } else {
+                        $params = [];
+                    }
+                    logger()->info('params ' . var_export($params, true));
+
+                    $totalPax  = collect($data['pax_groups'])->sum('count');
+                    $adultCount = collect($data['pax_groups'])->where('type', 'adult')->sum('count');
+                    logger()->info('totalPax ' . $totalPax);
+                    logger()->info('adultCount ' . $adultCount);
+                    // Apply promo rules
+                    switch ($promo->type) {
+                        case 'percent':
+                            foreach ($rates as $k => $v) {
+                                $rates[$k] = round($v - ($v * ($promo->value / 100)), 2);
+                            }
+                            logger()->info('percent promo applied ' . var_export($rates, true));
+                            break;
+
+                        case 'fixed_value':
+                            $rates['adult'] = round(max(0, $rates['adult'] - (float) $promo->value), 2);
+                            logger()->info('promo applied ' . var_export($rates, true));
+                            break;
+
+                        case 'graduated':
+                            // Support BOTH:
+                            // (a) map:  {"lookup":{"1":"300","2":"300",...}}
+                            // (b) array:[{"pax":1,"value":300}, ...]
+                            $promoTotal = null;
+                            if (!empty($params['lookup']) && is_array($params['lookup'])) {
+                                // (a) assoc map
+                                $key = (string) $totalPax;
+                                if (array_key_exists($key, $params['lookup'])) {
+                                    $promoTotal = (float) $params['lookup'][$key];
+                                }
+                            } elseif (!empty($params['lookup']) && is_string($params['lookup'])) {
+                                // If stored as JSON string inside params (rare), decode it.
+                                $lk = json_decode($params['lookup'], true) ?: [];
+                                $key = (string) $totalPax;
+                                if (is_array($lk) && array_key_exists($key, $lk)) {
+                                    $promoTotal = (float) $lk[$key];
+                                }
+                            } elseif (!empty($params['lookup']) && is_object($params['lookup'])) {
+                                $lk = (array) $params['lookup'];
+                                $key = (string) $totalPax;
+                                if (array_key_exists($key, $lk)) {
+                                    $promoTotal = (float) $lk[$key];
+                                }
+                            } elseif (!empty($params['lookup']) && is_iterable($params['lookup'])) {
+                                // (b) array of objects
+                                foreach ($params['lookup'] as $row) {
+                                    if (isset($row['pax']) && (int)$row['pax'] === (int)$totalPax) {
+                                        $promoTotal = (float) ($row['value'] ?? 0);
+                                        break;
+                                    }
+                                }
+                            }
+                            logger()->info('promoTotal **************** ' . $promoTotal);
+
+                            if ($promoTotal !== null) {
+                                return response()->json([
+                                    'base_rates'         => $baseRates,
+                                    'applied_rates'      => $rates, // unchanged per-pax; total is overridden
+                                    'applied_promotion'  => $appliedPromo,
+                                    'applied_discounts'  => [],
+                                    'total_price'        => round($promoTotal, 2),
+                                ]);
+                            }
+                            // If there’s no exact lookup, fall through to normal per-pax multiplication.
+                            break;
+
+                        case 'varied_child':
+                            // Support single rule  {min_adults, child_discount_percent}
+                            // and tiered rules     {tiers:[{min_adults, child_discount_percent}, ...]}
+                            if (!empty($params['tiers']) && is_array($params['tiers'])) {
+                                // choose best tier with min_adults <= adultCount
+                                $best = collect($params['tiers'])
+                                    ->filter(fn($t) => isset($t['min_adults']) && $adultCount >= (int)$t['min_adults'])
+                                    ->sortByDesc('min_adults')
+                                    ->first();
+
+                                if ($best && isset($best['child_discount_percent'])) {
+                                    $pct = (float) $best['child_discount_percent'];
+                                    $rates['child'] = round($rates['child'] - ($rates['child'] * ($pct / 100)), 2);
+                                }
+                            } elseif (isset($params['min_adults'], $params['child_discount_percent'])) {
+                                if ($adultCount >= (int)$params['min_adults']) {
+                                    $pct = (float) $params['child_discount_percent'];
+                                    $rates['child'] = round($rates['child'] - ($rates['child'] * ($pct / 100)), 2);
+                                }
+                            }
+                            logger()->info('varied_child promo applied ' . var_export($rates, true));
+                            break;
+
+                        case 'volume_discount':
+                            // pick best tier where totalPax >= pax
+                            $best = null;
+                            if (!empty($params['tiers']) && is_array($params['tiers'])) {
+                                $best = collect($params['tiers'])
+                                    ->filter(fn($t) => isset($t['pax']) && $totalPax >= (int)$t['pax'])
+                                    ->sortByDesc('pax')
+                                    ->first();
+                            }
+                            if ($best) {
+                                if (($best['type'] ?? '') === 'percent') {
+                                    $pct = (float) ($best['value'] ?? 0);
+                                    foreach ($rates as $k => $v) {
+                                        $rates[$k] = round($v - ($v * ($pct / 100)), 2);
+                                    }
+                                } elseif (($best['type'] ?? '') === 'fixed_value') {
+                                    $fv = (float) ($best['value'] ?? 0);
+                                    $rates['adult'] = round(max(0, $rates['adult'] - $fv), 2);
+                                }
+                            }
+                            logger()->info('volume_discount promo applied ' . var_export($rates, true));
+                            break;
+                    }
+                }
+            }
+
+            // Step 4: Apply per-pax discounts (only if no promo)
+            // Step 4: Totals
+            if ($appliedPromo) {
+                // Promo applied → no per-pax discounts
+                foreach ($data['pax_groups'] as $group) {
+                    $type  = $group['type'];
+                    $count = (int) $group['count'];
+                    $rate  = (float) ($rates[$type] ?? 0);
+                    $total += $rate * $count;
+                }
+            } else {
+                // No promo → apply per-pax discounts on top of base rates (post-wholesaler)
+                foreach ($data['pax_groups'] as $group) {
+                    $type  = $group['type'];
+                    $count = (int) $group['count'];
+                    $rate  = (float) ($baseRates[$type] ?? 0);
+
+                    if (!empty($group['discount_id'])) {
+                        $discount = Discount::find($group['discount_id']);
+                        if ($discount) {
+                            $rate = round($rate - ($rate * ((float)$discount->percent_off / 100)), 2);
+                            $appliedDiscounts[] = [
+                                'id'          => $discount->id,
+                                'name'        => $discount->name,
+                                'percent_off' => (float) $discount->percent_off,
+                                'applied_to'  => $type,
+                                'count'       => $count,
+                                'final_rate'  => $rate,
+                            ];
+                        }
+                    }
+
+                    $total += $rate * $count;
+                }
+                // When NO promo, applied_rates == baseRates (because discounts are per-line)
+                $rates = $baseRates;
+            }
+
+            $result = [
+                'base_rates'         => $baseRates,         // post-wholesaler, pre-promo
+                'applied_rates'      => $rates,             // post-promo (or == base if no promo)
+                'applied_promotion'  => $appliedPromo,      // null if none
+                'applied_discounts'  => $appliedDiscounts,  // [] if promo applied
+                'total_price'        => round($total, 2),
+            ];
+            //dd($result);
+            return response()->json($result);
+        } catch (\Throwable $e) {
+            Log::error('Pricing calculation failed', [
+                'message' => $e->getMessage(),
+                'trace'   => $e->getTraceAsString(),
+                'input'   => $request->all(),
+            ]);
+            return response()->json([
+                'error' => 'Calculation failed.',
+                'message' => $e->getMessage(),
+            ], 422);
+        }
+    }
+
+    public function calculate1(Request $request)
+    {
         //dd($request->all());
         $data = $request->validate([
             'service_id' => 'required|exists:services,id',
             'season_id' => 'required|exists:seasons,id',
             'wholesaler_id' => 'nullable|exists:wholesalers,id',
-            'discount_code' => 'nullable|string',
             'promo_code' => 'nullable|string',
-            'pax.adults' => 'required|integer|min:0',
-            'pax.children' => 'required|integer|min:0',
-            'pax.guides' => 'required|integer|min:0',
             'booking_date' => 'required|date',
+            // pax_groups: [{ type: "adult", count: 2, discount_id: null }, ...]
+            'pax_groups' => 'required|array|min:1',
+            'pax_groups.*.type' => 'required|in:adult,child,guide',
+            'pax_groups.*.count' => 'required|integer|min:0',
+            'pax_groups.*.discount_id' => 'nullable|exists:discounts,id',
         ]);
 
         $season = Season::findOrFail($data['season_id']);
 
-        // Step 1: Base rack rates from season
+        // Step 1: Base rack rates
         $rates = [
             'adult' => $season->price_adult,
             'child' => $season->price_child,
@@ -891,46 +1191,104 @@ class BookingsController extends Controller
             }
         }
 
-        $appliedDiscount = null;
+        $appliedDiscounts = [];
         $appliedPromo = null;
+        $total = 0;
 
-        // Step 3: Apply promo (mutually exclusive with discounts)
+        // Step 3: Apply promotion (mutually exclusive with discounts)
         if (!empty($data['promo_code'])) {
             $promo = Promotion::where('promo_code', $data['promo_code'])
                 ->where('service_id', $data['service_id'])
-                ->whereDate('start_date', '<=', $data['booking_date'])
-                ->whereDate('end_date', '>=', $data['booking_date'])
+                ->whereDate('booking_start_date', '<=', $data['booking_date'])
+                ->whereDate('booking_end_date', '>=', $data['booking_date'])
                 ->first();
 
             if ($promo) {
                 $appliedPromo = $promo;
-                if ($promo->type === 'percent') {
-                    foreach ($rates as $k => $v) {
-                        $rates[$k] = $v - ($v * ($promo->value / 100));
-                    }
-                } elseif ($promo->type === 'fixed_value') {
-                    $rates['adult'] = max(0, $rates['adult'] - $promo->value);
-                }
-                // add logic for graduated / varied child here later
-            }
-        }
-        // Step 4: Apply discount (only if no promo)
-        elseif (!empty($data['discount_code'])) {
-            $discount = Discount::where('name', $data['discount_code'])
-                ->where('service_id', $data['service_id'])
-                ->first();
-            if ($discount) {
-                $appliedDiscount = $discount;
-                foreach ($rates as $k => $v) {
-                    $rates[$k] = $v - ($v * ($discount->percent_off / 100));
+                $params = $promo->params ? json_decode($promo->params, true) : [];
+                $paxCount = collect($data['pax_groups'])->sum('count');
+
+                switch ($promo->type) {
+                    case 'percent':
+                        foreach ($rates as $k => $v) {
+                            $rates[$k] = $v - ($v * ($promo->value / 100));
+                        }
+                        break;
+
+                    case 'fixed_value':
+                        // apply only to adults for simplicity
+                        $rates['adult'] = max(0, $rates['adult'] - $promo->value);
+                        break;
+
+                    case 'graduated':
+                        if (!empty($params['lookup'][$paxCount])) {
+                            // Override total directly, skip per-pax logic
+                            $total = $params['lookup'][$paxCount];
+                            return response()->json([
+                                'base_rates' => [
+                                    'adult' => $season->price_adult,
+                                    'child' => $season->price_child,
+                                    'guide' => $season->price_guide,
+                                ],
+                                'applied_rates' => $rates,
+                                'applied_discount' => null,
+                                'applied_promotion' => [
+                                    'id' => $promo->id,
+                                    'name' => $promo->name,
+                                    'type' => $promo->type,
+                                    'value' => $promo->value,
+                                ],
+                                'total_price' => $total,
+                            ]);
+                        }
+                        break;
+
+                    case 'varied_child':
+                        if (!empty($params['min_adults']) && !empty($params['child_discount_percent'])) {
+                            $adultCount = collect($data['pax_groups'])->where('type', 'adult')->sum('count');
+                            if ($adultCount >= $params['min_adults']) {
+                                $rates['child'] = $rates['child'] - ($rates['child'] * ($params['child_discount_percent'] / 100));
+                            }
+                        }
+                        break;
+
+                    case 'volume_discount':
+                        foreach ($params['tiers'] ?? [] as $tier) {
+                            if ($paxCount >= $tier['pax']) {
+                                if ($tier['type'] === 'percent') {
+                                    foreach ($rates as $k => $v) {
+                                        $rates[$k] = $v - ($v * ($tier['value'] / 100));
+                                    }
+                                } elseif ($tier['type'] === 'fixed_value') {
+                                    $rates['adult'] = max(0, $rates['adult'] - $tier['value']);
+                                }
+                            }
+                        }
+                        break;
                 }
             }
         }
 
-        // Step 5: Calculate total
-        $total = ($rates['adult'] * $data['pax']['adults'])
-            + ($rates['child'] * $data['pax']['children'])
-            + ($rates['guide'] * $data['pax']['guides']);
+        // Step 4: If no promo, apply per-pax discounts
+        if (!$appliedPromo) {
+            foreach ($data['pax_groups'] as $group) {
+                $rate = $rates[$group['type']];
+                if (!empty($group['discount_id'])) {
+                    $discount = Discount::find($group['discount_id']);
+                    if ($discount) {
+                        $appliedDiscounts[] = $discount;
+                        $rate -= ($rate * ($discount->percent_off / 100));
+                    }
+                }
+                $total += $rate * $group['count'];
+            }
+        } else {
+            // Promo applied: recalc total with adjusted promo rates
+            foreach ($data['pax_groups'] as $group) {
+                $rate = $rates[$group['type']];
+                $total += $rate * $group['count'];
+            }
+        }
 
         return response()->json([
             'base_rates' => [
@@ -939,10 +1297,10 @@ class BookingsController extends Controller
                 'guide' => $season->price_guide,
             ],
             'applied_rates' => $rates,
-            'applied_discount' => $appliedDiscount ? [
-                'id' => $appliedDiscount->id,
-                'name' => $appliedDiscount->name,
-            ] : null,
+            'applied_discounts' => array_map(fn($d) => [
+                'id' => $d->id,
+                'name' => $d->name,
+            ], $appliedDiscounts),
             'applied_promotion' => $appliedPromo ? [
                 'id' => $appliedPromo->id,
                 'name' => $appliedPromo->name,

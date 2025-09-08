@@ -5,17 +5,23 @@ import CustomSelect from "@/Components/CustomSelect";
 import OutlineButton from "@/Components/OutlineButton";
 import BlueButton from "@/Components/BlueButton";
 import CustomCheckbox from "@/Components/CustomCheckbox";
+import GraduatedTable from "@/Components/GraduatedTable";
+import VolumeDiscountEditor from "@/Components/VolumeDiscountEditor";
 
 const Modal = ({ isOpen, onClose, mode, item = null, services }) => {
-  const [checkDays, setCheckDays] = useState([]);
+
   const { data, setData, post, put, errors, reset, processing } = useForm({});
+  const [checkDays, setCheckDays] = useState([]);  
   console.log('item ', item);
+  console.log('services ', services);
 
   useEffect(() => {
     if (item && mode !== "create") {
       setData({ ...item });
+      setCheckDays(item.valid_days ? item.valid_days.split(",") : []);
     } else if (mode === "create") {
       reset();
+      setCheckDays([]);
     }
   }, [mode, item]);
 
@@ -28,10 +34,39 @@ const Modal = ({ isOpen, onClose, mode, item = null, services }) => {
         : [...prev, day]                // add if not checked
     );
   };
+
+
+
   const handleSubmit = (e) => {
     e.preventDefault();
     //console.log('checkDays ', checkDays);
     data.valid_days = checkDays.join(',');
+    // --- Validate booking & activity dates ---
+    const { booking_start_date, booking_end_date, activity_start_date, activity_end_date } = data;
+
+    if (booking_start_date && booking_end_date && booking_start_date > booking_end_date) {
+      alert("Booking start date cannot be after booking end date.");
+      return;
+    }
+
+    if (activity_start_date && activity_end_date && activity_start_date > activity_end_date) {
+      alert("Activity start date cannot be after activity end date.");
+      return;
+    }
+
+    // Make sure booking window is inside the chosen season
+    const season = services.find(s => s.id == data.service_id)?.season;
+    if (season) {
+      if (booking_start_date < season.start_date || booking_end_date > season.end_date) {
+        alert(`Booking dates must be within the season (${season.start_date} → ${season.end_date}).`);
+        return;
+      }
+      if (activity_start_date < season.start_date || activity_end_date > season.end_date) {
+        alert(`Activity dates must be within the season (${season.start_date} → ${season.end_date}).`);
+        return;
+      }
+    }
+
     //console.log('data ', data);
     if (mode === "create") {
       post(route('admin.promotions.store'), { onSuccess: () => onClose() });
@@ -67,12 +102,13 @@ const Modal = ({ isOpen, onClose, mode, item = null, services }) => {
                 label="Type"
                 name="type"
                 value={data.type}
-                mode={mode}
+                mode={mode} // 'percent', 'fixed_value', 'graduated', 'varied_child', 'volume_discount'
                 options={[
                   { id: 'percent', name: 'Percent' },
                   { id: 'fixed_value', name: 'Fixed Value' },
                   { id: 'graduated', name: 'Graduated (per pax)' },
-                  { id: 'varied_child', name: 'Varied Child (by adults)' }
+                  { id: 'varied_child', name: 'Varied Child (by adults)' },
+                  { id: 'volume_discount', name: 'Volume Discount' }
                 ]}
                 onChange={(e) => handleChange(e.target.name, e.target.value)}
                 errors={errors}
@@ -92,9 +128,23 @@ const Modal = ({ isOpen, onClose, mode, item = null, services }) => {
               <CustomInputText title="Start Date (YYYY-MM-DD)" type="date" name="activity_start_date" value={data.activity_start_date} mode={mode} onChange={(e) => {handleChange(e.target.name, e.target.value);}} errors={errors} />
               <CustomInputText title="End Date (YYYY-MM-DD)" type="date" name="activity_end_date" value={data.activity_end_date} mode={mode} onChange={(e) => {handleChange(e.target.name, e.target.value);}} errors={errors} />            
             </div>
-        
+            <div className="flex gap-2 flex-wrap mb-4">
+              {["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map((day, idx) => (
+                <CustomCheckbox
+                  key={idx}
+                  label={day}
+                  name={(idx+1).toString()}
+                  checked={checkDays.includes((idx+1).toString())}
+                  onChange={(name, val) =>
+                    setCheckDays((prev) =>
+                      prev.includes(name) ? prev.filter((d) => d !== name) : [...prev, name]
+                    )
+                  }
+                />
+              ))}
+            </div>        
 
-            <div className="flex flex-row w-[90%] items-center justify-evenly gap-2 mb-4">
+            {/* <div className="flex flex-row w-[90%] items-center justify-evenly gap-2 mb-4">
               <CustomCheckbox
                   label="Mon"
                   name="1"
@@ -151,12 +201,74 @@ const Modal = ({ isOpen, onClose, mode, item = null, services }) => {
                   onChange={handleCheckChange}
                   errors={errors}
               />
-            </div>
-            <div className="flex flex-row w-full items-center gap-2 justify-between mb-4">
+            </div> */}
+            {/* <div className="flex flex-row w-full items-center gap-2 justify-between mb-4">
               <CustomInputText title="Value" name="value" value={data.value} mode={mode} onChange={(e) => {handleChange(e.target.name, e.target.value);}} errors={errors} />
-            </div>
+            </div> */}
+            {data.type === 'percent' && (
+              <CustomInputText
+                title="Percent Off (%)"
+                type="number"
+                name="value"
+                value={data.value}
+                onChange={(e) => setData('value', e.target.value)}
+                errors={errors}
+              />
+            )}
+
+            {data.type === 'fixed_value' && (
+              <CustomInputText
+                title="Fixed Amount Off (R)"
+                type="number"
+                name="value"
+                value={data.value}
+                onChange={(e) => setData('value', e.target.value)}
+                errors={errors}
+              />
+            )}
+
+            {data.type === 'graduated' && (
+              <GraduatedTable
+                capacity={services.find(s => s.id == data.service_id)?.capacity || 0}
+                lookup={data.params?.lookup || {}}
+                onChange={(lookup) => setData('params', { ...data.params, lookup })}
+              />
+            )}
+
+            {data.type === 'varied_child' && (
+              <>
+                <CustomInputText
+                  title="Min Adults"
+                  type="number"
+                  name="min_adults"
+                  value={data.params?.min_adults || ''}
+                  onChange={(e) => setData('params', { ...data.params, min_adults: e.target.value })}
+                  errors={errors}
+                />
+                <CustomInputText
+                  title="Child Discount (%)"
+                  type="number"
+                  name="child_discount_percent"
+                  value={data.params?.child_discount_percent || ''}
+                  onChange={(e) => setData('params', { ...data.params, child_discount_percent: e.target.value })}
+                  errors={errors}
+                />
+              </>
+            )}
+
+            {data.type === 'volume_discount' && (
+              <VolumeDiscountEditor
+                capacity={services.find(s => s.id == data.service_id)?.capacity || 0}
+                tiers={data.params?.tiers || []}
+                onChange={(tiers) => setData('params', { ...data.params, tiers })}
+              />
+            )}
+
+
+
+
             <div className="flex flex-row w-full items-center gap-2 justify-between mb-4">
-                            <CustomCheckbox
+              <CustomCheckbox
                   label="Internal Use Only"
                   name="internal_use_only"
                   checked={data.internal_use_only}

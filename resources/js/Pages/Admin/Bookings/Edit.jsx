@@ -1,7 +1,7 @@
 import CustomerToolsModal from '@/Components/CustomerToolsModal';
 import Header from '@/Components/Header';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, Link, router, useForm } from '@inertiajs/react';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import React, { useState } from 'react';
 import { icons } from '../../../icons';
 import CustomInputText from '@/Components/CustomInputText';
@@ -11,7 +11,8 @@ import CustomSelect from '@/Components/CustomSelect';
 import ManifestCount from '@/Components/ManifestCount';
 import CustomTimePicker from '@/Components/CustomTimePicker';
 import ManifestModal from './ManifestModal';
-
+// import { useRoute } from 'ziggy-js';
+// import { Ziggy } from '@/ziggy'; // the generated file
 
 export default function Dashboard({ auth, booking, staff  }) {
     console.log("auth", auth);
@@ -26,6 +27,13 @@ export default function Dashboard({ auth, booking, staff  }) {
     const [toggleEmail, setToggleEmail] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalMode, setModalMode] = useState("create");
+//    const page = usePage();
+//     const currentRoutePath = page.props.currentRoutePath;
+
+//     console.log('=======================currentRoutePath============== ',currentRoutePath); // outputs: "services"
+// const route = useRoute(Ziggy);
+// console.log('=======================route============== ',route().current());
+
 
     const { data, setData, put, isDirty, reset, processing, errors } = useForm(()=>
         {
@@ -90,15 +98,18 @@ export default function Dashboard({ auth, booking, staff  }) {
             header={<h2 className="font-semibold text-xl text-gray-800 leading-tight">Bookings</h2>}
         >
             <Head title="Dashboard" />
-            {/* <header className="h-16 bg-white  border-b border-secondary-100 rounded-r-lg p-6 py-4 flex justify-between items-center">
-                            <div className="flex items-center gap-4 ">
+                        {/* <header className="h-16 bg-white  border-b border-secondary-100 rounded-r-lg p-6 py-4 flex justify-between items-center">
                                 <div className={`icon-open flex md:hidden  items-center justify-between px-1 py-1 bg-secondary-100  relative rounded-[10px]`}>
-                                    <button onClick={()=>{}} className="flex w-auto h-auto hover:bg-gray-200 rounded-sm transition cursor-pointer">
+                                    <button onClick={()=>toggleSidebar()} className="flex w-auto h-auto hover:bg-gray-200 rounded-sm transition cursor-pointer">
                                         <img src="/assets/icons/sidebar-left.svg" alt="My Icon" className="w-5 h-5" />         
                                     </button>
                                 </div>
-                                <span className="font-semibold text-lg text-gray-800 capitalize">test</span>
-                            </div>
+                                <span className="font-semibold text-lg text-gray-800 capitalize">{currentRoutePath}, {auth?.user?.name}</span>                                
+                                {route().current() === 'admin.bookings.edit' && <span className="font-semibold text-lg text-gray-800 capitalize">Bookings</span>}
+
+                                <div className="flex items-center gap-2">
+                                {icons.messages} {icons.notifications}                                    
+                                </div>
                         </header> */}
             <div className="bg-white p-6 ">
                 {/* top */}

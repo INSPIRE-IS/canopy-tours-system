@@ -3,8 +3,10 @@ import CustomerToolsModal from '@/Components/CustomerToolsModal';
 import Header from '@/Components/Header';
 import { icons } from '@/icons';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import React, { useState } from 'react';
+// import { useRoute } from 'ziggy-js';
+// import { Ziggy } from '@/ziggy'; // the generated file
 
 export default function Dashboard({ auth, bookings  }) {
 
@@ -14,6 +16,14 @@ const [expanded, setExpanded] = useState(null); // track which booking is expand
 const [toolsCustomer, setToolsCustomer] = useState(null); // null or { id: ..., name: ... }
 const [customerToolsTarget, setCustomerToolsTarget] = useState(null); // { customer, position }
 const [bookingToolsTarget, setBookingToolsTarget] = useState(null); // { customer, position }
+// const page = usePage();
+// const currentRoutePath = page.props.currentRoutePath;
+
+// console.log('=======================currentRoutePath============== ',currentRoutePath); // outputs: "services"
+// const currentRoute = useRoute(Ziggy);
+// console.log('=======================currentRoute============== ',currentRoute); // outputs: "services"
+// const route = useRoute(Ziggy);
+// console.log('=======================route============== ',route().current());
 
 const openCustomerToolsModal = (event, customer) => {
     event.preventDefault();
@@ -57,6 +67,20 @@ console.log("booking----------tool-------- ", booking)
                                 <span className="font-semibold text-lg text-gray-800 capitalize">test</span>
                             </div>
                         </header> */}
+                        {/* <header className="h-16 bg-white  border-b border-secondary-100 rounded-r-lg p-6 py-4 flex justify-between items-center">
+                                <div className={`icon-open flex md:hidden  items-center justify-between px-1 py-1 bg-secondary-100  relative rounded-[10px]`}>
+                                    <button onClick={()=>toggleSidebar()} className="flex w-auto h-auto hover:bg-gray-200 rounded-sm transition cursor-pointer">
+                                        <img src="/assets/icons/sidebar-left.svg" alt="My Icon" className="w-5 h-5" />         
+                                    </button>
+                                </div>
+                                <span className="font-semibold text-lg text-gray-800 capitalize">{currentRoutePath}, {auth?.user?.name}</span>                                
+                                {currentRoutePath === 'admin/bookings' && <span className="font-semibold text-lg text-gray-800 capitalize">Bookings</span>}
+
+                                <div className="flex items-center gap-2">
+                                {icons.messages} {icons.notifications}                                    
+                                </div>
+                        </header> */}
+
             <div className="bg-white p-6 ">
                 {/* top */}
                 <div className="flex justify-between items-center mb-6">

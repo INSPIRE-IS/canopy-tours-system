@@ -7,7 +7,7 @@ import UserAlertModal from './UserAlertModal';
 import SearchBar from '@/Components/SearchBar';
 import BlueButton from '@/Components/BlueButton';
 import Pagination from '@/Components/Pagination';
-import SettingsHeader from '@/Components/SettingsHeader';
+import SettingsHeader from '@/Components/HeaderSites';
 
 
 export default function Index({ useralerts, users,auth,permissions, searchTerm, sortColumn, sortDirection }) {

@@ -7,7 +7,9 @@ import Header from '@/Components/Header';
 import FlashMessage from '@/Components/FlashMessage';
 import SidebarMenuItem from '@/Components/SidebarMenuItem';
 import { icons } from '@/icons';
-
+import { useRoute } from 'ziggy-js';
+import { Ziggy } from '@/ziggy'; // the generated file
+import WhiteButton from '@/Components/WhiteButton';
 export default function AppLayout({  user, children }) {
  
 
@@ -25,7 +27,10 @@ export default function AppLayout({  user, children }) {
 const page = usePage();
 const currentRoutePath = page.props.currentRoutePath;
 
-console.log('currentRoutePath ',currentRoutePath); // outputs: "services"
+console.log('=======================currentRoutePath============== ',currentRoutePath); // outputs: "services"
+
+const route = useRoute(Ziggy);
+console.log('=======================route============== ',route().current());
 
 function toggleSidebar() {
     setIsOpen(!isOpen);
@@ -186,12 +191,6 @@ function selectOption(dropdownId, value) {
                 url= 'admin.bookings.index'
                 iconName="bookings"
             />
-            <SidebarMenuItem
-                label="Services"
-                isOpen={isOpen}
-                url= 'admin.services.index'
-                iconName="services"
-            />
             {/* <SidebarMenuItem
                 label="Seasons"
                 isOpen={isOpen}
@@ -223,7 +222,7 @@ function selectOption(dropdownId, value) {
                 iconName="reports"
             />
             <div>
-                <span className={`${isOpen ? '' : 'hidden'} text-menu-heading`}>Other</span>
+                <span className={`${isOpen ? '' : 'hidden'} text-menu-heading`}>Settings</span>
             </div>
             <SidebarMenuItem
                 label="Help & Center"
@@ -231,8 +230,26 @@ function selectOption(dropdownId, value) {
                 url= 'admin.help-questions.index'
                 iconName="helpcenter"
             />
-             <SidebarMenuItem
-                label="Settings"
+            <SidebarMenuItem
+                label="Service"
+                isOpen={isOpen}
+                url= 'admin.services.index'
+                iconName="services"
+            />
+            <SidebarMenuItem
+                label="Marketing"
+                isOpen={isOpen}
+                url= 'admin.vouchers.index'
+                iconName="services"
+            />      
+            <SidebarMenuItem
+                label="Wholesalers"
+                isOpen={isOpen}
+                url= 'admin.wholesalers.index'
+                iconName="services"
+            />       
+            <SidebarMenuItem
+                label="Site"
                 isOpen={isOpen}
                 url= 'admin.teams.index'
                 iconName="settings"
@@ -306,17 +323,51 @@ function selectOption(dropdownId, value) {
                     <Header user={user} toggleSidebar={() => toggleSidebar()} /></div> */}
                     <div className=" bg-[#3863C6] w-[10px] h-[100%] transition-all duration-300 rounded-l-lg " id="dividerBar"></div>
                     <main className="bg-white min-h-screen w-[100%]  rounded-r-lg">
-                        {/**/} <header className="h-16 bg-white  border-b border-secondary-100 rounded-r-lg p-6 py-4 flex justify-between items-center">
-                            <div className="flex items-center gap-4 ">
+                        <header className="h-16 bg-white  border-b border-secondary-100 rounded-r-lg p-6 py-4 flex justify-between items-center">
                                 <div className={`icon-open flex md:hidden  items-center justify-between px-1 py-1 bg-secondary-100  relative rounded-[10px]`}>
                                     <button onClick={()=>toggleSidebar()} className="flex w-auto h-auto hover:bg-gray-200 rounded-sm transition cursor-pointer">
                                         <img src="/assets/icons/sidebar-left.svg" alt="My Icon" className="w-5 h-5" />         
                                     </button>
+                                </div>                          
+                                {route().current() === 'admin.bookings.index' && (
+                                <div className="hidden  md:flex items-center justify-between gap-2">
+                                    <span className="text-page-heading capitalize">Bookings</span>
                                 </div>
-                                {currentRoutePath === 'admin/bookings' && <span className="font-semibold text-lg text-gray-800 capitalize">Bookings</span>}
-                                {/* <span className="font-semibold text-lg text-gray-800 capitalize">{currentRoutePath}, {user?.name}</span> */}
-                            </div>
-                        </header> 
+
+                                )}
+                                {route().current() === 'admin.bookings.edit' && (
+                                    <div className="hidden  md:flex items-center justify-between gap-2  basis-[60%]">
+                                    <WhiteButton
+                                        title="Back to all Bookings" 
+                                        icon={true}
+                                        iconName={icons.cheveron_left}
+                                        width="w-[188px]"
+                                        className="mt-4"
+                                        onClick={() => router.get(route('admin.bookings.index'))}
+                                    />
+                                    <span className="text-page-heading capitalize">Booking Detail</span>
+                                    </div>
+
+                                )}
+                                {route().current() === 'admin.bookings.create' && (
+                                <div className="hidden  md:flex items-center justify-between gap-2 basis-[60%] ">
+                                    <WhiteButton 
+                                        title="Back to all Bookings" 
+                                        icon={true}
+                                        iconName={icons.cheveron_left}
+                                        width="w-[188px]"
+                                        className="mt-4"
+                                        onClick={() => router.get(route('admin.bookings.index'))}
+                                    />
+                                    <span className="text-page-heading capitalize">New Booking</span>
+                                </div>
+
+                                )}
+
+                                <div className="flex items-center gap-2">
+                                    {icons.messages} {icons.notifications}                                    
+                                </div>
+                        </header>
                         {flash?.message && <FlashMessage message={flash.message} type={flash.type} />}
                         {children}
                     </main>

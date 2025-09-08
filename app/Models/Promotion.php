@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -16,6 +17,7 @@ class Promotion extends Model
         'promo_code',
         'type',
         'value',
+        'params',
         'service_id',
         'booking_start_date',
         'booking_end_date',
@@ -23,12 +25,45 @@ class Promotion extends Model
         'activity_end_date',
         'internal_use_only',
     ];
-
+    protected $appends = ['status', 'is_valid'];
     protected $casts = [
-        'start_date' => 'date',
-        'end_date' => 'date',
+        'booking_start_date' => 'date',
+        'booking_end_date' => 'date',
+        'activity_start_date' => 'date',
+        'activity_end_date' => 'date',
         'internal_use_only' => 'boolean',
+        'params' => 'json',
+        'is_valid' => 'boolean',
     ];
+
+
+    public function getStatusAttribute()
+    {
+        $today = Carbon::today();
+
+        if ($today->lt($this->booking_start_date)) {
+            return 'upcoming';
+        }
+
+        if ($today->gt($this->booking_end_date)) {
+            return 'expired';
+        }
+
+        return 'active';
+    }
+
+    // public function getIsValidAttribute()
+    // {
+    //     $today = Carbon::today();
+
+    //     return $today->between($this->booking_start_date, $this->booking_end_date)
+    //         && now()->between($this->activity_start_date, $this->activity_end_date);
+    // }
+
+    public function getIsValidAttribute()
+    {
+        return $this->attributes['is_valid'] ?? false;
+    }
 
     public function service()
     {
@@ -39,5 +74,25 @@ class Promotion extends Model
     public function promo_day_time_slots()
     {
         return $this->hasMany(PromotionDayTimeSlot::class);
+    }
+
+    public function validForDates($bookingDate, $activityDate, $season)
+    {
+        $today = now()->toDateString();
+
+        // Booking window is mandatory
+        if ($today < $this->booking_start_date || $today > $this->booking_end_date) {
+            return false;
+        }
+
+        // Default activity window = season dates if not set
+        $activityStart = $this->activity_start_date ?? $season->start_date;
+        $activityEnd   = $this->activity_end_date   ?? $season->end_date;
+
+        if ($activityDate < $activityStart || $activityDate > $activityEnd) {
+            return false;
+        }
+
+        return true;
     }
 }

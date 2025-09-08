@@ -9,7 +9,7 @@ import TeamModal from './TeamModal';
 import SearchBar from '@/Components/SearchBar';
 import BlueButton from '@/Components/BlueButton';
 import Pagination from '@/Components/Pagination';
-import SettingsHeader from '@/Components/SettingsHeader';
+import SettingsHeader from '@/Components/HeaderSites';
 
 
 export default function Index({ user,permissions, teams, auth, searchTerm, sortColumn, sortDirection }) {

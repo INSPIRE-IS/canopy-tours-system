@@ -140,7 +140,10 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['auth', 'v
 
     Route::resource('wholesaler-rates', WholesalerRateController::class)->names('wholesaler_rates');
     Route::resource('discounts', DiscountController::class);
+    Route::get('promotions/valid', [PromotionController::class, 'valid'])->name('promotions.valid');
     Route::resource('promotions', PromotionController::class);
+
+
 
     // Inventory Overrides
     Route::resource('inventories-overrides', InventoryOverridesController::class);
@@ -167,7 +170,7 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['auth', 'v
 
     //Route::get('bookings/index', [HomeController::class, 'bookings'])->name('bookings.index');
     Route::get('/booking/activity/calendar', [BookingsController::class, 'calendar'])->name('booking.activity.calendar');
-    Route::post('/bookings/calculate-price', [BookingsController::class, 'calculate'])->name('bookings.calculate');
+    Route::post('/bookings/calculate-price', [BookingsController::class, 'calculate'])->name('booking.calculate');
     Route::resource('bookings', BookingsController::class);
 
     Route::get('/checkins/index/{booking}/{customer?}', [CheckinsController::class, 'index'])->name('checkins.index');

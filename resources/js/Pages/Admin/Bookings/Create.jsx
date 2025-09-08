@@ -15,13 +15,18 @@ import { icons } from '../../../icons';
 import WhiteButton from '@/Components/WhiteButton';
 import BlueButton from '@/Components/BlueButton';
 import CustomTextarea from '@/Components/CustomTextarea';
+import OutlineButton from '@/Components/OutlineButton';
+import PromoModal from './PromoModal';
 
-export default function Dashboard({ auth, wholesalers = [], services = [], schedule, start_date, view_mode, days, type_affiliates, vouchers, discounts, wholesaler_rates }) {
+
+export default function Dashboard({ auth, wholesalers = [], services = [], schedule, start_date, view_mode, days, type_affiliates, vouchers, discounts, wholesaler_rates,promos }) {
 //seasons = [],, adults, children, guides
 console.log('---------------services---------------- ', services);
     const page = usePage();
     const mode = 'create';
+//const currentRoutePath = page.props.currentRoutePath;
 
+//console.log('=======================currentRoutePath============== ',currentRoutePath); // outputs: "services"
     const [viewMode, setViewMode] = useState(view_mode); // 'day', 'week', or 'month'
     const [activityId, setActivityId] = useState('');
     const [scheduleData, setScheduleData] = useState({ schedule, days });
@@ -48,7 +53,10 @@ console.log('---------------services---------------- ', services);
     const [paxGroups, setPaxGroups] = useState([]);
     const [discountCode, setDiscountCode] = useState(null);    
     const [showPromo, setShowPromo] = useState(false);
+    const [promoList, setPromoList] = useState([]);
+    const [promotionId, setPromotionId] = useState(null);
     const [promoCode, setPromoCode] = useState(null);
+    const [promoModalOpen, setPromoModalOpen] = useState(false);
 
     const [selectedDate, setSelectedDate] = useState(null);
     const [pricing, setPricing] = useState(null);
@@ -186,6 +194,42 @@ console.log('---------------services---------------- ', services);
     }
     }, [selectedService, selectedSeason, selectedWholesaler, promoCode, adults, children, guides, selectedDate]);
 
+////////////////////////////////////////
+    const handleCalculate = async () => {
+
+
+
+    try {
+        const payload = {
+        service_id: selectedService?.id,
+        season_id: selectedSeason?.id,
+        wholesaler_id: selectedWholesaler || null,
+        booking_date: selectedDate,
+        promo_code: promoCode || null,
+        pax_groups: paxGroups,
+        };
+
+        console.log('Payload:', payload);
+    //     axios
+    //   .post(route("admin.booking.calculate"), {payload})
+    //   .then((res) => {
+    //     console.log('Calculation result:', res);
+    // })
+    //   .catch((err) => {
+    //     console.error(err)
+    // });
+
+
+        const { data } = await axios.post(route('admin.booking.calculate'), payload);
+        console.log('Calculation result:', data);
+        // update state here
+    } catch (err) {
+        console.error(err.response?.data || err);
+    }
+    };
+///////////////////////////////////////////////////////
+
+/////////////////////////////////////////////////////////////////////////////////
     const fetchCalculatedPrice = async () => {
         console.log('selectedService', selectedService);
         console.log('selectedSeason', selectedSeason);
@@ -196,6 +240,7 @@ console.log('---------------services---------------- ', services);
         console.log('children', children);
         console.log('guides', guides);
         console.log('selectedDate', selectedDate);
+        return;
         if(!selectedService || !selectedSeason || !adults || !children || !guides || !selectedDate) return; // || !selectedWholesaler || !promoCode || !discountCode 
         try {
             const res = await axios.post('/admin/bookings/calculate-price', {
@@ -212,7 +257,7 @@ console.log('---------------services---------------- ', services);
             console.error(e);
         }
     };
-
+///////////////////////////////////////////////////////////////////////////
 
     useEffect(() => {
         // console.log('selectedWholesaler', selectedWholesaler);
@@ -252,26 +297,39 @@ console.log('---------------services---------------- ', services);
     },[selectedWholesaler, data.is_wholesaler]);
 
 
-useEffect(() => {
-    if (selectedService) {
-        console.log('discounts', discounts);
-        const discount_rates_list = discounts.filter(discount => 
-            discount.services.some(service => service.id === parseInt(selectedService.id))
-        );
-        const discountList = discount_rates_list.map(rate => ({
-            id: rate.id,
-            name: rate.name,
-            percent_off: rate.percent_off,
-            applies_to: rate.applies_to
-        }));
-        console.log('----------------------------------------------------------discountList', discountList);
-        if(discountList.length > 0){
-            setShowDiscount(true);
-            setDiscountList(discountList);            
+    useEffect(() => {
+        if (selectedService) {
+            console.log('discounts', discounts);
+            const discount_rates_list = discounts.filter(discount => 
+                discount.services.some(service => service.id === parseInt(selectedService.id))
+            );
+            const serviceDiscounts = discount_rates_list.map(rate => ({
+                id: rate.id,
+                name: rate.name,
+                percent_off: rate.percent_off,
+                applies_to: rate.applies_to
+            }));
+            console.log('----------------------------------------------------------serviceDiscounts', serviceDiscounts);
+            if(serviceDiscounts.length > 0){
+                setShowDiscount(true);
+                setDiscountList(serviceDiscounts);            
+            }else{
+                setShowDiscount(false);
+                setDiscountList([]);
+            }       
+            const servicePromos = promos.filter(promo => promo.service_id === selectedService.id);
+            console.log('----------------------------------------------------------servicePromos', servicePromos);
+            if(servicePromos.length > 0){
+                setShowPromo(true);
+                setPromoList(servicePromos);            
+            }else{
+                setShowPromo(false);
+                setPromoList([]);
+            }
+
         }
-    }
-    
-}, [selectedService]);
+        
+    }, [selectedService]);
 
   // useEffect(() => {
   //   // reload calendar from Laravel with view_mode=day and date +/- 2 days
@@ -371,54 +429,78 @@ useEffect(() => {
 
     }, [data.season_id]);
 
-const addDiscountGroup = () => {
-  if (!discountId || !discountPax) return;
+    const addDiscountGroup = () => {
+    if (!discountId || !discountPax) return;
 
-  const countToMove = parseInt(discountPax);
-  const selectedDiscount = parseInt(discountId);
+    const countToMove = parseInt(discountPax);
+    const selectedDiscount = parseInt(discountId);
 
-  setPaxGroups(prevGroups => {
-    let updated = [...prevGroups];
-    
-    // Find the first group of adults WITHOUT a discount (the pool to split from)
-    const idx = updated.findIndex(g => g.type === "adult" && g.discount_id === null);
+    setPaxGroups(prevGroups => {
+        let updated = [...prevGroups];
+        
+        // Find the first group of adults WITHOUT a discount (the pool to split from)
+        const idx = updated.findIndex(g => g.type === "adult" && g.discount_id === null);
 
-    if (idx === -1) {
-      // No base adult group to split from
-      return updated;
+        if (idx === -1) {
+        // No base adult group to split from
+        return updated;
+        }
+
+        const baseGroup = updated[idx];
+
+        if (baseGroup.count <= countToMove) {
+        // All base adults are moved to discounted group
+        updated[idx] = {
+            type: "adult",
+            count: countToMove,
+            discount_id: selectedDiscount
+        };
+        } else {
+        // Split: reduce base group, add new discounted group
+        updated[idx].count -= countToMove;
+        updated.push({
+            type: "adult",
+            count: countToMove,
+            discount_id: selectedDiscount
+        });
+        }
+
+        return updated;
+    });
+
+    // reset UI inputs
+    setDiscountId(null);
+    setDiscountPax(0);
+    };
+
+    function calculateDiscountedRate(baseRate, discountId) {
+    if (!discountId) return baseRate;
+    const discount = discountList.find(d => d.id === discountId);
+    return baseRate * (1 - discount.percent_off / 100);
     }
 
-    const baseGroup = updated[idx];
-
-    if (baseGroup.count <= countToMove) {
-      // All base adults are moved to discounted group
-      updated[idx] = {
-        type: "adult",
-        count: countToMove,
-        discount_id: selectedDiscount
-      };
-    } else {
-      // Split: reduce base group, add new discounted group
-      updated[idx].count -= countToMove;
-      updated.push({
-        type: "adult",
-        count: countToMove,
-        discount_id: selectedDiscount
-      });
+    function applyPromoCode() {
+    if (!promoCode) return;
+    const promo = promoList.find(p => p.promo_code === promoCode);
+    if (!promo) return;
+    setData({
+        ...data,
+        override_price: false,
+        override_rates: false,
+        adult: promo.value,
+        child: promo.value,
+        guide: promo.value,
+    });
     }
 
-    return updated;
-  });
+    function handlePromoModalClose() {
+    setPromoModalOpen(false);
+    }
 
-  // reset UI inputs
-  setDiscountId(null);
-  setDiscountPax(0);
-};
-function calculateDiscountedRate(baseRate, discountId) {
-  if (!discountId) return baseRate;
-  const discount = discountList.find(d => d.id === discountId);
-  return baseRate * (1 - discount.percent_off / 100);
-}
+    function handlePromoModalSelect(promoCode) {
+    setPromoCode(promoCode);
+    handlePromoModalClose();
+    }
 
 
     // useEffect(() => {
@@ -435,6 +517,7 @@ function calculateDiscountedRate(baseRate, discountId) {
     const calculateTotal = (count, rate) => {
         return (parseFloat(count || 0) * parseFloat(rate || 0)).toFixed(2);
     };
+    
     const calculateBookingTotal = () => {
         if(data?.adults > 0 || data?.children > 0 || data?.guides > 0){
         const adult_total = (parseFloat(data?.adults || 0) * parseFloat(data?.rate_per_adult || 0));
@@ -456,12 +539,14 @@ function calculateDiscountedRate(baseRate, discountId) {
         //     });
         // }
     };
+
     // const serviceChange = (e) => {
     //     console.log('season change', e.target.value);
     //     //setData('season_id', e.target.value);
     //     filteredSeasons = seasons.filter(s => s.service_id == e.target.value);
     //     setData('seasons', filteredSeasons);
     // }
+
     const handleChange = (target, value) => {
         setData(target, value);
         //setData("name", e.target.value);
@@ -469,6 +554,7 @@ function calculateDiscountedRate(baseRate, discountId) {
         console.log('value----- ', value);
 
     };
+
     const parseDate = (str) => {
         const [datePart] = str.split(" "); // strip time if present
         const [y, m, d] = datePart.split("-").map(Number);
@@ -584,13 +670,26 @@ function calculateDiscountedRate(baseRate, discountId) {
     }, 0);
     // find currently selected discount from the list
     const selectedDiscount = discountList?.find(d => d.id === parseInt(discountId));
+    const selectedPromo = promoList?.find(d => d.id === parseInt(promotionId));
     return (
         <AuthenticatedLayout
             user={auth.user}
             header={<h2 className="font-semibold text-xl text-gray-800 leading-tight">Bookings</h2>}
         >
-            {/* <Head title="Dashboard" /> */}
+            <Head title="Booking" />
+{/* <header className="h-16 bg-white  border-b border-secondary-100 rounded-r-lg p-6 py-4 flex justify-between items-center">
+                                <div className={`icon-open flex md:hidden  items-center justify-between px-1 py-1 bg-secondary-100  relative rounded-[10px]`}>
+                                    <button onClick={()=>toggleSidebar()} className="flex w-auto h-auto hover:bg-gray-200 rounded-sm transition cursor-pointer">
+                                        <img src="/assets/icons/sidebar-left.svg" alt="My Icon" className="w-5 h-5" />         
+                                    </button>
+                                </div>                                
+                                <span className="font-semibold text-lg text-gray-800 capitalize">{currentRoutePath}, {auth?.user?.name}</span>
+                                {currentRoutePath === 'admin/bookings/create' && <span className="font-semibold text-lg text-gray-800 capitalize">Bookings</span>}
+                                <div className="flex items-center gap-2">
+                                {icons.messages} {icons.notifications}                                    
+                                </div>
 
+                        </header> */}
 
             <div className="bg-secondary-100 border border-secondary-200">
                 <div className="space-y-6 max-w-full overflow-hidden mx-auto p-6 bg-white shadow rounded">
@@ -624,6 +723,38 @@ function calculateDiscountedRate(baseRate, discountId) {
                                 onChange={handleChange}
                                 errors={errors}
                             />
+                                {/* <div className="flex w-full items-center justify-start space-x-4 ">
+                                    {wholesalerRateList.length > 0 && (
+                                    <div className="flex w-full items-center justify-start space-x-4 ">
+                                    <CustomSelect
+                                        label="Wholesaler Rate"
+                                        name="redeem_wholesaler_rate"
+                                        value={data.redeem_wholesaler_rate}
+                                        
+                                        onChange={(e) => {setData('redeem_wholesaler_rate', e.target.value);}}
+                                        error={errors.redeem_wholesaler_rate}
+                                        options={wholesalerRateList}
+                                    />
+                                    <div className="flex items-center gap-2 mt-2">
+                                    <BlueButton
+                                    title="Apply" 
+                                    onClick={()=>{}} 
+                                    disabled={processing} 
+                                    type="button" />
+                                    <WhiteButton 
+                                        title="Remove" 
+                                        textColor='text-[#7C7C7C]'
+                                        width="w-[108px]"
+                                        className="mt-4"
+                                        type="button"
+                                        disabled={processing}
+                                        onClick={()=>{}}
+                                    />
+                                    </div>
+                                    </div>
+                                    )}    
+                                </div> */}
+
                         </div>
                         )}
                         {data.add_consultant && (
@@ -847,71 +978,71 @@ function calculateDiscountedRate(baseRate, discountId) {
                                                     }}
                                                 >
                                                     <div className="w-[133px] h-full flex items-center justify-center">
-                                                    <div  className={`p-[6px] text-start w-[135px] h-[99px] cursor-pointer rounded-[10px] space-y-[10px] transition ${
-                                                        selectedSlot?.day === day && selectedSlot?.time === row.time
-                                                            ? 'bg-[#55FF9E] text-black'
-                                                            : cell?.status === 'available'
-                                                            ? 'bg-[#D6FBE6] border border-[#E5E5EC] text-green-700 hover:bg-green-200'
-                                                            : 'bg-[#FCE4DF] border border-[#E5E5EC] text-gray-400 cursor-not-allowed'
-                                                        }`}>
-                            {/* Discount Badge */}
-                            {cell?.promo && (
-                              <span className="absolute top-1 right-1 bg-red-500  text-[10px] px-2 py-[2px] rounded-full shadow z-10">
-                                -{cell.promo.value}%
-                              </span>
-                            )}
+                                                        <div  className={`relative p-[6px] text-start w-[135px] h-[99px] cursor-pointer rounded-[10px] space-y-[10px] transition ${
+                                                            selectedSlot?.day === day && selectedSlot?.time === row.time
+                                                                ? 'bg-[#55FF9E] text-black'
+                                                                : cell?.status === 'available'
+                                                                ? 'bg-[#D6FBE6] border border-[#E5E5EC] text-green-700 hover:bg-green-200'
+                                                                : 'bg-[#FCE4DF] border border-[#E5E5EC] text-gray-400 cursor-not-allowed'
+                                                            }`}>
+                                                            {/* Discount Badge 
+                                                            {cell?.promo && (
+                                                            <span className="absolute top-1 right-1 bg-red-500  text-[10px] px-2 py-[2px] rounded-full shadow z-10">
+                                                                -{cell.promo.value}%
+                                                            </span>
+                                                            )}*/}
 
-                            {cell?.status === 'available' && (
-                              <>
-                                <div className="text-xs">{row.time.slice(0, 5)}</div>
-                                <div className="text-xs">{cell?.slots} Slots Open</div>
+                                                            {cell?.status === 'available' && (
+                                                            <>
+                                                                <div className="text-xs">{row.time.slice(0, 5)}</div>
+                                                                <div className="text-xs">{cell?.slots} Slots Open</div>
 
-                                {/* Price with discount handling */}
-                                {cell?.rake_rate_adult && (
-                                  <div className="text-xs">
-                                    {cell?.promo ? (
-                                      <>
-                                        <span className="line-through text-gray-500 mr-1">
-                                          R{cell.rake_rate_adult}
-                                        </span>
-                                        <span className="font-bold text-green-700">
-                                          R{(
-                                            cell.rake_rate_adult -
-                                            (cell.rake_rate_adult * parseFloat(cell.promo.value)) / 100
-                                          ).toFixed(0)}
-                                        </span>
-                                      </>
-                                    ) : (
-                                      <span>From R{cell.rake_rate_adult}</span>
-                                    )}
-                                  </div>
-                                )}
-                              </>
-                            )}
+                                                                {/* Price with discount handling */}
+                                                                {cell?.rake_rate_adult && (
+                                                                <div className="text-xs">
+                                                                    {cell?.promo ? (
+                                                                    <>
+                                                                        <span className="line-through text-gray-500 mr-1">
+                                                                        R{cell.rake_rate_adult}
+                                                                        </span>
+                                                                        <span className="font-bold text-green-700">
+                                                                        R{(
+                                                                            cell.rake_rate_adult -
+                                                                            (cell.rake_rate_adult * parseFloat(cell.promo.value)) / 100
+                                                                        ).toFixed(0)}
+                                                                        </span>
+                                                                    </>
+                                                                    ) : (
+                                                                    <span>From R{cell.rake_rate_adult}</span>
+                                                                    )}
+                                                                </div>
+                                                                )}
+                                                            </>
+                                                            )}
 
-                          {/* 
-                          {cell?.status === 'available' && (
-                            <>
-                              <div className="text-xs">{row.time.slice(0, 5)}</div>
-                              <div className="text-xs">{cell?.slots} Slots Open</div>
-                              {cell?.rake_rate_adult && <div className="text-xs">From R{cell.rake_rate_adult}</div>}                           
-                            </>
-                          )} */}
-                          {cell?.status === 'full' && (
-                            <div className="text-xs text-red-500">Fully Booked</div>
-                          )}
+                                                            {/* 
+                                                            {cell?.status === 'available' && (
+                                                                <>
+                                                                <div className="text-xs">{row.time.slice(0, 5)}</div>
+                                                                <div className="text-xs">{cell?.slots} Slots Open</div>
+                                                                {cell?.rake_rate_adult && <div className="text-xs">From R{cell.rake_rate_adult}</div>}                           
+                                                                </>
+                                                            )} */}
+                                                            {cell?.status === 'full' && (
+                                                                <div className="text-xs text-red-500">Fully Booked</div>
+                                                            )}
 
-                          {cell?.status === 'blocked_day' && (
-                            <div className="text-xs text-black">Day Closed</div>
-                          )}
+                                                            {cell?.status === 'blocked_day' && (
+                                                                <div className="text-xs text-black">Day Closed</div>
+                                                            )}
 
-                          {cell?.status === 'blocked_slot' && (
-                            <div className="text-xs text-black">Slot Closed</div>
-                          )}
-                          {cell?.status === 'unavailable' && (
-                            <div className="text-xs text-black">Not Available</div>
-                          )}
-                                                    </div>                        
+                                                            {cell?.status === 'blocked_slot' && (
+                                                                <div className="text-xs text-black">Slot Closed</div>
+                                                            )}
+                                                            {cell?.status === 'unavailable' && (
+                                                                <div className="text-xs text-black">Not Available</div>
+                                                            )}
+                                                        </div>                        
                                                     </div>
 
                                                 </td>
@@ -1004,10 +1135,10 @@ function calculateDiscountedRate(baseRate, discountId) {
                                                 label="Discount"
                                                 name="discountId"
                                                 value={discountId}
-                                                width={"w-auto"}
+                                                width={"w-full"}
                                                 
                                                 onChange={(e) => {setDiscountId(e.target.value);}}
-                                                error={errors.redeem_discount}
+                                                error={errors.discountId}
                                                 options={discountList}
                                             />
                                             {selectedDiscount?.applies_to === 'line_item' && (
@@ -1017,39 +1148,67 @@ function calculateDiscountedRate(baseRate, discountId) {
                                                     name="discountPax"
                                                     type="number"
                                                     min="0"
-                                                    width="w-[100px]"
+                                                    width="w-auto"
                                                     value={discountPax}
                                                     onChange={(e) => setDiscountPax(e.target.value)}
                                                     errors={errors}
                                                 />
                                                 )}
-                                            <BlueButton
-                                            title="Apply" 
-                                            width='w-[100px]'
-                                            onClick={addDiscountGroup} 
-                                            disabled={processing} 
-                                            type="button" />                                        
+                                                <div className="mt-3">
+                                                    <BlueButton
+                                                    title="Apply" 
+                                                    width='w-[100px]'
+                                                    onClick={addDiscountGroup} 
+                                                    disabled={processing} 
+                                                    type="button" /> 
+                                                </div>                                       
                                         </div>)}
                                     </div>
                                     <div className="flex w-[50%] items-center justify-start ">
                                         {showPromo && (
                                         <div className="flex flex-none items-center gap-2">
-                                            <CustomSelect
-                                                label="Discount"
-                                                name="discountId"
-                                                value={discountId}
-                                                width={"w-auto"}
+                                            {/* <CustomSelect
+                                                label="Promotion"
+                                                name="PromotionId"
+                                                value={promotionId}
+                                                width={"w-full"}
                                                 
-                                                onChange={(e) => {setDiscountId(e.target.value);}}
-                                                error={errors.redeem_discount}
-                                                options={discountList}
+                                                onChange={(e) => {setPromotionId(e.target.value);}}
+                                                error={errors.PromotionId}
+                                                options={promoList}
                                             />
+                                            {selectedPromo && (
+                                                <span className='flex flex-col w-full items-start justify-start space-y-2 text-sm text-gray-500'>
+                                                <span className='text-sm text-gray-500'>Promotion Code:</span>
+                                                <span className='text-sm text-gray-500'>{selectedPromo.promo_code}</span>
+                                                </span>
+                                            )}
+                                            
                                             <BlueButton
                                             title="Apply" 
                                             width='w-[100px]'
-                                            onClick={addDiscountGroup} 
+                                            onClick={()=>{}}
                                             disabled={processing} 
-                                            type="button" />                                        
+                                            type="button" />    */}
+                                            <CustomInputText
+                                            title="Promo Code"
+                                            name="promo_code"
+                                            value={promoCode}
+                                            onChange={(e) => setPromoCode(e.target.value)}
+                                            />
+                                            <div className="flex items-center gap-2 mt-3">
+                                            <BlueButton title="Apply" onClick={handleCalculate} />
+                                            {/* <OutlineButton
+                                            title="Promotions"
+                                            onClick={() => setPromoModalOpen(true)}
+                                            /> */}
+                                            <div onClick={() => setPromoModalOpen(true)} className="flex items-center justify-center w-[36px] h-[32px] gap-2 bg-[#2D99FE] rounded-full p-2">
+                                            {icons.info}
+                                            </div>
+                                            </div>
+
+
+
                                         </div>)}
                                     </div>
                                     {/* {paxGroups?.map((g, i) => (
@@ -1407,73 +1566,7 @@ function calculateDiscountedRate(baseRate, discountId) {
                                         onClick={()=>{}}
                                     />
                                 </div> */}
-                            <div className="flex w-full items-center justify-start space-x-4 ">
-                                <div className="flex w-full items-center justify-start space-x-4 ">
-                                    <CustomInputText
-                                        title="Redeem Voucher"
-                                        id="redeem_voucher"
-                                        name="redeem_voucher"
-                                        type='text'
-                                        value={data.redeem_voucher}
-                                        placeholder="Redeem Voucher"
-                                        onChange={(e) => setData('redeem_voucher', e.target.value)}
-                                        errors={errors}
-                                    />
-                                    <div className="flex items-center gap-2 mt-2">
-                                        <BlueButton
-                                        title="Redeem" 
-                                        onClick={()=>{}} 
-                                        disabled={processing} 
-                                        type="button" />
 
-                                        <WhiteButton 
-                                        title="Remove" 
-                                        type="button"
-                                        textColor='text-[#7C7C7C]'
-                                        width="w-[108px]"
-                                        className="mt-4"
-                                        disabled={processing}
-                                        onClick={()=>{}}
-                                        />    
-                                    </div>
-                                </div>
-                                <div className="flex w-full items-center justify-start space-x-4 ">
-                                
-
-                                        
-                                </div>
-                                <div className="flex w-full items-center justify-start space-x-4 ">
-                                    {wholesalerRateList.length > 0 && (
-                                    <div className="flex w-full items-center justify-start space-x-4 ">
-                                    <CustomSelect
-                                        label="Wholesaler Rate"
-                                        name="redeem_wholesaler_rate"
-                                        value={data.redeem_wholesaler_rate}
-                                        
-                                        onChange={(e) => {setData('redeem_wholesaler_rate', e.target.value);}}
-                                        error={errors.redeem_wholesaler_rate}
-                                        options={wholesalerRateList}
-                                    />
-                                    <div className="flex items-center gap-2 mt-2">
-                                    <BlueButton
-                                    title="Apply" 
-                                    onClick={()=>{}} 
-                                    disabled={processing} 
-                                    type="button" />
-                                    <WhiteButton 
-                                        title="Remove" 
-                                        textColor='text-[#7C7C7C]'
-                                        width="w-[108px]"
-                                        className="mt-4"
-                                        type="button"
-                                        disabled={processing}
-                                        onClick={()=>{}}
-                                    />
-                                    </div>
-                                    </div>
-                                    )}    
-                                </div>
-                            </div>
 
 
 
@@ -1632,6 +1725,39 @@ function calculateDiscountedRate(baseRate, discountId) {
                         {/* Booking Payment */}
                         <div className="mt-10 bg-white w-full ml-[20%] lg:ml-[25%] ">
                             <div className="flex flex-col items-center justify-center px-6 py-[65px] w-[60%] lg:w-[50%] rounded-[10px] border border-secondary-100 shadow ">
+                            <div className="flex w-full items-center justify-start space-x-4 ">
+                                <div className="flex basis-[80%] items-center justify-start space-x-4 ">
+                                    <CustomInputText
+                                        title="Redeem Voucher"
+                                        id="redeem_voucher"
+                                        name="redeem_voucher"
+                                        type='text'
+                                        value={data.redeem_voucher}
+                                        placeholder="Redeem Voucher"
+                                        onChange={(e) => setData('redeem_voucher', e.target.value)}
+                                        errors={errors}
+                                    />
+                                    <div className="flex items-center gap-2 mt-2">
+                                        <BlueButton
+                                        title="Redeem" 
+                                        onClick={()=>{}} 
+                                        disabled={processing} 
+                                        type="button" />
+
+                                        <WhiteButton 
+                                        title="Remove" 
+                                        type="button"
+                                        textColor='text-[#7C7C7C]'
+                                        width="w-[108px]"
+                                        className="mt-4"
+                                        disabled={processing}
+                                        onClick={()=>{}}
+                                        />    
+                                    </div>
+                                </div>
+                            </div>
+                                
+                                
                                 <div className="flex flex-col items-center justify-center space-y-4">
                                     <div className="flex items-center space-x-[37px]">
                                         <span className="text-booking-lbl-main w-[160px] font-normal text-right">Total value of bookings</span>
@@ -1674,7 +1800,13 @@ function calculateDiscountedRate(baseRate, discountId) {
                         </div>
                 </div>
             </div>
-
+            <PromoModal
+              isOpen={promoModalOpen}
+              serviceId={selectedService?.id}
+              bookingDate={data.booking_date}
+              onClose={handlePromoModalClose}
+              onSelect={handlePromoModalSelect}
+            />
 
         </AuthenticatedLayout>
     );

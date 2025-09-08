@@ -11,8 +11,9 @@ return new class extends Migration {
             $table->id();
             $table->string('name');
             $table->string('promo_code')->unique();
-            $table->enum('type', ['percent', 'fixed_value', 'graduated', 'varied_child'])->default('percent');
+            $table->enum('type', ['percent', 'fixed_value', 'graduated', 'varied_child', 'volume_discount'])->default('percent');
             $table->decimal('value', 10, 2)->default(0); // meaning depends on type
+            $table->json('params')->nullable(); // store graduated tables, tiers, child rules
             $table->date('booking_start_date'); // so basically like black friday weekend we pick a start friday
             $table->date('booking_end_date'); // so basically like black friday weekend we pick a end monday
             $table->date('activity_start_date'); // we say which period of the activity we want to apply this promotion to start

@@ -8,7 +8,7 @@ import WholesalerModal from './WholesalerModal';
 import SearchBar from '@/Components/SearchBar';
 import BlueButton from '@/Components/BlueButton';
 import Pagination from '@/Components/Pagination';
-import ServicesHeader from '@/Components/ServicesHeader';
+import HeaderWholesalers from '@/Components/HeaderWholesalers';
 
 
 export default function Index({ permissions,wholesalers, auth, searchTerm, sortColumn, sortDirection }) {
@@ -74,7 +74,7 @@ export default function Index({ permissions,wholesalers, auth, searchTerm, sortC
     >
         <Head title="Users" />
         <div className="overflow-x-auto px-[15px]">
-          <ServicesHeader isOpenTab={isOpenTab} setIsOpenTab={setIsOpenTab} />
+          <HeaderWholesalers isOpenTab={isOpenTab} setIsOpenTab={setIsOpenTab} />
             <div id="Wholesalers-content" className="tab-content">
                 <div className="bg-white p-6 ">
                 {/* top */}

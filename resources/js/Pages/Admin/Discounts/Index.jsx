@@ -6,7 +6,7 @@ import SearchBar from '@/Components/SearchBar';
 import BlueButton from '@/Components/BlueButton';
 import Pagination from '@/Components/Pagination';
 import Modal from './Modal';
-import ServicesHeader from '@/Components/ServicesHeader';
+import HeaderMarketing from '@/Components/HeaderMarketing';
 
 export default function Index({ discounts, searchTerm, sortColumn, sortDirection, permissions, services }) {
   const [selected, setSelected] = useState(null);
@@ -50,7 +50,7 @@ export default function Index({ discounts, searchTerm, sortColumn, sortDirection
     <AuthenticatedLayout header={<h2 className="font-semibold text-xl text-gray-800 leading-tight">DISCOUNTS</h2>}>
       <Head title="DISCOUNTS" />
       <div className="bg-white p-6">
-        <ServicesHeader isOpenTab={isOpenTab} setIsOpenTab={setIsOpenTab} />
+        <HeaderMarketing isOpenTab={isOpenTab} setIsOpenTab={setIsOpenTab} />
         <div className="flex justify-between items-center mb-6">
           <SearchBar search={search} handleSearchChange={(e) => setSearch(e.target.value)} handleSearchSubmit={handleSearchSubmit} />
           <span className="flex gap-2">

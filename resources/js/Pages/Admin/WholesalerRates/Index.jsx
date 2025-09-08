@@ -6,7 +6,7 @@ import SearchBar from '@/Components/SearchBar';
 import BlueButton from '@/Components/BlueButton';
 import Pagination from '@/Components/Pagination';
 import Modal from './Modal';
-import ServicesHeader from '@/Components/ServicesHeader';
+import HeaderWholesalers from '@/Components/HeaderWholesalers';
 
 export default function Index({ auth, rates, searchTerm, sortColumn, sortDirection, permissions,wholesalers,services }) {
     console.log('auth on user ', auth);
@@ -53,7 +53,7 @@ export default function Index({ auth, rates, searchTerm, sortColumn, sortDirecti
       <div className="overflow-x-auto px-[15px]">
       <div id="Wholesalers-content" className="tab-content">
         <div className="bg-white p-6">
-          <ServicesHeader isOpenTab={isOpenTab} setIsOpenTab={setIsOpenTab} />
+          <HeaderWholesalers isOpenTab={isOpenTab} setIsOpenTab={setIsOpenTab} />
           <div className="flex justify-between items-center mb-6">
             <SearchBar search={search} handleSearchChange={(e) => setSearch(e.target.value)} handleSearchSubmit={handleSearchSubmit} />
             <span className="flex gap-2">
