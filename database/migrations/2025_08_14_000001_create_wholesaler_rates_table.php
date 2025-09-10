@@ -12,6 +12,7 @@ return new class extends Migration {
             $table->decimal('price_adult', 10, 2);
             $table->decimal('price_child', 10, 2)->nullable();
             $table->decimal('price_guide', 10, 2)->nullable();
+            $table->boolean('bill_back')->default(false);
             $table->timestamps();
             $table->foreignId('wholesaler_id')->constrained('wholesalers')->onDelete('cascade');
             $table->foreignId('service_id')->constrained('services')->onDelete('cascade');

@@ -4,6 +4,7 @@ import InputText from "@/Components/InputText";
 import CustomSelect from "@/Components/CustomSelect";
 import OutlineButton from "@/Components/OutlineButton";
 import BlueButton from "@/Components/BlueButton";
+import CustomCheckbox from "@/Components/CustomCheckboxQ";
 
 const Modal = ({ isOpen, onClose, mode, item = null, permissions, wholesalers, services,auth }) => {
     const [seasons, setSeasons] = useState([]);
@@ -13,6 +14,7 @@ const Modal = ({ isOpen, onClose, mode, item = null, permissions, wholesalers, s
         price_adult: "",
         price_child: "",
         price_guide: "",
+        bill_back: false,
         team_id: auth?.user?.team_id,
         created_by_id: auth?.user?.id,
         updated_by_id: auth?.user?.id,
@@ -26,6 +28,7 @@ const Modal = ({ isOpen, onClose, mode, item = null, permissions, wholesalers, s
                 price_adult: item?.price_adult || "",
                 price_child: item?.price_child || "",
                 price_guide: item?.price_guide || "",
+                bill_back: item?.bill_back || false,
                 team_id: auth?.user?.team_id,
                 created_by_id: item.created_by_id || auth?.user?.id,
                 updated_by_id: item.updated_by_id || auth?.user?.id,
@@ -112,7 +115,8 @@ const Modal = ({ isOpen, onClose, mode, item = null, permissions, wholesalers, s
               <div className="flex flex-row w-full items-center gap-2 justify-between mb-4">
               <InputText title="Adult Price" field="price_adult" value={data.price_adult} mode={mode} handleChange={handleChange} errors={errors} />
               <InputText title="Child Price" field="price_child" value={data.price_child} mode={mode} handleChange={handleChange} errors={errors} />
-              <InputText title="Guide Price" field="price_guide" value={data.price_guide} mode={mode} handleChange={handleChange} errors={errors} />              
+              <InputText title="Guide Price" field="price_guide" value={data.price_guide} mode={mode} handleChange={handleChange} errors={errors} />  
+              <CustomCheckbox title="Bill Back" field="bill_back" value={data.bill_back} mode={mode} handleChange={handleChange} errors={errors} />
               </div>
 
           </div>

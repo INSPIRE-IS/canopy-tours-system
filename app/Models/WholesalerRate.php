@@ -17,6 +17,7 @@ class WholesalerRate extends Model
         'price_adult',
         'price_child',
         'price_guide',
+        'bill_back',
     ];
 
     public function service()
