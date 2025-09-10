@@ -7,8 +7,6 @@ import Header from '@/Components/Header';
 import FlashMessage from '@/Components/FlashMessage';
 import SidebarMenuItem from '@/Components/SidebarMenuItem';
 import { icons } from '@/icons';
-import { useRoute } from 'ziggy-js';
-import { Ziggy } from '@/ziggy'; // the generated file
 import WhiteButton from '@/Components/WhiteButton';
 export default function AppLayout({  user, children }) {
  
@@ -17,20 +15,15 @@ export default function AppLayout({  user, children }) {
     const { data, setData, post, reset, processing } = useForm({
         team_id: "",
     });
-    console.log('------------translations', translations);
-    console.log('test permissions', permissions);
-    console.log('test auth', auth);
+    // console.log('------------translations', translations);
+    // console.log('test permissions', permissions);
+    // console.log('test auth', auth);
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const [isOpen, setIsOpen] = useState(sidebarOpen);
     const [isOpenSelect, setIsOpenSelect] = useState('');
     const [isOpenSubmenu, setIsOpenSubmenu] = useState('');
 const page = usePage();
 const currentRoutePath = page.props.currentRoutePath;
-
-console.log('=======================currentRoutePath============== ',currentRoutePath); // outputs: "services"
-
-const route = useRoute(Ziggy);
-console.log('=======================route============== ',route().current());
 
 function toggleSidebar() {
     setIsOpen(!isOpen);
@@ -56,6 +49,140 @@ function toggleDropdown (id) {
 //     });
 //     setIsOpenSelect('');
 // }
+const headerConfig = [
+    {
+      match: 'admin.dashboard',
+      title: 'dashboard',
+      showBack: false,
+    },
+    {
+      match: 'admin.bookings.index',
+      title: 'Bookings',
+      showBack: false,
+    },
+    {
+      match: 'admin.messenger.index',
+      title: 'messenger',
+      showBack: false,
+    },
+    {
+      match: 'admin.reports.index',
+      title: 'reports',
+      showBack: false,
+    },
+    {
+      match: 'admin.help-questions.index',
+      title: 'help questions',
+      showBack: false,
+    },
+    {
+      match: 'admin.users.index',
+      title: 'users',
+      showBack: false,
+    },
+    {
+      match: 'admin.teams.index',
+      title: 'teams',
+      showBack: false,
+    },
+    {
+      match: 'admin.user-alerts.index',
+      title: 'user alerts',
+      showBack: false,
+    },
+    {
+      match: 'admin.user-alerts.index',
+      title: 'user alerts',
+      showBack: false,
+    },
+    {
+      match: 'admin.bookings.edit',
+      title: 'Booking Detail',
+      backLabel: 'Back to all Bookings',
+      backUrl: route('admin.bookings.index'),
+    },
+    {
+      match: 'admin.bookings.create',
+      title: 'New Booking',
+      backLabel: 'Back to all Bookings',
+      backUrl: route('admin.bookings.index'),
+    },
+    {
+      match: 'admin.booking_payments.create',
+      title: 'Submit Payment',
+      backLabel: 'Back to all Bookings',
+      backUrl: route('admin.bookings.index'),
+    },    
+    {
+      match: 'admin.booking_payments.edit',
+      title: 'Submit Payment',
+      backLabel: 'Back to all Bookings',
+      backUrl: route('admin.bookings.index'),
+    },
+    {
+      match: 'admin.services.index',
+      title: 'Services',
+      backLabel: 'Back to all Bookings',
+      backUrl: route('admin.bookings.index'),
+    },
+    {
+      match: 'admin.seasons.index',
+      title: 'Seasons',
+      backLabel: 'Back to all Bookings',
+      backUrl: route('admin.bookings.index'),
+    },
+    {
+      match: 'admin.inventories.index',
+      title: 'inventories',
+      backLabel: 'Back to all Bookings',
+      backUrl: route('admin.bookings.index'),
+    },
+        {
+      match: 'admin.closeouts.index',
+      title: 'closeouts',
+      backLabel: 'Back to all Bookings',
+      backUrl: route('admin.bookings.index'),
+    },
+        {
+      match: 'admin.vouchers.index',
+      title: 'vouchers',
+      backLabel: 'Back to all Bookings',
+      backUrl: route('admin.bookings.index'),
+    },
+        {
+      match: 'admin.discounts.index',
+      title: 'discounts',
+      backLabel: 'Back to all Bookings',
+      backUrl: route('admin.bookings.index'),
+    },
+        {
+      match: 'admin.promotions.index',
+      title: 'promotions',
+      backLabel: 'Back to all Bookings',
+      backUrl: route('admin.bookings.index'),
+    },
+        {
+      match: 'admin.wholesalers.index',
+      title: 'wholesalers',
+      backLabel: 'Back to all Bookings',
+      backUrl: route('admin.bookings.index'),
+    },
+        {
+      match: 'admin.wholesaler-rates.index',
+      title: 'wholesaler rates',
+      backLabel: 'Back to all Bookings',
+      backUrl: route('admin.bookings.index'),
+    },
+        {
+      match: 'admin.wholesaler-rates.index',
+      title: 'wholesaler rates',
+      backLabel: 'Back to all Bookings',
+      backUrl: route('admin.bookings.index'),
+    },
+  ];
+
+const currentHeader = headerConfig.find(cfg => route().current(cfg.match));
+
 function selectOption(dropdownId, value) {
     console.log("apply changes to", dropdownId);
 
@@ -323,50 +450,35 @@ function selectOption(dropdownId, value) {
                     <Header user={user} toggleSidebar={() => toggleSidebar()} /></div> */}
                     <div className=" bg-[#3863C6] w-[10px] h-[100%] transition-all duration-300 rounded-l-lg " id="dividerBar"></div>
                     <main className="bg-white min-h-screen w-[100%]  rounded-r-lg">
-                        <header className="h-16 bg-white  border-b border-secondary-100 rounded-r-lg p-6 py-4 flex justify-between items-center">
-                                <div className={`icon-open flex md:hidden  items-center justify-between px-1 py-1 bg-secondary-100  relative rounded-[10px]`}>
-                                    <button onClick={()=>toggleSidebar()} className="flex w-auto h-auto hover:bg-gray-200 rounded-sm transition cursor-pointer">
-                                        <img src="/assets/icons/sidebar-left.svg" alt="My Icon" className="w-5 h-5" />         
-                                    </button>
-                                </div>                          
-                                {route().current() === 'admin.bookings.index' && (
-                                <div className="hidden  md:flex items-center justify-between gap-2">
-                                    <span className="text-page-heading capitalize">Bookings</span>
-                                </div>
+                        <header className="h-16 bg-white border-b border-secondary-100 rounded-r-lg p-6 py-4 flex justify-between items-center">
+                            {/* Sidebar toggle for mobile */}
+                            <div className="icon-open flex md:hidden items-center justify-between px-1 py-1 bg-secondary-100 relative rounded-[10px]">
+                                <button onClick={toggleSidebar} className="flex w-auto h-auto hover:bg-gray-200 rounded-sm transition cursor-pointer">
+                                <img src="/assets/icons/sidebar-left.svg" alt="My Icon" className="w-5 h-5" />
+                                </button>
+                            </div>
 
-                                )}
-                                {route().current() === 'admin.bookings.edit' && (
-                                    <div className="hidden  md:flex items-center justify-between gap-2  basis-[60%]">
+                            {/* Dynamic Header Content */}
+                            {currentHeader && (
+                                <div className="hidden md:flex items-center justify-between gap-2 basis-[60%]">
+                                {currentHeader.showBack !== false && (
                                     <WhiteButton
-                                        title="Back to all Bookings" 
-                                        icon={true}
-                                        iconName={icons.cheveron_left}
-                                        width="w-[188px]"
-                                        className="mt-4"
-                                        onClick={() => router.get(route('admin.bookings.index'))}
+                                    title={currentHeader.backLabel}
+                                    icon={true}
+                                    iconName={icons.cheveron_left}
+                                    width="w-[188px]"
+                                    className="mt-4"
+                                    onClick={() => router.get(currentHeader.backUrl)}
                                     />
-                                    <span className="text-page-heading capitalize">Booking Detail</span>
-                                    </div>
-
                                 )}
-                                {route().current() === 'admin.bookings.create' && (
-                                <div className="hidden  md:flex items-center justify-between gap-2 basis-[60%] ">
-                                    <WhiteButton 
-                                        title="Back to all Bookings" 
-                                        icon={true}
-                                        iconName={icons.cheveron_left}
-                                        width="w-[188px]"
-                                        className="mt-4"
-                                        onClick={() => router.get(route('admin.bookings.index'))}
-                                    />
-                                    <span className="text-page-heading capitalize">New Booking</span>
+                                <span className="text-page-heading capitalize">{currentHeader.title}</span>
                                 </div>
+                            )}
 
-                                )}
-
-                                <div className="flex items-center gap-2">
-                                    {icons.messages} {icons.notifications}                                    
-                                </div>
+                            {/* Right-side icons */}
+                            <div className="flex items-center gap-2">
+                                {icons.messages} {icons.notifications}
+                            </div>
                         </header>
                         {flash?.message && <FlashMessage message={flash.message} type={flash.type} />}
                         {children}

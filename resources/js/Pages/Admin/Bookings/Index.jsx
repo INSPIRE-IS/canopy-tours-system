@@ -16,14 +16,6 @@ const [expanded, setExpanded] = useState(null); // track which booking is expand
 const [toolsCustomer, setToolsCustomer] = useState(null); // null or { id: ..., name: ... }
 const [customerToolsTarget, setCustomerToolsTarget] = useState(null); // { customer, position }
 const [bookingToolsTarget, setBookingToolsTarget] = useState(null); // { customer, position }
-// const page = usePage();
-// const currentRoutePath = page.props.currentRoutePath;
-
-// console.log('=======================currentRoutePath============== ',currentRoutePath); // outputs: "services"
-// const currentRoute = useRoute(Ziggy);
-// console.log('=======================currentRoute============== ',currentRoute); // outputs: "services"
-// const route = useRoute(Ziggy);
-// console.log('=======================route============== ',route().current());
 
 const openCustomerToolsModal = (event, customer) => {
     event.preventDefault();
@@ -57,30 +49,6 @@ console.log("booking----------tool-------- ", booking)
             header={<h2 className="font-semibold text-xl text-gray-800 leading-tight">Bookings</h2>}
         >
             <Head title="Dashboard" />
-            {/* <header className="h-16 bg-white  border-b border-secondary-100 rounded-r-lg p-6 py-4 flex justify-between items-center">
-                            <div className="flex items-center gap-4 ">
-                                <div className={`icon-open flex md:hidden  items-center justify-between px-1 py-1 bg-secondary-100  relative rounded-[10px]`}>
-                                    <button onClick={()=>{}} className="flex w-auto h-auto hover:bg-gray-200 rounded-sm transition cursor-pointer">
-                                        <img src="/assets/icons/sidebar-left.svg" alt="My Icon" className="w-5 h-5" />         
-                                    </button>
-                                </div>
-                                <span className="font-semibold text-lg text-gray-800 capitalize">test</span>
-                            </div>
-                        </header> */}
-                        {/* <header className="h-16 bg-white  border-b border-secondary-100 rounded-r-lg p-6 py-4 flex justify-between items-center">
-                                <div className={`icon-open flex md:hidden  items-center justify-between px-1 py-1 bg-secondary-100  relative rounded-[10px]`}>
-                                    <button onClick={()=>toggleSidebar()} className="flex w-auto h-auto hover:bg-gray-200 rounded-sm transition cursor-pointer">
-                                        <img src="/assets/icons/sidebar-left.svg" alt="My Icon" className="w-5 h-5" />         
-                                    </button>
-                                </div>
-                                <span className="font-semibold text-lg text-gray-800 capitalize">{currentRoutePath}, {auth?.user?.name}</span>                                
-                                {currentRoutePath === 'admin/bookings' && <span className="font-semibold text-lg text-gray-800 capitalize">Bookings</span>}
-
-                                <div className="flex items-center gap-2">
-                                {icons.messages} {icons.notifications}                                    
-                                </div>
-                        </header> */}
-
             <div className="bg-white p-6 ">
                 {/* top */}
                 <div className="flex justify-between items-center mb-6">
@@ -181,13 +149,13 @@ console.log("booking----------tool-------- ", booking)
                                     </td>
                                     <td className="w-[185px] p-3 flex gap-2">
                                         {expanded === i ? (
-                                            <button className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border border-primary-14 text-primary-14 cursor-pointer">
+                                            <button onClick={() => router.get(route('admin.booking_payments.edit', item?.id))} className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border border-primary-14 text-primary-14 cursor-pointer">
                                             {icons.eye}
                                             <span className="text-btn-outline-gray">View Booking</span>
                                             </button>
                                         ) : (
                                             <>
-                                                <button type='button' onClick={() => router.get(route('admin.bookings.edit', item?.id))} className="btn-tool">{icons.plus_alt} Add</button>
+                                                <button type='button' onClick={() => router.get(route('admin.bookings.add', item?.id))} className="btn-tool">{icons.plus_alt} Add</button>
                                                 <button type='button' onClick={(e) => openBookingToolsModal(e, item)} className="btn-tool">{icons.tools} Tools</button>                                            
                                             </>                                            
                                         )}

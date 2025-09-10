@@ -15,6 +15,9 @@ use App\Models\TypePayOption;
 use App\Models\User;
 use Gate;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Inertia\Inertia;
 use Symfony\Component\HttpFoundation\Response;
 
 class BookingPaymentController extends Controller
@@ -28,35 +31,78 @@ class BookingPaymentController extends Controller
         return view('admin.bookingPayments.index', compact('bookingPayments'));
     }
 
-    public function create()
+    public function create(Booking $booking)
     {
-        abort_if(Gate::denies('booking_payment_create'), Response::HTTP_FORBIDDEN, '403 Forbidden');
+        abort_if(Gate::denies('booking_payments_create'), Response::HTTP_FORBIDDEN, '403 Forbidden');
+        //Log::info($request->all());
+        // $bookingId = $request->query('booking_id');Booking $booking
+        // $booking   = Booking::findOrFail($id);
 
-        $bookings = Booking::pluck('lead_name', 'id')->prepend(trans('global.pleaseSelect'), '');
+        $type_pay_options = TypePayOption::select(
+            'id',
+            'name',
+            DB::raw("LOWER(REPLACE(name, ' ', '_')) as slug")
+        )->get();
+        $type_payments = TypePayment::select(
+            'id',
+            'name',
+            DB::raw("LOWER(REPLACE(name, ' ', '_')) as slug")
+        )->get();
+        $gateways = Gateway::select('name', 'id')->get();
+        $status_payments = StatusPayment::select('name', 'id')->get();
+        $updated_bies = User::select('name', 'id')->get();
 
-        $type_pay_options = TypePayOption::pluck('name', 'id')->prepend(trans('global.pleaseSelect'), '');
+        return Inertia::render('Admin/BookingPayments/Create', [
+            'booking' => $booking,
+            'gateways' => $gateways,
+            'status_payments' => $status_payments,
+            'type_pay_options' => $type_pay_options,
+            'type_payments' => $type_payments,
+            'updated_bies' => $updated_bies,
+            'mode' => 'create',
 
-        $type_payments = TypePayment::pluck('name', 'id')->prepend(trans('global.pleaseSelect'), '');
-
-        $gateways = Gateway::pluck('name', 'id')->prepend(trans('global.pleaseSelect'), '');
-
-        $status_payments = StatusPayment::pluck('name', 'id')->prepend(trans('global.pleaseSelect'), '');
-
-        $updated_bies = User::pluck('name', 'id')->prepend(trans('global.pleaseSelect'), '');
-
-        return view('admin.bookingPayments.create', compact('bookings', 'gateways', 'status_payments', 'type_pay_options', 'type_payments', 'updated_bies'));
+        ]);
     }
 
     public function store(StoreBookingPaymentRequest $request)
     {
+        dd($request->all());
         $bookingPayment = BookingPayment::create($request->all());
 
-        return redirect()->route('admin.booking-payments.index');
+        return redirect()->route('admin.booking.index');
     }
 
     public function edit(BookingPayment $bookingPayment)
     {
-        abort_if(Gate::denies('booking_payment_edit'), Response::HTTP_FORBIDDEN, '403 Forbidden');
+        //dd($bookingPayment->booking);
+        abort_if(Gate::denies('booking_payments_edit'), Response::HTTP_FORBIDDEN, '403 Forbidden');
+
+        //$booking = Booking::findOrFail($request->booking_id);
+        $bookingPayment->load('booking', 'type_pay_option', 'type_payment', 'gateway', 'status_payment', 'updated_by', 'team');
+
+        $type_pay_options = TypePayOption::select(
+            'id',
+            'name',
+            DB::raw("LOWER(REPLACE(name, ' ', '_')) as slug")
+        )->get();
+        $type_payments = TypePayment::select(
+            'id',
+            'name',
+            DB::raw("LOWER(REPLACE(name, ' ', '_')) as slug")
+        )->get();
+        $gateways = Gateway::select('name', 'id')->get();
+        $status_payments = StatusPayment::select('name', 'id')->get();
+        $updated_bies = User::select('name', 'id')->get();
+
+        return Inertia::render('Admin/BookingPayments/Edit', [
+            'booking' => $bookingPayment,
+            'gateways' => $gateways,
+            'status_payments' => $status_payments,
+            'type_pay_options' => $type_pay_options,
+            'type_payments' => $type_payments,
+            'updated_bies' => $updated_bies,
+
+        ]);
 
         $bookings = Booking::pluck('lead_name', 'id')->prepend(trans('global.pleaseSelect'), '');
 

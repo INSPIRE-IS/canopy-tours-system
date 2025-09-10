@@ -11,6 +11,7 @@ use App\Models\BookingDetail;
 use App\Models\BookingFee;
 use App\Models\BookingInfo;
 use App\Models\BookingInventory;
+use App\Models\BookingPayment;
 use App\Models\Closeout;
 use App\Models\Customer;
 use App\Models\Discount;
@@ -227,7 +228,7 @@ class BookingsController extends Controller
 
     public function store(StoreBookingRequest $request)
     {
-        // dd($request->all());
+        //dd($request->all());
         //   "is_wholesaler" => true
         //   "wholesaler_id" => "1"
         //   "add_consultant" => true
@@ -297,6 +298,9 @@ class BookingsController extends Controller
             'invoice_note' => 'string|nullable', //   "invoice_note" => "Add Invoice Note"
             'email_reminder' => 'string|nullable', //   "email_reminder" => "Add Email Reminder"
             'booking_note' => 'string|nullable', //   "booking_note" => "Add Booking Note"
+            'rate_per_adult' => 'integer|nullable',
+            'rate_per_child' => 'integer|nullable',
+            'rate_per_guide' => 'integer|nullable',
         ]);
         try {
             $booking = DB::transaction(function () use ($validated) {
@@ -330,17 +334,17 @@ class BookingsController extends Controller
                     'contact_number' => $validated['lead_mobile'],
                 ]);
                 $adultsCount = (int) ($validated['adults'] ?? 0);
-                $amount_adults = $inventory->rake_rate_adult * $adultsCount;
+                $amount_adults = (int) ($validated['rake_rate_adult'] ?? 0) * $adultsCount;
                 $childrenCount = (int) ($validated['children'] ?? 0);
-                $amount_children = $inventory->rake_rate_children * $childrenCount;
-                //$guidesCount = (int) ($validated['guides'] ?? 0);
-                $amount_guides = $inventory->rake_rate_guide * 1;
+                $amount_children = (int) ($validated['rake_rate_children'] ?? 0) * $childrenCount;
+                $guidesCount = (int) ($validated['guides'] ?? 0);
+                $amount_guides = (int) ($validated['rake_rate_guide'] ?? 0) * $guidesCount;
                 $amount = $amount_adults + $amount_children + $amount_guides;
 
                 // 2. Create booking
                 $booking = Booking::create([
                     'lead_name'      => $validated['lead_person'],
-                    'status_booking_id' => 1,
+                    'status_booking_id' => 2,
                     'is_sms'         => $validated['send_sms'],
                     'is_corporate'   => $validated['corporate_customer'],
                     'due_date'       => $validated['booking_date'],
@@ -420,7 +424,7 @@ class BookingsController extends Controller
                     'date'           => $validated['booking_date'],
                     'tot_adults'     => $adultsCount,
                     'tot_children'   => $childrenCount,
-                    'tot_guides'     => 1,
+                    'tot_guides'     => $guidesCount,
                     'pax'            => $adultsCount + $childrenCount,
                     'inventory_type_day_id' => $isoNameOfDay,
                     'inventory_time_slot_id' => $inventoryTimeSlot->id,
@@ -447,6 +451,8 @@ class BookingsController extends Controller
                     'team_id'        => null,
                 ]);
 
+
+
                 return $booking;
             });
 
@@ -457,7 +463,14 @@ class BookingsController extends Controller
             //     'redirect_url' => route('front.payment.review', ['booking' => $booking->id]) //  route('payfast.checkout', ['booking' => $booking->id])
             // ]);
             //return redirect()->back()->with('booking_id', $booking->id);
-            return redirect()->route('admin.bookings.index');
+            //return redirect()->route('admin.bookings.index');
+            Log::info('booking created', [
+                'booking' => $booking,
+            ]);
+            return Inertia::location(route('admin.booking-payments.create', $booking->id));
+            // return Inertia::location(route('admin.booking_payments.create') . '?booking_id=' . $booking->id);
+            // return Inertia::location(route('admin.booking_payments.edit', $booking->id));
+            // return redirect()->route('admin.booking_payments.edit', ['booking' => $booking->id]);
         } catch (\Throwable $e) {
             // Log the full error for debugging
             Log::error('Booking failed and rolled back', [
@@ -478,7 +491,7 @@ class BookingsController extends Controller
         // $booking = Booking::create($request->all());
         // $booking->customers()->sync($request->input('customers', []));
 
-        return redirect()->route('admin.bookings.index');
+        //return redirect()->route('admin.bookings.index');
     }
 
     public function edit(Booking $booking)
@@ -608,6 +621,92 @@ class BookingsController extends Controller
         //$booking->customers()->sync($request->input('customers', []));
 
         return redirect()->route('admin.bookings.index');
+    }
+
+
+    public function add(Booking $booking)
+    {
+        //abort_if(Gate::denies('booking_edit'), Response::HTTP_FORBIDDEN, '403 Forbidden');
+        $user = auth()->user();
+
+        $booking->load([
+            'service',
+            'season',
+            'inventory',
+            'customers', // :id,name,email,contact_number
+            'customer_manifests.customer.booking_questionnaire', // :id,position,notes,is_indemnity,customer_id,booking_id\
+            'booking_infos', // :id,booking_id,type_location_id,location,time,created_at,updated_at,deleted_at
+            'customers.booking_questionnaire', // :id,booking_id,customer_id,guide_id,safety_guide_id,type_group_id,fullname,email,signature,birth_date,type_referral,country_id,province_id,is_medical,medical_detail,is_fit,is_agree
+            'booking_details', //:id,booking_id ,start_time,end_time
+            'booking_fees', //:id,booking_id,tot_amount
+            'booking_payments', // :id,booking_id,amount
+            'booking_inventory', // :id,booking_id,inventory_id
+            'booking_staff', // :id,booking_id,user_id
+            'booking_staff.user', // :id,name,email,contact_number
+        ])
+            // ->select([
+            //     'id',
+            //     'lead_name',
+            //     'user_id',
+            //     'status_booking_id',
+            //     'due_date',
+            //     'tot_paid',
+            //     'grand_tot_due',
+            //     'service_id',
+            //     'season_id',
+            //     'inventory_id',
+            //     'created_at'
+            // ])
+            //->whereDate('due_date', '2025-01-01')
+            ->get();
+
+        $staff = User::with('roles:id,name')
+            ->whereHas('roles', function ($query) {
+                $query->whereIn('id', [4, 5, 6]);
+            })
+            ->when($user->team_id, function ($query, $teamId) {
+                $query->where('team_id', $teamId);
+            })
+            ->select('name', 'id')
+            ->get()
+            ->map(function ($user) {
+                $roleName = $user->roles->first()?->name ?? 'No Role';
+                return collect([
+                    'id'   => $user->id,
+                    'name' => $user->name,
+                    'role' => $roleName,
+                ]);
+            });
+        // ->flatMap(function ($user) {
+        //     return $user->roles->map(function ($role) use ($user) {
+        //         return "{$user->name} - {$role->name}";
+        //     });
+        // });
+        //dd($booking);
+        return Inertia::render('Admin/Bookings/Add', ['booking' => $booking, 'staff' => $staff]);
+
+
+
+
+
+        // $users = User::pluck('name', 'id')->prepend(trans('global.pleaseSelect'), '');
+
+        // $status_bookings = StatusBooking::pluck('name', 'id')->prepend(trans('global.pleaseSelect'), '');
+
+        // $services = Service::pluck('name', 'id')->prepend(trans('global.pleaseSelect'), '');
+
+        // $seasons = Season::pluck('name', 'id')->prepend(trans('global.pleaseSelect'), '');
+
+        // $inventories = Inventory::pluck('start_date', 'id')->prepend(trans('global.pleaseSelect'), '');
+
+
+        // $updated_bies = User::pluck('name', 'id')->prepend(trans('global.pleaseSelect'), '');
+
+        // $customers = Customer::pluck('full_name as name', 'id');
+
+        // $booking->load('user', 'status_booking', 'service', 'season', 'inventory', 'updated_by', 'customers', 'team');
+
+        // return view('admin.bookings.edit', compact('booking', 'customers', 'inventories', 'seasons', 'services', 'status_bookings', 'updated_bies', 'users'));
     }
 
     public function show(Booking $booking)
@@ -881,7 +980,6 @@ class BookingsController extends Controller
         ]);
 
         try {
-            // Step 1: Base rack rates            
             $season = Season::findOrFail($data['season_id']);
             logger()->info('************** ' . now()->toDateString());
             logger()->info('season ' . $season->id);
@@ -960,6 +1058,7 @@ class BookingsController extends Controller
                         'type' => $promo->type,
                         'promo_code' => $promo->promo_code,
                         'value' => (float) $promo->value,
+                        'params' => $promo->params,
                         'booking_start_date' => $promo->booking_start_date,
                         'booking_end_date'   => $promo->booking_end_date,
                         'activity_start_date' => $promo->activity_start_date,
@@ -980,10 +1079,13 @@ class BookingsController extends Controller
                     }
                     logger()->info('params ' . var_export($params, true));
 
-                    $totalPax  = collect($data['pax_groups'])->sum('count');
+                    // $totalPax  = collect($data['pax_groups'])->sum('count');
                     $adultCount = collect($data['pax_groups'])->where('type', 'adult')->sum('count');
+                    $childCount = collect($data['pax_groups'])->where('type', 'child')->sum('count');
+                    $totalPax  = $adultCount + $childCount;
                     logger()->info('totalPax ' . $totalPax);
                     logger()->info('adultCount ' . $adultCount);
+                    logger()->info('childCount ' . $childCount);
                     // Apply promo rules
                     switch ($promo->type) {
                         case 'percent':
@@ -1002,44 +1104,48 @@ class BookingsController extends Controller
                             // Support BOTH:
                             // (a) map:  {"lookup":{"1":"300","2":"300",...}}
                             // (b) array:[{"pax":1,"value":300}, ...]
-                            $promoTotal = null;
+                            $paxRate = null;
                             if (!empty($params['lookup']) && is_array($params['lookup'])) {
                                 // (a) assoc map
                                 $key = (string) $totalPax;
                                 if (array_key_exists($key, $params['lookup'])) {
-                                    $promoTotal = (float) $params['lookup'][$key];
+                                    $paxRate = (float) $params['lookup'][$key];
                                 }
                             } elseif (!empty($params['lookup']) && is_string($params['lookup'])) {
                                 // If stored as JSON string inside params (rare), decode it.
                                 $lk = json_decode($params['lookup'], true) ?: [];
                                 $key = (string) $totalPax;
                                 if (is_array($lk) && array_key_exists($key, $lk)) {
-                                    $promoTotal = (float) $lk[$key];
+                                    $paxRate = (float) $lk[$key];
                                 }
                             } elseif (!empty($params['lookup']) && is_object($params['lookup'])) {
                                 $lk = (array) $params['lookup'];
                                 $key = (string) $totalPax;
                                 if (array_key_exists($key, $lk)) {
-                                    $promoTotal = (float) $lk[$key];
+                                    $paxRate = (float) $lk[$key];
                                 }
                             } elseif (!empty($params['lookup']) && is_iterable($params['lookup'])) {
                                 // (b) array of objects
                                 foreach ($params['lookup'] as $row) {
                                     if (isset($row['pax']) && (int)$row['pax'] === (int)$totalPax) {
-                                        $promoTotal = (float) ($row['value'] ?? 0);
+                                        $paxRate = (float) ($row['value'] ?? 0);
                                         break;
                                     }
                                 }
                             }
-                            logger()->info('promoTotal **************** ' . $promoTotal);
+                            logger()->info('paxRate **************** ' . $paxRate);
 
-                            if ($promoTotal !== null) {
+                            if ($paxRate !== null) {
+                                $rates['adult'] = $paxRate;
+                                $rates['child'] = $paxRate;
+                                //$rates['guide'] = $promoTotal;
+
                                 return response()->json([
                                     'base_rates'         => $baseRates,
                                     'applied_rates'      => $rates, // unchanged per-pax; total is overridden
                                     'applied_promotion'  => $appliedPromo,
                                     'applied_discounts'  => [],
-                                    'total_price'        => round($promoTotal, 2),
+                                    'total_price'        => round($paxRate * $totalPax, 2),
                                 ]);
                             }
                             // If there’s no exact lookup, fall through to normal per-pax multiplication.

@@ -12,7 +12,7 @@ class StoreBookingRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return Gate::allows('booking_create');
+        return Gate::allows('bookings_create');
     }
 
     /**

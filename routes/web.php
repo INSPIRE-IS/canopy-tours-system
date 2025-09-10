@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\AuditLogsController;
+use App\Http\Controllers\Admin\BookingPaymentController;
 use App\Http\Controllers\Admin\BookingsController;
 use App\Http\Controllers\Admin\CheckinsController;
 use App\Http\Controllers\Admin\CloseoutsController;
@@ -171,7 +172,13 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['auth', 'v
     //Route::get('bookings/index', [HomeController::class, 'bookings'])->name('bookings.index');
     Route::get('/booking/activity/calendar', [BookingsController::class, 'calendar'])->name('booking.activity.calendar');
     Route::post('/bookings/calculate-price', [BookingsController::class, 'calculate'])->name('booking.calculate');
+    Route::get('bookings/add/{booking}', [BookingsController::class, 'add'])->name('bookings.add');
     Route::resource('bookings', BookingsController::class);
+    Route::get('booking-payments/create/{booking}', [BookingPaymentController::class, 'create'])->name('booking-payments.create');
+    Route::post('booking-payments/store', [BookingPaymentController::class, 'store'])->name('booking-payments.store');
+    Route::get('booking-payments/edit/{booking}', [BookingPaymentController::class, 'edit'])->name('booking-payments.edit');
+    Route::put('booking-payments/update', [BookingPaymentController::class, 'update'])->name('booking-payments.update');
+    // Route::resource('booking_payments', BookingPaymentController::class);
 
     Route::get('/checkins/index/{booking}/{customer?}', [CheckinsController::class, 'index'])->name('checkins.index');
     Route::post('/checkins/store', [CheckinsController::class, 'store'])->name('checkins.store');
