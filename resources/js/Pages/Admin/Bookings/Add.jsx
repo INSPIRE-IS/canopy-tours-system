@@ -27,6 +27,8 @@ export default function Dashboard({ auth, booking, staff  }) {
     const [toggleEmail, setToggleEmail] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalMode, setModalMode] = useState("create");
+    const [total, setTotal] = useState(null);
+
 //    const page = usePage();
 //     const currentRoutePath = page.props.currentRoutePath;
 
@@ -549,35 +551,94 @@ export default function Dashboard({ auth, booking, staff  }) {
                                     {/* Comments */}
                                     <div className=" overflow-hidden shadow-medium sm:rounded-lg">
                                         <div className="flex flex-col justify-between items-center ">
-                                            <span className='flex items-center justify-between w-full px-6 py-4 border-b border-gray-300'>
+                                            {/* <span className='flex items-center justify-between w-full px-6 py-4 border-b border-gray-300'>
                                                 <span className="text-booking-card-heading block text-start">Comments</span>
                                                 <span onClick={() => setToggleComments(!toggleComments)}>
                                                     {toggleComments ? icons.cheveron_down : icons.cheveron_up}
                                                 </span>
-                                            </span>
-                                            {toggleComments && (
-                                            <span className="flex flex-col w-full px-6 py-6 gap-2">
-                                                <CustomInputText
-                                                    title="Name"
-                                                    name="consultant_name"
-                                                    value={data.consultant_name}
-                                                    height="h-[52px]"
-                                                    onChange={(e) => setData('consultant_name', e.target.value)}
-                                                    errors={errors}
-                                                />                                            
+                                            </span> */}
+                                            <div className="flex items-center justify-between w-full px-6 py-4 border-b border-gray-300">
+                                                <span className="text-booking-card-heading ">Comments</span>
+                                                <div className="flex items-center gap-2">
+                                                    <CustomSelect
+                                                        name="emails"
+                                                        width="w-[243px]"
+                                                        value={data.emails}
+                                                        showOption={false}
+                                                        onChange={(e) => {setData('emails', e.target.value);}}
+                                                        error={errors.emails}
+                                                        options={[
+                                                                { id: 1, name: "All Emails" },
+                                                                { id: 2, name: "Sent Emails" },
+                                                                { id: 3, name: "Received Emails" },
+                                                            ]}
+                                                        />        
+                                                </div>
+                                            </div>
+
+                                            {toggleComments ? (
+                                            <div className="flex flex-col w-full px-6 py-6 gap-2">
+                                            <div className="flex flex-col w-full px-6 py-6 gap-2">
+                                                <div className="flex items-center justify-between w-full h-[43px] pl-[7px] pr-[7px] py-[7px] rounded-[6px]">
+                                                    <span className="text-booking-lbl-main-sub inline-flex items-center gap-2">To: Tour Operator</span>
+                                                    <WhiteButton
+                                                    title="Resend"
+                                                    textColor="text-[#4D81E7]"
+                                                    width="w-[91px]"
+                                                    height="h-[31px]"
+                                                    className="mt-4"
+                                                    onClick={() => handleSubmit(e)}
+                                                    />
+                                                </div>
+                                                <span className="w-full grid grid-cols-1 sm:grid-cols-2 gap-6">  
+                                                    Booking confirmation sent to email@email.com
+                                                    2025-02-24 11:32
+                                                </span>
+                                            </div>
+
+                                                <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                                        {/* <button onClick={() => setToggleComments(!toggleComments)} className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] border-primary-14 text-primary-14 cursor-pointer">
+                                                            <img src="/assets/icons/plus.svg" alt="bookings" className="w-5 h-5 text-black" />
+                                                            <span className="text-btn-outline-gray">Add Comment</span>
+                                                        </button> */}
+                                                    <WhiteButton
+                                                    title="Add Comment"
+                                                    textColor="text-[#161618]"
+                                                    width="w-[141px]"
+                                                    height="h-[40px]"
+                                                    className="mt-4"
+                                                    onClick={() => setToggleComments(!toggleComments)}
+                                                    />
+
+                                                </div>
+                                            </div>
+                                            ):(
+                                                <span className="flex flex-col w-full px-6 py-6 gap-2">
+
+
                                                 <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-6">
 
+                                                        <CustomSelect
+                                                            label="to"
+                                                            name="wholesaler_id"
+                                                            value={data.wholesaler_id}
+                                                            
+                                                            onChange={(e) => setData(e.target.name, e.target.value)}
+                                                            error={errors.wholesaler_id}
+                                                            options={staff}
+                                                        />  
                                                     <CustomInputText
-                                                        title="Email"
-                                                        name="consultant_email"
-                                                        value={data.consultant_email}
+                                                        title="internal"
+                                                        name="consultant_mobile"
+                                                        value={data.consultant_mobile}
                                                         height="h-[52px]"
-                                                        type="email"                            
-                                                        onChange={(e) => setData('consultant_email', e.target.value)}
+                                                        onChange={(e) => setData('consultant_mobile', e.target.value)}
                                                         errors={errors}
                                                     />
+                                                </div>                                                                                                 
+                                                <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-6">
                                                     <CustomInputText
-                                                        title="Contact Number"
+                                                        title="text"
                                                         name="consultant_mobile"
                                                         value={data.consultant_mobile}
                                                         height="h-[52px]"
@@ -586,24 +647,14 @@ export default function Dashboard({ auth, booking, staff  }) {
                                                     />
                                                 </div>
                                                 <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-6">
-
-                                                    <CustomInputText
-                                                        title="PAX"
-                                                        name="consultant_email"
-                                                        value={data.consultant_email}
-                                                        height="h-[52px]"
-                                                        type="email"                            
-                                                        onChange={(e) => setData('consultant_email', e.target.value)}
-                                                        errors={errors}
-                                                    />
-                                                    <CustomInputText
-                                                        title="Nationality"
-                                                        name="consultant_mobile"
-                                                        value={data.consultant_mobile}
-                                                        height="h-[52px]"
-                                                        onChange={(e) => setData('consultant_mobile', e.target.value)}
-                                                        errors={errors}
-                                                    />
+                                                    <button onClick={() => {}} className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-blue-gradient-overlay border-[#3863C6] text-white shadow-inset-white cursor-pointer">
+                                                        <img src="/assets/icons/plus.svg" alt="bookings" className="w-5 h-5" />
+                                                        <span className="text-btn-outline-gray">Add</span>
+                                                    </button>
+                                                    <button onClick={() => setToggleComments(!toggleComments)} className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-red-gradient-overlay border-[#C65468] text-white shadow-inset-white cursor-pointer">
+                                                        <img src="/assets/icons/plus.svg" alt="bookings" className="w-5 h-5" />
+                                                        <span className="text-btn-outline-gray">Cancel</span>
+                                                    </button>
                                                 </div>
                                             </span>
                                             )}
@@ -618,121 +669,96 @@ export default function Dashboard({ auth, booking, staff  }) {
                                                     {togglePayment ? icons.cheveron_down : icons.cheveron_up}
                                                 </span>
                                             </span>
-                                            {togglePayment && (
-                                            <span className="flex flex-col w-full px-6 py-6 gap-2">
-                                                <CustomInputText
-                                                    title="Name"
-                                                    name="consultant_name"
-                                                    value={data.consultant_name}
-                                                    height="h-[52px]"
-                                                    onChange={(e) => setData('consultant_name', e.target.value)}
-                                                    errors={errors}
-                                                />                                            
-                                                <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                            {togglePayment && (                                         
+                                                <div className="flex flex-col w-full px-6 py-6 gap-2">
 
-                                                    <CustomInputText
-                                                        title="Email"
-                                                        name="consultant_email"
-                                                        value={data.consultant_email}
-                                                        height="h-[52px]"
-                                                        type="email"                            
-                                                        onChange={(e) => setData('consultant_email', e.target.value)}
-                                                        errors={errors}
-                                                    />
-                                                    <CustomInputText
-                                                        title="Contact Number"
-                                                        name="consultant_mobile"
-                                                        value={data.consultant_mobile}
-                                                        height="h-[52px]"
-                                                        onChange={(e) => setData('consultant_mobile', e.target.value)}
-                                                        errors={errors}
-                                                    />
-                                                </div>
-                                                <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                                    <div className="flex items-center just space-x-4">
+                                                        <label className="text-booking-lbl-main basis-[20%]">Overdue</label>
+                                                        <div className="flex items-center justify-between w-[417px] h-[43px] bg-[#FCE4DF4D] pl-[7px] pr-[7px] py-[7px] rounded-[6px]">
+                                                            <span className="text-booking-lbl-main-sub-error inline-flex items-center gap-2">{icons.red_dot} R {total?.toFixed(2) || '0.00'}</span>
+                                                            <div className='flex items-center gap-2'>
 
-                                                    <CustomInputText
-                                                        title="PAX"
-                                                        name="consultant_email"
-                                                        value={data.consultant_email}
-                                                        height="h-[52px]"
-                                                        type="email"                            
-                                                        onChange={(e) => setData('consultant_email', e.target.value)}
-                                                        errors={errors}
-                                                    />
-                                                    <CustomInputText
-                                                        title="Nationality"
-                                                        name="consultant_mobile"
-                                                        value={data.consultant_mobile}
-                                                        height="h-[52px]"
-                                                        onChange={(e) => setData('consultant_mobile', e.target.value)}
-                                                        errors={errors}
-                                                    />
+                                                                <WhiteButton
+                                                                title="Pay" 
+                                                                icon={true}
+                                                                iconName={icons.pay}
+                                                                textColor='text-[#4D81E7]'
+                                                                width="w-[91px]"
+                                                                height="h-[31px]"
+                                                                className="mt-4"
+                                                                onClick={() => router.get(route('admin.booking-payments.edit', 1))}
+                                                                /> 
+                                                                <WhiteButton
+                                                                title="Tools" 
+                                                                icon={true}
+                                                                iconName={icons.tools}
+                                                                textColor='text-[#4D81E7]'
+                                                                width="w-[91px]"
+                                                                height="h-[31px]"
+                                                                className="mt-4"
+                                                                onClick={() => handleSubmit(e)}
+                                                                />    
+                                                            </div>                                               
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center space-x-4">
+                                                        <label className="text-booking-lbl-main basis-[20%]">Paid</label>
+                                                        <div className="flex items-center justify-between w-[417px] h-[43px] bg-[#DBECFD4D] pl-[7px] pr-[7px] py-[7px] rounded-[6px]">
+                                                            <span className="text-booking-lbl-main-sub inline-flex items-center gap-2">{icons.blue_dot} R {total?.toFixed(2) || '0.00'}</span>
+                                                            <WhiteButton
+                                                            title="Tools" 
+                                                            icon={true}
+                                                            iconName={icons.tools}
+                                                            textColor='text-[#4D81E7]'
+                                                            width="w-[91px]"
+                                                            height="h-[31px]"
+                                                            className="mt-4"
+                                                            onClick={() => handleSubmit(e)}
+                                                            />                                                   
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                            </span>
                                             )}
                                         </div>
                                     </div>
                                     {/* Email Log */}
-                                    <div className=" overflow-hidden shadow-medium sm:rounded-lg">
-                                        <div className="flex flex-col justify-between items-center ">
-                                            <span className='flex items-center justify-between w-full px-6 py-4 border-b border-gray-300'>
-                                                <span className="text-booking-card-heading block text-start">Email Log</span>
-                                                <span onClick={() => setToggleEmail(!toggleEmail)}>
-                                                    {toggleEmail ? icons.cheveron_down : icons.cheveron_up}
+                                    <div className="overflow-hidden shadow-medium sm:rounded-lg">
+                                        <div className="flex flex-col w-full">  {/* Remove items-center + justify-between here */}
+                                            <div className="flex items-center justify-between w-full px-6 py-4 border-b border-gray-300">
+                                                <span className="text-booking-card-heading ">Email Log</span>
+                                                <div className="flex items-center gap-2">
+                                                    <CustomSelect
+                                                        name="emails"
+                                                        width="w-[243px]"
+                                                        value={data.emails}
+                                                        showOption={false}
+                                                        onChange={(e) => {setData('emails', e.target.value);}}
+                                                        error={errors.emails}
+                                                        options={[
+                                                                { id: 1, name: "All Emails" },
+                                                                { id: 2, name: "Sent Emails" },
+                                                                { id: 3, name: "Received Emails" },
+                                                            ]}
+                                                        />        
+                                                </div>
+                                            </div>
+                                            <div className="flex flex-col w-full px-6 py-6 gap-2">
+                                                <div className="flex items-center justify-between w-full h-[43px] pl-[7px] pr-[7px] py-[7px] rounded-[6px]">
+                                                    <span className="text-booking-lbl-main-sub inline-flex items-center gap-2">To: Tour Operator</span>
+                                                    <WhiteButton
+                                                    title="Resend"
+                                                    textColor="text-[#4D81E7]"
+                                                    width="w-[91px]"
+                                                    height="h-[31px]"
+                                                    className="mt-4"
+                                                    onClick={() => handleSubmit(e)}
+                                                    />
+                                                </div>
+                                                <span className="w-full grid grid-cols-1 sm:grid-cols-2 gap-6">  
+                                                    Booking confirmation sent to email@email.com
+                                                    2025-02-24 11:32
                                                 </span>
-                                            </span>
-                                            {toggleEmail && (
-                                            <span className="flex flex-col w-full px-6 py-6 gap-2">
-                                                <CustomInputText
-                                                    title="Name"
-                                                    name="consultant_name"
-                                                    value={data.consultant_name}
-                                                    height="h-[52px]"
-                                                    onChange={(e) => setData('consultant_name', e.target.value)}
-                                                    errors={errors}
-                                                />                                            
-                                                <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-6">
-
-                                                    <CustomInputText
-                                                        title="Email"
-                                                        name="consultant_email"
-                                                        value={data.consultant_email}
-                                                        height="h-[52px]"
-                                                        type="email"                            
-                                                        onChange={(e) => setData('consultant_email', e.target.value)}
-                                                        errors={errors}
-                                                    />
-                                                    <CustomInputText
-                                                        title="Contact Number"
-                                                        name="consultant_mobile"
-                                                        value={data.consultant_mobile}
-                                                        height="h-[52px]"
-                                                        onChange={(e) => setData('consultant_mobile', e.target.value)}
-                                                        errors={errors}
-                                                    />
-                                                </div>
-                                                <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-6">
-
-                                                    <CustomInputText
-                                                        title="PAX"
-                                                        name="consultant_email"
-                                                        value={data.consultant_email}
-                                                        height="h-[52px]"
-                                                        type="email"                            
-                                                        onChange={(e) => setData('consultant_email', e.target.value)}
-                                                        errors={errors}
-                                                    />
-                                                    <CustomInputText
-                                                        title="Nationality"
-                                                        name="consultant_mobile"
-                                                        value={data.consultant_mobile}
-                                                        height="h-[52px]"
-                                                        onChange={(e) => setData('consultant_mobile', e.target.value)}
-                                                        errors={errors}
-                                                    />
-                                                </div>
-                                            </span>
-                                            )}
+                                            </div>
                                         </div>
                                     </div>
                                 </div> 

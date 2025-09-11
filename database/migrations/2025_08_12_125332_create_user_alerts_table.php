@@ -15,7 +15,12 @@ return new class extends Migration
             $table->id();
             $table->string('alert_text')->nullable();
             $table->string('alert_link')->nullable();
+            $table->boolean('internal')->nullable();
+            $table->boolean('complete')->nullable();
             $table->timestamps();
+
+
+            $table->foreignId('type_alert_id')->constrained()->onDelete('cascade');
         });
     }
 

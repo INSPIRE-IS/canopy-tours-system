@@ -108,13 +108,13 @@ const headerConfig = [
       backUrl: route('admin.bookings.index'),
     },
     {
-      match: 'admin.booking_payments.create',
+      match: 'admin.booking-payments.create',
       title: 'Submit Payment',
       backLabel: 'Back to all Bookings',
       backUrl: route('admin.bookings.index'),
     },    
     {
-      match: 'admin.booking_payments.edit',
+      match: 'admin.booking-payments.edit',
       title: 'Submit Payment',
       backLabel: 'Back to all Bookings',
       backUrl: route('admin.bookings.index'),

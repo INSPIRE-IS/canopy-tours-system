@@ -1,6 +1,6 @@
 import React from "react";
 
-const CustomSelect = ({ label, name, value = null, width="w-full" , height="h-[48px]", onChange, error,mode, options }) => {
+const CustomSelect = ({ label, name, value = null, width="w-full" , height="h-[48px]", onChange, showOption=true, error,mode, options }) => {
   //console.log('options ', options);
   return (
     <div className="w-full mb-4">
@@ -16,17 +16,17 @@ const CustomSelect = ({ label, name, value = null, width="w-full" , height="h-[4
         name={name}
         value={value != null ? String(value) : ""}
         onChange={onChange}
-        className={`mt-1 block ${width} ${height} ${error ? "border-red-500" : "border-gray-300"} shadow-sm input-text rounded-xl
+        className={`mt-1 block ${width} ${height} ${error ? "border-red-500" : "border-gray-300"} shadow-sm input-text rounded-[10px]
                         hover:border-black  active:border-blue-600 
                 focus:outline-none focus:ring-0 focus:border-black
         `}
         disabled={mode === "view"}
-
       >
         {/* Render the options */}
+        {showOption && (
         <option value="" disabled className="input-text">
           -- Select an option --
-        </option>
+        </option>)}
         {options?.map((option, index) => {
           //console.log('option', option);
           const value = typeof option === "object" ? option.id : option;
