@@ -25,7 +25,7 @@ return new class extends Migration
             $table->timestamps();
             $table->softDeletes();
 
-            $table->foreignId('booking_id')->constrained('bookings');
+            $table->foreignId('booking_item_id')->constrained('booking_items');
             $table->foreignId('booking_detail_id')->nullable()->constrained('booking_details');
             $table->foreignId('team_id')->nullable()->constrained('teams');
         });

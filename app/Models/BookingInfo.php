@@ -12,7 +12,7 @@ class BookingInfo extends Model
     public $table = 'booking_infos';
 
     protected $fillable = [
-        'booking_id',
+        'booking_item_id',
         'type_location_id',
         'location',
         'time',
@@ -22,9 +22,9 @@ class BookingInfo extends Model
         'deleted_at',
     ];
 
-    public function booking()
+    public function booking_items()
     {
-        return $this->belongsTo(Booking::class, 'booking_id');
+        return $this->belongsTo(BookingItem::class, 'booking_item_id');
     }
 
     public function typeLocation()

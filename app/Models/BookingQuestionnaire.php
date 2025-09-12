@@ -13,7 +13,7 @@ class BookingQuestionnaire extends Model
     public $table = 'booking_questionnaires';
 
     protected $fillable = [
-        'booking_id',
+        'booking_item_id',
         'customer_id',
         'guide_id',
         'safety_guide_id',
@@ -37,9 +37,9 @@ class BookingQuestionnaire extends Model
         'deleted_at',
     ];
 
-    public function booking()
+    public function booking_items()
     {
-        return $this->belongsTo(Booking::class, 'booking_id');
+        return $this->belongsTo(BookingItem::class, 'booking_item_id');
     }
 
     public function customer()

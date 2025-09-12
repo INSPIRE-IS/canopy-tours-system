@@ -26,7 +26,7 @@ class CustomerManifest extends Model
         'notes',
         'is_indemnity',
         'customer_id',
-        'booking_id',
+        'booking_item_id',
         'created_at',
         'updated_at',
         'deleted_at',
@@ -43,9 +43,9 @@ class CustomerManifest extends Model
         return $this->belongsTo(Customer::class, 'customer_id');
     }
 
-    public function booking()
+    public function booking_items()
     {
-        return $this->belongsTo(Booking::class, 'booking_id');
+        return $this->belongsTo(BookingItem::class, 'booking_item_id');
     }
 
     public function team()

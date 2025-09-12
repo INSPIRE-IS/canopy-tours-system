@@ -22,7 +22,7 @@ class BookingFee extends Model
     ];
 
     protected $fillable = [
-        'booking_id',
+        'booking_item_id',
         'booking_detail_id',
         'tot_adults',
         'tot_children',
@@ -44,9 +44,9 @@ class BookingFee extends Model
         return $date->format('Y-m-d H:i:s');
     }
 
-    public function booking()
+    public function booking_items()
     {
-        return $this->belongsTo(Booking::class, 'booking_id');
+        return $this->belongsTo(BookingItem::class, 'booking_item_id');
     }
 
     public function booking_detail()

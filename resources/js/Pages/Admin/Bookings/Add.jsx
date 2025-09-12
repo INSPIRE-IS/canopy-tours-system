@@ -14,7 +14,7 @@ import ManifestModal from './ManifestModal';
 // import { useRoute } from 'ziggy-js';
 // import { Ziggy } from '@/ziggy'; // the generated file
 
-export default function Dashboard({ auth, booking, staff  }) {
+export default function Dashboard({ auth, booking, bookingItem, staff  }) {
     console.log("auth", auth);
     console.log("booking", booking);
     console.log("staff", staff);
@@ -40,32 +40,32 @@ export default function Dashboard({ auth, booking, staff  }) {
     const { data, setData, put, isDirty, reset, processing, errors } = useForm(()=>
         {
             console.log("booking", booking);
-            console.log("customers", booking.customers);
-            const lead = booking?.customers.find(c => c?.pivot?.is_lead);
-            const inventory = booking?.booking_inventory;
+            console.log("customers", bookingItem.customers);
+            const lead = bookingItem?.customers.find(c => c?.pivot?.is_lead);
+            const inventory = bookingItem?.booking_inventory;
 
             console.log("lead", lead);
             return {
 
             service_id: '',
             season_id: '',
-            lead_person: booking?.customers.find(c => c?.pivot?.is_lead)?.full_name ?? '',
-            lead_email: booking?.customers.find(c => c?.pivot?.is_lead)?.email_address ?? '',
-            lead_mobile: booking?.customers.find(c => c?.pivot?.is_lead)?.contact_number ?? '',
+            lead_person: bookingItem?.customers.find(c => c?.pivot?.is_lead)?.full_name ?? '',
+            lead_email: bookingItem?.customers.find(c => c?.pivot?.is_lead)?.email_address ?? '',
+            lead_mobile: bookingItem?.customers.find(c => c?.pivot?.is_lead)?.contact_number ?? '',
             lead_pax: 'A:' + inventory?.tot_adults + ' C:' + inventory?.tot_children + ' G:' + inventory?.tot_guides,
-            lead_nationality: booking?.customers.find(c => c?.pivot?.is_lead)?.nationality_id ?? '',
-            pickup_location: booking?.booking_infos.find(c => c?.type_location_id == 1)?.location ?? '',
-            pickup_time: booking?.booking_infos.find(c => c?.type_location_id == 1)?.time ?? '',
-            pickup_meridiem: booking?.booking_infos.find(c => c?.type_location_id == 1)?.meridiem ?? 'AM',
-            start_location: booking?.booking_infos.find(c => c?.type_location_id == 2)?.location ?? '',
-            start_time: booking?.booking_infos.find(c => c?.type_location_id == 2)?.time ?? '',            
-            start_meridiem: booking?.booking_infos.find(c => c?.type_location_id == 2)?.meridiem ?? 'AM',            
-            end_location: booking?.booking_infos.find(c => c?.type_location_id == 3)?.location ?? '',
-            end_time: booking?.booking_infos.find(c => c?.type_location_id == 3)?.time ?? '',  
-            end_meridiem: booking?.booking_infos.find(c => c?.type_location_id == 3)?.meridiem ?? 'AM',  
-            dropoff_location: booking?.booking_infos.find(c => c?.type_location_id == 4)?.location ?? '',
-            dropoff_time: booking?.booking_infos.find(c => c?.type_location_id == 4)?.time ?? '',
-            dropoff_meridiem: booking?.booking_infos.find(c => c?.type_location_id == 4)?.meridiem ?? 'AM',
+            lead_nationality: bookingItem?.customers.find(c => c?.pivot?.is_lead)?.nationality_id ?? '',
+            pickup_location: bookingItem?.booking_infos.find(c => c?.type_location_id == 1)?.location ?? '',
+            pickup_time: bookingItem?.booking_infos.find(c => c?.type_location_id == 1)?.time ?? '',
+            pickup_meridiem: bookingItem?.booking_infos.find(c => c?.type_location_id == 1)?.meridiem ?? 'AM',
+            start_location: bookingItem?.booking_infos.find(c => c?.type_location_id == 2)?.location ?? '',
+            start_time: bookingItem?.booking_infos.find(c => c?.type_location_id == 2)?.time ?? '',            
+            start_meridiem: bookingItem?.booking_infos.find(c => c?.type_location_id == 2)?.meridiem ?? 'AM',            
+            end_location: bookingItem?.booking_infos.find(c => c?.type_location_id == 3)?.location ?? '',
+            end_time: bookingItem?.booking_infos.find(c => c?.type_location_id == 3)?.time ?? '',  
+            end_meridiem: bookingItem?.booking_infos.find(c => c?.type_location_id == 3)?.meridiem ?? 'AM',  
+            dropoff_location: bookingItem?.booking_infos.find(c => c?.type_location_id == 4)?.location ?? '',
+            dropoff_time: bookingItem?.booking_infos.find(c => c?.type_location_id == 4)?.time ?? '',
+            dropoff_meridiem: bookingItem?.booking_infos.find(c => c?.type_location_id == 4)?.meridiem ?? 'AM',
 
             }   
         }     
@@ -75,7 +75,7 @@ export default function Dashboard({ auth, booking, staff  }) {
     const handleOpenModal = (mode, user = null) => {
         console.log('mode ', mode);
         console.log('user ', user);
-        const pick = booking?.customer_manifests.length > 0 ? "edit" : "create";
+        const pick = bookingItem?.customer_manifests.length > 0 ? "edit" : "create";
         setModalMode(pick);
         //setSelectedUser(user);
         setIsModalOpen(true);
@@ -117,8 +117,8 @@ export default function Dashboard({ auth, booking, staff  }) {
                 {/* top */}
                 <div className="flex justify-between items-center mb-6">
                     <span>
-                        <span className="font-semibold text-lg text-gray-800 block text-start">{booking?.season?.name}</span>
-                        <span className="font-semibold text-lg text-gray-800 block text-start">{booking?.inventory?.start_date}</span>
+                        <span className="font-semibold text-lg text-gray-800 block text-start">{bookingItem?.season?.name}</span>
+                        <span className="font-semibold text-lg text-gray-800 block text-start">{bookingItem?.inventory?.start_date}</span>
                         {isDirty && (<p className="text-yellow-600 text-sm mt-1">You have unsaved changes</p>)}
                     </span>
                     <span className="flex gap-2">
@@ -203,10 +203,10 @@ export default function Dashboard({ auth, booking, staff  }) {
                                 onClick={() => handleSubmit(e)}
                             />
                         </div>                    
-                        <div className="flex  items-start px-4 pb-[9px] gap-6 ">
+                        <div className="flex w-full items-start px-4 pb-[9px] gap-6 ">
                             {/* left */}
-                            <div className='flex-1 items-center'>
-                                <div className="flex flex-col gap-6">
+                            <div className='flex basis-[70%] items-center'>
+                                <div className="flex flex-col w-full gap-6">
                                     {/* Customer */}                                    
                                     <div className=" overflow-hidden shadow-medium sm:rounded-lg">
                                         <div className="flex flex-col justify-between items-center ">
@@ -486,7 +486,7 @@ export default function Dashboard({ auth, booking, staff  }) {
                                 </div>
                             </div>
                             {/* right */}
-                            <div className='flex-2 items-center'>
+                            <div className='flex basis-[30%] items-center'>
                                 <div className="flex flex-col gap-6">
                                     {/* Staff */}
                                     <div className=" overflow-hidden shadow-medium sm:rounded-lg">
@@ -675,7 +675,7 @@ export default function Dashboard({ auth, booking, staff  }) {
                                                     <div className="flex items-center just space-x-4">
                                                         <label className="text-booking-lbl-main basis-[20%]">Overdue</label>
                                                         <div className="flex items-center justify-between w-[417px] h-[43px] bg-[#FCE4DF4D] pl-[7px] pr-[7px] py-[7px] rounded-[6px]">
-                                                            <span className="text-booking-lbl-main-sub-error inline-flex items-center gap-2">{icons.red_dot} R {total?.toFixed(2) || '0.00'}</span>
+                                                            <span className="text-booking-lbl-main-sub-error inline-flex items-center gap-2">{icons.red_dot} R {booking?.grand_tot_due?.toFixed(2) - booking?.tot_paid?.toFixed(2) || '0.00'}</span>
                                                             <div className='flex items-center gap-2'>
 
                                                                 <WhiteButton
@@ -686,7 +686,7 @@ export default function Dashboard({ auth, booking, staff  }) {
                                                                 width="w-[91px]"
                                                                 height="h-[31px]"
                                                                 className="mt-4"
-                                                                onClick={() => router.get(route('admin.booking-payments.edit', 1))}
+                                                                onClick={() => router.get(route('admin.booking-payments.create', booking?.id))}
                                                                 /> 
                                                                 <WhiteButton
                                                                 title="Tools" 
@@ -704,7 +704,7 @@ export default function Dashboard({ auth, booking, staff  }) {
                                                     <div className="flex items-center space-x-4">
                                                         <label className="text-booking-lbl-main basis-[20%]">Paid</label>
                                                         <div className="flex items-center justify-between w-[417px] h-[43px] bg-[#DBECFD4D] pl-[7px] pr-[7px] py-[7px] rounded-[6px]">
-                                                            <span className="text-booking-lbl-main-sub inline-flex items-center gap-2">{icons.blue_dot} R {total?.toFixed(2) || '0.00'}</span>
+                                                            <span className="text-booking-lbl-main-sub inline-flex items-center gap-2">{icons.blue_dot} R {booking?.grand_tot_due?.toFixed(2) || '0.00'}</span>
                                                             <WhiteButton
                                                             title="Tools" 
                                                             icon={true}
@@ -769,11 +769,11 @@ export default function Dashboard({ auth, booking, staff  }) {
                     isOpen={isModalOpen}
                     onClose={handleCloseModal}
                     mode={modalMode}
-                    customer_manifests={booking?.customer_manifests}
-                    pax={booking?.booking_inventory.pax}
-                    tot_adults={booking?.booking_inventory.tot_adults}
-                    tot_children={booking?.booking_inventory.tot_children}
-                    tot_guides={booking?.booking_inventory.tot_guides}
+                    customer_manifests={bookingItem?.customer_manifests}
+                    pax={bookingItem?.booking_inventory.pax}
+                    tot_adults={bookingItem?.booking_inventory.tot_adults}
+                    tot_children={bookingItem?.booking_inventory.tot_children}
+                    tot_guides={bookingItem?.booking_inventory.tot_guides}
                 />
             </div>
         </AuthenticatedLayout>

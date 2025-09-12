@@ -22,12 +22,9 @@ return new class extends Migration
             $table->string('reference');
             $table->timestamps();
             $table->softDeletes();
-
+            $table->foreignId('customer_id')->nullable()->constrained('customers');
             $table->foreignId('user_id')->nullable()->constrained('users');
             $table->foreignId('status_booking_id')->nullable()->constrained('status_bookings');
-            $table->foreignId('service_id')->constrained('services');
-            $table->foreignId('season_id')->constrained('seasons');
-            $table->foreignId('inventory_id')->constrained('inventories');
             $table->foreignId('updated_by_id')->nullable()->constrained('users');
             $table->foreignId('team_id')->nullable()->constrained('teams');
         });

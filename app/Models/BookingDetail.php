@@ -22,7 +22,7 @@ class BookingDetail extends Model
     ];
 
     protected $fillable = [
-        'booking_id',
+        'booking_item_id',
         'service_id',
         'season_id',
         'is_wholesaler_booking',
@@ -42,9 +42,9 @@ class BookingDetail extends Model
         return $date->format('Y-m-d H:i:s');
     }
 
-    public function booking()
+    public function booking_items()
     {
-        return $this->belongsTo(Booking::class, 'booking_id');
+        return $this->belongsTo(BookingItem::class, 'booking_item_id');
     }
 
     public function service()

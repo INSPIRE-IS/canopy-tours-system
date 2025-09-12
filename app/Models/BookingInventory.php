@@ -23,7 +23,7 @@ class BookingInventory extends Model
 
     protected $fillable = [
 
-        'booking_id',
+        'booking_item_id',
         'booking_detail_id',
         'date',
         'tot_adults',

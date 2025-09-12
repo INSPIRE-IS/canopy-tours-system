@@ -11,6 +11,7 @@ use App\Models\BookingDetail;
 use App\Models\BookingFee;
 use App\Models\BookingInfo;
 use App\Models\BookingInventory;
+use App\Models\BookingItem;
 use App\Models\BookingPayment;
 use App\Models\Closeout;
 use App\Models\Customer;
@@ -46,11 +47,12 @@ class BookingsController extends Controller
     {
         abort_if(Gate::denies('bookings_access'), Response::HTTP_FORBIDDEN, '403 Forbidden');
         $bookings = Booking::with([
-            'customers', // :id,name,email,contact_number
-            'booking_details', //:id,booking_id ,start_time,end_time
-            'booking_fees', //:id,booking_id,tot_amount
+            'booking_items', // :id,booking_id ,start_time,end_time
+            'booking_items.customers', // :id,name,email,contact_number
+            'booking_items.booking_details', //:id,booking_id ,start_time,end_time
+            'booking_items.booking_fees', //:id,booking_id,tot_amount
             'booking_payments', // :id,booking_id,amount
-            'booking_inventory', // :id,booking_id,inventory_id
+            'booking_items.booking_inventory', // :id,booking_id,inventory_id
         ])
             // ->select([
             //     'id',
@@ -70,17 +72,18 @@ class BookingsController extends Controller
         //dd($bookings);
         $formatted = $bookings->map(function ($booking) {
             try {
-                //dd($booking);
+                //dd($booking->booking_items[0]);
+                $booking_item = $booking->booking_items[0];
 
                 $price = 0;
-                foreach ($booking->booking_fees as $fee) {
+                foreach ($booking_item->booking_fees as $fee) {
                     $price += $fee->tot_amount;
                 }
                 $paid = 0;
                 foreach ($booking->booking_payments as $payment) {
                     $paid += $payment->amount;
                 }
-
+                //dd($price);
                 $due = $price - $paid;
                 //dd($booking->booking_inventory->inventory_time_slot_id);
 
@@ -88,8 +91,8 @@ class BookingsController extends Controller
                 //     $q->where('id', $booking->booking_inventory->inventory_time_slot_id);
                 // }])->find($booking->booking_inventory->booking_id);
                 // dd($inventory);
-                $service = Service::find($booking->service_id);
-                $season = Season::find($booking->season_id);
+                $service = Service::find($booking_item->service_id);
+                $season = Season::find($booking_item->season_id);
                 $timeSlot = InventoryTimeSlot::find($season->id);
 
                 $time = $timeSlot->start_time;
@@ -104,14 +107,14 @@ class BookingsController extends Controller
                     'id' => $booking->id,
                     'reference' => $booking->reference,
                     'lead_name' => $booking->lead_name,
-                    'bookingPax' => $booking->booking_inventory->pax, // $booking->customers->count(),
+                    'bookingPax' => $booking_item->booking_inventory->pax, // $booking->customers->count(),
                     'maxPax' => $season->capacity, // $booking->customers->count(),
-                    'service' => $booking->service->name,
+                    'service' => $booking_item->service->name,
                     'time' => $start_time->format('H:i:s') . ' ' . $end_time->format('H:i:s'), // optional($booking->booking_inventory)->inventory_time_slot_id ?? '' . ' - ' . optional($booking->booking_inventory)->inventory_time_slot_id ?? '',
                     'price' => number_format($price ?? 0, 2),
                     'paid' =>  number_format($paid ?? 0, 2),
                     'due' =>  number_format($due ?? 0, 2),
-                    'customers' => $booking->customers->map(fn($c) => [
+                    'customers' => $booking_item->customers->map(fn($c) => [
                         //'reference' => $booking->reference,
                         'name' => "{$c->name}",
                         'email' => $c->email,
@@ -304,7 +307,7 @@ class BookingsController extends Controller
         ]);
         try {
             $booking = DB::transaction(function () use ($validated) {
-                //dd($validated);
+                logger()->info($validated);
                 $season_id = $validated['season_id'];
                 $selected_slot = $validated['selected_slot'];
                 //dd($selected_slot['date']);
@@ -334,11 +337,11 @@ class BookingsController extends Controller
                     'contact_number' => $validated['lead_mobile'],
                 ]);
                 $adultsCount = (int) ($validated['adults'] ?? 0);
-                $amount_adults = (int) ($validated['rake_rate_adult'] ?? 0) * $adultsCount;
+                $amount_adults = (int) ($validated['rate_per_adult'] ?? 0) * $adultsCount;
                 $childrenCount = (int) ($validated['children'] ?? 0);
-                $amount_children = (int) ($validated['rake_rate_children'] ?? 0) * $childrenCount;
+                $amount_children = (int) ($validated['rate_per_child'] ?? 0) * $childrenCount;
                 $guidesCount = (int) ($validated['guides'] ?? 0);
-                $amount_guides = (int) ($validated['rake_rate_guide'] ?? 0) * $guidesCount;
+                $amount_guides = (int) ($validated['rate_per_guide'] ?? 0) * $guidesCount;
                 $amount = $amount_adults + $amount_children + $amount_guides;
 
                 // 2. Create booking
@@ -354,11 +357,29 @@ class BookingsController extends Controller
                     'service_id'     => $season->service_id,
                     'season_id'      => $season->id,
                     'inventory_id'   => $inventory->id,
-                    'customers'      => [$customer->id],
+                    'customer_id'      => $customer->id,
                     'created_at'     => now(),
                     'updated_at'     => now(),
                     'deleted_at'     => null,
                     'team_id'        => null,
+                ]);
+
+                $booking_item = BookingItem::create([
+                    'booking_id'     => $booking->id,
+                    'service_id'     => $season->service_id,
+                    'season_id'      => $season->id,
+                    'inventory_id'   => $inventory->id,
+                    'pax_adults'     => $adultsCount,
+                    'pax_children'   => $childrenCount,
+                    'pax_guides'     => $guidesCount,
+                    'price_adult'    => $amount_adults,
+                    'price_child'    => $amount_children,
+                    'price_guide'    => $amount_guides,
+                    'discount_id'    => null,
+                    // 'promotion_id'   => null,
+                    // 'final_price_adult'    => $rates['adult'],
+                    // 'final_price_child'    => $rates['child'],
+                    // 'final_price_guide'    => $rates['guide'],
                 ]);
 
                 // Prepare pivot data
@@ -372,14 +393,14 @@ class BookingsController extends Controller
 
 
                 // Sync with pivot data
-                $booking->customers()->sync($pivotData);
+                $booking_item->customers()->sync($pivotData);
 
                 // Optional Enhancements
                 // You can also lock inventory slots with for update queries if you expect concurrency.
                 // Use Laravel's retry helper if you're worried about deadlocks (rare unless high traffic).
 
                 $bookingDetail = BookingDetail::create([
-                    'booking_id'     => $booking->id,
+                    'booking_item_id'     => $booking_item->id,
                     'is_wholesaler_booking' => $validated['is_wholesaler'],
                     'is_needs_pickup' => $validated['needs_pickup'],
                     'is_web_booking' => $validated['web_booking'],
@@ -419,7 +440,7 @@ class BookingsController extends Controller
 
                 // TODO add modal to capture and update inventory overrides then remove the commented code below
                 BookingInventory::create([
-                    'booking_id'     => $booking->id,
+                    'booking_item_id'     => $booking_item->id,
                     'booking_detail_id' => $bookingDetail->id,
                     'date'           => $validated['booking_date'],
                     'tot_adults'     => $adultsCount,
@@ -435,7 +456,7 @@ class BookingsController extends Controller
                 ]);
                 // TODO add logic for creating and validating a voucher code
                 $bookingFee = BookingFee::create([
-                    'booking_id'     => $booking->id,
+                    'booking_item_id'     => $booking_item->id,
                     'booking_detail_id' => $bookingDetail->id,
                     'tot_adults'     => $amount_adults,
                     'tot_children'   => $amount_children,
@@ -629,36 +650,46 @@ class BookingsController extends Controller
         //abort_if(Gate::denies('booking_edit'), Response::HTTP_FORBIDDEN, '403 Forbidden');
         $user = auth()->user();
 
+        // $booking->load([
+        //     'booking_items',
+        //     'booking_items.service',
+        //     'booking_items.season',
+        //     'booking_items.inventory',
+        //     'booking_items.customers',
+        //     'booking_items.customer_manifests.customer.booking_questionnaire',
+        //     'booking_items.booking_infos',
+        //     'booking_items.customers.booking_questionnaire',
+        //     'booking_items.booking_details',
+        //     'booking_items.booking_fees',
+        //     'booking_payments',
+        //     'booking_items.booking_inventory',
+        //     'booking_items.booking_staff',
+        //     'booking_items.booking_staff.user',
+        // ]);
+
+        // $item = $booking->booking_items->get(0);
         $booking->load([
+            'booking_payments',
+        ]);
+
+        $bookingItem = BookingItem::with([
             'service',
             'season',
             'inventory',
-            'customers', // :id,name,email,contact_number
-            'customer_manifests.customer.booking_questionnaire', // :id,position,notes,is_indemnity,customer_id,booking_id\
-            'booking_infos', // :id,booking_id,type_location_id,location,time,created_at,updated_at,deleted_at
-            'customers.booking_questionnaire', // :id,booking_id,customer_id,guide_id,safety_guide_id,type_group_id,fullname,email,signature,birth_date,type_referral,country_id,province_id,is_medical,medical_detail,is_fit,is_agree
-            'booking_details', //:id,booking_id ,start_time,end_time
-            'booking_fees', //:id,booking_id,tot_amount
-            'booking_payments', // :id,booking_id,amount
-            'booking_inventory', // :id,booking_id,inventory_id
-            'booking_staff', // :id,booking_id,user_id
-            'booking_staff.user', // :id,name,email,contact_number
+            'customers',
+            'customer_manifests.customer.booking_questionnaire',
+            'booking_infos',
+            'customers.booking_questionnaire',
+            'booking_details',
+            'booking_fees',
+            'booking_inventory',
+            'booking_staff',
+            'booking_staff.user',
         ])
-            // ->select([
-            //     'id',
-            //     'lead_name',
-            //     'user_id',
-            //     'status_booking_id',
-            //     'due_date',
-            //     'tot_paid',
-            //     'grand_tot_due',
-            //     'service_id',
-            //     'season_id',
-            //     'inventory_id',
-            //     'created_at'
-            // ])
-            //->whereDate('due_date', '2025-01-01')
-            ->get();
+            ->where('booking_id', $booking->id)
+            ->orderBy('id') // or some other column for order
+            ->skip(0)       // skip the first
+            ->first();      // get the second
 
         $staff = User::with('roles:id,name')
             ->whereHas('roles', function ($query) {
@@ -683,7 +714,7 @@ class BookingsController extends Controller
         //     });
         // });
         //dd($booking);
-        return Inertia::render('Admin/Bookings/Add', ['booking' => $booking, 'staff' => $staff]);
+        return Inertia::render('Admin/Bookings/Add', ['booking' => $booking, 'bookingItem' => $bookingItem, 'staff' => $staff]);
 
 
 
@@ -765,12 +796,13 @@ class BookingsController extends Controller
 
         // booking data
         $bookingData = DB::table('bookings as b')
-            ->leftJoin('booking_inventories as bi', 'bi.booking_id', '=', 'b.id')
+            ->leftJoin('booking_items as items', 'items.booking_id', '=', 'b.id')
+            ->leftJoin('booking_inventories as bi', 'bi.booking_item_id', '=', 'items.id')
             ->leftJoin('inventory_type_days as itd', 'itd.id', '=', 'bi.inventory_type_day_id')
             ->leftJoin('type_days as td', 'td.id', '=', 'itd.type_day_id')
             ->leftJoin('inventory_time_slots as its', 'its.id', '=', 'bi.inventory_time_slot_id')
             ->leftJoin('inventory_overrides as io', 'io.id', '=', 'bi.inventory_override_id')
-            ->where('b.inventory_id', $activityId)
+            ->where('items.inventory_id', $activityId)
             ->whereBetween('bi.date', [$startDate->toDateString(), $endDate->toDateString()])
             ->select([
                 'bi.date',

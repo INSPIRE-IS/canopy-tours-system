@@ -33,9 +33,7 @@ class Booking extends Model
         'tot_paid',
         'grand_tot_due',
         'reference',
-        'service_id',
-        'season_id',
-        'inventory_id',
+        'customer_id',
         'updated_by_id',
         'created_at',
         'updated_at',
@@ -66,6 +64,11 @@ class Booking extends Model
         return $this->belongsTo(User::class, 'user_id');
     }
 
+    public function booking_items()
+    {
+        return $this->hasMany(BookingItem::class);
+    }
+
     public function status_booking()
     {
         return $this->belongsTo(StatusBooking::class, 'status_booking_id');
@@ -81,76 +84,55 @@ class Booking extends Model
         $this->attributes['due_date'] = $value ? Carbon::createFromFormat(config('panel.date_format'), $value)->format('Y-m-d') : null;
     }
 
-    public function service()
-    {
-        return $this->belongsTo(Service::class, 'service_id');
-    }
-
-    public function season()
-    {
-        return $this->belongsTo(Season::class, 'season_id');
-    }
-
-    public function inventory()
-    {
-        return $this->belongsTo(Inventory::class, 'inventory_id');
-    }
-
     public function updated_by()
     {
         return $this->belongsTo(User::class, 'updated_by_id');
     }
 
-    public function customers()
-    {
-        //return $this->belongsToMany(Customer::class);
-        return $this->belongsToMany(Customer::class)
-            ->withPivot('team_id', 'is_lead')
-            ->withTimestamps();
-    }
+
 
     public function team()
     {
         return $this->belongsTo(Team::class, 'team_id');
     }
 
-    public function booking_staff()
-    {
-        return $this->hasMany(BookingStaff::class);
-    }
+    // public function booking_staff()
+    // {
+    //     return $this->hasMany(BookingStaff::class);
+    // }
 
-    public function booking_details()
-    {
-        return $this->hasMany(BookingDetail::class);
-    }
+    // public function booking_details()
+    // {
+    //     return $this->hasMany(BookingDetail::class);
+    // }
 
-    public function customer_manifests()
-    {
-        return $this->hasMany(CustomerManifest::class);
-    }
+    // public function customer_manifests()
+    // {
+    //     return $this->hasMany(CustomerManifest::class);
+    // }
 
-    public function booking_fees()
-    {
-        return $this->hasMany(BookingFee::class);
-    }
+    // public function booking_fees()
+    // {
+    //     return $this->hasMany(BookingFee::class);
+    // }
 
     public function booking_payments()
     {
         return $this->hasMany(BookingPayment::class);
     }
 
-    public function booking_inventory()
-    {
-        return $this->hasOne(BookingInventory::class);
-    }
+    // public function booking_inventory()
+    // {
+    //     return $this->hasOne(BookingInventory::class);
+    // }
 
-    public function booking_infos()
-    {
-        return $this->hasMany(BookingInfo::class);
-    }
+    // public function booking_infos()
+    // {
+    //     return $this->hasMany(BookingInfo::class);
+    // }
 
-    public function booking_questionnaire()
-    {
-        return $this->hasOne(BookingQuestionnaire::class);
-    }
+    // public function booking_questionnaire()
+    // {
+    //     return $this->hasOne(BookingQuestionnaire::class);
+    // }
 }

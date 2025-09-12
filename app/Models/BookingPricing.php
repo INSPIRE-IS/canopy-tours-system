@@ -12,7 +12,7 @@ class BookingPricing extends Model
     protected $table = 'booking_pricing';
 
     protected $fillable = [
-        'booking_id',
+        'booking_item_id',
         'season_id',
         'wholesaler_rate_id',
         'discount_id',
@@ -22,9 +22,9 @@ class BookingPricing extends Model
         'final_price_guide',
     ];
 
-    public function booking()
+    public function booking_items()
     {
-        return $this->belongsTo(Booking::class);
+        return $this->belongsTo(BookingItem::class, 'booking_item_id');
     }
 
     public function season()

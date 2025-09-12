@@ -6,6 +6,7 @@ use App\Models\Booking;
 use App\Models\BookingDetail;
 use App\Models\BookingFee;
 use App\Models\BookingInventory;
+use App\Models\BookingItem;
 use App\Models\BookingPayment;
 use App\Models\Closeout;
 use App\Models\CloseoutDayTimeSlot;
@@ -1720,9 +1721,7 @@ class SeedCoreData extends Command
                 'tot_paid'       => 0,
                 'grand_tot_due'  => 1700.00,
                 'reference'      => 'REF-' . strtoupper(Str::random(6)), //Str::uuid(),
-                'service_id'     => 1,
-                'season_id'      => 1,
-                'inventory_id'   => 1,
+                'customer_id'     => 1,
                 'updated_by_id'  => 1,
                 'customers'      => [1, 2, 3],
                 'created_at'     => now(),
@@ -1741,9 +1740,7 @@ class SeedCoreData extends Command
                 'tot_paid'       => 0,
                 'grand_tot_due'  => 2000.00,
                 'reference'      => 'REF-' . strtoupper(Str::random(6)), //Str::uuid(),
-                'service_id'     => 1,
-                'season_id'      => 1,
-                'inventory_id'   => 1,
+                'customer_id'     => 1,
                 'updated_by_id'  => 1,
                 'customers'      => [4, 5, 6],
                 'created_at'     => now(),
@@ -1762,9 +1759,7 @@ class SeedCoreData extends Command
                 'tot_paid'       => 0,
                 'grand_tot_due'  => 1100.00,
                 'reference'      => 'REF-' . strtoupper(Str::random(6)), //Str::uuid(),
-                'service_id'     => 1,
-                'season_id'      => 1,
-                'inventory_id'   => 1,
+                'customer_id'     => 1,
                 'updated_by_id'  => 1,
                 'customers'      => [7, 8],
                 'created_at'     => now(),
@@ -1783,9 +1778,7 @@ class SeedCoreData extends Command
                 'tot_paid'       => 0,
                 'grand_tot_due'  => 5000.00,
                 'reference'      => 'REF-' . strtoupper(Str::random(6)), //Str::uuid(),
-                'service_id'     => 1,
-                'season_id'      => 1,
-                'inventory_id'   => 1,
+                'customer_id'     => 1,
                 'updated_by_id'  => 1,
                 'customers'      => [9, 10],
                 'created_at'     => now(),
@@ -1797,6 +1790,77 @@ class SeedCoreData extends Command
 
         foreach ($bookings as $item) {
             $booking =  Booking::updateOrCreate(['id' => $item['id']], $item);
+        }
+        $this->info('booking seeded successfully.');
+        $bookingItems = [
+            [
+                'id'             => 1,
+                'service_id'     => 1,
+                'season_id'      => 1,
+                'inventory_id'   => 1,
+                'booking_id'     => 1,
+                'price_adult'    => 200.00,
+                'price_child'    => 100.00,
+                'price_guide'    => 0.00,
+                'discount_id'    => null,
+                'promotion_id'   => null,
+                'final_price_adult'    => 200.00,
+                'final_price_child'    => 100.00,
+                'final_price_guide'    => 0.00,
+            ],
+            [
+                'id'             => 2,
+                'service_id'     => 2,
+                'season_id'      => 2,
+                'inventory_id'   => 2,
+                'booking_id'     => 2,
+                'price_adult'    => 300.00,
+                'price_child'    => 200.00,
+                'price_guide'    => 0.00,
+                'discount_id'    => null,
+                'promotion_id'   => null,
+                'final_price_adult'    => 300.00,
+                'final_price_child'    => 200.00,
+                'final_price_guide'    => 0.00,
+            ],
+            [
+                'id'             => 3,
+                'service_id'     => 3,
+                'season_id'      => 3,
+                'inventory_id'   => 3,
+                'booking_id'     => 3,
+                'price_adult'    => 400.00,
+                'price_child'    => 300.00,
+                'price_guide'    => 0.00,
+                'discount_id'    => null,
+                'promotion_id'   => null,
+                'final_price_adult'    => 400.00,
+                'final_price_child'    => 300.00,
+                'final_price_guide'    => 0.00,
+            ],
+            [
+                'id'             => 4,
+                'service_id'     => 4,
+                'season_id'      => 4,
+                'inventory_id'   => 4,
+                'booking_id'     => 4,
+                'price_adult'    => 500.00,
+                'price_child'    => 400.00,
+                'price_guide'    => 0.00,
+                'discount_id'    => null,
+                'promotion_id'   => null,
+                'final_price_adult'    => 500.00,
+                'final_price_child'    => 400.00,
+                'final_price_guide'    => 0.00,
+            ],
+        ];
+
+        foreach ($bookingItems as $bookingItem) {
+            $bookingItem['price_adult'] = floatval(str_replace('R', '', $bookingItem['price_adult']));
+            $bookingItem['price_child'] = floatval(str_replace('R', '', $bookingItem['price_child']));
+            $bookingItem['price_guide'] = floatval(str_replace('R', '', $bookingItem['price_guide']));
+
+            $bookingItem =  BookingItem::updateOrCreate(['id' => $bookingItem['id']], $bookingItem);
             // Prepare pivot data
             $pivotData = [];
 
@@ -1808,10 +1872,12 @@ class SeedCoreData extends Command
             }
 
             // Sync with pivot data
-            $booking->customers()->sync($pivotData);
+            $bookingItem->customers()->sync($pivotData);
             //$booking->customers()->sync($item['customers']);
-        }
 
+
+        }
+        $this->info('bookingItems seeded successfully.');
         $customerManifests = [
             [
                 'id'             => 1,
@@ -1819,7 +1885,7 @@ class SeedCoreData extends Command
                 'notes'          => '',
                 'is_indemnity'   => 0,
                 'customer_id'    => 1,
-                'booking_id'     => 1,
+                'booking_item_id'     => 1,
                 'created_at'     => now(),
                 'updated_at'     => now(),
                 'deleted_at'     => null,
@@ -1831,7 +1897,7 @@ class SeedCoreData extends Command
                 'notes'          => '',
                 'is_indemnity'   => 0,
                 'customer_id'    => 2,
-                'booking_id'     => 1,
+                'booking_item_id'     => 1,
                 'created_at'     => now(),
                 'updated_at'     => now(),
                 'deleted_at'     => null,
@@ -1843,7 +1909,7 @@ class SeedCoreData extends Command
                 'notes'          => '',
                 'is_indemnity'   => 0,
                 'customer_id'    => 3,
-                'booking_id'     => 1,
+                'booking_item_id'     => 1,
                 'created_at'     => now(),
                 'updated_at'     => now(),
                 'deleted_at'     => null,
@@ -1855,7 +1921,7 @@ class SeedCoreData extends Command
                 'notes'          => '',
                 'is_indemnity'   => 0,
                 'customer_id'    => 4,
-                'booking_id'     => 2,
+                'booking_item_id'     => 2,
                 'created_at'     => now(),
                 'updated_at'     => now(),
                 'deleted_at'     => null,
@@ -1867,7 +1933,7 @@ class SeedCoreData extends Command
                 'notes'          => '',
                 'is_indemnity'   => 0,
                 'customer_id'    => 5,
-                'booking_id'     => 2,
+                'booking_item_id'     => 2,
                 'created_at'     => now(),
                 'updated_at'     => now(),
                 'deleted_at'     => null,
@@ -1879,7 +1945,7 @@ class SeedCoreData extends Command
                 'notes'          => '',
                 'is_indemnity'   => 0,
                 'customer_id'    => 6,
-                'booking_id'     => 2,
+                'booking_item_id'     => 2,
                 'created_at'     => now(),
                 'updated_at'     => now(),
                 'deleted_at'     => null,
@@ -1891,7 +1957,7 @@ class SeedCoreData extends Command
                 'notes'          => '',
                 'is_indemnity'   => 0,
                 'customer_id'    => 7,
-                'booking_id'     => 3,
+                'booking_item_id'     => 3,
                 'created_at'     => now(),
                 'updated_at'     => now(),
                 'deleted_at'     => null,
@@ -1903,7 +1969,7 @@ class SeedCoreData extends Command
                 'notes'          => '',
                 'is_indemnity'   => 0,
                 'customer_id'    => 8,
-                'booking_id'     => 3,
+                'booking_item_id'     => 3,
                 'created_at'     => now(),
                 'updated_at'     => now(),
                 'deleted_at'     => null,
@@ -1915,7 +1981,7 @@ class SeedCoreData extends Command
                 'notes'          => '',
                 'is_indemnity'   => 0,
                 'customer_id'    => 9,
-                'booking_id'     => 4,
+                'booking_item_id'     => 4,
                 'created_at'     => now(),
                 'updated_at'     => now(),
                 'deleted_at'     => null,
@@ -1927,7 +1993,7 @@ class SeedCoreData extends Command
                 'notes'          => '',
                 'is_indemnity'   => 0,
                 'customer_id'    => 10,
-                'booking_id'     => 4,
+                'booking_item_id'     => 4,
                 'created_at'     => now(),
                 'updated_at'     => now(),
                 'deleted_at'     => null,
@@ -1943,7 +2009,7 @@ class SeedCoreData extends Command
         $bookingDetails = [
             [
                 'id'             => 1,
-                'booking_id'     => 1,
+                'booking_item_id'     => 1,
                 'is_wholesaler_booking' => 0,
                 'is_needs_pickup' => 0,
                 'is_web_booking' => 0,
@@ -1957,7 +2023,7 @@ class SeedCoreData extends Command
             ],
             [
                 'id'             => 2,
-                'booking_id'     => 2,
+                'booking_item_id'     => 2,
                 'is_wholesaler_booking' => 0,
                 'is_needs_pickup' => 0,
                 'is_web_booking' => 0,
@@ -1971,7 +2037,7 @@ class SeedCoreData extends Command
             ],
             [
                 'id'             => 3,
-                'booking_id'     => 3,
+                'booking_item_id'     => 3,
                 'is_wholesaler_booking' => 0,
                 'is_needs_pickup' => 0,
                 'is_web_booking' => 0,
@@ -1985,7 +2051,7 @@ class SeedCoreData extends Command
             ],
             [
                 'id'             => 4,
-                'booking_id'     => 4,
+                'booking_item_id'     => 4,
                 'is_wholesaler_booking' => 0,
                 'is_needs_pickup' => 0,
                 'is_web_booking' => 0,
@@ -2006,7 +2072,7 @@ class SeedCoreData extends Command
         $bookingInventories = [
             [
                 'id'             => 1,
-                'booking_id'     => 1,
+                'booking_item_id'     => 1,
                 'booking_detail_id' => 1,
                 'date'           => '2025-03-01',
                 'tot_adults'     => 2,
@@ -2023,7 +2089,7 @@ class SeedCoreData extends Command
             ],
             [
                 'id'             => 2,
-                'booking_id'     => 2,
+                'booking_item_id'     => 2,
                 'booking_detail_id' => 2,
                 'date'           => '2025-04-02',
                 'tot_adults'     => 3,
@@ -2040,7 +2106,7 @@ class SeedCoreData extends Command
             ],
             [
                 'id'             => 3,
-                'booking_id'     => 3,
+                'booking_item_id'     => 3,
                 'booking_detail_id' => 3,
                 'date'           => '2025-07-03',
                 'tot_adults'     => 1,
@@ -2057,7 +2123,7 @@ class SeedCoreData extends Command
             ],
             [
                 'id'             => 4,
-                'booking_id'     => 4,
+                'booking_item_id'     => 4,
                 'booking_detail_id' => 4,
                 'date'           => '2025-07-04',
                 'tot_adults'     => 8,
@@ -2081,7 +2147,7 @@ class SeedCoreData extends Command
         $bookingFees = [
             [
                 'id'             => 1,
-                'booking_id'     => 1,
+                'booking_item_id'     => 1,
                 'booking_detail_id' => 1,
                 'tot_adults'     => 1200.00,
                 'tot_children'   => 300.00,
@@ -2099,7 +2165,7 @@ class SeedCoreData extends Command
             ],
             [
                 'id'             => 2,
-                'booking_id'     => 2,
+                'booking_item_id'     => 2,
                 'booking_detail_id' => 2,
                 'tot_adults'     => 1800.00,
                 'tot_children'   => 0,
@@ -2117,7 +2183,7 @@ class SeedCoreData extends Command
             ],
             [
                 'id'             => 3,
-                'booking_id'     => 3,
+                'booking_item_id'     => 3,
                 'booking_detail_id' => 3,
                 'tot_adults'     => 600.00,
                 'tot_children'   => 300.00,
@@ -2135,7 +2201,7 @@ class SeedCoreData extends Command
             ],
             [
                 'id'             => 4,
-                'booking_id'     => 4,
+                'booking_item_id'     => 4,
                 'booking_detail_id' => 4,
                 'tot_adults'     => 4800.00,
                 'tot_children'   => 0,

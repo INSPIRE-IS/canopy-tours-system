@@ -13,37 +13,20 @@ export default function Dashboard({ auth, booking,mode,gateways, status_payments
     // console.log("type_pay_options", type_pay_options);
     // console.log("type_payments", type_payments);
     const { data, setData, post, put, processing, errors, isDirty } = useForm({
-        booking_id: '',
+        booking_id: booking.id,
+        redeemer_name: booking.lead_name,
         type_pay_option_id: '',
-        pay_offline: false,
-        pay_online: false,
-        split_payment: false,
-        cash: false,
-        cheque: false,
-        credit_card: false,
-        debit_card: false,
-        bank_transfer: false,
-        masterpass: false,
-        paypal: false,
-        snapscan: false,
-        zapper: false,
-        voucher: false,
         type_payment_id: '',
         gateway_id: '',
         status_payment_id: '',
         payment_options: {}, // store checkboxes here
         payment_methods: {}, // for type_payments
-        amount: '',
-        payment_date: '',
-        voucher_code: '',
-        redeemer_name: '',
+        amount: booking.grand_tot_due - booking.tot_paid,
+        payment_date: booking.due_date,
+        updated_by_id: auth.user.id,
         note: '',
-        updated_by_id: '',
-        reference: '',
+        reference:  booking.reference,
         meta: '',
-        created_at: '',
-        updated_at: '',
-        deleted_at: '',
         team_id: '',
     });
 
@@ -81,6 +64,12 @@ const handleCheckboxChange = (group, id) => {
     ...reset,
     [id]: true,
   });
+  if(group == "payment_options"){
+    setData('type_pay_option_id', id);
+  }
+    if(group == "payment_methods"){
+    setData('type_payment_id', id);
+  }
 };
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -134,16 +123,16 @@ const handleCheckboxChange = (group, id) => {
                                     errors={errors}
                                 />
                             ))}  */}
-{type_pay_options.map(({ id, name }) => (
-  <CustomCheckbox
-    key={id}
-    label={name}
-    name={id}
-    checked={data.payment_options[id] || false}
-    onChange={(checked) => handleCheckboxChange("payment_options", id, checked)}
-    errors={errors}
-  />
-))}
+                            {type_pay_options.map(({ id, name }) => (
+                            <CustomCheckbox
+                                key={id}
+                                label={name}
+                                name={id}
+                                checked={data.payment_options[id] || false}
+                                onChange={(checked) => handleCheckboxChange("payment_options", id, checked)}
+                                errors={errors}
+                            />
+                            ))}
 
                         </div>
                         <div className="flex flex-wrap gap-4 items-center justify-start ">
