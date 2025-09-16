@@ -40,6 +40,14 @@ use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Str;
 use Symfony\Component\HttpFoundation\Response;
+use App\Mail\InvoiceMail;
+use App\Models\Invoice;
+use App\Models\InvoiceItem;
+use App\Models\InvoiceTemplate;
+use App\Services\TemplateRenderer;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Facades\Mail;
+
 
 class BookingsController extends Controller
 {
@@ -102,19 +110,20 @@ class BookingsController extends Controller
                 list($hours, $minutes, $seconds) = explode(':', $service->duration);
                 $end_time = $start_time->copy()->addHours($hours)->addMinutes($minutes)->addSeconds($seconds);
                 // dd($end_time->format('H:i:s'));
-
+                //dd($booking_item->customers);
                 $info = [
                     'id' => $booking->id,
                     'reference' => $booking->reference,
                     'lead_name' => $booking->lead_name,
                     'bookingPax' => $booking_item->booking_inventory->pax, // $booking->customers->count(),
-                    'maxPax' => $season->capacity, // $booking->customers->count(),
+                    'maxPax' => $service->capacity, // $booking->customers->count(),
                     'service' => $booking_item->service->name,
                     'time' => $start_time->format('H:i:s') . ' ' . $end_time->format('H:i:s'), // optional($booking->booking_inventory)->inventory_time_slot_id ?? '' . ' - ' . optional($booking->booking_inventory)->inventory_time_slot_id ?? '',
                     'price' => number_format($price ?? 0, 2),
                     'paid' =>  number_format($paid ?? 0, 2),
                     'due' =>  number_format($due ?? 0, 2),
                     'customers' => $booking_item->customers->map(fn($c) => [
+
                         //'reference' => $booking->reference,
                         'name' => "{$c->name}",
                         'email' => $c->email,
@@ -271,8 +280,6 @@ class BookingsController extends Controller
         //   "override_timeslots" => true
         //   "exclusive_resource" => true
         //   "override_reason" => "Reason for Override"
-
-
 
         $validated = $request->validate([
             'lead_person' => 'required|string', //   "lead_person" => "Lead Person"
@@ -472,6 +479,109 @@ class BookingsController extends Controller
                     'team_id'        => null,
                 ]);
 
+                $invoice = Invoice::create([
+                    'booking_id'     => $booking->id,
+                    'template_id'    => $validated['invoice_template_id'],
+                    'is_default'     => $validated['is_invoice_default'],
+                    'is_emailed'     => $validated['is_invoice_emailed'],
+                    'is_printed'     => $validated['is_invoice_printed'],
+                    'created_at'     => now(),
+                    'updated_at'     => now(),
+                    'team_id'        => auth()->user()->team_id,
+                ]);
+
+                $invoiceItems = InvoiceItem::create([
+                    'invoice_id'     => $invoice->id,
+                    'booking_id'     => $booking->id,
+                    'service_id'     => $season->service_id,
+                    'season_id'      => $season->id,
+                    'inventory_id'   => $inventory->id,
+                    'pax_adults'     => $adultsCount,
+                    'pax_children'   => $childrenCount,
+                    'pax_guides'     => $guidesCount,
+                    'price_adult'    => $amount_adults,
+                    'price_child'    => $amount_children,
+                    'price_guide'    => $amount_guides,
+                    'discount_id'    => null,
+                    'created_at'     => now(),
+                    'updated_at'     => now(),
+                    'team_id'        => auth()->user()->team_id,
+                ]);
+
+                $template = InvoiceTemplate::where('is_default', true)->firstOrFail();
+
+                // fake invoice data for testing
+                $invoice = [
+                    'site' => [
+                        'name' => 'Magoebaskloof Canopy Tours',
+                        'reg_no' => '2008/018998/07',
+                        'address' => 'PO Box 3132, Tzaneen',
+                        'address_code' => '0850',
+                    ],
+                    'client' => [
+                        'name' => 'Jane Allison',
+                        'phone' => '+27834427429',
+                        'email' => $validated['lead_email'],
+                    ],
+                    'invoice' => [
+                        'invoice_no' => '0002129',
+                        'date'   => now()->toDateString(),
+                    ],
+                    'booking' => [
+                        'ref' => 'B2D7-C9FD',
+                    ],
+                    'service' => [
+                        'name' => 'Canopy Tour Package',
+                        'adults' => 4,
+                        'children' => 2,
+                        'guides' => 1,
+                    ],
+                    'adults' => 4,
+                    'children' => 2,
+                    'guides' => 1,
+                    'is_voucher' => false,
+                    'voucher_code' => null,
+                    'invoice_note' => null,
+                    'email_reminder' => null,
+                    'booking_note' => null,
+                    'amount_ex_vat' => 'R2,086.96',
+                    'vat'           => 'R313.04',
+                    'amount_paid'   => 'R0.00',
+                    'balance_due'   => 'R2,400.00',
+                    'notes'         => 'Please pay within 7 days.',
+                    'bank_account_owner'         => 'Magoebaskloof Canopy Tours',
+                    'bank_account_no'         => '1234567890',
+                    'bank_account_type'         => 'Cheque',
+                    'bank_name'         => 'ABSA',
+                    'branch_code'         => '632005',
+                    'bank' => [
+                        'owner' => 'Magoebaskloof Canopy Tours',
+                        'number' => '1234567890',
+                        'type'   => 'Cheque',
+                        'name'   => 'ABSA',
+                        'branch_code' => '632005',
+                    ],
+                    'items' => [
+                        ['description' => 'Adult Ticket', 'qty' => 4, 'price' => 'R600.00', 'subtotal' => 'R2400.00'],
+                    ],
+                ];
+
+                // render HTML from DB template
+                // $html =  app(\App\Services\TemplateRenderer::class)
+                //     ->render($template->content, $invoice); 
+                $renderer = app(\App\Services\TemplateRenderer::class);
+                $html = $renderer->render($template->content, $invoice);
+                // renderer->render($template->content, $invoice);
+
+                // generate PDF
+                $pdf = Pdf::loadHTML($html);
+
+                // send mail
+                $sent = Mail::to($validated['lead_email'])->send(new InvoiceMail($invoice, $pdf));
+
+                Log::info('invoice email sent', [
+                    'sent' => $sent,
+                ]);
 
 
                 return $booking;

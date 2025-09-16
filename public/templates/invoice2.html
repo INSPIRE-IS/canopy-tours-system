@@ -1,0 +1,18 @@
+<img src="{{logo}}" alt="Logo" style="max-height:80px;">
+<p><strong>Invoice No:</strong> {{invoiceNo}}</p>
+<p><strong>Date:</strong> {{date}}</p>
+<p><strong>Customer:</strong> {{customerName}}</p>
+<p>{{customerAddress}}</p>
+<p>{{customerPhone}}</p>
+<p><strong>Items:</strong></p>
+<ul>
+  {{#each items}}
+  <li>
+    <strong>{{name}}</strong>
+    <span>{{quantity}} x {{price}}</span>
+  </li>
+  {{/each}}
+</ul>
+<p><strong>Total:</strong> {{total}}</p>
+<p><strong>Payment Method:</strong> {{paymentMethod}}</p>
+<p><strong>Payment Details:</strong> {{paymentDetails}}</p>

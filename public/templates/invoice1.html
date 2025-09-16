@@ -1,0 +1,94 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Invoice</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 40px; color: #333; }
+    .invoice-box { max-width: 800px; margin: auto; border: 1px solid #eee; padding: 30px; }
+    .header { display: flex; justify-content: space-between; align-items: center; }
+    .header h1 { margin: 0; color: #666; }
+    .info-table, .items-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    .info-table td { padding: 5px; vertical-align: top; }
+    .info-table .label { background: #f2f2f2; font-weight: bold; width: 150px; }
+    .items-table th, .items-table td {
+      border: 1px solid #ddd; padding: 8px; text-align: left;
+    }
+    .items-table th { background: #f2f2f2; }
+    .totals { margin-top: 20px; width: 100%; }
+    .totals td { padding: 8px; }
+    .totals .label { text-align: right; font-weight: bold; }
+    .totals .amount { text-align: right; }
+  </style>
+</head>
+<body>
+  <div class="invoice-box">
+    <img src="{{logo}}" alt="Logo" style="max-height:80px;">
+    <div class="header">
+      <h1> {{siteName}}</h1>
+      <h2>Proforma Invoice</h2>
+    </div>
+
+    <table class="info-table">
+      <tr>
+        <td class="label">From:</td>
+        <td>{{siteAddress}}
+        </td>
+        <td class="label">To:</td>
+        <td>
+          {{customerName}}<br>
+          {{customerPhone}}<br>
+          {{customerEmail}}
+        </td>
+      </tr>
+      <tr>
+        <td class="label">Invoice #:</td>
+        <td>{{invoiceNo}}</td>
+        <td class="label">Booking #:</td>
+        <td>{{bookingNo}}</td>
+      </tr>
+      <tr>
+        <td class="label">Date:</td>
+        <td>{{date}}</td>
+        <td class="label">Amount Due:</td>
+        <td>{{amountDue}}</td>
+      </tr>
+    </table>
+
+    <table class="items-table">
+      <thead>
+        <tr>
+          <th>Description</th>
+          <th>Qty</th>
+          <th>Unit Price</th>
+          <th>Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Canopy Tour Package</td>
+          <td>4</td>
+          <td>R600.00</td>
+          <td>R2,400.00</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <table class="totals">
+      <tr>
+        <td class="label">Subtotal:</td>
+        <td class="amount">R2,400.00</td>
+      </tr>
+      <tr>
+        <td class="label">VAT (15%):</td>
+        <td class="amount">Included</td>
+      </tr>
+      <tr>
+        <td class="label">Total:</td>
+        <td class="amount"><strong>R2,400.00</strong></td>
+      </tr>
+    </table>
+  </div>
+</body>
+</html>

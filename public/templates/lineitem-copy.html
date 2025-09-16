@@ -1,0 +1,98 @@
+    <table border="0" cellpadding="5" cellspacing="0" width="100%">
+        <tr>
+            <td colspan="3" style='font-family: "Carleton", arial;font-size: 14pt;'><img src="./images/logo.png" Alt="Canapy Tour" style="width:auto; height:80px"/></td>
+            <td rowspan="2" colspan="2" align="center"><strong>Invoice<br />{{invoice_no}}</strong></td>
+        </tr>
+        <tr>
+            <td style='font-size: 7pt;'>{{site_reg_no}}</td>
+            <td style='font-size: 7pt;' align="right" colspan="2">{{booking_ref}}</td>
+        </tr>
+    </table>
+
+    <table border="0" cellpadding="5" cellspacing="0" style="margin-top: 10px;" width="100%">
+        <tr>
+            <td width="40%" style='font-size: 8pt;'>
+                <strong>Client:</strong>&nbsp;
+                <div style="border: 1px solid black; padding: 10px; border-radius: 10px;">
+                    {{customer_name}}<br />
+                    {{customer_phone}}<br />
+                    {{customer_email}}<br />
+                    &nbsp;<br />
+                    &nbsp;
+                </div>
+            </td>
+
+            <td></td>
+
+            <td width="40%" style='font-size: 8pt;'>
+                <strong>Site:</strong>
+                <div style="border: 1px solid black; padding: 10px; border-radius: 10px;">
+                    {{site_name}}<br />
+                    {{site_address}}<br />
+                    {{site_code}}<br />
+                    {{site_phone}}<br />
+                    {{site_email}}
+                </div>
+            </td>
+        </tr>
+    </table>
+
+    <table border="1" cellpadding="5" cellspacing="0" style="margin-top: 10px;border-collapse: collapse;" width="100%">
+        <tr>
+            <td align="center" style="background-color: #E3E3E3;font-weight: bold; font-size: 7pt;">Date</td>
+            <td align="center" style="background-color: #E3E3E3;font-weight: bold; font-size: 7pt;">Sevice</td>
+            <td align="center" style="background-color: #E3E3E3;font-weight: bold; font-size: 7pt;">Time</td>
+        </tr>
+        <tr>
+            <td align="center" style="font-size: 8pt;">{{bookink_date}}</td>
+            <td align="center" style="font-size: 8pt;">{{service_name}}</td>
+            <td align="center" style="font-size: 8pt;">{{time}}</td>
+        </tr>
+    </table>
+
+    <table border="1" cellpadding="5" cellspacing="0" style="margin-top: 10px;border-collapse: collapse;" width="100%">
+        <tr>
+            <td align="center" style="background-color: #E3E3E3;font-weight: bold; font-size: 7pt;">#</td>
+            <td align="center" style="background-color: #E3E3E3;font-weight: bold; font-size: 7pt;">Item</td>
+            <td align="center" style="background-color: #E3E3E3;font-weight: bold; font-size: 7pt;">PAX</td>
+            <td align="center" style="background-color: #E3E3E3;font-weight: bold; font-size: 7pt;">Rate</td>
+            <td align="center" style="background-color: #E3E3E3;font-weight: bold; font-size: 7pt;">Price Excl. Vat</td>            
+        </tr>        
+        {{for_each}}
+            <tr>
+                <td style="font-size: 8pt;">{{line_no}}</td>
+                <td style="font-size: 8pt;">{{item_desc}}</td> 
+                <td style="font-size: 8pt;">{{item_qty}}</td> 
+                <td style="font-size: 8pt;">{{item_rake}}</td> 
+                <td style="font-size: 8pt;">{{item_price}}</td> 
+            </tr>
+        {{end_for_each}}
+
+        <tr>
+            <td colspan="3">&nbsp;</td>
+            <td style="font-size: 8pt;background-color: #E3E3E3;">&nbsp;</td>
+            <td>&nbsp;</td>
+        </tr>
+        <tr>
+            <td colspan="3"></td>
+            <td style="font-size: 8pt;background-color: #E3E3E3;" align='center'><strong>SUB TOTAL</strong></td>
+            <td style="font-size: 8pt;" align='center'>{{sub_total}}</td>
+        </tr>
+        <tr>
+            <td colspan="3"></td>
+            <td style="font-size: 8pt;background-color: #E3E3E3;" align='center'><strong>VAT</strong></td>
+            <td style="font-size: 8pt;" align='center'>{{vat_total)}}</td>
+        </tr>
+        <tr>
+            <td colspan="3"></td>
+            <td style="font-size: 8pt;background-color: #E3E3E3;" align='center'><strong>TOTAL (ZAR)</strong></td>
+            <td style="font-size: 8pt;" align='center'><strong>{{total_price}}</strong></td>
+        </tr>
+    </table>
+
+    <footer style="position:fixed; bottom:0; width:100%; z-index:1000">
+        <hr style="color:#C00000;"/>
+        <p class="black_footer" style="text-align:center">
+            Canopy Tours Pty Ltd
+        </p>
+    </footer>
