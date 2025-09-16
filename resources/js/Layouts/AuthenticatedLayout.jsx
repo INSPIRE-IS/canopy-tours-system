@@ -24,6 +24,7 @@ export default function AppLayout({  user, children }) {
     const [isOpenSubmenu, setIsOpenSubmenu] = useState('');
 const page = usePage();
 const currentRoutePath = page.props.currentRoutePath;
+console.log('currentRoutePath', currentRoutePath);
 
 function toggleSidebar() {
     setIsOpen(!isOpen);
@@ -66,6 +67,26 @@ const headerConfig = [
       showBack: false,
     },
     {
+      match: 'admin.messenger.createTopic',
+      title: 'messenger',
+      showBack: false,
+    },
+        {
+      match: 'admin.messenger.showInbox',
+      title: 'messenger',
+      showBack: false,
+    },
+        {
+      match: 'admin.messenger.showOutbox',
+      title: 'messenger',
+      showBack: false,
+    },
+        {
+      match: 'admin.messenger.showMessages',
+      title: 'messenger',
+      showBack: false,
+    },
+    {
       match: 'admin.reports.index',
       title: 'reports',
       showBack: false,
@@ -96,7 +117,7 @@ const headerConfig = [
       showBack: false,
     },
     {
-      match: 'admin.bookings.edit',
+      match: 'admin.bookings.add',
       title: 'Booking Detail',
       backLabel: 'Back to all Bookings',
       backUrl: route('admin.bookings.index'),
