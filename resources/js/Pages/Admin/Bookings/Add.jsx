@@ -17,6 +17,7 @@ import ManifestModal from './ManifestModal';
 export default function Dashboard({ auth, booking, bookingItem, staff  }) {
     console.log("auth", auth);
     console.log("booking", booking);
+    console.log("bookingItem", bookingItem);
     console.log("staff", staff);
     const [toggleCustomer, setToggleCustomer] = useState(true);
     const [toggleManifest, setToggleManifest] = useState(true);
@@ -117,7 +118,7 @@ export default function Dashboard({ auth, booking, bookingItem, staff  }) {
                 {/* top */}
                 <div className="flex justify-between items-center mb-6">
                     <span>
-                        <span className="font-semibold text-lg text-gray-800 block text-start">{bookingItem?.season?.name}</span>
+                        <span className="font-semibold text-lg text-gray-800 block text-start">{bookingItem?.service?.name} - {bookingItem?.season?.name}</span>
                         <span className="font-semibold text-lg text-gray-800 block text-start">{bookingItem?.inventory?.start_date}</span>
                         {isDirty && (<p className="text-yellow-600 text-sm mt-1">You have unsaved changes</p>)}
                     </span>
@@ -131,7 +132,7 @@ export default function Dashboard({ auth, booking, bookingItem, staff  }) {
                 {/* bottom */}
                 <div className="bg-white border-secondary-100">
 
-                        <div className="flex justify-between items-center px-4 pt-4 pb-[9px] ">
+                        <div className="flex justify-start items-center px-4 pt-4 pb-[9px] gap-4">
                             <WhiteButton
                                 title="Check-In" 
                                 icon={true}
@@ -140,7 +141,7 @@ export default function Dashboard({ auth, booking, bookingItem, staff  }) {
                                 width="w-[158.8px]"
                                 height="h-[31px]"
                                 className="mt-4"
-                                onClick={() => handleSubmit(e)}
+                                onClick={() => router.get(route('admin.checkins.index',{'booking': booking?.id}))}
                             /> 
                             <WhiteButton
                                 title="Send Invoice" 
@@ -180,9 +181,19 @@ export default function Dashboard({ auth, booking, bookingItem, staff  }) {
                                 width="w-[158.8px]"
                                 height="h-[31px]"
                                 className="mt-4"
-                                onClick={() => handleSubmit(e)}
+                                onClick={() => router.get(route('admin.invoices.download',{'booking': booking?.id}))}
                             />
-                            <WhiteButton
+                                                {/* <a
+  href={route('admin.invoices.download', item.id)}
+  target="_blank"
+  rel="noopener noreferrer"
+  className="btn btn-primary"
+>
+  Download Invoice PDF
+</a> */}
+
+
+                            {/* <WhiteButton
                                 title="Print Ticket" 
                                 icon={true}
                                 iconName={icons.print_ticket}
@@ -201,7 +212,7 @@ export default function Dashboard({ auth, booking, bookingItem, staff  }) {
                                 height="h-[31px]"
                                 className="mt-4"
                                 onClick={() => handleSubmit(e)}
-                            />
+                            /> */}
                         </div>                    
                         <div className="flex w-full items-start px-4 pb-[9px] gap-6 ">
                             {/* left */}
@@ -288,7 +299,7 @@ export default function Dashboard({ auth, booking, bookingItem, staff  }) {
                                             </span>
                                             {toggleManifest && (
                                                 <div className="flex flex-col w-full  gap-2 ">
-                                                    {booking?.customer_manifests?.map((manifest, i) => {
+                                                    {bookingItem?.customer_manifests?.map((manifest, i) => {
                                                         const isIndemnity = manifest?.is_indemnity;
                                                         const isCheckedIn = manifest?.customer?.booking_questionnaire != null;
                                                         const manifest_id = (i + 1) + '(' + (i + 1) + ')';
