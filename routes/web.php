@@ -5,11 +5,13 @@ use App\Http\Controllers\Admin\BookingPaymentController;
 use App\Http\Controllers\Admin\BookingsController;
 use App\Http\Controllers\Admin\CheckinsController;
 use App\Http\Controllers\Admin\CloseoutsController;
+use App\Http\Controllers\Admin\CustomerManifestController;
 use App\Http\Controllers\Admin\DiscountController;
 use App\Http\Controllers\Admin\HelpQuestionsController;
 use App\Http\Controllers\Admin\HomeController;
 use App\Http\Controllers\Admin\InventoryController;
 use App\Http\Controllers\Admin\InventoryOverridesController;
+use App\Http\Controllers\Admin\InvoiceController;
 use App\Http\Controllers\Admin\MessengerController;
 use App\Http\Controllers\Admin\PermissionsController;
 use App\Http\Controllers\Admin\PromotionController;
@@ -179,6 +181,15 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['auth', 'v
     Route::get('booking-payments/edit/{booking}', [BookingPaymentController::class, 'edit'])->name('booking-payments.edit');
     Route::put('booking-payments/update', [BookingPaymentController::class, 'update'])->name('booking-payments.update');
     // Route::resource('booking_payments', BookingPaymentController::class);
+
+    Route::resource('invoice-templates', \App\Http\Controllers\Admin\InvoiceTemplateController::class);
+    Route::post('/bookings/preview-invoice', [InvoiceController::class, 'preview'])
+        ->name('bookings.preview-invoice');
+
+    Route::get('/invoices/{invoice}/preview', [InvoiceController::class, 'previewSaved'])
+        ->name('invoices.preview');
+    Route::get('/invoices/download/{invoice}', [InvoiceController::class, 'download'])
+        ->name('invoices.download');
 
     Route::get('/checkins/index/{booking}/{customer?}', [CheckinsController::class, 'index'])->name('checkins.index');
     Route::post('/checkins/store', [CheckinsController::class, 'store'])->name('checkins.store');
