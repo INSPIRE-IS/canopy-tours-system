@@ -20,7 +20,11 @@ class Invoice extends Model
         'total',
         'status',
         'invoice_template_id',
-        'meta'
+        'meta',
+        'created_at',
+        'updated_at',
+        'deleted_at',
+        'team_id',
     ];
 
     protected $casts = [

@@ -46,13 +46,24 @@ class InvoiceTemplateController extends Controller
 
     public function store(Request $request)
     {
-        $request->validate([
+        $validated = $request->validate([
             'name' => 'required|string',
             'type' => 'required|in:invoice,quote,proforma,receipt',
             'content' => 'required|string',
             'is_default' => 'boolean'
         ]);
+
         $auth = Auth::user();
+        if ($validated['is_default']) {
+            $invoiceTemplates = InvoiceTemplate::where('team_id', $auth->team_id)->where('type', $validated['type'])->get();
+            if ($invoiceTemplates->count() > 0) {
+                $invoiceTemplates->each(function ($template) {
+                    $template->is_default = false;
+                    $template->save();
+                });
+            }
+        }
+
 
         InvoiceTemplate::create($request->only(['name', 'type', 'content', 'is_default', 'team_id' => $auth->team_id]));
 
@@ -67,13 +78,23 @@ class InvoiceTemplateController extends Controller
 
     public function update(Request $request, InvoiceTemplate $invoiceTemplate)
     {
-        $request->validate([
+        $validated = $request->validate([
             'name' => 'required|string',
             'type' => 'required|in:invoice,quote,proforma,receipt',
             'content' => 'required|string',
             'is_default' => 'boolean'
         ]);
 
+        $auth = Auth::user();
+        if ($validated['is_default']) {
+            $invoiceTemplates = InvoiceTemplate::where('team_id', $auth->team_id)->where('type', $validated['type'])->get();
+            if ($invoiceTemplates->count() > 0) {
+                $invoiceTemplates->each(function ($template) {
+                    $template->is_default = false;
+                    $template->save();
+                });
+            }
+        }
         $invoiceTemplate->update($request->only(['name', 'type', 'content', 'is_default']));
 
         return redirect()->route('admin.invoice-templates.index')

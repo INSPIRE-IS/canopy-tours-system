@@ -11,8 +11,6 @@ class InvoiceMail extends Mailable
 {
     use Queueable, SerializesModels;
 
-    use Queueable, SerializesModels;
-
     protected array $invoiceData;
     protected $pdf;
 

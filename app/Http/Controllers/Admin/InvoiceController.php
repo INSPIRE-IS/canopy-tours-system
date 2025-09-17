@@ -14,11 +14,12 @@ class InvoiceController extends Controller
     {
         $data = $request->all(); // booking form draft
         //dd($data);
-        $template = InvoiceTemplate::where('is_default', true)->first();
+        $template = InvoiceTemplate::where('is_default', true)->where('type', 'invoice')->first();
 
         //$template = file_get_contents('invoice-template.html');
 
         $data = [
+            'logo' => '<img src="/assets/icons/logo-icon.png" alt="Logo" style="max-height:50px;">',
             'site' => [
                 'name' => 'Magoebaskloof Canopy Tours',
                 'reg_no' => '2008/018998/07',
@@ -57,7 +58,6 @@ class InvoiceController extends Controller
                 'branch_code' => '632005',
             ],
         ];
-
 
         $html = $this->renderTemplate($template->content, $data);
         return response($html)
@@ -132,14 +132,15 @@ class InvoiceController extends Controller
     private function renderTemplate(string $template, array $data): string
     {
         $placeholders = [
+            '{{logo}}'                => $data['logo'] ?? '',
             '{{site_name}}'           => $data['site']['name'] ?? '',
-            '{{site_RegNo}}'          => $data['site']['reg_no'] ?? '',
+            '{{site_reg_no}}'         => $data['site']['reg_no'] ?? '',
             '{{site_address}}'        => $data['site']['address'] ?? '',
             '{{site_address_code}}'   => $data['site']['address_code'] ?? '',
             '{{client_name}}'         => $data['client']['name'] ?? '',
             '{{client_phone}}'        => $data['client']['phone'] ?? '',
             '{{client_email}}'        => $data['client']['email'] ?? '',
-            '{{invoice_no}}'          => $data['invoice']['number'] ?? '',
+            '{{invoice_number}}'      => $data['invoice']['number'] ?? '',
             '{{invoice_date}}'        => $data['invoice']['date'] ?? '',
             '{{booking_ref}}'         => $data['booking']['ref'] ?? '',
             '{{amount_ex_vat}}'       => $data['amount_ex_vat'] ?? '',

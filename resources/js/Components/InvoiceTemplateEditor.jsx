@@ -5,7 +5,7 @@ import TinyTemplate from './TinyTemplate';
 
 export default function InvoiceTemplateEditor({ value, handleChange, errors }) {
   const [content, setContent] = useState('');
-
+console.log("Editor got value:", value);
   useEffect(() => {
     setContent(value || '');
   }, [value]);

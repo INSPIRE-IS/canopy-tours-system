@@ -16,10 +16,12 @@ export default function Index({ templates, users,auth,permissions, searchTerm, s
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const { props } = usePage();
     console.log('auth on template ', auth);
+    console.log('auth on templates ', templates);
     const [search, setSearch] = useState(searchTerm);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalMode, setModalMode] = useState("create");
     const [isOpenTab, setIsOpenTab] = useState('User_Alerts');
+    const [data, setData] = useState(null);
 
     const handleOpenModal = (mode, template = null) => {
         console.log('mode ', mode);
@@ -44,7 +46,7 @@ export default function Index({ templates, users,auth,permissions, searchTerm, s
         // Redirect to the route with search query and other parameters
         console.log('search ', search);
 
-        window.location.href = route('user_alerts.index', {
+        window.location.href = route('admin.invoice-templates.index', {
             search,
             sort: sortColumn,
             direction: sortDirection
@@ -54,7 +56,7 @@ export default function Index({ templates, users,auth,permissions, searchTerm, s
     const handleDelete = (template) => {
         if (confirm("Are you sure you want to delete this template?")) {
             //post(route("templates.destroy", template), { _method: "DELETE",});
-            router.delete(route('user_alerts.destroy', template), {preserveScroll: true});
+            router.delete(route('admin.invoice-templates.destroy', template), {preserveScroll: true});
         }
     };
 
@@ -79,7 +81,8 @@ export default function Index({ templates, users,auth,permissions, searchTerm, s
 
                     <span className="flex gap-2">
                         {permissions.user_alerts_create && (
-                        <BlueButton title="Add Invoice Template" onClick={() => router.get(route('admin.invoice-templates.create'))} icon={true}/>
+                        // <BlueButton title="Add Invoice Template" onClick={() => router.get(route('admin.invoice-templates.create'))} icon={true}/>
+                        <BlueButton title="Add Invoice Template" onClick={() => handleOpenModal("create")} icon={true}/>
                         )}
                     </span>
                 </div>
@@ -100,8 +103,8 @@ export default function Index({ templates, users,auth,permissions, searchTerm, s
                             <tr className='flex justify-between items-center'>
                                 <th className="w-[95px] p-3">ID</th>
                                 <th className="w-[95px] p-3">Name</th>
-                                <th className="w-[268px] p-3">Alert Text</th>
-                                <th className="w-[132px] p-3">Alert Link</th>
+                                <th className="w-[268px] p-3">Type</th>
+                                <th className="w-[132px] p-3">Default</th>
                                 <th className="w-[185px] p-3">Actions</th>
                             </tr>
                             </thead>
@@ -109,11 +112,11 @@ export default function Index({ templates, users,auth,permissions, searchTerm, s
                             {templates?.data.map((template, i) => (
                                 <tr key={template.id} className="flex justify-between items-center hover:bg-gray-50">
                                 <td className="w-[95px] p-3">{template.id}</td>
-                                <td className="w-[95px] p-3">{template.user_id}</td>
-                                <td className="w-[268px] p-3">{template.alert_text}</td>
-                                <td className="w-[132px] p-3">{template.alert_link}</td>
+                                <td className="w-[95px] p-3">{template.name}</td>
+                                <td className="w-[268px] p-3">{template.type}</td>
+                                <td className="w-[132px] p-3">{template.is_default ? "Yes" : "No"}</td>
                                 <td className="w-[185px] p-3 flex  gap-2">
-                                    {permissions.user_alerts_edit && (
+                                    {false && (
                                     <button onClick={() => handleOpenModal("edit",template)}
                                     className="flex items-center gap-1 text-green-600 hover:text-green-800">
                                     Edit
@@ -124,15 +127,30 @@ export default function Index({ templates, users,auth,permissions, searchTerm, s
                                     className="flex items-center gap-1 text-red-600 hover:text-red-800">
                                     Remove
                                     </button>)}
-                                    {permissions.user_alerts_edit && (
-                                    <button onClick={() => handleOpenModal("view",template)}
-                                    className="flex items-center gap-1 text-blue-600 hover:text-blue-800">
-                                    View
-                                    </button>)}                                 
+                                    {false && (
+                                        <button
+                                        type="button"
+                                        className="btn-secondary"
+                                        onClick={() => {
+                                            router.post(route('admin.bookings.preview-invoice'), data, {
+                                            onSuccess: (res) => {
+                                                // open modal with res.props.html
+                                            }
+                                            })
+                                        }}
+                                        >
+                                        Preview Invoice
+                                        </button>
+                                    // <button onClick={() => handleOpenModal("view",template)}
+                                    // className="flex items-center gap-1 text-blue-600 hover:text-blue-800">
+                                    // View
+                                    // </button>
+                                )}                                 
                                 </td>
                                 </tr>
                             ))}
                             </tbody>
+
                         </table>
 
                     </div>

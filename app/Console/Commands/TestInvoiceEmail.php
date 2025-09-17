@@ -13,9 +13,12 @@ use Barryvdh\DomPDF\Facade\Pdf;
 class TestInvoiceEmail extends Command
 {
     protected $signature = 'invoice:test {email}';
+    // php artisan invoice:test "test@test.com"
+
     protected $description = 'Send a test invoice email with PDF attachment';
 
-    public function handle(TemplateRenderer $renderer)
+    // public function handle(TemplateRenderer $renderer)
+    public function handle()
     {
         $email = $this->argument('email');
 
@@ -83,8 +86,18 @@ class TestInvoiceEmail extends Command
             ],
         ];
 
-        // render HTML from DB template
+        // // render HTML from DB template
+        // $html = $renderer->render($template->content, $invoice);
+
+        // // generate PDF
+        // $pdf = Pdf::loadHTML($html);
+
+        // // send mail
+        // Mail::to($email)->send(new InvoiceMail($invoice, $pdf));
+
+        $renderer = app(\App\Services\TemplateRenderer::class);
         $html = $renderer->render($template->content, $invoice);
+        // renderer->render($template->content, $invoice);
 
         // generate PDF
         $pdf = Pdf::loadHTML($html);

@@ -2,20 +2,22 @@ import { useEffect, useRef } from 'react';
 
 export default function TinyTemplate({ title, field, value, mode, handleChange, errors }) {
   const editorRef = useRef(null);
-  const isInitialized = useRef(false);
-  const activeEditor = useRef(null); // store tinymce instance
+  //const isInitialized = useRef(false);|| isInitialized.current
+  const editorInstance = useRef(null); // store tinymce instance
 
   useEffect(() => {
-    if (!window.tinymce || !editorRef.current || isInitialized.current) return;
+    if (!window.tinymce || !editorRef.current ) return;
 
-    isInitialized.current = true;
+    //isInitialized.current = true;
+
+    
 
     window.tinymce.init({
       license_key: 'gpl',
       target: editorRef.current,
-      plugins: 'lists link code removeformat table',
+      plugins: 'lists link code table',
       toolbar:
-        'undo redo | styles | bold italic | alignleft aligncenter alignright | bullist numlist outdent indent | link  image table | code | removeformat',
+        'undo redo | styles | bold italic | alignleft aligncenter alignright | bullist numlist outdent indent | link  image table | code',
         style_formats: [
           { title: "Heading 1", block: "h1" },
           { title: "Heading 2", block: "h2" },
@@ -35,7 +37,7 @@ export default function TinyTemplate({ title, field, value, mode, handleChange, 
         text_patterns: false,
       readonly: mode === 'view',
       setup: (editor) => {
-        activeEditor.current = editor;
+        editorInstance.current = editor;
 
         editor.on('init', () => {
           editor.setContent(value || '');
@@ -48,14 +50,20 @@ export default function TinyTemplate({ title, field, value, mode, handleChange, 
     });
 
     return () => {
-      if (window.tinymce) window.tinymce.remove();
+      if (editorInstance.current) {
+        editorInstance.current.remove();
+        editorInstance.current = null;
+      }
     };
   }, []); // only run init once
 
   // 👇 NEW: Update editor if parent `value` changes
   useEffect(() => {
-    if (activeEditor.current && value !== activeEditor.current.getContent()) {
-      activeEditor.current.setContent(value || '');
+    if (editorInstance.current) {
+      const current = editorInstance.current.getContent();
+      if (value !== current) {
+        editorInstance.current.setContent(value || '');
+      }
     }
   }, [value]);
 
