@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Models\Booking;
 use App\Models\BookingDetail;
 use App\Models\BookingFee;
+use App\Models\BookingInfo;
 use App\Models\BookingInventory;
 use App\Models\BookingItem;
 use App\Models\BookingPayment;
@@ -42,6 +43,7 @@ use App\Models\Promotion;
 use App\Models\StatusPayment;
 use App\Models\TypeConfirmation;
 use App\Models\TypeGender;
+use App\Models\TypeHelpQuestion;
 use App\Models\TypeLocation;
 use App\Models\TypeReferral;
 use App\Models\Wholesaler;
@@ -58,196 +60,6 @@ class SeedCoreData extends Command
     public function handle()
     {
         $this->info('Seeding core data...');
-
-        // $permissions = [
-        //     [
-        //         'id'    => 1,
-        //         'name' => 'user_management_access',
-        //     ],
-        //     [
-        //         'id'    => 2,
-        //         'name' => 'permission_create',
-        //     ],
-        //     [
-        //         'id'    => 3,
-        //         'name' => 'permission_edit',
-        //     ],
-        //     [
-        //         'id'    => 4,
-        //         'name' => 'permission_show',
-        //     ],
-        //     [
-        //         'id'    => 5,
-        //         'name' => 'permission_delete',
-        //     ],
-        //     [
-        //         'id'    => 6,
-        //         'name' => 'permission_access',
-        //     ],
-        //     [
-        //         'id'    => 7,
-        //         'name' => 'role_create',
-        //     ],
-        //     [
-        //         'id'    => 8,
-        //         'name' => 'role_edit',
-        //     ],
-        //     [
-        //         'id'    => 9,
-        //         'name' => 'role_show',
-        //     ],
-        //     [
-        //         'id'    => 10,
-        //         'name' => 'role_delete',
-        //     ],
-        //     [
-        //         'id'    => 11,
-        //         'name' => 'role_access',
-        //     ],
-        //     [
-        //         'id'    => 12,
-        //         'name' => 'user_create',
-        //     ],
-        //     [
-        //         'id'    => 13,
-        //         'name' => 'user_edit',
-        //     ],
-        //     [
-        //         'id'    => 14,
-        //         'name' => 'user_show',
-        //     ],
-        //     [
-        //         'id'    => 15,
-        //         'name' => 'user_delete',
-        //     ],
-        //     [
-        //         'id'    => 16,
-        //         'name' => 'user_access',
-        //     ],
-        //     [
-        //         'id'    => 17,
-        //         'name' => 'audit_log_show',
-        //     ],
-        //     [
-        //         'id'    => 18,
-        //         'name' => 'audit_log_access',
-        //     ],
-        //     [
-        //         'id'    => 19,
-        //         'name' => 'team_create',
-        //     ],
-        //     [
-        //         'id'    => 20,
-        //         'name' => 'team_edit',
-        //     ],
-        //     [
-        //         'id'    => 21,
-        //         'name' => 'team_show',
-        //     ],
-        //     [
-        //         'id'    => 22,
-        //         'name' => 'team_delete',
-        //     ],
-        //     [
-        //         'id'    => 23,
-        //         'name' => 'team_access',
-        //     ],
-        //     [
-        //         'id'    => 24,
-        //         'name' => 'service_access',
-        //     ],
-        //     [
-        //         'id'    => 25,
-        //         'name' => 'service_create',
-        //     ],
-        //     [
-        //         'id'    => 26,
-        //         'name' => 'service_edit',
-        //     ],
-        //     [
-        //         'id'    => 27,
-        //         'name' => 'service_show',
-        //     ],
-        //     [
-        //         'id'    => 28,
-        //         'name' => 'service_delete',
-        //     ],
-        //     [
-        //         'id'    => 29,
-        //         'name' => 'season_access',
-        //     ],
-        //     [
-        //         'id'    => 30,
-        //         'name' => 'season_create',
-        //     ],
-        //     [
-        //         'id'    => 31,
-        //         'name' => 'season_edit',
-        //     ],
-        //     [
-        //         'id'    => 32,
-        //         'name' => 'season_show',
-        //     ],
-        //     [
-        //         'id'    => 33,
-        //         'name' => 'season_delete',
-        //     ],
-        //     [
-        //         'id'    => 34,
-        //         'name' => 'inventory_access',
-        //     ],
-        //     [
-        //         'id'    => 35,
-        //         'name' => 'inventory_create',
-        //     ],
-        //     [
-        //         'id'    => 36,
-        //         'name' => 'inventory_edit',
-        //     ],
-        //     [
-        //         'id'    => 37,
-        //         'name' => 'inventory_show',
-        //     ],
-        //     [
-        //         'id'    => 38,
-        //         'name' => 'inventory_delete',
-        //     ],
-        //     [
-        //         'id'    => 39,
-        //         'name' => 'task_access',
-        //     ],
-        //     [
-        //         'id'    => 40,
-        //         'name' => 'tasks_calendar_access',
-        //     ],
-        //     [
-        //         'id'    => 41,
-        //         'name' => 'profile_password_edit',
-        //     ],
-        //     [
-        //         'id'    => 42,
-        //         'name' => 'booking_access',
-        //     ],
-        //     [
-        //         'id'    => 43,
-        //         'name' => 'booking_create',
-        //     ],
-        //     [
-        //         'id'    => 44,
-        //         'name' => 'booking_edit',
-        //     ],
-        //     [
-        //         'id'    => 45,
-        //         'name' => 'booking_show',
-        //     ],
-        //     [
-        //         'id'    => 46,
-        //         'name' => 'booking_delete',
-        //     ],
-        // ];
-        // foreach ($permissions as $permission) {
-        //     Permission::updateOrCreate(['id' => $permission['id']], $permission);
-        // }
 
         $tableKey = 'Tables_in_' . DB::getDatabaseName();
 
@@ -292,8 +104,8 @@ class SeedCoreData extends Command
         Role::findOrFail(1)->permissions()->sync($adminPermissions->pluck('id'));
         Role::findOrFail(2)->permissions()->sync($adminPermissions->pluck('id'));
         Role::findOrFail(3)->permissions()->sync($adminPermissions->pluck('id'));
-
-        $userPermissions = $adminPermissions->filter(
+        $userFilterPermissions = Permission::whereNotIn('name', ['closeout_create', 'closeout_edit', 'closeout_delete'])->get();
+        $userPermissions = $userFilterPermissions->filter(
             fn($p) =>
             !str_starts_with($p->name, 'user_') &&
                 !str_starts_with($p->name, 'role_') &&
@@ -510,6 +322,15 @@ class SeedCoreData extends Command
         ];
         foreach ($typePayments as $payment) {
             TypePayment::updateOrCreate(['id' => $payment['id']], $payment);
+        }
+
+        $typeHelpQuestions = [
+            ['id' => 1, 'name' => 'Internal'],
+            ['id' => 2, 'name' => 'External'],
+        ];
+
+        foreach ($typeHelpQuestions as $helpQuestion) {
+            TypeHelpQuestion::updateOrCreate(['id' => $helpQuestion['id']], $helpQuestion);
         }
 
         // StatusBookings
@@ -1630,6 +1451,7 @@ class SeedCoreData extends Command
                 'created_at'     => now(),
                 'updated_at'     => now(),
                 'deleted_at'     => null,
+                'parent_id'      => 1,
             ],
             [
                 'id'             => 4,
@@ -1680,6 +1502,7 @@ class SeedCoreData extends Command
                 'created_at'     => now(),
                 'updated_at'     => now(),
                 'deleted_at'     => null,
+                'parent_id'      => 7,
             ],
             [
                 'id'             => 9,
@@ -1719,7 +1542,7 @@ class SeedCoreData extends Command
                 'is_corporate'   => 0,
                 'due_date'       => '2025-03-01',
                 'tot_paid'       => 0,
-                'grand_tot_due'  => 1700.00,
+                'grand_tot_due'  => 1500.00,
                 'reference'      => 'REF-' . strtoupper(Str::random(6)), //Str::uuid(),
                 'customer_id'     => 1,
                 'updated_by_id'  => 1,
@@ -1727,7 +1550,7 @@ class SeedCoreData extends Command
                 'created_at'     => now(),
                 'updated_at'     => now(),
                 'deleted_at'     => null,
-                'team_id'        => null,
+                'team_id'        => 7,
             ],
             [
                 'id'             => 2,
@@ -1738,15 +1561,15 @@ class SeedCoreData extends Command
                 'is_corporate'   => 0,
                 'due_date'       => '2025-04-02',
                 'tot_paid'       => 0,
-                'grand_tot_due'  => 2000.00,
+                'grand_tot_due'  => 1800.00,
                 'reference'      => 'REF-' . strtoupper(Str::random(6)), //Str::uuid(),
-                'customer_id'     => 1,
+                'customer_id'     => 4,
                 'updated_by_id'  => 1,
                 'customers'      => [4, 5, 6],
                 'created_at'     => now(),
                 'updated_at'     => now(),
                 'deleted_at'     => null,
-                'team_id'        => null,
+                'team_id'        => 7,
             ],
             [
                 'id'             => 3,
@@ -1757,15 +1580,15 @@ class SeedCoreData extends Command
                 'is_corporate'   => 0,
                 'due_date'       => '2025-07-03',
                 'tot_paid'       => 0,
-                'grand_tot_due'  => 1100.00,
+                'grand_tot_due'  => 900.00,
                 'reference'      => 'REF-' . strtoupper(Str::random(6)), //Str::uuid(),
-                'customer_id'     => 1,
+                'customer_id'     => 7,
                 'updated_by_id'  => 1,
                 'customers'      => [7, 8],
                 'created_at'     => now(),
                 'updated_at'     => now(),
                 'deleted_at'     => null,
-                'team_id'        => null,
+                'team_id'        => 7,
             ],
             [
                 'id'             => 4,
@@ -1776,15 +1599,15 @@ class SeedCoreData extends Command
                 'is_corporate'   => 0,
                 'due_date'       => '2025-07-04',
                 'tot_paid'       => 0,
-                'grand_tot_due'  => 5000.00,
+                'grand_tot_due'  => 1200.00,
                 'reference'      => 'REF-' . strtoupper(Str::random(6)), //Str::uuid(),
-                'customer_id'     => 1,
+                'customer_id'     => 9,
                 'updated_by_id'  => 1,
                 'customers'      => [9, 10],
                 'created_at'     => now(),
                 'updated_at'     => now(),
                 'deleted_at'     => null,
-                'team_id'        => null,
+                'team_id'        => 7,
             ],
         ];
 
@@ -1792,6 +1615,7 @@ class SeedCoreData extends Command
             $booking =  Booking::updateOrCreate(['id' => $item['id']], $item);
         }
         $this->info('booking seeded successfully.');
+
         $bookingItems = [
             [
                 'id'             => 1,
@@ -1799,14 +1623,15 @@ class SeedCoreData extends Command
                 'season_id'      => 1,
                 'inventory_id'   => 1,
                 'booking_id'     => 1,
-                'price_adult'    => 200.00,
-                'price_child'    => 100.00,
+                'price_adult'    => 600.00,
+                'price_child'    => 300.00,
                 'price_guide'    => 0.00,
                 'discount_id'    => null,
                 'promotion_id'   => null,
-                'final_price_adult'    => 200.00,
-                'final_price_child'    => 100.00,
-                'final_price_guide'    => 0.00,
+                'pax_adults'    => 2,
+                'pax_children'    => 1,
+                'pax_guides'    => 0,
+                'customers' => [1, 2, 3],
             ],
             [
                 'id'             => 2,
@@ -1814,14 +1639,15 @@ class SeedCoreData extends Command
                 'season_id'      => 2,
                 'inventory_id'   => 2,
                 'booking_id'     => 2,
-                'price_adult'    => 300.00,
-                'price_child'    => 200.00,
+                'price_adult'    => 600.00,
+                'price_child'    => 300.00,
                 'price_guide'    => 0.00,
                 'discount_id'    => null,
                 'promotion_id'   => null,
-                'final_price_adult'    => 300.00,
-                'final_price_child'    => 200.00,
-                'final_price_guide'    => 0.00,
+                'pax_adults'    => 3,
+                'pax_children'    => 0,
+                'pax_guides'    => 0,
+                'customers' => [4, 5, 6],
             ],
             [
                 'id'             => 3,
@@ -1829,14 +1655,15 @@ class SeedCoreData extends Command
                 'season_id'      => 3,
                 'inventory_id'   => 3,
                 'booking_id'     => 3,
-                'price_adult'    => 400.00,
+                'price_adult'    => 600.00,
                 'price_child'    => 300.00,
                 'price_guide'    => 0.00,
                 'discount_id'    => null,
                 'promotion_id'   => null,
-                'final_price_adult'    => 400.00,
-                'final_price_child'    => 300.00,
-                'final_price_guide'    => 0.00,
+                'pax_adults'    => 1,
+                'pax_children'    => 1,
+                'pax_guides'    => 1,
+                'customers' => [7, 8],
             ],
             [
                 'id'             => 4,
@@ -1844,14 +1671,15 @@ class SeedCoreData extends Command
                 'season_id'      => 4,
                 'inventory_id'   => 4,
                 'booking_id'     => 4,
-                'price_adult'    => 500.00,
-                'price_child'    => 400.00,
+                'price_adult'    => 600.00,
+                'price_child'    => 300.00,
                 'price_guide'    => 0.00,
                 'discount_id'    => null,
                 'promotion_id'   => null,
-                'final_price_adult'    => 500.00,
-                'final_price_child'    => 400.00,
-                'final_price_guide'    => 0.00,
+                'pax_adults'    => 2,
+                'pax_children'    => 0,
+                'pax_guides'    => 1,
+                'customers' => [9, 10],
             ],
         ];
 
@@ -1860,11 +1688,11 @@ class SeedCoreData extends Command
             $bookingItem['price_child'] = floatval(str_replace('R', '', $bookingItem['price_child']));
             $bookingItem['price_guide'] = floatval(str_replace('R', '', $bookingItem['price_guide']));
 
-            $bookingItem =  BookingItem::updateOrCreate(['id' => $bookingItem['id']], $bookingItem);
+            $out =  BookingItem::updateOrCreate(['id' => $bookingItem['id']], $bookingItem);
             // Prepare pivot data
             $pivotData = [];
 
-            foreach ($item['customers'] as $index => $customerId) {
+            foreach ($bookingItem['customers'] as $index => $customerId) {
                 $pivotData[$customerId] = [
                     'team_id' => $item['team_id'],         // Or use logic to assign different teams
                     'is_lead' => $index === 0 ? 1 : 0,     // First customer is lead, rest are not
@@ -1872,12 +1700,13 @@ class SeedCoreData extends Command
             }
 
             // Sync with pivot data
-            $bookingItem->customers()->sync($pivotData);
+            $out->customers()->sync($pivotData);
             //$booking->customers()->sync($item['customers']);
 
 
         }
         $this->info('bookingItems seeded successfully.');
+
         $customerManifests = [
             [
                 'id'             => 1,
@@ -1889,7 +1718,7 @@ class SeedCoreData extends Command
                 'created_at'     => now(),
                 'updated_at'     => now(),
                 'deleted_at'     => null,
-                'team_id'        => null,
+                'team_id'        => 7,
             ],
             [
                 'id'             => 2,
@@ -1901,7 +1730,7 @@ class SeedCoreData extends Command
                 'created_at'     => now(),
                 'updated_at'     => now(),
                 'deleted_at'     => null,
-                'team_id'        => null,
+                'team_id'        => 7,
             ],
             [
                 'id'             => 3,
@@ -1913,7 +1742,8 @@ class SeedCoreData extends Command
                 'created_at'     => now(),
                 'updated_at'     => now(),
                 'deleted_at'     => null,
-                'team_id'        => null,
+                'team_id'        => 7,
+                'type'           => 'child',
             ],
             [
                 'id'             => 4,
@@ -1925,7 +1755,7 @@ class SeedCoreData extends Command
                 'created_at'     => now(),
                 'updated_at'     => now(),
                 'deleted_at'     => null,
-                'team_id'        => null,
+                'team_id'        => 7,
             ],
             [
                 'id'             => 5,
@@ -1937,7 +1767,7 @@ class SeedCoreData extends Command
                 'created_at'     => now(),
                 'updated_at'     => now(),
                 'deleted_at'     => null,
-                'team_id'        => null,
+                'team_id'        => 7,
             ],
             [
                 'id'             => 6,
@@ -1949,7 +1779,7 @@ class SeedCoreData extends Command
                 'created_at'     => now(),
                 'updated_at'     => now(),
                 'deleted_at'     => null,
-                'team_id'        => null,
+                'team_id'        => 7,
             ],
             [
                 'id'             => 7,
@@ -1961,7 +1791,7 @@ class SeedCoreData extends Command
                 'created_at'     => now(),
                 'updated_at'     => now(),
                 'deleted_at'     => null,
-                'team_id'        => null,
+                'team_id'        => 7,
             ],
             [
                 'id'             => 8,
@@ -1973,7 +1803,8 @@ class SeedCoreData extends Command
                 'created_at'     => now(),
                 'updated_at'     => now(),
                 'deleted_at'     => null,
-                'team_id'        => null,
+                'team_id'        => 7,
+                'type'           => 'child',
             ],
             [
                 'id'             => 9,
@@ -1985,7 +1816,7 @@ class SeedCoreData extends Command
                 'created_at'     => now(),
                 'updated_at'     => now(),
                 'deleted_at'     => null,
-                'team_id'        => null,
+                'team_id'        => 7,
             ],
             [
                 'id'             => 10,
@@ -1997,14 +1828,13 @@ class SeedCoreData extends Command
                 'created_at'     => now(),
                 'updated_at'     => now(),
                 'deleted_at'     => null,
-                'team_id'        => null,
+                'team_id'        => 7,
             ],
         ];
 
         foreach ($customerManifests as $customerManifest) {
             CustomerManifest::updateOrCreate(['id' => $customerManifest['id']], $customerManifest);
         }
-
 
         $bookingDetails = [
             [
@@ -2019,7 +1849,7 @@ class SeedCoreData extends Command
                 'created_at'     => now(),
                 'updated_at'     => now(),
                 'deleted_at'     => null,
-                'team_id'        => null,
+                'team_id'        => 7,
             ],
             [
                 'id'             => 2,
@@ -2033,7 +1863,7 @@ class SeedCoreData extends Command
                 'created_at'     => now(),
                 'updated_at'     => now(),
                 'deleted_at'     => null,
-                'team_id'        => null,
+                'team_id'        => 7,
             ],
             [
                 'id'             => 3,
@@ -2047,7 +1877,7 @@ class SeedCoreData extends Command
                 'created_at'     => now(),
                 'updated_at'     => now(),
                 'deleted_at'     => null,
-                'team_id'        => null,
+                'team_id'        => 7,
             ],
             [
                 'id'             => 4,
@@ -2061,7 +1891,7 @@ class SeedCoreData extends Command
                 'created_at'     => now(),
                 'updated_at'     => now(),
                 'deleted_at'     => null,
-                'team_id'        => null,
+                'team_id'        => 7,
             ],
         ];
 
@@ -2126,10 +1956,10 @@ class SeedCoreData extends Command
                 'booking_item_id'     => 4,
                 'booking_detail_id' => 4,
                 'date'           => '2025-07-04',
-                'tot_adults'     => 8,
+                'tot_adults'     => 2,
                 'tot_children'   => 0,
                 'tot_guides'     => 1,
-                'pax'            => 8,
+                'pax'            => 2,
                 'inventory_type_day_id' => 3,
                 'inventory_time_slot_id' => 1,
                 'inventory_override_id' => null,
@@ -2151,17 +1981,17 @@ class SeedCoreData extends Command
                 'booking_detail_id' => 1,
                 'tot_adults'     => 1200.00,
                 'tot_children'   => 300.00,
-                'tot_guides'     => 200.00,
+                'tot_guides'     => 0,
                 'is_voucher'     => 0,
                 'voucher_code'   => '',
                 'invoice_note'   => '',
                 'is_email_reminder' => 0,
                 'booking_note'   => '',
-                'tot_amount'     => 1700.00,
+                'tot_amount'     => 1500.00,
                 'created_at'     => now(),
                 'updated_at'     => now(),
                 'deleted_at'     => null,
-                'team_id'        => null,
+                'team_id'        => 7,
             ],
             [
                 'id'             => 2,
@@ -2169,17 +1999,17 @@ class SeedCoreData extends Command
                 'booking_detail_id' => 2,
                 'tot_adults'     => 1800.00,
                 'tot_children'   => 0,
-                'tot_guides'     => 200.00,
+                'tot_guides'     => 0,
                 'is_voucher'     => 0,
                 'voucher_code'   => '',
                 'invoice_note'   => '',
                 'is_email_reminder' => 0,
                 'booking_note'   => '',
-                'tot_amount'     => 2000.00,
+                'tot_amount'     => 1800.00,
                 'created_at'     => now(),
                 'updated_at'     => now(),
                 'deleted_at'     => null,
-                'team_id'        => null,
+                'team_id'        => 7,
             ],
             [
                 'id'             => 3,
@@ -2187,40 +2017,162 @@ class SeedCoreData extends Command
                 'booking_detail_id' => 3,
                 'tot_adults'     => 600.00,
                 'tot_children'   => 300.00,
-                'tot_guides'     => 200.00,
+                'tot_guides'     => 0,
                 'is_voucher'     => 0,
                 'voucher_code'   => '',
                 'invoice_note'   => '',
                 'is_email_reminder' => 0,
                 'booking_note'   => '',
-                'tot_amount'     => 1100.00,
+                'tot_amount'     => 900.00,
                 'created_at'     => now(),
                 'updated_at'     => now(),
                 'deleted_at'     => null,
-                'team_id'        => null,
+                'team_id'        => 7,
             ],
             [
                 'id'             => 4,
                 'booking_item_id'     => 4,
                 'booking_detail_id' => 4,
-                'tot_adults'     => 4800.00,
+                'tot_adults'     => 1200.00,
                 'tot_children'   => 0,
-                'tot_guides'     => 200.00,
+                'tot_guides'     => 0,
                 'is_voucher'     => 0,
                 'voucher_code'   => '',
                 'invoice_note'   => '',
                 'is_email_reminder' => 0,
                 'booking_note'   => '',
-                'tot_amount'     => 5000.00,
+                'tot_amount'     => 1200.00,
                 'created_at'     => now(),
                 'updated_at'     => now(),
                 'deleted_at'     => null,
-                'team_id'        => null,
+                'team_id'        => 7,
             ],
         ];
         foreach ($bookingFees as $bookingFee) {
             BookingFee::updateOrCreate(['id' => $bookingFee['id']], $bookingFee);
         }
+
+        $bookingInfos = [
+            [
+                'id'             => 1,
+                'booking_item_id'     => 1,
+                'type_location_id' => 1,
+                'location'         => 'pickup',
+                'time'             => '08:00:00',
+                'meridiem'         => 'AM',
+                'team_id'        => 7,
+            ],
+            [
+                'id'             => 2,
+                'booking_item_id'     => 1,
+                'type_location_id' => 2,
+                'location'         => 'start',
+                'time'             => '08:00:00',
+                'meridiem'         => 'AM',
+                'team_id'        => 7,
+            ],
+            [
+                'id'             => 3,
+                'booking_item_id'     => 1,
+                'type_location_id' => 3,
+                'location'         => 'dropoff',
+                'time'             => '08:00:00',
+                'meridiem'         => 'AM',
+                'team_id'        => 7,
+            ],
+            [
+                'id'             => 4,
+                'booking_item_id'     => 2,
+                'type_location_id' => 1,
+                'location'         => 'pickup',
+                'time'             => '08:00:00',
+                'meridiem'         => 'AM',
+                'team_id'        => 7,
+            ],
+            [
+                'id'             => 5,
+                'booking_item_id'     => 2,
+                'type_location_id' => 2,
+                'location'         => 'start',
+                'time'             => '08:00:00',
+                'meridiem'         => 'AM',
+                'team_id'        => 7,
+            ],
+            [
+                'id'             => 6,
+                'booking_item_id'     => 2,
+                'type_location_id' => 3,
+                'location'         => 'dropoff',
+                'time'             => '08:00:00',
+                'meridiem'         => 'AM',
+                'team_id'        => 7,
+            ],
+            [
+                'id'             => 7,
+                'booking_item_id'     => 3,
+                'type_location_id' => 1,
+                'location'         => 'pickup',
+                'time'             => '08:00:00',
+                'meridiem'         => 'AM',
+                'team_id'        => 7,
+            ],
+            [
+                'id'             => 8,
+                'booking_item_id'     => 3,
+                'type_location_id' => 2,
+                'location'         => 'start',
+                'time'             => '08:00:00',
+                'meridiem'         => 'AM',
+                'team_id'        => 7,
+            ],
+            [
+                'id'             => 9,
+                'booking_item_id'     => 3,
+                'type_location_id' => 3,
+                'location'         => 'dropoff',
+                'time'             => '08:00:00',
+                'meridiem'         => 'AM',
+                'team_id'        => 7,
+            ],
+            [
+                'id'             => 10,
+                'booking_item_id'     => 4,
+                'type_location_id' => 1,
+                'location'         => 'pickup',
+                'time'             => '08:00:00',
+                'meridiem'         => 'AM',
+                'team_id'        => 7,
+            ],
+            [
+                'id'             => 11,
+                'booking_item_id'     => 4,
+                'type_location_id' => 2,
+                'location'         => 'start',
+                'time'             => '08:00:00',
+                'meridiem'         => 'AM',
+                'team_id'        => 7,
+            ],
+            [
+                'id'             => 12,
+                'booking_item_id'     => 4,
+                'type_location_id' => 3,
+                'location'         => 'dropoff',
+                'time'             => '08:00:00',
+                'meridiem'         => 'AM',
+                'team_id'        => 7,
+            ],
+        ];
+
+        foreach ($bookingInfos as $info) {
+            BookingInfo::updateOrCreate(
+                [
+                    'booking_item_id' => $info['booking_item_id'],
+                    'type_location_id' => $info['type_location_id'],
+                ],
+                $info
+            );
+        }
+
 
         $bookingPayments = [
             [
@@ -2229,7 +2181,7 @@ class SeedCoreData extends Command
                 'type_pay_option_id'   => 1,     // or 'Pay Offline'
                 'type_payment_id' => 1, // Cash // 5 eft
                 'status_payment_id'         => 1,        // 'paid', 'failed', 'cancelled'
-                'amount'         => 1700.00,          // full amount due or partial
+                'amount'         => 1500.00,          // full amount due or partial
                 'reference'      => $bookings[0]['reference'], //  'OFF-' . strtoupper(Str::random(6)), // can be order ref or external tx
                 'gateway_id'        => 1,        // 'Manual'
                 'meta'           => json_encode([
@@ -2251,7 +2203,7 @@ class SeedCoreData extends Command
                 'type_pay_option_id'   => 1,     // or 'Pay Offline'
                 'type_payment_id' => 1, // Cash // 5 eft
                 'status_payment_id'         => 1,        // 'paid', 'failed', 'cancelled'
-                'amount'         => 1000.00,          // full amount due or partial
+                'amount'         => 1800.00,          // full amount due or partial
                 'reference'      => $bookings[1]['reference'], // 'OFF-' . strtoupper(Str::random(6)), // can be order ref or external tx
                 'gateway_id'        => 1,        // 'Manual'
                 'meta'           => json_encode([
@@ -2273,7 +2225,7 @@ class SeedCoreData extends Command
                 'type_pay_option_id'   => 1,     // or 'Pay Offline'
                 'type_payment_id' => 1, // Cash // 5 eft
                 'status_payment_id'         => 1,        // 'paid', 'failed', 'cancelled'
-                'amount'         => 500.00,          // full amount due or partial
+                'amount'         => 900.00,          // full amount due or partial
                 'reference'      => $bookings[2]['reference'], //'OFF-' . strtoupper(Str::random(6)), // can be order ref or external tx
                 'gateway_id'        => 1,        // 'Manual'
                 'meta'           => json_encode([
@@ -2295,7 +2247,7 @@ class SeedCoreData extends Command
                 'type_pay_option_id'   => 1,     // or 'Pay Offline'
                 'type_payment_id' => 1, // Cash // 5 eft
                 'status_payment_id'         => 1,        // 'paid', 'failed', 'cancelled'
-                'amount'         => 3000.00,          // full amount due or partial
+                'amount'         => 1200.00,          // full amount due or partial
                 'reference'      => $bookings[3]['reference'], //'OFF-' . strtoupper(Str::random(6)), // can be order ref or external tx
                 'gateway_id'        => 1,        // 'Manual'
                 'meta'           => json_encode([
