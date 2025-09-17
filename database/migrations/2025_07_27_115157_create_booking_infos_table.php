@@ -19,6 +19,7 @@ return new class extends Migration
             $table->time('time')->nullable();
             $table->string('meridiem')->nullable();
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

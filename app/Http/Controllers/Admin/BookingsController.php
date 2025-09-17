@@ -359,7 +359,7 @@ class BookingsController extends Controller
                     'is_corporate'   => $validated['corporate_customer'],
                     'due_date'       => $validated['booking_date'],
                     'tot_paid'       => 0,
-                    'grand_tot_due'  => $amount,
+                    'grand_tot_due'  => $amount * 1.15,
                     'reference'      => 'REF-' . strtoupper(Str::random(6)), //Str::uuid(),
                     'service_id'     => $season->service_id,
                     'season_id'      => $season->id,
@@ -478,13 +478,23 @@ class BookingsController extends Controller
                     'updated_at'     => now(),
                     'team_id'        => null,
                 ]);
-
+                $template = InvoiceTemplate::where('is_default', true)->firstOrFail();
                 $invoice = Invoice::create([
                     'booking_id'     => $booking->id,
-                    'template_id'    => $validated['invoice_template_id'],
-                    'is_default'     => $validated['is_invoice_default'],
-                    'is_emailed'     => $validated['is_invoice_emailed'],
-                    'is_printed'     => $validated['is_invoice_printed'],
+                    'customer_id'    => $customer->id,
+                    'number'         => $booking->reference,
+                    'invoice_date'   => $validated['booking_date'],
+                    'due_date'       => $validated['booking_date'],
+                    'subtotal'       => $amount,
+                    'vat'            => $amount * 0.15,
+                    'total'          => $amount * 1.15,
+                    'status'         => 'draft',
+                    'invoice_template_id'    => $template->id,
+                    'meta'           => json_encode([
+                        'file_path' => '/assets/icons/plus.svg',
+                        'note' => '',
+                        'original_name' => '',
+                    ]),
                     'created_at'     => now(),
                     'updated_at'     => now(),
                     'team_id'        => auth()->user()->team_id,
@@ -492,23 +502,14 @@ class BookingsController extends Controller
 
                 $invoiceItems = InvoiceItem::create([
                     'invoice_id'     => $invoice->id,
-                    'booking_id'     => $booking->id,
-                    'service_id'     => $season->service_id,
-                    'season_id'      => $season->id,
-                    'inventory_id'   => $inventory->id,
-                    'pax_adults'     => $adultsCount,
-                    'pax_children'   => $childrenCount,
-                    'pax_guides'     => $guidesCount,
-                    'price_adult'    => $amount_adults,
-                    'price_child'    => $amount_children,
-                    'price_guide'    => $amount_guides,
-                    'discount_id'    => null,
-                    'created_at'     => now(),
-                    'updated_at'     => now(),
-                    'team_id'        => auth()->user()->team_id,
+                    'description' => 'test',
+                    'qty' => 1,
+                    'price' => 0.00,
+                    'subtotal' => $amount,
+                    'team_id' => auth()->user()->team_id,
                 ]);
 
-                $template = InvoiceTemplate::where('is_default', true)->firstOrFail();
+
 
                 // fake invoice data for testing
                 $invoice = [
@@ -524,7 +525,7 @@ class BookingsController extends Controller
                         'email' => $validated['lead_email'],
                     ],
                     'invoice' => [
-                        'invoice_no' => '0002129',
+                        'number' => '0002129',
                         'date'   => now()->toDateString(),
                     ],
                     'booking' => [
@@ -576,7 +577,7 @@ class BookingsController extends Controller
                 // generate PDF
                 $pdf = Pdf::loadHTML($html);
 
-                // send mail
+                //send mail
                 $sent = Mail::to($validated['lead_email'])->send(new InvoiceMail($invoice, $pdf));
 
                 Log::info('invoice email sent', [
@@ -825,11 +826,6 @@ class BookingsController extends Controller
         // });
         //dd($booking);
         return Inertia::render('Admin/Bookings/Add', ['booking' => $booking, 'bookingItem' => $bookingItem, 'staff' => $staff]);
-
-
-
-
-
         // $users = User::pluck('name', 'id')->prepend(trans('global.pleaseSelect'), '');
 
         // $status_bookings = StatusBooking::pluck('name', 'id')->prepend(trans('global.pleaseSelect'), '');

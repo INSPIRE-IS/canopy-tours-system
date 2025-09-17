@@ -6,16 +6,10 @@ import CustomSelect from "@/Components/CustomSelect";
 import OutlineButton from "@/Components/OutlineButton";
 import BlueButton from "@/Components/BlueButton";
 
-const ManifestModal = ({
-    isOpen,
-    onClose,
-    mode,
-    customer_manifests,
-    pax,
-    tot_adults,
-    tot_children
-}) => {
-    // console.log("customer_manifests", customer_manifests);
+const ManifestModal = ({isOpen, onClose, mode, customer_manifests, pax, tot_adults, tot_children}) => {
+
+console.log("customer_manifests", customer_manifests);
+console.log("mode", mode);
 
 const [adults, setAdults] = useState([]);
 
@@ -41,6 +35,7 @@ useEffect(() => {
             nationality_id: m.customer?.nationality_id ?? "",
             age: m.customer?.age ?? null,
             contact_number: m.customer?.contact_number ?? "",
+            booking_item_id: m.booking_item_id ?? "",
         })});
         console.log("mapped", mapped);
         // const adults = data.customer_manifests.filter(p => p.type === "adult");
@@ -94,6 +89,7 @@ const handleAddPerson = (type) => {
                 age: null,
                 contact_number: "",
                 customer_id: null, // new record
+                booking_item_id: bookingItem.id,
             }
         ]);
         return;
@@ -114,6 +110,7 @@ const handleAddPerson = (type) => {
             age: null,
             contact_number: "",
             customer_id: null,
+            booking_item_id: bookingItem.id,
         }
     ]);
 };
@@ -160,11 +157,11 @@ const handleAddPerson = (type) => {
     const handleSubmit = (e) => {
         e.preventDefault();
         if (mode === "create") {
-            post(route("manifests.store"), {
+            post(route("admin.customer-manifests.add"), {
                 onSuccess: () => onClose(),
             });
         } else if (mode === "edit") {
-            put(route("manifests.update", /* manifest id */), {
+            put(route("admin.customer-manifests.edit", customer_manifests[0].booking_item_id), {
                 onSuccess: () => onClose(),
             });
         }
@@ -281,8 +278,8 @@ const handleAddPerson = (type) => {
                             />
 
                             <CustomCheckbox
-                                title="Indemnity Signed?"
-                                field="is_indemnity"
+                                label="Indemnity Signed?"
+                                name="is_indemnity"
                                 checked={person.is_indemnity}
                                 onChange={(f, val) => handlePersonChange(index, f, val)}
                                 errors={errors}

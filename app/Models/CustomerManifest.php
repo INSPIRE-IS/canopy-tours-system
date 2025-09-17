@@ -31,6 +31,7 @@ class CustomerManifest extends Model
         'updated_at',
         'deleted_at',
         'team_id',
+        'type',
     ];
 
     protected function serializeDate(DateTimeInterface $date)

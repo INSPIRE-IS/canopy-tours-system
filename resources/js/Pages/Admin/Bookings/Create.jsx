@@ -1925,7 +1925,22 @@ console.log('-------------------------data-------------------------');
                                     type="button"
                                     onClick={(e) =>handleSubmit(e)}
                                     disabled={processing}
-                                />                                
+                                /> 
+{/* <button
+  type="button"
+  className="btn-secondary"
+  onClick={() => {
+    post(route('admin.bookings.preview-invoice'), data, {
+      onSuccess: (res) => {
+        // open modal with res.props.html
+      }
+    })
+  }}
+>
+  Preview Invoice
+</button> */}
+
+
                             </div>
            
                         </div>

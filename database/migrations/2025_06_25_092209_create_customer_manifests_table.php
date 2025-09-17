@@ -14,6 +14,7 @@ return new class extends Migration
         Schema::create('customer_manifests', function (Blueprint $table) {
             $table->id();
             $table->string('position')->nullable();
+            $table->enum('type', ['adult', 'child'])->default('adult');
             $table->longText('notes')->nullable();
             $table->boolean('is_indemnity')->default(0)->nullable();
             $table->timestamps();

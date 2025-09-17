@@ -37,6 +37,11 @@ class Customer extends Model
         return $date->format('Y-m-d H:i:s');
     }
 
+    public function parent()
+    {
+        return $this->belongsTo(Customer::class, 'parent_id');
+    }
+
     public function booking()
     {
         return $this->belongsToMany(Booking::class);

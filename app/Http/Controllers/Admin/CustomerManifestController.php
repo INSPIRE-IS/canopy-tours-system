@@ -15,60 +15,58 @@ use Symfony\Component\HttpFoundation\Response;
 
 class CustomerManifestController extends Controller
 {
-    public function index()
+
+    public function add(StoreCustomerManifestRequest $request)
     {
-        abort_if(Gate::denies('customer_manifest_access'), Response::HTTP_FORBIDDEN, '403 Forbidden');
-
-        $customerManifests = CustomerManifest::with(['customer', 'booking', 'team'])->get();
-
-        return view('admin.customerManifests.index', compact('customerManifests'));
-    }
-
-    public function create()
-    {
-        abort_if(Gate::denies('customer_manifest_create'), Response::HTTP_FORBIDDEN, '403 Forbidden');
-
-        $customers = Customer::pluck('full_name as name', 'id')->prepend(trans('global.pleaseSelect'), '');
-
-        $bookings = Booking::pluck('lead_name', 'id')->prepend(trans('global.pleaseSelect'), '');
-
-        return view('admin.customerManifests.create', compact('bookings', 'customers'));
-    }
-
-    public function store(StoreCustomerManifestRequest $request)
-    {
+        dd($request->all());
+        $validated = $request->validate([
+            'position' => 'required|string',
+            'notes' => 'nullable|string',
+            'is_indemnity' => 'boolean',
+            'customer_id' => 'required|exists:customers,id',
+            'booking_item_id' => 'required|exists:booking_items,id',
+        ]);
         $customerManifest = CustomerManifest::create($request->all());
 
         return redirect()->route('admin.customer-manifests.index');
     }
 
-    public function edit(CustomerManifest $customerManifest)
+    public function edit(UpdateCustomerManifestRequest $request)
     {
-        abort_if(Gate::denies('customer_manifest_edit'), Response::HTTP_FORBIDDEN, '403 Forbidden');
 
-        $customers = Customer::pluck('full_name as name', 'id')->prepend(trans('global.pleaseSelect'), '');
+        $details = $request->all();
+        foreach ($details['customer_manifests'] as $detail) {
 
-        $bookings = Booking::pluck('lead_name', 'id')->prepend(trans('global.pleaseSelect'), '');
+            $customer = Customer::updateOrCreate(
+                [
+                    'id' => $detail['customer_id'],
+                ],
+                [
+                    'full_name' => $detail['full_name'],
+                    'email_address' => $detail['email_address'],
+                    'contact_number' => $detail['contact_number'],
+                    'age' => $detail['age'],
+                    'parent_id' => $detail['parent_id'],
+                    'contact_number' => $detail['contact_number'],
+                ]
+            );
 
-        $customerManifest->load('customer', 'booking', 'team');
+            CustomerManifest::updateOrCreate(
+                [
+                    'customer_id' => $customer->id,
+                    'booking_item_id' => $detail['booking_item_id'],
+                ],
+                [
+                    'position' => $detail['position'],
+                    'notes' => $detail['notes'],
+                    'is_indemnity' => $detail['is_indemnity'],
+                ]
+            );
+        }
 
-        return view('admin.customerManifests.edit', compact('bookings', 'customerManifest', 'customers'));
-    }
+        //$customerManifest->update($request->all());
 
-    public function update(UpdateCustomerManifestRequest $request, CustomerManifest $customerManifest)
-    {
-        $customerManifest->update($request->all());
-
-        return redirect()->route('admin.customer-manifests.index');
-    }
-
-    public function show(CustomerManifest $customerManifest)
-    {
-        abort_if(Gate::denies('customer_manifest_show'), Response::HTTP_FORBIDDEN, '403 Forbidden');
-
-        $customerManifest->load('customer', 'booking', 'team');
-
-        return view('admin.customerManifests.show', compact('customerManifest'));
+        return redirect()->back()->with('success', 'Customer manifests updated successfully.');
     }
 
     public function destroy(CustomerManifest $customerManifest)

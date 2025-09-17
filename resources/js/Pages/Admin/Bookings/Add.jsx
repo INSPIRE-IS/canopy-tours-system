@@ -72,7 +72,7 @@ export default function Dashboard({ auth, booking, bookingItem, staff  }) {
         }     
     );
 
-
+console.log('data', data);
     const handleOpenModal = (mode, user = null) => {
         console.log('mode ', mode);
         console.log('user ', user);
@@ -83,6 +83,7 @@ export default function Dashboard({ auth, booking, bookingItem, staff  }) {
     };
 
     const handleCloseModal = () => {
+        window.location.reload();
         setIsModalOpen(false);
         //setSelectedUser(null);
     };
@@ -123,7 +124,7 @@ export default function Dashboard({ auth, booking, bookingItem, staff  }) {
                         {isDirty && (<p className="text-yellow-600 text-sm mt-1">You have unsaved changes</p>)}
                     </span>
                     <span className="flex gap-2">
-                    <button onClick={() => router.get(route('admin.checkins.index',{'booking': booking?.id}))} className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-red-gradient-overlay border-[#C65468] text-white shadow-inset-white cursor-pointer">
+                    <button onClick={() => router.get(route('admin.checkins.index',{'booking_id': booking?.id, 'customer_id': booking?.customer_id}))} className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-red-gradient-overlay border-[#C65468] text-white shadow-inset-white cursor-pointer">
                         <img src="/assets/icons/plus.svg" alt="bookings" className="w-5 h-5" />
                         <span className="text-btn-outline-gray">Check in</span>
                     </button>
@@ -141,7 +142,7 @@ export default function Dashboard({ auth, booking, bookingItem, staff  }) {
                                 width="w-[158.8px]"
                                 height="h-[31px]"
                                 className="mt-4"
-                                onClick={() => router.get(route('admin.checkins.index',{'booking': booking?.id}))}
+                                onClick={() => router.get(route('admin.checkins.index',{'booking_id': booking?.id, 'customer_id': booking?.customer_id}))}
                             /> 
                             <WhiteButton
                                 title="Send Invoice" 
@@ -328,14 +329,14 @@ export default function Dashboard({ auth, booking, bookingItem, staff  }) {
                                                             </div>
                                                             <div className='basis-[20%] items-center pt-2 ' >
                                                                 <WhiteButton
-                                                                    title="Check-In" 
+                                                                    title="Check-In ii" 
                                                                     icon={true}
                                                                     iconName={icons.check_in}
                                                                     textColor='text-[#4D81E7]'
                                                                     width="w-[132.8px]"
                                                                     height="h-[31px]"
                                                                     className="mt-4"
-                                                                    onClick={() => router.get(route('admin.checkins.index',{'booking': booking?.id, 'customer': customer?.id}))}
+                                                                    onClick={() => router.get(route('admin.checkins.index',{'booking_id': booking?.id, 'customer_id': manifest?.customer_id}))}
                                                                 />
                                                             </div>
                                                         </div>
@@ -344,7 +345,7 @@ export default function Dashboard({ auth, booking, bookingItem, staff  }) {
                                                                 <CustomInputText
                                                                     title="Position"
                                                                     name="customer_position"
-                                                                    value={manifest.customer.customer_position}
+                                                                    value={manifest.position}
                                                                     height="h-[48px]"
                                                                     width="w-[61px]"
                                                                     type="text"
@@ -357,7 +358,7 @@ export default function Dashboard({ auth, booking, bookingItem, staff  }) {
                                                                 <CustomInputText
                                                                     title="Notes"
                                                                     name="customer_notes"
-                                                                    value={manifest.customer.customer_notes}
+                                                                    value={manifest.notes}
                                                                     height="h-[48px]"
                                                                     type="email"
                                                                     mode = "view"                            

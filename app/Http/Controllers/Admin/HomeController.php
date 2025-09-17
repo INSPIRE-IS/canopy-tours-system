@@ -139,8 +139,10 @@ class HomeController extends Controller
                 'created_at'   => '',
             ],
             'translation_key' => 'customerManifest',
-            'data'           => \App\Models\CustomerManifest::with('customer:id,full_name', 'booking:id,reference')->latest()->take(10)->get(),
+            'data'           => \App\Models\CustomerManifest::with('customer:id,full_name', 'booking_items.booking:id,reference')->latest()->take(10)->get(),
         ];
+
+        //dd($settings5);
 
         return Inertia::render('Dashboard', [
             'chart1' => [

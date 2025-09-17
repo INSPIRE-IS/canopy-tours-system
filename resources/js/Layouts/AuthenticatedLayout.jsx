@@ -129,6 +129,12 @@ const headerConfig = [
       backUrl: route('admin.bookings.index'),
     },
     {
+      match: 'admin.checkins.index',
+      title: 'Checkin',
+      backLabel: 'Back to all Bookings',
+      backUrl: route('admin.bookings.index'),
+    },
+    {
       match: 'admin.booking-payments.create',
       title: 'Submit Payment',
       backLabel: 'Back to all Bookings',
@@ -182,19 +188,19 @@ const headerConfig = [
       backLabel: 'Back to all Bookings',
       backUrl: route('admin.bookings.index'),
     },
-        {
+    {
       match: 'admin.wholesalers.index',
       title: 'wholesalers',
       backLabel: 'Back to all Bookings',
       backUrl: route('admin.bookings.index'),
     },
-        {
+    {
       match: 'admin.wholesaler-rates.index',
       title: 'wholesaler rates',
       backLabel: 'Back to all Bookings',
       backUrl: route('admin.bookings.index'),
     },
-        {
+    {
       match: 'admin.wholesaler-rates.index',
       title: 'wholesaler rates',
       backLabel: 'Back to all Bookings',

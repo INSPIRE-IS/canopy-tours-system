@@ -38,9 +38,11 @@ class ServicesController extends Controller
             ->where('name', 'like', '%' . $searchTerm . '%')
             ->orderBy($sortColumn, $sortDirection)
             ->paginate(10);
+
         $serviceFields = ServiceField::orderBy('type_category_id')
             ->orderBy('order')
             ->get();
+
         return Inertia::render('Admin/Services/Index1', [
             'services' => $services,
             'searchTerm' => $searchTerm,

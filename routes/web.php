@@ -160,7 +160,7 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['auth', 'v
     Route::get('messenger/{topic}', [MessengerController::class, 'showMessages'])->name('messenger.showMessages');
     Route::delete('messenger/{topic}', [MessengerController::class, 'destroyTopic'])->name('messenger.destroyTopic');
     Route::post('messenger/{topic}/reply', [MessengerController::class, 'replyToTopic'])->name('messenger.reply');
-    Route::get('messenger/{topic}/reply', [MessengerController::class, 'showReply'])->name('messenger.showReply');
+    Route::get('messenger/{topic}/showReply', [MessengerController::class, 'showReply'])->name('messenger.showReply');
 
     // reports
     Route::resource('reports', ReportsController::class);
@@ -176,6 +176,8 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['auth', 'v
     Route::post('/bookings/calculate-price', [BookingsController::class, 'calculate'])->name('booking.calculate');
     Route::get('bookings/add/{booking}', [BookingsController::class, 'add'])->name('bookings.add');
     Route::resource('bookings', BookingsController::class);
+    Route::post('customer-manifests/add', [CustomerManifestController::class, 'add'])->name('customer-manifests.add');
+    Route::put('customer-manifests/edit/{booking_item_id}', [CustomerManifestController::class, 'edit'])->name('customer-manifests.edit');
     Route::get('booking-payments/create/{booking}', [BookingPaymentController::class, 'create'])->name('booking-payments.create');
     Route::post('booking-payments/store', [BookingPaymentController::class, 'store'])->name('booking-payments.store');
     Route::get('booking-payments/edit/{booking}', [BookingPaymentController::class, 'edit'])->name('booking-payments.edit');
@@ -183,15 +185,11 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['auth', 'v
     // Route::resource('booking_payments', BookingPaymentController::class);
 
     Route::resource('invoice-templates', \App\Http\Controllers\Admin\InvoiceTemplateController::class);
-    Route::post('/bookings/preview-invoice', [InvoiceController::class, 'preview'])
-        ->name('bookings.preview-invoice');
+    Route::post('/bookings/preview-invoice', [InvoiceController::class, 'preview'])->name('bookings.preview-invoice');
+    Route::get('/invoices/{invoice}/preview', [InvoiceController::class, 'previewSaved'])->name('invoices.preview');
+    Route::get('/invoices/download/{invoice}', [InvoiceController::class, 'download'])->name('invoices.download');
 
-    Route::get('/invoices/{invoice}/preview', [InvoiceController::class, 'previewSaved'])
-        ->name('invoices.preview');
-    Route::get('/invoices/download/{invoice}', [InvoiceController::class, 'download'])
-        ->name('invoices.download');
-
-    Route::get('/checkins/index/{booking}/{customer?}', [CheckinsController::class, 'index'])->name('checkins.index');
+    Route::get('/checkins/index/{booking_id}/{customer_id?}', [CheckinsController::class, 'index'])->name('checkins.index');
     Route::post('/checkins/store', [CheckinsController::class, 'store'])->name('checkins.store');
     //Route::resource('checkins', CheckinsController::class);
 

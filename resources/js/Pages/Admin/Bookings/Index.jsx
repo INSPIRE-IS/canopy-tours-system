@@ -116,7 +116,9 @@ console.log("booking----------tool-------- ", booking)
                             </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100">
-                            {bookings?.map((item, i) => (
+                            {bookings?.map((item, i) => {
+                            console.log('item ', item);
+                            return (
                                 <React.Fragment key={i}>
                                 {/* Main Booking Row */}
                                 <tr className="hover:bg-gray-50">
@@ -208,7 +210,8 @@ console.log("booking----------tool-------- ", booking)
                                     )
                                 )}
                                 </React.Fragment>
-                            ))}
+                                )
+                            })}
                             </tbody>
                         </table>
 

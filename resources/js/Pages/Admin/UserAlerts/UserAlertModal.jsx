@@ -35,11 +35,11 @@ const UserAlertModal = ({ isOpen, onClose, mode, useralert = null, users, team }
     const handleSubmit = (e) => {
         e.preventDefault();
         if (mode === "create") {
-            post(route("user_alerts.store"), {
+            post(route("admin.user_alerts.store"), {
                 onSuccess: () => onClose(),
             });
         } else if (mode === "edit") {
-            put(route("user_alerts.update", useralert.id), {
+            put(route("admin.user_alerts.update", useralert.id), {
                 onSuccess: () => onClose(),
             });
         }

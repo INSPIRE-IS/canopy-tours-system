@@ -12,11 +12,13 @@ import CustomTimePicker from '@/Components/CustomTimePicker';
 import axios from 'axios';
 import { set } from 'date-fns';
 
-export default function Dashboard({ auth, booking, staff, typeGroup, typeReferral, typeConfirmation  }) {
+export default function Dashboard({ auth, booking, booking_item, staff, typeGroup, typeReferral, typeConfirmation  }) {
     console.log("auth", auth);
     console.log("booking", booking);
+    console.log("booking_item", booking_item);
     console.log("staff", staff);
     const [mode, setMode] = useState('create');
+    const [activePerson, setActivePerson] = useState(null); 
     const [prevNext, setPrevNext] = useState(1);
 
     const [continents, setContinents] = useState([]);
@@ -28,41 +30,33 @@ export default function Dashboard({ auth, booking, staff, typeGroup, typeReferra
 
     const { data, setData,post, put, isDirty, reset, processing, errors } = useForm(()=>
         {
-            console.log("booking", booking);
-            console.log("customers", booking.customers);
-            const lead = booking?.customers[0] ?? null;
-            const inventory = booking?.booking_inventory;
-
-            console.log("lead", lead);
             return {
-            service_id: booking.service_id,
-            season_id: booking.season_id,
-            booking_id: booking.id,
-            customer_id: lead?.id ?? '',
-            team_id: booking.service.team_id,
-            is_lead: 1,
-            first_name: lead?.full_name ?? '',
-            email_address: lead?.email_address ?? '',            
-            contact_number: lead?.contact_number ?? '',
-            identity_number: lead?.identity_number ?? '',
-            nationality_id: lead?.nationality_id ?? '',
-            continent_id: lead?.continent_id ?? '',
-            country_id: lead?.country_id ?? '',
-            province_id: lead?.province_id ?? '',
-            // city: lead?.city ?? '',
-            date_of_birth: lead?.date_of_birth ?? '',
-            pully_number: lead?.pully_number ?? '',
-            gender_id: lead?.gender_id ?? '',
-            type_group_id: lead?.type_group_id ?? '',
-            recieve_invite: lead?.recieve_invite ?? '',
-            medical_detail: lead?.medical_detail ?? '',
-            helmet_size: lead?.helmet_size ?? '',
-            is_fit: lead?.is_fit ?? '',
-            safety_guide_id: lead?.safety_guide_id ?? '',
-            lead_guide_id: lead?.lead_guide_id ?? '',
+            service_id: '',
+            season_id: '',
+            booking_id: '',
+            customer_id: '',
+            team_id: '',
+            is_lead: '',
+            first_name: '',
+            email_address: '',           
+            contact_number: '',
+            identity_number: '',
+            nationality_id: '',
+            continent_id: '',
+            country_id: '',
+            province_id: '',
+            date_of_birth: '',
+            pully_number: '',
+            gender_id:  '',
+            type_group_id:  '',
+            recieve_invite:  '',
+            medical_detail:  '',
+            helmet_size:  '',
+            is_fit:  '',
+            safety_guide_id:  '',
+            lead_guide_id:  '',
             is_minor: '',
             children: [],
-
             }   
         }     
     );
@@ -86,6 +80,86 @@ export default function Dashboard({ auth, booking, staff, typeGroup, typeReferra
         axios.get(`/states/${selectedCountry}`).then(res => setStates(res.data));
     }
     }, [selectedCountry]);
+
+        useEffect(() => {
+    if (activePerson) {
+        handlePrevNext(2);
+        console.log('activePerson', activePerson);
+        const manifest = activePerson ?? null;
+        const customer = manifest?.customer ?? null;
+        const questionnaire = customer?.booking_questionnaire ?? null;
+        
+
+        setData({
+            service_id: booking_item.service_id,
+            season_id: booking_item.season_id,
+            booking_id: booking.id,
+            booking_item_id: manifest?.booking_item_id,
+            customer_id: customer?.id ?? '',
+            team_id: booking_item.service.team_id,
+            is_lead: booking_item?.customers.find(c => c?.pivot?.is_lead)?.id == customer?.id ? 1 : 0,
+            first_name: customer?.full_name ?? '',
+            email_address: customer?.email_address ?? '',            
+            contact_number: customer?.contact_number ?? '',
+            identity_number: questionnaire?.identity_number ?? '',
+            nationality_id: customer?.nationality_id ?? '',
+            continent_id: customer?.continent_id ?? '',
+            country_id: customer?.country_id ?? '',
+            province_id: customer?.province_id ?? '',
+            // city: lead?.city ?? '',
+            date_of_birth: customer?.date_of_birth ?? '',
+            pully_number: questionnaire?.pully_number ?? '',
+            gender_id: questionnaire?.gender_id ?? '',
+            type_group_id: questionnaire?.type_group_id ?? '',
+            recieve_invite: questionnaire?.recieve_invite ?? '',
+            medical_detail: questionnaire?.medical_detail ?? '',
+            helmet_size: questionnaire?.helmet_size ?? '',
+            is_fit: questionnaire?.is_fit ?? '',
+            safety_guide_id: questionnaire?.safety_guide_id ?? '',
+            lead_guide_id: questionnaire?.lead_guide_id ?? '',
+            is_minor: questionnaire?.is_minor ?? '',
+            children: questionnaire?.children ?? [],
+        })
+    }
+    }, [activePerson]);
+
+    const handleAddPerson = (type) => {
+        const adultsCount = booking_item?.customer_manifests?.filter(p => p.type === "adult").length;
+        const childrenCount = booking_item?.customer_manifests?.filter(p => p.type === "child").length;
+
+        if (type === "adult" && adultsCount >= booking_item.pax_adults) return;
+        if (type === "child" && childrenCount >= booking_item.pax_children) return;
+        handlePrevNext(2);
+        setData({
+            service_id: booking_item.service_id,
+            season_id: booking_item.season_id,
+            booking_id: booking.id,
+            customer_id: '',
+            team_id: booking_item.service.team_id,
+            is_lead: '',
+            first_name: '',
+            email_address: '',            
+            contact_number: '',
+            identity_number: '',
+            nationality_id: '',
+            continent_id: '',
+            country_id: '',
+            province_id: '',
+            date_of_birth: '',
+            pully_number: '',
+            gender_id: '',
+            type_group_id: '',
+            recieve_invite: '',
+            medical_detail: '',
+            helmet_size: '',
+            is_fit: '',
+            safety_guide_id: '',
+            lead_guide_id: '',
+            is_minor: '',
+            children: [],
+        })
+    };
+
 
     const handlePrevNext = (number) => {
         console.log('number', number);
@@ -137,32 +211,98 @@ export default function Dashboard({ auth, booking, staff, typeGroup, typeReferra
                 {/* top */}
                 <div className="w-full grid grid-cols-1 sm:grid-cols-2 mb-6 gap-6">
                     <span className="flex w-full flex-col items-start justify-start gap-2 ">
-                        <span className="font-semibold text-lg text-gray-800 block text-start">{booking?.season?.name}</span>
-                        <span className="font-semibold text-lg text-gray-800 block text-start">12A3-72E8</span>
-                        <span className="font-semibold text-lg text-gray-800 block text-start">{booking?.inventory?.start_date}</span>
-                        <span className="font-semibold text-lg text-gray-800 block text-start">Basket #ACTB-5287-8905</span>
-
+                        <span className="font-semibold text-lg text-gray-800 block text-start">{booking_item?.service?.name} - {booking_item?.season?.name}</span>
+                        <span className="font-semibold text-lg text-gray-800 block text-start">{booking?.reference} | {booking_item?.season?.start_date}</span>
+                        {/* <span className="font-semibold text-lg text-gray-800 block text-start">Basket #ACTB-5287-8905</span> */}
                     </span>
-                    <span className="flex w-full items-start justify-start gap-2 ">
+                    {/* <span className="flex w-full items-start justify-start gap-2 ">
                         <span className="font-semibold text-lg text-gray-800 block text-start">Staff Assigned</span>
-                    </span>
+                    </span> */}
+                    { errors?.length > 0 && (
+                        errors.forEach(element => {
+                            <p className="text-red-500 text-sm mt-2">
+                                {element}
+                            </p>
+                        })
+                    )}
                 </div>
                 {/* buttons */}
                 {prevNext == 1 && (
                 <div className="bg-white mt-[41px]">
                     <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-6">
-                        <button type='button' onClick={() => handlePrevNext(2)} className="flex items-center justify-between w-full h-[57px] gap-2 px-4 py-2 rounded-xl border border-primary-14 text-primary-14 cursor-pointer">
+                        {/* <button type='button' onClick={() => handlePrevNext(2)} className="flex items-center justify-between w-full h-[57px] gap-2 px-4 py-2 rounded-xl border border-primary-14 text-primary-14 cursor-pointer">
                             <span className="text-btn-outline-gray">Add New Adult</span>
                             <span className="flex items-center justify-center w-[36px] h-[36px] rounded-xl border border-primary-14 bg-[#23978D4D] cursor-pointer">
                                 {icons.plus_alt}  
                             </span>                              
-                        </button>
-                        <button type='button' onClick={() => handlePrevNext(2)} className="flex items-center justify-between w-full h-[57px] gap-2 px-4 py-2 rounded-xl border border-primary-14 text-primary-14 cursor-pointer">
+                        </button> */}
+<div>
+  {booking_item?.customer_manifests?.filter(p => p.type === "adult").length < booking_item.pax_adults ? (
+    <button
+      type="button"
+      onClick={() => {
+        handleAddPerson("adult"); // existing add logic
+        // optionally auto-select the new adult
+      }}
+      className="flex items-center justify-between ..."
+    >
+      <span>Add New Adult</span>
+      <span>{icons.plus_alt}</span>
+    </button>
+  ) : (
+    <select
+      onChange={(e) => {
+        const personId = e.target.value;
+        const selected = booking_item?.customer_manifests?.find(p => (p.id || p.customer_id) == personId);
+        setActivePerson(selected); // open questionnaire for this person
+      }}
+      className="w-full border rounded p-2"
+    >
+      <option value="">Select Adult</option>
+      {booking_item?.customer_manifests?.filter(p => p.type === "adult").map((adult, i) => {
+        console.log('adult', adult);
+        return (
+        <option key={i} value={adult.id || adult.customer_id}>
+          {adult.customer.full_name || "Unnamed Adult"}
+        </option>
+      )})}
+    </select>
+  )}
+</div>
+<div>
+  {booking_item?.customer_manifests?.filter(p => p.type === "child").length < booking_item.pax_children ? (
+    <button
+      type="button"
+      onClick={() => handleAddPerson("child")}
+      className="flex items-center justify-between ..."
+    >
+      <span>Add New Child (requires guardian signature)</span>
+      <span>{icons.plus_alt}</span>
+    </button>
+  ) : (
+    <select
+      onChange={(e) => {
+        const personId = e.target.value;
+        const selected = booking_item?.customer_manifests?.find(p => (p.id || p.customer_id) == personId);
+        setActivePerson(selected); // open questionnaire for this person
+      }}
+      className="w-full border rounded p-2"
+    >
+      <option value="">Select Child</option>
+      {booking_item?.customer_manifests?.filter(p => p.type === "child").map((child, i) => (
+        <option key={i} value={child.id || child.customer_id}>
+          {child.customer.full_name || "Unnamed Child"}
+        </option>
+      ))}
+    </select>
+  )}
+</div>
+                        {/* <button type='button' onClick={() => handlePrevNext(2)} className="flex items-center justify-between w-full h-[57px] gap-2 px-4 py-2 rounded-xl border border-primary-14 text-primary-14 cursor-pointer">
                             <span className="text-btn-outline-gray">Add New Child (requires guardian signature)</span>
                             <span className="flex items-center justify-center w-[36px] h-[36px] rounded-xl border border-primary-14 bg-[#23978D4D] cursor-pointer">
                                 {icons.plus_alt}  
                             </span>                     
-                        </button>
+                        </button> */}
                     </div>
                 </div>
                 )}
