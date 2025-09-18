@@ -15,6 +15,7 @@ export default function ReviewPayment() {
     formData.append('booking_id', booking.id);
     formData.append('note', offlineNote);
     formData.append('method', 'offline');
+    formData.append('type', 'booking');
     if (file) formData.append('proof', file);
 
     try {
@@ -32,7 +33,7 @@ export default function ReviewPayment() {
   const handlePayFast = () => {
     // Fake redirect to a placeholder "PayFast" screen
     router.get(route('front.payment.simulated'), {
-      booking: booking.id,
+      booking: booking.id, type: 'booking',
     });
   };
 

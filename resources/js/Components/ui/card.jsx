@@ -1,30 +1,13 @@
 import { icons } from '@/icons';
 import React from 'react';
 
-const Card = ({ image, service, season, price,badge, tag, promo, gift, onBook, onGift }) => {
-  
-  console.log('promo', promo);
+const Card = ({ image, service, season, price,badge, tag, gift, onBook, onGift }) => {
   return(
   <div className="border rounded-xl overflow-hidden shadow bg-white">
     {/* Image with dark overlay */}
-    <div className="relative">
+    <div>
       <img src={image} alt={season} className="w-full h-48 object-cover" />
-      {promo && (
-        <div className="absolute inset-0 bg-black bg-opacity-40 flex flex-col items-center justify-center">
-          <span 
-            className="text-md font-bold text-white px-3 py-2 rounded" title={promo?.promo_code}
-          >{promo?.name}</span>
-          <span 
-            className="text-sm font-bold text-white px-3 py-2 rounded"
-          >{promo?.value} %</span>
-          <span 
-            className="text-xl font-bold text-white px-3 py-2 rounded"
-          >Booking now</span>
-          <span 
-            className="text-sm font-bold text-white px-3 py-2 rounded"
-          >{promo?.booking_start_date} to {promo?.booking_end_date}</span>
-        </div>
-      )}
+
     </div>
     <div className="p-4">
 

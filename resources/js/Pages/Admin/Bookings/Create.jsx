@@ -1095,63 +1095,40 @@ console.log('-------------------------data-------------------------');
                                                     key={day}
                                                     className={`flex-1 items-center justify-center w-[133px] h-[111px] border border-gray-200 cursor-pointer transition `}
                                                     onClick={() => {
-                                                    if (cell?.status === 'available') {
-                                                        setSelectedSlot({ date: cell.date, day: day, time: row.time });
-                                                        setData('selected_slot', { date: cell.date, day: day, time: row.time });
-                                                        // console.log('cell.date', cell.date);
-                                                        // console.log('day', day);
-                                                        // console.log('row.time', row.time);
-                                                        // console.log('-------timeslots----------', timeslots);
+                                                        if (cell?.status === 'available') {
+                                                            setSelectedSlot({ date: cell.date, day: day, time: row.time });
+                                                            setData('selected_slot', { date: cell.date, day: day, time: row.time });
+                                                            // console.log('cell.date', cell.date);
+                                                            // console.log('day', day);
+                                                            // console.log('row.time', row.time);
+                                                            // console.log('-------timeslots----------', timeslots);
 
-                                                        setSelectedDate(cell.date);
-                                                        const time = row.time.slice(0, 5);
-                                                        const slot = timeslots.find(s => s.name === time);
-                                                        setData('start_time', slot.id);
-                                                        setSelectedTime(slot.id);
-                                    console.log("SelectedSlot--------------------:", selectedSlot);
-                                    console.log("sDatalot:-----------------------", data);
-
-                                                    }
+                                                            setSelectedDate(cell.date);
+                                                            const time = row.time.slice(0, 5);
+                                                            const slot = timeslots.find(s => s.name === time);
+                                                            setData('start_time', slot.id);
+                                                            setSelectedTime(slot.id);
+                                                            console.log("SelectedSlot--------------------:", selectedSlot);
+                                                            console.log("sDatalot:-----------------------", data);
+                                                        }
                                                     }}
                                                 >
                                                     <div className="w-[133px] h-full flex items-center justify-center">
-                                                        <div  className={`relative p-[6px] text-start w-[135px] h-[99px] cursor-pointer rounded-[10px] space-y-[10px] transition ${
+                                                        <div  className={` p-[6px] text-start w-[135px] h-[99px] cursor-pointer rounded-[10px] space-y-[10px] transition ${
                                                             selectedSlot?.day === day && selectedSlot?.time === row.time
                                                                 ? 'bg-[#55FF9E] text-black'
                                                                 : cell?.status === 'available'
                                                                 ? 'bg-[#D6FBE6] border border-[#E5E5EC] text-green-700 hover:bg-green-200'
                                                                 : 'bg-[#FCE4DF] border border-[#E5E5EC] text-gray-400 cursor-not-allowed'
                                                             }`}>
-                                                            {/* Discount Badge 
-                                                            {cell?.promo && (
-                                                            <span className="absolute top-1 right-1 bg-red-500  text-[10px] px-2 py-[2px] rounded-full shadow z-10">
-                                                                -{cell.promo.value}%
-                                                            </span>
-                                                            )}*/}
-
                                                             {cell?.status === 'available' && (
                                                             <>
                                                                 <div className="text-xs">{row.time.slice(0, 5)}</div>
                                                                 <div className="text-xs">{cell?.slots} Slots Open</div>
 
-                                                                {/* Price with discount handling */}
                                                                 {cell?.rake_rate_adult && (
                                                                 <div className="text-xs">
-                                                                    {cell?.promo ? (
-                                                                    <>
-                                                                        <span className="line-through text-gray-500 mr-1">
-                                                                        R{cell.rake_rate_adult}
-                                                                        </span>
-                                                                        <span className="font-bold text-green-700">
-                                                                        R{(
-                                                                            cell.rake_rate_adult -
-                                                                            (cell.rake_rate_adult * parseFloat(cell.promo.value)) / 100
-                                                                        ).toFixed(0)}
-                                                                        </span>
-                                                                    </>
-                                                                    ) : (
                                                                     <span>From R{cell.rake_rate_adult}</span>
-                                                                    )}
                                                                 </div>
                                                                 )}
                                                             </>

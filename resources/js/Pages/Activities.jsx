@@ -7,6 +7,7 @@ import InfoCard from '@/components/ui/InfoCard';
 import { router } from '@inertiajs/react';
 import { format, set } from 'date-fns';
 import BookingModal from '@/Components/BookingModal';
+import BuyGiftModal from '@/Components/BuyGiftModal';
 
 export default function ActivitySchedulePage({ activities,serviceId, seasonId, activityId, schedule, start_date, view_mode, days,availableTimes }) {
 console.log('activities', activities);
@@ -17,7 +18,8 @@ console.log('activities', activities);
   const [selectedSlot, setSelectedSlot] = useState(null); // stores {date: string, day: string, time: string }
   const [scheduleData, setScheduleData] = useState({ schedule, days });
   const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
+  const [bookModal, setBookModal] = useState(false);
+  const [giftModal, setGiftModal] = useState(false);
 
   useEffect(() => {
     loadCalendar();
@@ -119,12 +121,12 @@ console.log('activities', activities);
                     //   date: selectedSlot.date,
                     //   time: selectedSlot.time,
                     // });
-                    setShowModal(true);
+                    setBookModal(true);
                   }}
                 >
                   Book Now
                 </Button>
-                <Button variant="outline" className="mt-2 w-full">Buy as a Gift</Button>
+                <Button onClick={() => {setGiftModal(true);}} variant="outline" className="mt-2 w-full">Buy as a Gift</Button>
               </div>
             </div>
           </aside>
@@ -183,20 +185,13 @@ console.log('activities', activities);
                       }}
                     >
                       <div className="w-full h-full flex items-center justify-center">
-                        <div  className={`relative p-[6px] text-start w-[135px] h-[99px] cursor-pointer rounded-[10px] space-y-[10px] transition ${
+                        <div  className={` p-[6px] text-start w-[135px] h-[99px] cursor-pointer rounded-[10px] space-y-[10px] transition ${
                             selectedSlot?.day === day && selectedSlot?.time === row.time
                               ? 'bg-[#55FF9E] text-black'
                               : cell?.status === 'available'
                                 ? 'bg-[#D6FBE6] border border-[#E5E5EC] text-green-700 hover:bg-green-200'
                                 : 'bg-[#FCE4DF] border border-[#E5E5EC] text-gray-400 cursor-not-allowed'
                           }`}>
-
-                            {/* Discount Badge */}
-                            {cell?.promo && (
-                              <span className="absolute top-1 right-1 bg-red-500  text-[10px] px-2 py-[2px] rounded-full shadow z-10">
-                                -{cell.promo.value}%
-                              </span>
-                            )}
 
                             {cell?.status === 'available' && (
                               <>
@@ -206,21 +201,7 @@ console.log('activities', activities);
                                 {/* Price with discount handling */}
                                 {cell?.rake_rate_adult && (
                                   <div className="text-xs">
-                                    {cell?.promo ? (
-                                      <>
-                                        <span className="line-through text-gray-500 mr-1">
-                                          R{cell.rake_rate_adult}
-                                        </span>
-                                        <span className="font-bold text-green-700">
-                                          R{(
-                                            cell.rake_rate_adult -
-                                            (cell.rake_rate_adult * parseFloat(cell.promo.value)) / 100
-                                          ).toFixed(0)}
-                                        </span>
-                                      </>
-                                    ) : (
                                       <span>From R{cell.rake_rate_adult}</span>
-                                    )}
                                   </div>
                                 )}
                               </>
@@ -301,18 +282,29 @@ console.log('activities', activities);
 
     </section>
 
-      {showModal && (
+      {bookModal && (
         <BookingModal
-          isOpen={showModal}
-          onClose={() => setShowModal(false)}
+          isOpen={bookModal}
+          onClose={() => setBookModal(false)}
           slot={selectedSlot}
           adults={adults}
           children={children}
-          pricePerAdult={activities.price}
+          pricePerAdult={activities.rake_rate_adult}
           activityId={activityId}
         />
       )}
-
+      {giftModal && (
+        <BuyGiftModal
+          isOpen={giftModal}
+          onClose={() => setGiftModal(false)}
+          slot={selectedSlot}
+          adults={adults}
+          children={children}
+          pricePerAdult={activities.rake_rate_adult}
+          pricePerChild={activities.rake_rate_child}
+          activityId={activityId}
+        />
+      )}
     </div>
   );
 }

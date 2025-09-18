@@ -10,6 +10,7 @@ use App\Models\BookingInventory;
 use App\Models\BookingPayment;
 use App\Models\Closeout;
 use App\Models\Customer;
+use App\Models\GiftVoucher;
 use App\Models\Inventory;
 use App\Models\InventoryTimeSlot;
 use App\Models\InventoryTypeDay;
@@ -156,7 +157,8 @@ class ActivityController extends Controller
             'badge'      => $fieldValues['badge'] ?? null,
             'gift'       => filter_var($fieldValues['gift'] ?? false, FILTER_VALIDATE_BOOLEAN),
             'minPeople'  => (int) ($fieldValues['min_people'] ?? 1),
-            'price'      => $season->rake_rate_adult ?? null,
+            'rake_rate_adult'      => $season->rake_rate_adult ?? null,
+            'rake_rate_child'      => $season->rake_rate_child ?? null,
             'start_date' => $season->start_date,
             'end_date'   => $season->end_date,
             'capacity'   => $season->service?->capacity,
@@ -800,6 +802,78 @@ class ActivityController extends Controller
             ], 500);
         }
     }
+
+    public function storeGift(Request $request)
+    {
+        // TODO: validate the inventory is still available
+        //dd($request->all());
+        $validated = $request->validate([
+            'name' => 'required|string',
+            'surname' => 'required|string',
+            'email' => 'required|email',
+            'phone' => 'required|string',
+            'date' => 'required|date',
+            'time' => 'required',
+            'adults' => 'required|integer|min:1',
+            'children' => 'nullable|integer|min:0',
+            'activity_id' => 'required|integer',
+        ]);
+        try {
+            $voucher = DB::transaction(function () use ($validated) {
+                $activity_id = $validated['activity_id'];
+
+                $season = Season::findOrFail($activity_id);
+                $adultsCount = (int) ($validated['adults'] ?? 0);
+                $amount_adults = $season->rake_rate_adult * $adultsCount;
+                $childrenCount = (int) ($validated['children'] ?? 0);
+                $amount_children = $season->rake_rate_children * $childrenCount;
+                //$guidesCount = (int) ($validated['guides'] ?? 0);
+                $amount_guides = 0; //  $season->rake_rate_guide * 1;
+                $amount = $amount_adults + $amount_children + $amount_guides;
+
+                $voucher = GiftVoucher::create([
+                    'full_name' => $validated['name'] . ' ' . $validated['surname'],
+                    'email_address' => $validated['email'],
+                    'contact_number' => $validated['phone'],
+                    'voucher_code' => 'VREF-' . strtoupper(Str::random(6)),
+                    'grand_tot_due' => $amount,
+                    'note' => '',
+                    'expire_date' => null,
+                    'status_payment_id' => 1,
+                    'paid_date' => null,
+                    'redeemed' => false,
+                    'redeemed_date' => null,
+                    'booking_id' => null,
+                    'team_id' => $season->team_id,
+                    'service_id' => $season->service_id,
+                    'season_id' => $season->id,
+                ]);
+
+                return $voucher;
+            });
+
+            // 4. Save to booking_inventories or other linked tables
+            return response()->json([
+                'success' => true,
+                'voucher_id' => $voucher->id,
+                'redirect_url' => route('front.payment.gift', ['gift' => $voucher->id]) //  route('payfast.checkout', ['booking' => $booking->id])
+            ]);
+            //return redirect()->back()->with('booking_id', $booking->id);
+        } catch (\Throwable $e) {
+            // Log the full error for debugging
+            Log::error('Booking failed and rolled back', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'input' => $validated,
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => 'Something went wrong while saving your booking. Please try again.',
+            ], 500);
+        }
+    }
+
 
 
     public function voucher(Request $request)
