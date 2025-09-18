@@ -15,6 +15,7 @@ use App\Http\Controllers\Admin\InvoiceController;
 use App\Http\Controllers\Admin\MessengerController;
 use App\Http\Controllers\Admin\PermissionsController;
 use App\Http\Controllers\Admin\PromotionController;
+use App\Http\Controllers\Admin\QuestionnaireController;
 use App\Http\Controllers\Admin\ReportsController;
 use App\Http\Controllers\Admin\RolesController;
 use App\Http\Controllers\Admin\SeasonsController;
@@ -81,7 +82,7 @@ Route::get('front/voucher', [ActivityController::class, 'voucher'])->name('front
 
 
 Route::get('/check-reference/{reference}', [BookingQuestionnaireController::class, 'reference'])->name('check-reference');
-Route::resource('questionnaire', BookingQuestionnaireController::class);
+Route::resource('booking-questionnaire', BookingQuestionnaireController::class);
 Route::get('/continents', [BookingQuestionnaireController::class, 'getContinents']);
 Route::get('/countries/{continent_id}', [BookingQuestionnaireController::class, 'getCountries']);
 Route::get('/states/{country_id}', [BookingQuestionnaireController::class, 'getStates']);
@@ -188,7 +189,8 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['auth', 'v
     Route::post('/bookings/preview-invoice', [InvoiceController::class, 'preview'])->name('bookings.preview-invoice');
     Route::get('/invoices/{invoice}/preview', [InvoiceController::class, 'previewSaved'])->name('invoices.preview');
     Route::get('/invoices/download/{invoice}', [InvoiceController::class, 'download'])->name('invoices.download');
-
+    Route::post('/questionnaires/answers/store', [QuestionnaireController::class, 'answerStore'])->name('questionnaires.answers.store');
+    Route::resource('questionnaire', QuestionnaireController::class);
     Route::get('/checkins/index/{booking_id}/{customer_id?}', [CheckinsController::class, 'index'])->name('checkins.index');
     Route::post('/checkins/store', [CheckinsController::class, 'store'])->name('checkins.store');
     //Route::resource('checkins', CheckinsController::class);

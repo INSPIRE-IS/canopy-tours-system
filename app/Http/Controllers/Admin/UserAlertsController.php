@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\MassDestroyUserAlertRequest;
 use App\Http\Requests\StoreUserAlertRequest;
+use App\Http\Requests\UpdateUserAlertRequest;
 use App\Models\User;
 use App\Models\UserAlert;
 use Gate;
@@ -45,13 +46,22 @@ class UserAlertsController extends Controller
         return redirect()->route('admin.user-alerts.index');
     }
 
+    public function update(UpdateUserAlertRequest $request, UserAlert $userAlert)
+    {
+        dd('not implemented');
+        $userAlert->update($request->all());
+        $userAlert->users()->sync($request->input('users', []));
+
+        return redirect()->route('admin.user-alerts.index');
+    }
+
     public function show(UserAlert $userAlert)
     {
+        dd('not implemented');
         abort_if(Gate::denies('user_alert_show'), Response::HTTP_FORBIDDEN, '403 Forbidden');
-
-        $userAlert->load('users');
-
-        return view('admin.userAlerts.show', compact('userAlert'));
+        //TODO have a page to preview the alert
+        // $userAlert->load('users');
+        // return view('admin.userAlerts.show', compact('userAlert'));
     }
 
     public function destroy(UserAlert $userAlert)

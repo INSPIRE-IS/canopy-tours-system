@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Front;
 
 use App\Http\Controllers\Controller;
 use App\Models\Booking;
+use App\Models\BookingItem;
 use App\Models\BookingQuestionnaire;
 use Illuminate\Http\Request;
 use App\Models\Continent;
@@ -33,8 +34,9 @@ class BookingQuestionnaireController extends Controller
 
     public function reference($reference)
     {
-        //dd($reference);
+        // dd($reference);
         $booking = Booking::where('reference', $reference)->first();
+        //dd($booking);
         if (!$booking) {
             return response()->json([
                 'success' => false,
@@ -62,8 +64,11 @@ class BookingQuestionnaireController extends Controller
                 'error' => 'Booking not found',
             ], 200);
         }
-        $booking = Booking::findOrFail($booking->id);
-        $booking->load([
+        //$booking = Booking::findOrFail($booking->id);
+
+        $booking->load(['booking_payments']);
+        $bookingItem = BookingItem::where('booking_id', $booking->id)->first();
+        $bookingItem->load([
             'service',
             'season',
             'inventory',
@@ -73,7 +78,7 @@ class BookingQuestionnaireController extends Controller
             //'customers.booking_questionnaire',  :id,booking_id,customer_id,guide_id,safety_guide_id,type_group_id,fullname,email,signature,birth_date,type_referral,country_id,province_id,is_medical,medical_detail,is_fit,is_agree
             'booking_details', //:id,booking_id ,start_time,end_time
             'booking_fees', //:id,booking_id,tot_amount
-            'booking_payments', // :id,booking_id,amount
+            // :id,booking_id,amount
             'booking_inventory', // :id,booking_id,inventory_id
             'booking_staff', // :id,booking_id,user_id
             'booking_staff.user', // :id,name,email,contact_number
@@ -81,18 +86,14 @@ class BookingQuestionnaireController extends Controller
             'customers' => function ($q) use ($customerId) {
                 $q->where('customers.id', $customerId);
             },
-
             // Filter customer manifests by customer ID
             'customer_manifests' => function ($q) use ($customerId) {
                 $q->where('customer_id', $customerId);
             },
-
             // Filter nested relation (booking_questionnaire) from customers
             'customers.booking_questionnaire' => function ($q) use ($customerId) {
                 $q->where('customer_id', $customerId);
             },
-
-
         ])
             // ->select([
             //     'id',
@@ -152,7 +153,16 @@ class BookingQuestionnaireController extends Controller
 
         //$bookingId = request()->route('bookingId');
         //dd($bookingId);
-        return Inertia::render('Questionnaire', ['booking' => $booking, 'leadGuides' => $leadGuides, 'safetyGuides' => $safetyGuides, 'typeGroup' => $typeGroup, 'typeReferral' => $typeReferral, 'typeConfirmation' => $typeConfirmation]);
+        return Inertia::render('Questionnaire', [
+            'booking' => $booking,
+            'bookingItem' => $bookingItem,
+            'leadGuides' => $leadGuides,
+            'safetyGuides' => $safetyGuides,
+            'typeGroup' => $typeGroup,
+            '
+            typeReferral' => $typeReferral,
+            'typeConfirmation' => $typeConfirmation
+        ]);
     }
 
     /**
@@ -307,31 +317,6 @@ class BookingQuestionnaireController extends Controller
         $bookingId = request()->route('bookingId');
         return Inertia::render('Questionnaire', ['bookingId' => $bookingId]);
     }
-
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(BookingQuestionnaire $bookingQuestionnaire)
-    {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, BookingQuestionnaire $bookingQuestionnaire)
-    {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(BookingQuestionnaire $bookingQuestionnaire)
-    {
-        //
-    }
-
 
     public function getContinents()
     {

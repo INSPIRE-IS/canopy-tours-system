@@ -400,14 +400,14 @@ class SeedCoreData extends Command
 
 
         $type_datas = [
-            ['id' => 1, 'name' => 'text'],
-            ['id' => 2, 'name' => 'long text'],
+            ['id' => 1, 'name' => 'string'],
+            ['id' => 2, 'name' => 'text'],
             ['id' => 3, 'name' => 'integer'],
             ['id' => 4, 'name' => 'float'],
             ['id' => 5, 'name' => 'date'],
-            ['id' => 5, 'name' => 'time'],
-            ['id' => 6, 'name' => 'boolean'],
-        ];
+            ['id' => 6, 'name' => 'time'],
+            ['id' => 7, 'name' => 'boolean'],
+        ]; // ['string', 'integer', 'boolean', 'date'],
         foreach ($type_datas as $type_data) {
             TypeData::updateOrCreate(['id' => $type_data['id']], $type_data);
         }
@@ -419,7 +419,9 @@ class SeedCoreData extends Command
             ['id' => 4, 'name' => 'date'],       // <input type="date">
             ['id' => 5, 'name' => 'time'],       // <input type="time">
             ['id' => 6, 'name' => 'checkbox'],   // <input type="checkbox">
-        ];
+            ['id' => 7, 'name' => 'radio'],   // <input type="checkbox">
+            ['id' => 8, 'name' => 'select'],   // <input type="checkbox">
+        ]; //'text', 'textarea', 'number', 'select', 'radio', 'checkbox', 'date' 
         foreach ($type_inputs as $type_input) {
             TypeInput::updateOrCreate(['id' => $type_input['id']], $type_input);
         }

@@ -85,7 +85,7 @@ export default function BookingLookup({auth,booking, leadGuides,safetyGuides, ty
         e.preventDefault();
         console.log('booking', booking);
         console.log('data', data);
-        post(route('questionnaire.store'));
+        post(route('booking-questionnaire.store'));
         //put(route('admin.checkins.store',{booking}));
     };
 

@@ -66,7 +66,7 @@ console.log("booking----------tool-------- ", booking)
                         <img src="/assets/icons/plus.svg" alt="bookings" className="w-5 h-5" />
                         <span className="text-btn-outline-gray">New Booking</span>
                     </button>
-                    <button onClick={() => router.get(route('questionnaire.index'))} className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-red-gradient-overlay border-[#C65468] text-white shadow-inset-white cursor-pointer">
+                    <button onClick={() => router.get(route('booking-questionnaire.index'))} className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-red-gradient-overlay border-[#C65468] text-white shadow-inset-white cursor-pointer">
                         <img src="/assets/icons/plus.svg" alt="bookings" className="w-5 h-5" />
                         <span className="text-btn-outline-gray">Check in</span>
                     </button>
