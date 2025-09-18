@@ -234,12 +234,13 @@ class ActivityController extends Controller
 
         // booking data
         $bookingData = DB::table('bookings as b')
-            ->leftJoin('booking_inventories as bi', 'bi.booking_id', '=', 'b.id')
+            ->leftJoin('booking_items as items', 'items.booking_id', '=', 'b.id')
+            ->leftJoin('booking_inventories as bi', 'bi.booking_item_id', '=', 'items.id')
             ->leftJoin('inventory_type_days as itd', 'itd.id', '=', 'bi.inventory_type_day_id')
             ->leftJoin('type_days as td', 'td.id', '=', 'itd.type_day_id')
             ->leftJoin('inventory_time_slots as its', 'its.id', '=', 'bi.inventory_time_slot_id')
             ->leftJoin('inventory_overrides as io', 'io.id', '=', 'bi.inventory_override_id')
-            ->where('b.inventory_id', $activityId)
+            ->where('items.inventory_id', $activityId)
             ->whereBetween('bi.date', [$startDate->toDateString(), $endDate->toDateString()])
             ->select([
                 'bi.date',
