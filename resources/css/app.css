@@ -5,6 +5,12 @@
 
 
 @layer components {
+
+    .text-welcome-card-header {
+      @apply text-[#161618] font-poppins font-normal leading-[130%] text-[12px];
+    }
+
+
     .text-secondary-500 {
       @apply text-[#44444A] font-geist font-medium leading-[150%] text-[12px] tracking-[-0.24px];
     }

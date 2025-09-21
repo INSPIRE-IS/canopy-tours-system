@@ -9,6 +9,8 @@ import CustomSelect from '@/Components/CustomSelect';
 import NavSelect from '@/Components/NavSelect';
 import BuyGiftModal from '@/Components/BuyGiftModal';
 import { set } from 'date-fns';
+import CustomInputText from '@/Components/CustomInputText';
+import BlueButton from '@/Components/BlueButton';
 
 // const activities = [
 //   {
@@ -77,6 +79,9 @@ export default function HomePage({activities, teams, team_id}) {
   console.log('activities', activities);
   const [date, setDate] = useState(new Date());
   const [teamId, setTeamId] = useState(team_id);
+  const [selectedService, setSelectedService] = useState(null);
+  const [adults, setAdults] = useState(0);
+  const [children, setChildren] = useState(0);
   const [showServices, setShowServices] = useState(false);
   const [showLocation, setShowLocation] = useState(false);
   const [showLocationModal, setShowLocationModal] = useState(false);
@@ -127,17 +132,17 @@ useEffect(() => {
 
 
   return (
-    <>
+    <div className="bg-gray-50 min-h-screen">
     <Head title="Welcome" />
-    <header className="bg-white shadow sticky top-0 z-50">
-      <div className="max-w-screen-xl mx-auto px-4 py-4 flex justify-between items-center">
+    <header className="bg-gray-50 sticky top-0 z-50">
+      <div className="max-w-screen-xl mx-auto px-4 pt-12 flex justify-between items-center">
         <Link href="/" className="text-xl font-bold text-blue-700">
           <img src="/images/logo.png" alt="Stormriver Adventures" className="h-10" />
         </Link>
         <nav className="flex gap-6 text-sm text-gray-700">
           <Link href="/" className="hover:text-blue-600">Home</Link>
-          {/* <Link href="/services" className="hover:text-blue-600">Services</Link> */}
-  {/* Services with dropdown modal */}
+              {/* <Link href="/services" className="hover:text-blue-600">Services</Link> */}
+              {/* Services with dropdown modal */}
               <div className="relative" ref={locationsRef}>
                 <button
                   onClick={() => setShowLocation(!showLocation)}
@@ -175,9 +180,8 @@ useEffect(() => {
                   <div className="absolute top-full mt-2 w-64 bg-white border rounded shadow-lg p-4 z-50">
                     <h3 className="text-sm font-semibold text-gray-700 mb-2">Choose a Service</h3>
                     {activities?.map((activity) => {
-                      console.log('activity', activity);
                       return(
-                      <NavSelect name={activity.service} onChange={() => router.get(`/services/${activity.service_id}`)} />
+                      <NavSelect name={activity.name} onChange={() => router.get(route('front.activity',{activity_id: activity.id}))} />
                     )})}
                   </div>
                 )}
@@ -189,9 +193,9 @@ useEffect(() => {
         </nav>
       </div>
     </header>
-      <div className="max-w-screen-xl mx-auto px-4 py-8">
+    <div className="max-w-screen-xl mx-auto px-4 py-8">
         <div className="grid md:grid-cols-2 gap-6 items-start">
-          <div className="relative rounded-xl overflow-hidden shadow-lg h-[400px]">
+          <div className="relative rounded-[20px] overflow-hidden shadow-lg h-[400px]">
             <img
               src="/images/main1.jpg"
               alt="Stormriver Adventures"
@@ -208,30 +212,74 @@ useEffect(() => {
             </div>
           </div>
 
-          <div className="rounded-xl bg-white shadow p-6">
-            <h2 className="text-xl font-semibold mb-4">I'm looking for</h2>
-            <Select options={[{ value: 'all', label: 'Show me everything you can do!' }]} />
-            <div className="grid grid-cols-2 gap-4 mt-4">
-              <Input placeholder="Number of Adults" />
-              <Input placeholder="Number of Children" />
+          <div className="rounded-[20px] bg-white shadow h-[400px] ">
+            <div className='space-y-[12px]  p-6 mt-3'>
+              <span className="text-welcome-card-header ">I'm looking for</span>
+              {/* <Select options={[{ value: 'all', label: 'Show me everything you can do!' }]} /> */}
+              <CustomSelect
+                name="service"
+                optionText='Show me everything you can do!'
+                value={selectedService}
+                mode = "create"
+                onChange={(e) => {setSelectedService(e.target.value);}}
+                options={activities}
+                //options={services.map(service => ({ label: service.name, value: service.id }))}
+              />
+              
+              <div className="grid grid-cols-2 pt-1 gap-4">
+                <CustomInputText
+                  title="Number of Adults"
+                  id="adults"
+                  name="adults"
+                  type='number'
+                  min="0"
+                  value={adults}
+                  onChange={(e) => setAdults(e.target.value)}
+                />
+                <CustomInputText
+                  title="Number of Children"
+                  id="children"
+                  name="children"
+                  type='number'
+                  min="0"
+                  value={children}
+                  onChange={(e) => setChildren(e.target.value)}
+                />
+              </div>
+                  <CustomInputText
+                    title="Desired Date of Booking"
+                    id="date"
+                    name="date"
+                    type='date'
+                    value={date}
+                    onChange={(e) => setDate(e.target.value)}
+                  />
+                <div className='pt-3'>
+                    <BlueButton
+                      title="Find Activities"
+                      onClick={() => router.get(route('front.activity'), {
+                        activity_id: selectedService,
+                        adults: adults,
+                        children: children,
+                        start_date: date,
+                      })}
+                    />                  
+                </div>
             </div>
-            <div className="mt-4">
-              <Calendar selected={date} onSelect={setDate} />
-            </div>
-            <Button className="mt-4 w-full">Find Activities</Button>
+
           </div>
         </div>
 
       <div className="mt-10 grid md:grid-cols-3 sm:grid-cols-2 grid-cols-1 gap-6">
         {activities.length >= 1 ? (
           activities?.map((activity) => {
-            console.log('activity', activity);
+            
             return(
             <Card 
             key={activity?.id} 
             image={activity?.image}
             tag={activity?.tag} 
-            service={activity?.service} 
+            service={activity?.name} 
             season={activity?.season}
             price={activity?.price} 
             badge={activity?.pillbox_conditions}
@@ -293,7 +341,7 @@ useEffect(() => {
           activityId={selectedActivity.id}
         />
       )}
-    </>
+    </div>
 
   );
 }

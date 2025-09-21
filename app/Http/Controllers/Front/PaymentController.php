@@ -14,8 +14,8 @@ class PaymentController extends Controller
 {
     public function review(Booking $booking)
     {
-        return Inertia::render('ReviewPayment', [
-            'booking' => $booking,
+        return Inertia::render('BookingPayment', [
+            'booking' => $booking->load('booking_items', 'booking_items.customers', 'booking_items.booking_fees'),
         ]);
     }
 

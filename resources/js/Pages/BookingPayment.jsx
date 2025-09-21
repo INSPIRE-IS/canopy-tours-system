@@ -3,6 +3,7 @@ import { usePage, router } from '@inertiajs/react';
 
 export default function ReviewPayment() {
   const { booking } = usePage().props;
+  console.log(booking);
   const [file, setFile] = useState(null);
   const [method, setMethod] = useState('payfast'); // 'payfast' or 'offline'
   const [submitting, setSubmitting] = useState(false);
@@ -44,9 +45,9 @@ export default function ReviewPayment() {
       <div className="bg-white shadow p-6 rounded-xl space-y-6">
         <div>
           <h2 className="font-semibold">Booking Details</h2>
-          <p><strong>Name:</strong> {booking.lead_name}</p>
-          <p><strong>Date:</strong> {booking.date}</p>
-          <p><strong>Time:</strong> {booking.time}</p>
+          <p><strong>Name:</strong><span className='capitalize'> {booking.lead_name}</span></p>
+          <p><strong>Due Date:</strong> {booking.due_date}</p>
+          <p><strong>Refererence:</strong> {booking.reference}</p>
           <p><strong>Amount:</strong> R{Number(booking.grand_tot_due).toFixed(2)}</p>
         </div>
 

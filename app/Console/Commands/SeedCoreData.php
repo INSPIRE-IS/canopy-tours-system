@@ -838,9 +838,6 @@ class SeedCoreData extends Command
             ],
         ];
 
-
-
-
         foreach ($seasons as $season) {
             $season['rake_rate_adult'] = floatval(str_replace('R', '', $season['rake_rate_adult']));
             $season['rake_rate_child'] = floatval(str_replace('R', '', $season['rake_rate_child']));
@@ -849,7 +846,6 @@ class SeedCoreData extends Command
             Season::updateOrCreate(['id' => $season['id']], $season);
         }
         $this->info('Seasons seeded successfully.');
-
 
         $wholesaler_rates = [
             [

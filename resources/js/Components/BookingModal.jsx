@@ -1,18 +1,29 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 
-export default function BookingModal({ isOpen, onClose, slot, adults, children, pricePerAdult, activityId }) {
+export default function BookingModal({ isOpen, onClose, slot, adults, children, pricePerAdult, pricePerChild, activityId }) {
+  const [total, setTotal] = useState(0.00);
   const [form, setForm] = useState({
+    adults: adults,
+    children: children,
     name: '',
     surname: '',
     email: '',
     phone: '',
+    activity_id: activityId,
   });
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const total = (Number(adults) * pricePerAdult); // Add children logic as needed
+  useEffect(() => {
+
+    const sum = (Number(form.adults) * pricePerAdult + Number(form.children) * pricePerChild);
+    if (sum > 0) {
+      setTotal(sum.toFixed(2));
+    }
+    // setTotal((Number(form.adults) * pricePerAdult + Number(form.children) * pricePerChild).toFixed(2));
+  }, [form.adults, form.children, pricePerAdult, pricePerChild]);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -27,8 +38,6 @@ export default function BookingModal({ isOpen, onClose, slot, adults, children, 
         ...form,
         date: slot.date,
         time: slot.time,
-        adults,
-        children,
         activity_id: activityId,
       });
 
@@ -55,7 +64,7 @@ export default function BookingModal({ isOpen, onClose, slot, adults, children, 
         <p><strong>Time:</strong> {slot.time}</p>
         <p><strong>Adults:</strong> {adults}</p>
         <p><strong>Children:</strong> {children}</p>
-        <p><strong>Total:</strong> R{total.toFixed(2)}</p>
+        <p><strong>Total:</strong> R{total}</p>
 
         <div className="mt-4 space-y-2">
           <input name="name" onChange={handleChange} placeholder="Name" className="border p-2 w-full" />

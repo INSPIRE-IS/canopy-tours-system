@@ -4,13 +4,14 @@ namespace App\Models;
 
 use Carbon\Carbon;
 use DateTimeInterface;
+use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class BookingInventory extends Model
 {
-    use SoftDeletes, HasFactory;
+    use SoftDeletes, HasFactory, Auditable;
 
     public $table = 'booking_inventories';
 

@@ -17,7 +17,7 @@ export default {
                 inter: ['Inter', 'sans-serif'],
                 geist: ['Geist', 'sans-serif'],
                 publicSans: ['PublicSans', 'sans-serif'],
-
+                poppins: ['Poppins', 'sans-serif'],
               },
               fontSize: {
                 xs: ['12px', { lineHeight: '18px', letterSpacing: '-0.24px' }],

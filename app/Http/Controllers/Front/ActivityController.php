@@ -7,6 +7,7 @@ use App\Models\Booking;
 use App\Models\BookingDetail;
 use App\Models\BookingFee;
 use App\Models\BookingInventory;
+use App\Models\BookingItem;
 use App\Models\BookingPayment;
 use App\Models\Closeout;
 use App\Models\Customer;
@@ -93,10 +94,10 @@ class ActivityController extends Controller
                 });
                 //dd($fieldValues);
                 return [
-                    'id'         => optional($inventory)->id,
+                    'inventory_id'         => optional($inventory)->id,
                     'tag'        => $service->tag,
-                    'service_id'      => $service->id,
-                    'service'      => $service->name,
+                    'id'      => $service->id,
+                    'name'      => $service->name,
                     'season_id'      => $season->id,
                     'promo'      => $service->activePromotions->first(),
                     'image'      => $service->file ? '/storage/' . $service->file->path : null,
@@ -126,7 +127,7 @@ class ActivityController extends Controller
 
     public function activity(Request $request)
     {
-        // dd($request->all());
+        //dd($request->all());
         $activity_id = $request->activity_id;
         $startDate = Carbon::parse($request->input('start_date', now()));
 
@@ -188,13 +189,16 @@ class ActivityController extends Controller
             'serviceId' => $season->service_id,
             'seasonId' => $season->id,
             'activityId' => $activity_id,
-            'activities' => $activity,
+            'activity' => $activity,
             'schedule' => $schedule,
             'start_date' => $startDate->toDateString(),
             'view_mode' => $viewMode,
             'days' => collect(CarbonPeriod::create($startDate, $endDate))
                 ->map(fn($d) => $d->format('D d'))
                 ->values(),
+            'i_adults' => $request->input('adults', 0),
+            'i_children' => $request->input('children', 0),
+            'start_date' => $request->input('start_date', now()),
             'availableTimes' => [],
         ]);
     }
@@ -267,6 +271,9 @@ class ActivityController extends Controller
                 ->map(fn($d) => $d->format('D d'))
                 ->values(),
             'message'  => '',
+            'i_adults' => $request->input('adults', 0),
+            'i_children' => $request->input('children', 0),
+            'start_date' => $request->input('start_date', now()),
         ]);
     }
 
@@ -678,7 +685,7 @@ class ActivityController extends Controller
                 if (!$inventoryTimeSlot) {
                     abort(404, 'This inventory has no time slot.');
                 }
-
+                $sessionId = session()->getId();
                 // 1. Create or find customer
                 $customer = Customer::firstOrCreate([
                     'email_address' => $validated['email'],
@@ -687,82 +694,82 @@ class ActivityController extends Controller
                     'contact_number' => $validated['phone'],
                 ]);
                 $adultsCount = (int) ($validated['adults'] ?? 0);
-                $amount_adults = $inventory->rake_rate_adult * $adultsCount;
+                $amount_adults = $season->rake_rate_adult * $adultsCount;
                 $childrenCount = (int) ($validated['children'] ?? 0);
-                $amount_children = $inventory->rake_rate_children * $childrenCount;
-                //$guidesCount = (int) ($validated['guides'] ?? 0);
-                $amount_guides = $inventory->rake_rate_guide * 1;
+                $amount_children = $season->rake_rate_children * $childrenCount;
+                $guidesCount = 0; // (int) ($validated['guides'] ?? 0);
+                $amount_guides = $season->rake_rate_guide * $guidesCount;
                 $amount = $amount_adults + $amount_children + $amount_guides;
-
+                logger()->info('amount ' . $amount);
                 // 2. Create booking
                 $booking = Booking::create([
-                    'lead_name'      => $validated['name'] . ' ' . $validated['surname'],
+                    'user_id' => $sessionId,
+                    'lead_name' => $validated['name'] . ' ' . $validated['surname'],
                     'status_booking_id' => 1,
-                    'is_sms'         => 0,
-                    'is_corporate'   => 0,
-                    'due_date'       => '2025-07-01',
-                    'tot_paid'       => 0,
-                    'grand_tot_due'  => $amount,
-                    'reference'      => 'REF-' . strtoupper(Str::random(6)), //Str::uuid(),
-                    'service_id'     => $season->service_id,
-                    'season_id'      => $season->id,
-                    'inventory_id'   => $inventory->id,
-                    'customers'      => [$customer->id],
-                    'created_at'     => now(),
-                    'updated_at'     => now(),
-                    'deleted_at'     => null,
-                    'team_id'        => null,
+                    'is_sms' => 0,
+                    'is_corporate' => 0,
+                    'due_date' => '2025-07-01',
+                    'tot_paid' => 0,
+                    'grand_tot_due' => $amount,
+                    'reference' => 'REF-' . strtoupper(Str::random(6)), //Str::uuid(),
+                    'customer_id' => $customer->id,
+                    'team_id' => $season->team_id,
+                ]);
+
+                $bookingItem = BookingItem::updateOrCreate([
+                    'id' => $booking->id,
+                    'service_id' => $season->service_id,
+                    'season_id' => $season->id,
+                    'inventory_id' => $inventory->id,
+                    'booking_id' => $booking->id,
+                    'price_adult' => $season->rake_rate_adult,
+                    'price_child' => $season->rake_rate_child,
+                    'price_guide' => $season->rake_rate_guide,
+                    'discount_id' => null,
+                    //'promotion_id' => null,
+                    'pax_adults' => $adultsCount,
+                    'pax_children' => $childrenCount,
+                    'pax_guides' => 0,
                 ]);
 
                 // Prepare pivot data
                 $pivotData = [];
 
-
                 $pivotData[$customer->id] = [
-                    'team_id' => null,   // TODO: get team from the page or session
-                    'is_lead' => 1,     // First customer is lead, rest are not
+                    'team_id' => $season->team_id,
+                    'is_lead' => 1,
                 ];
 
-
                 // Sync with pivot data
-                $booking->customers()->sync($pivotData);
+                $bookingItem->customers()->sync($pivotData);
 
-                // Optional Enhancements
-                // You can also lock inventory slots with for update queries if you expect concurrency.
-                // Use Laravel's retry helper if you're worried about deadlocks (rare unless high traffic).
-
-                //TODO: Add booking details
                 $bookingDetail = BookingDetail::create([
-                    'booking_id'     => $booking->id,
+                    'booking_item_id'     => $bookingItem->id,
                     'is_wholesaler_booking' => 0,
                     'is_needs_pickup' => 0,
                     'is_web_booking' => 0,
                     'is_videos_photos' => 0,
                     'is_exclusive_resource_use' => 0,
                     'is_override_time_slots' => 0,
-                    'created_at'     => now(),
-                    'updated_at'     => now(),
-                    'team_id'        => null,
+                    'team_id'        => $season->team_id,
                 ]);
-                //TODO: Add booking inventory
+
                 $bookingInventory = BookingInventory::create([
-                    'booking_id'     => $booking->id,
+                    'booking_item_id'     => $bookingItem->id,
                     'booking_detail_id' => $bookingDetail->id,
                     'date'           => $validated['date'],
                     'tot_adults'     => $adultsCount,
                     'tot_children'   => $childrenCount,
-                    'tot_guides'     => 1,
+                    'tot_guides'     => $guidesCount,
                     'pax'            => $adultsCount + $childrenCount,
                     'inventory_type_day_id' => $isoNameOfDay,
                     'inventory_time_slot_id' => $inventoryTimeSlot->id,
                     'inventory_override_id' => null,
-                    'created_at'     => now(),
-                    'updated_at'     => now(),
-                    'team_id'        => null,
+                    'team_id'        => $season->team_id,
                 ]);
-                //TODO: Add booking fees
+
                 $bookingFee = BookingFee::create([
-                    'booking_id'     => $booking->id,
+                    'booking_item_id'     => $bookingItem->id,
                     'booking_detail_id' => $bookingDetail->id,
                     'tot_adults'     => $amount_adults,
                     'tot_children'   => $amount_children,
@@ -773,9 +780,7 @@ class ActivityController extends Controller
                     'is_email_reminder' => 0,
                     'booking_note'   => '',
                     'tot_amount'     => $amount,
-                    'created_at'     => now(),
-                    'updated_at'     => now(),
-                    'team_id'        => null,
+                    'team_id'        => $season->team_id,
                 ]);
 
                 return $booking;
