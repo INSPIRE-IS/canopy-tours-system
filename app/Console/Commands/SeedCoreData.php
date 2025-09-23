@@ -30,7 +30,7 @@ use App\Models\User;
 use App\Models\TypeDay;
 use App\Models\TypePayOption;
 use App\Models\TypePayment;
-use App\Models\StatusBooking;
+use App\Models\TypeBooking;
 use App\Models\TypeAffiliate;
 use App\Models\TypeCategory;
 use App\Models\TypeData;
@@ -39,6 +39,8 @@ use App\Models\TypeGroup;
 use App\Models\TypeInput;
 use App\Models\File;
 use App\Models\Gateway;
+use App\Models\Lookup;
+use App\Models\LookupItem;
 use App\Models\Promotion;
 use App\Models\StatusPayment;
 use App\Models\TypeConfirmation;
@@ -46,6 +48,7 @@ use App\Models\TypeGender;
 use App\Models\TypeHelpQuestion;
 use App\Models\TypeLocation;
 use App\Models\TypeReferral;
+use App\Models\VatRate;
 use App\Models\Wholesaler;
 use App\Models\WholesalerRate;
 use Illuminate\Support\Facades\DB;
@@ -115,14 +118,49 @@ class SeedCoreData extends Command
         Role::findOrFail(5)->permissions()->sync($userPermissions->pluck('id'));
 
         // Teams
-        Team::updateOrCreate(['id' => 1], ['name' => 'Cape']);
+        Team::updateOrCreate(['id' => 1], [
+            'name' => 'Cape',
+            // 'description' => 'The Tsitsikamma team is a group of volunteers who are dedicated to helping the community of Tsitsikamma. We are passionate about making a positive impact on the lives of the people who live here and are committed to making a difference.',
+            // 'image' => '/images/teams/tsitsikamma.jpg',
+        ]);
         Team::updateOrCreate(['id' => 2], ['name' => 'Drakensburg']);
         Team::updateOrCreate(['id' => 3], ['name' => 'Karkloof']);
-        Team::updateOrCreate(['id' => 4], ['name' => 'Magaliesberg']);
+        Team::updateOrCreate([
+            'id' => 4
+        ], [
+            'name' => 'Magaliesberg',
+            // 'full_name' => 'Tsitsikamma',
+            // 'description' => '<h3 style="color:white;">Stormriver Adventures </h3> <p style="color:white;">Come and Experience a World of Diversity in One Forest </p> <p style="color:white;">A Unique Tsitsikamma Experience You’ll Never Forget!.</p>',
+            // 'logo' => '/images/teams/tsitsikamma.jpg',
+            // 'image' => '/images/teams/tsitsikamma.jpg',
+            // 'color' => '#31B700',
+            // 'reg_no' => '2008/018998/07',
+            // 'address' => 'PO Box 3132, Tzaneen',
+            // 'address_code' => '0850',
+            // 'owner' => 'Magoebaskloof Canopy Tours',
+            // 'number' => '1234567890',
+            // 'type'   => 'Cheque',
+            // 'name'   => 'ABSA',
+            // 'branch_code' => '632005',        
+        ]);
         Team::updateOrCreate(['id' => 5], ['name' => 'Magoebskloof']);
         Team::updateOrCreate(['id' => 6], ['name' => 'Malolotja']);
-        Team::updateOrCreate(['id' => 7], ['name' => 'Tsitsikamma']);
-
+        Team::updateOrCreate(['id' => 7], [
+            'name' => 'Tsitsikamma',
+            'full_name' => 'Tsitsikamma Canopy Tours',
+            'description' => '<h3 style="color:white;">Stormriver Adventures </h3> <p style="color:white;">Come and Experience a World of Diversity in One Forest </p> <p style="color:white;">A Unique Tsitsikamma Experience You’ll Never Forget!.</p>',
+            'logo' => '/images/teams/tsitsikamma.jpg',
+            'image' => '/images/teams/tsitsikamma.jpg',
+            'color' => '#31B700',
+            'reg_no' => '0000/0000/00',
+            'address' => 'PO Box 0000, Somewhere',
+            'address_code' => '0000',
+            'account_owner' => 'Tsitsikamma Canopy Tours',
+            'account_number' => '1234567890',
+            'account_type'   => 'Cheque',
+            'bank_name'   => 'FNB',
+            'branch_code' => '50001',
+        ]);
         // Users
         $users = [
             [
@@ -333,17 +371,76 @@ class SeedCoreData extends Command
             TypeHelpQuestion::updateOrCreate(['id' => $helpQuestion['id']], $helpQuestion);
         }
 
+        $lookups = [
+            [
+                'id' => 1,
+                'name' => 'VAT Rates',
+                'slug' => 'vat_rate',
+            ],
+            [
+                'id' => 2,
+                'name' => 'deposit_due',
+                'slug' => 'deposit_due',
+            ],
+            [
+                'id' => 3,
+                'name' => 'due_today',
+                'slug' => 'due_today',
+            ],
+        ];
+
+        foreach ($lookups as $lookup) {
+            Lookup::updateOrCreate(['id' => $lookup['id']], $lookup);
+        }
+
+        $lookupItems = [
+            [
+                'id' => 1,
+                'slug' => 'vat_rate',
+                'rate' => 0.15,
+                'multiplier' => 1.15,
+                'effective_from' => '2020-01-01',
+                'is_default' => 1,
+                'is_active' => 1,
+                'team_id' => null,
+                'lookup_id' => 1,
+            ],
+            [
+                'id' => 2,
+                'slug' => 'deposit_due',
+                'rate' => 0.00,
+                'multiplier' => 1.00,
+                'effective_from' => '2020-01-01',
+                'is_default' => 1,
+                'is_active' => 1,
+                'team_id' => null,
+                'lookup_id' => 2,
+            ],
+            [
+                'id' => 3,
+                'slug' => 'due_today',
+                'rate' => 0.00,
+                'multiplier' => 1.00,
+                'effective_from' => '2020-01-01',
+                'is_default' => 1,
+                'is_active' => 1,
+                'team_id' => null,
+                'lookup_id' => 3,
+            ],
+        ];
+
+        foreach ($lookupItems as $lookupItem) {
+            LookupItem::updateOrCreate(['id' => $lookupItem['id']], $lookupItem);
+        }
+
+
         // StatusBookings
-        $statuses = [
+        $type_bookings = [
             ['id' => 1, 'name' => 'quote'],
             ['id' => 2, 'name' => 'invoice'],
-            ['id' => 3, 'name' => 'sent'],
-            ['id' => 4, 'name' => 'paid'],
-            ['id' => 5, 'name' => 'unpaid'],
-            ['id' => 6, 'name' => 'cancelled'],
         ];
-        foreach ($statuses as $status) {
-            StatusBooking::updateOrCreate(['id' => $status['id']], $status);
+        foreach ($type_bookings as $status) {
+            TypeBooking::updateOrCreate(['id' => $status['id']], $status);
         }
 
         $groupTypes = [
@@ -737,7 +834,7 @@ class SeedCoreData extends Command
                 'end_date' => '2026-02-28',
                 'rake_rate_adult' => '600.00',
                 'rake_rate_child' => '300.00',
-                'rake_rate_guide' => '200.00',
+                'rake_rate_guide' => '0.00',
                 'allow_internal_price_override' => 1,
                 'status' => 0,
                 'created_by_id' => 1,
@@ -752,7 +849,7 @@ class SeedCoreData extends Command
                 'end_date' => '2026-02-28',
                 'rake_rate_adult' => '600.00',
                 'rake_rate_child' => '300.00',
-                'rake_rate_guide' => '200.00',
+                'rake_rate_guide' => '0.00',
                 'allow_internal_price_override' => 1,
                 'status' => 0,
                 'created_by_id' => 1,
@@ -767,7 +864,7 @@ class SeedCoreData extends Command
                 'end_date' => '2026-02-28',
                 'rake_rate_adult' => '600.00',
                 'rake_rate_child' => '300.00',
-                'rake_rate_guide' => '200.00',
+                'rake_rate_guide' => '0.00',
                 'allow_internal_price_override' => 1,
                 'status' => 0,
                 'created_by_id' => 1,
@@ -782,7 +879,7 @@ class SeedCoreData extends Command
                 'end_date' => '2026-06-01',
                 'rake_rate_adult' => '600.00',
                 'rake_rate_child' => '300.00',
-                'rake_rate_guide' => '200.00',
+                'rake_rate_guide' => '0.00',
                 'status' => 0,
                 'created_by_id' => 1,
                 'updated_by_id' => 1,
@@ -796,7 +893,7 @@ class SeedCoreData extends Command
                 'end_date' => '2025-08-28',
                 'rake_rate_adult' => '600.00',
                 'rake_rate_child' => '300.00',
-                'rake_rate_guide' => '200.00',
+                'rake_rate_guide' => '0.00',
                 'allow_internal_price_override' => 1,
                 'status' => 0,
                 'created_by_id' => 1,
@@ -811,7 +908,7 @@ class SeedCoreData extends Command
                 'end_date' => '2026-02-28',
                 'rake_rate_adult' => '600.00',
                 'rake_rate_child' => '300.00',
-                'rake_rate_guide' => '200.00',
+                'rake_rate_guide' => '0.00',
                 'allow_internal_override' => 1,
                 'status' => 0,
                 'created_by_id' => 1,
@@ -827,7 +924,7 @@ class SeedCoreData extends Command
                 'end_date' => '2027-02-28',
                 'rake_rate_adult' => '600.00',
                 'rake_rate_child' => '300.00',
-                'rake_rate_guide' => '200.00',
+                'rake_rate_guide' => '0.00',
                 'capacity' => 6,
                 'allow_internal_override' => 1,
                 'status' => 0,
@@ -853,54 +950,48 @@ class SeedCoreData extends Command
                 'wholesaler_id' => 1,
                 'service_id' => 1,
                 'season_id' => 1,
-                'price_adult' => 200.00,
-                'price_child' => 100.00,
-                'price_guide' => null,
+                'price_adult' => '590.00',
+                'price_child' => '290.00',
             ],
             [
                 'id' => 2,
                 'wholesaler_id' => 1,
                 'service_id' => 4,
                 'season_id' => 4,
-                'price_adult' => 200.00,
-                'price_child' => 100.00,
-                'price_guide' => null,
+                'price_adult' => '500.00',
+                'price_child' => '200.00',
             ],
             [
                 'id' => 3,
                 'wholesaler_id' => 1,
                 'service_id' => 5,
                 'season_id' => 5,
-                'price_adult' => 200.00,
-                'price_child' => 100.00,
-                'price_guide' => null,
+                'price_adult' => '560.00',
+                'price_child' => '260.00',
             ],
             [
                 'id' => 4,
                 'wholesaler_id' => 2,
                 'service_id' => 2,
                 'season_id' => 2,
-                'price_adult' => 300.00,
-                'price_child' => 200.00,
-                'price_guide' => null,
+                'price_adult' => '540.00',
+                'price_child' => '240.00',
             ],
             [
                 'id' => 5,
                 'wholesaler_id' => 3,
                 'service_id' => 3,
                 'season_id' => 3,
-                'price_adult' => 300.00,
-                'price_child' => 200.00,
-                'price_guide' => null,
+                'price_adult' => '580.00',
+                'price_child' => '280.00',
             ],
             [
                 'id' => 6,
                 'wholesaler_id' => 4,
                 'service_id' => 4,
                 'season_id' => 4,
-                'price_adult' => 400.00,
-                'price_child' => 200.00,
-                'price_guide' => null,
+                'price_adult' => '570.00',
+                'price_child' => '270.00',
             ],
         ];
 
@@ -1526,14 +1617,13 @@ class SeedCoreData extends Command
             Customer::updateOrCreate(['id' => $customer['id']], $customer);
         }
 
-
-
         $bookings = [
             [
                 'id'             => 1,
                 'lead_name'      => 'Customer1',
                 'user_id'        => 1,
-                'status_booking_id' => 1,
+                'type_booking_id' => 1,
+                'status_payment_id' => 2,
                 'is_sms'         => 0,
                 'is_corporate'   => 0,
                 'due_date'       => '2025-03-01',
@@ -1552,7 +1642,8 @@ class SeedCoreData extends Command
                 'id'             => 2,
                 'lead_name'      => 'Customer4',
                 'user_id'        => 1,
-                'status_booking_id' => 1,
+                'type_booking_id' => 1,
+                'status_payment_id' => 2,
                 'is_sms'         => 0,
                 'is_corporate'   => 0,
                 'due_date'       => '2025-04-02',
@@ -1571,7 +1662,8 @@ class SeedCoreData extends Command
                 'id'             => 3,
                 'lead_name'      => 'Customer7',
                 'user_id'        => 1,
-                'status_booking_id' => 1,
+                'type_booking_id' => 1,
+                'status_payment_id' => 2,
                 'is_sms'         => 0,
                 'is_corporate'   => 0,
                 'due_date'       => '2025-07-03',
@@ -1590,7 +1682,8 @@ class SeedCoreData extends Command
                 'id'             => 4,
                 'lead_name'      => 'Customer9',
                 'user_id'        => 1,
-                'status_booking_id' => 1,
+                'type_booking_id' => 1,
+                'status_payment_id' => 2,
                 'is_sms'         => 0,
                 'is_corporate'   => 0,
                 'due_date'       => '2025-07-04',
@@ -1622,7 +1715,6 @@ class SeedCoreData extends Command
                 'price_adult'    => 600.00,
                 'price_child'    => 300.00,
                 'price_guide'    => 0.00,
-                'discount_id'    => null,
                 'promotion_id'   => null,
                 'pax_adults'    => 2,
                 'pax_children'    => 1,
@@ -1638,7 +1730,6 @@ class SeedCoreData extends Command
                 'price_adult'    => 600.00,
                 'price_child'    => 300.00,
                 'price_guide'    => 0.00,
-                'discount_id'    => null,
                 'promotion_id'   => null,
                 'pax_adults'    => 3,
                 'pax_children'    => 0,
@@ -1654,7 +1745,6 @@ class SeedCoreData extends Command
                 'price_adult'    => 600.00,
                 'price_child'    => 300.00,
                 'price_guide'    => 0.00,
-                'discount_id'    => null,
                 'promotion_id'   => null,
                 'pax_adults'    => 1,
                 'pax_children'    => 1,
@@ -1670,7 +1760,6 @@ class SeedCoreData extends Command
                 'price_adult'    => 600.00,
                 'price_child'    => 300.00,
                 'price_guide'    => 0.00,
-                'discount_id'    => null,
                 'promotion_id'   => null,
                 'pax_adults'    => 2,
                 'pax_children'    => 0,
@@ -2176,7 +2265,7 @@ class SeedCoreData extends Command
                 'booking_id'     => 1,
                 'type_pay_option_id'   => 1,     // or 'Pay Offline'
                 'type_payment_id' => 1, // Cash // 5 eft
-                'status_payment_id'         => 1,        // 'paid', 'failed', 'cancelled'
+                'status_payment_id'         => 2,        // 'paid', 'failed', 'cancelled'
                 'amount'         => 1500.00,          // full amount due or partial
                 'reference'      => $bookings[0]['reference'], //  'OFF-' . strtoupper(Str::random(6)), // can be order ref or external tx
                 'gateway_id'        => 1,        // 'Manual'
@@ -2198,7 +2287,7 @@ class SeedCoreData extends Command
                 'booking_id'     => 2,
                 'type_pay_option_id'   => 1,     // or 'Pay Offline'
                 'type_payment_id' => 1, // Cash // 5 eft
-                'status_payment_id'         => 1,        // 'paid', 'failed', 'cancelled'
+                'status_payment_id'         => 2,        // 'paid', 'failed', 'cancelled'
                 'amount'         => 1800.00,          // full amount due or partial
                 'reference'      => $bookings[1]['reference'], // 'OFF-' . strtoupper(Str::random(6)), // can be order ref or external tx
                 'gateway_id'        => 1,        // 'Manual'
@@ -2220,7 +2309,7 @@ class SeedCoreData extends Command
                 'booking_id'     => 3,
                 'type_pay_option_id'   => 1,     // or 'Pay Offline'
                 'type_payment_id' => 1, // Cash // 5 eft
-                'status_payment_id'         => 1,        // 'paid', 'failed', 'cancelled'
+                'status_payment_id'         => 2,        // 'paid', 'failed', 'cancelled'
                 'amount'         => 900.00,          // full amount due or partial
                 'reference'      => $bookings[2]['reference'], //'OFF-' . strtoupper(Str::random(6)), // can be order ref or external tx
                 'gateway_id'        => 1,        // 'Manual'
@@ -2242,7 +2331,7 @@ class SeedCoreData extends Command
                 'booking_id'     => 4,
                 'type_pay_option_id'   => 1,     // or 'Pay Offline'
                 'type_payment_id' => 1, // Cash // 5 eft
-                'status_payment_id'         => 1,        // 'paid', 'failed', 'cancelled'
+                'status_payment_id'         => 2,        // 'paid', 'failed', 'cancelled'
                 'amount'         => 1200.00,          // full amount due or partial
                 'reference'      => $bookings[3]['reference'], //'OFF-' . strtoupper(Str::random(6)), // can be order ref or external tx
                 'gateway_id'        => 1,        // 'Manual'
@@ -2265,7 +2354,7 @@ class SeedCoreData extends Command
 
             // Mark as paid (in real app, you'd validate PayFast response)
             $booking->update([
-                'status_booking_id' => 2, // e.g., "paid"
+                // 'status_booking_id' => 2, // e.g., "paid"
                 'tot_paid' => $bookingPayment['amount'],
             ]);
 

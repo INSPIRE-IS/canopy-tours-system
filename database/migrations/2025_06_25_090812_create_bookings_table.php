@@ -14,6 +14,7 @@ return new class extends Migration
         Schema::create('bookings', function (Blueprint $table) {
             $table->id();
             $table->string('lead_name');
+            $table->string('session_id')->nullable();
             $table->boolean('is_sms')->default(0)->nullable();
             $table->boolean('is_corporate')->default(0)->nullable();
             $table->date('due_date')->nullable();
@@ -24,7 +25,8 @@ return new class extends Migration
             $table->softDeletes();
             $table->foreignId('customer_id')->nullable()->constrained('customers');
             $table->foreignId('user_id')->nullable()->constrained('users');
-            $table->foreignId('status_booking_id')->nullable()->constrained('status_bookings');
+            $table->foreignId('type_booking_id')->nullable()->constrained('type_bookings');
+            $table->foreignId('status_payment_id')->nullable()->constrained('status_payments');
             $table->foreignId('updated_by_id')->nullable()->constrained('users');
             $table->foreignId('team_id')->nullable()->constrained('teams');
         });

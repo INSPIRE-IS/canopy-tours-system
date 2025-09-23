@@ -11,18 +11,18 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('booking_pax_discounts', function (Blueprint $table) {
+        Schema::create('booking_discount_items', function (Blueprint $table) {
             $table->id();
-            $table->enum('pax_type', ['adults', 'children', 'guides'])->default('adults');
+            $table->enum('pax_type', ['adult', 'child', 'guide'])->default('adult');
             $table->integer('count')->default(0);
             $table->decimal('base_rate', 10, 2); // 0-100
             $table->decimal('final_rate', 10, 2); // 0-100
             $table->timestamps();
             $table->softDeletes();
 
-            $table->foreignId('booking_pricing_id')->constrained('booking_pricing')->onDelete('cascade');
-            $table->foreignId('discount_id')->constrained('discounts')->onDelete('cascade');
-            $table->index(['booking_pricing_id', 'discount_id']);
+            $table->foreignId('booking_discount_id')->constrained('booking_discounts')->onDelete('cascade');
+            $table->foreignId('discount_id')->nullable()->constrained('discounts')->onDelete('cascade');
+            $table->index(['booking_discount_id', 'discount_id']);
         });
     }
 
@@ -31,6 +31,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('booking_pax_discounts');
+        Schema::dropIfExists('booking_discount_items');
     }
 };

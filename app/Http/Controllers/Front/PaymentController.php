@@ -5,15 +5,25 @@ namespace App\Http\Controllers\Front;
 use App\Http\Controllers\Controller;
 use App\Models\Booking;
 use App\Models\BookingPayment;
+use App\Models\Customer;
 use App\Models\GiftVoucher;
+use App\Models\InvoiceTemplate;
+use App\Models\Team;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Str;
 
 class PaymentController extends Controller
 {
-    public function review(Booking $booking)
+    public function booking(Booking $booking)
     {
+        //dd($booking);
+        $sessionId = session()->getId() ?? null;
+        //logger()->info('sessionId inertia ' . $sessionId);
+        if ($sessionId != $booking->session_id || $booking->status_payment_id != 1) {
+            return redirect()->route('front.welcome');
+        }
+
         return Inertia::render('BookingPayment', [
             'booking' => $booking->load('booking_items', 'booking_items.customers', 'booking_items.booking_fees'),
         ]);
@@ -21,6 +31,13 @@ class PaymentController extends Controller
 
     public function gift(GiftVoucher $gift)
     {
+        //dd($gift);
+        $sessionId = session()->getId() ?? null;
+        //logger()->info('sessionId inertia ' . $sessionId);
+        if ($sessionId != $gift->session_id || $gift->status_payment_id != 1) {
+            return redirect()->route('front.welcome');
+        }
+
         return Inertia::render('GiftPayment', [
             'gift' => $gift,
         ]);
@@ -43,7 +60,7 @@ class PaymentController extends Controller
                 [
                     'type_pay_option_id'   => 2,     // or 'Pay Offline'
                     'type_payment_id' => 3, // credit card
-                    'status_payment_id'         => 1,        // 'paid', 'failed', 'cancelled'
+                    'status_payment_id' => 1,        // 'paid', 'failed', 'cancelled'
                     'amount'         => $booking->grand_tot_due,          // full amount due or partial
                     'reference'      => $booking->reference, // Str::uuid(),      // can be order ref or external tx
                     'gateway_id'        => 1,        // or 'Manual', 'Stripe', etc.
@@ -129,5 +146,136 @@ class PaymentController extends Controller
             ]);
             return redirect()->route('front.payment.gift', $voucher)->with('success', 'Offline payment intent saved.');
         }
+    }
+
+
+    public function download(Booking $booking)
+    {
+        //dd($booking);
+        $sessionId = session()->getId() ?? null;
+        //logger()->info('sessionId inertia ' . $sessionId);
+        if ($sessionId != $booking->session_id || $booking->status_payment_id != 1) {
+            return redirect()->route('front.welcome');
+        }
+        $template = InvoiceTemplate::where('is_default', true)->first();
+
+        $booking = Booking::find($booking->id);
+        $teamId = $booking->team_id;
+        if (!$booking) {
+            $voucher = GiftVoucher::where('session_id', $sessionId)->where('status_payment_id', 1)->first();
+            $customer = collect([
+                'full_name'     => $voucher?->full_name,
+                'email_address' => $voucher?->email_address,
+                'contact_number' => $voucher?->contact_number,
+            ]);
+            $count = $voucher?->gift_voucher_items?->count();
+            $items = $voucher?->gift_voucher_items->first();
+            $teamId = $voucher?->booking_id;
+        } else {
+            $customer = Customer::find($booking?->customer_id);
+            $items = $booking?->booking_items->first();
+            $count = $booking?->booking_items?->count();
+        }
+
+        $site = Team::select('full_name', 'reg_no', 'address', 'address_code', 'account_owner', 'account_number', 'account_type', 'bank_name', 'branch_code')->find($teamId);
+
+        $data = [
+            'site' => [
+                'name' => $site->full_name,
+                'reg_no' => $site->reg_no,
+                'address' => $site->address,
+                'address_code' => $site->address_code,
+            ],
+            'client' => [
+                'name' => $customer->full_name,
+                'phone' => $customer->contact_number,
+                'email' => $customer->email_address,
+            ],
+            'invoice' => [
+                'number' => '0002129',
+                'date'   => '2025-09-13',
+            ],
+            'booking' => [
+                'ref' => $booking->reference,
+            ],
+            'service' => [
+                'name' => 'Canopy Tour Package',
+                'adults' => $items->pax_adults,
+                'children' => $items->pax_children,
+                'guides' => $items->pax_guides,
+            ],
+            'amount_ex_vat' => $booking->grand_tot_due,
+            'vat'           => $booking->grand_tot_due * 0.15,
+            'amount_paid'   => $booking->tot_paid,
+            'balance_due'   => ($booking->grand_tot_due * 1.15) - $booking->tot_paid,
+            'notes'         => 'Please pay within 7 days.',
+            'logo'          => '<img src="logo.png" alt="Logo" style="max-height:50px;">',
+            'bank' => [
+                'owner' => $site->account_owner,
+                'number' => $site->account_number,
+                'type'   => $site->account_type,
+                'name'   => $site->bank_name,
+                'branch_code' => $site->branch_code,
+            ],
+        ];
+
+
+        $html = $this->renderTemplate($template->content, $data);
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadHTML($html);
+
+        return $pdf->stream("invoice-{$booking->id}.pdf");
+        // or ->download("invoice-{$invoice->id}.pdf");
+    }
+
+
+    private function renderTemplate(string $template, array $data): string
+    {
+        $placeholders = [
+            '{{logo}}'                => $data['logo'] ?? '',
+            '{{site_name}}'           => $data['site']['name'] ?? '',
+            '{{site_reg_no}}'         => $data['site']['reg_no'] ?? '',
+            '{{site_address}}'        => $data['site']['address'] ?? '',
+            '{{site_address_code}}'   => $data['site']['address_code'] ?? '',
+            '{{client_name}}'         => $data['client']['name'] ?? '',
+            '{{client_phone}}'        => $data['client']['phone'] ?? '',
+            '{{client_email}}'        => $data['client']['email'] ?? '',
+            '{{invoice_number}}'      => $data['invoice']['number'] ?? '',
+            '{{invoice_date}}'        => $data['invoice']['date'] ?? '',
+            '{{booking_ref}}'         => $data['booking']['ref'] ?? '',
+            '{{amount_ex_vat}}'       => $data['amount_ex_vat'] ?? '',
+            '{{vat}}'                 => $data['vat'] ?? '',
+            '{{amount_paid}}'         => $data['amount_paid'] ?? '',
+            '{{balance_due}}'         => $data['balance_due'] ?? '',
+            '{{service_name}}'        => $data['service']['name'] ?? '',
+            '{{adults}}'              => $data['service']['adults'] ?? '',
+            '{{children}}'            => $data['service']['children'] ?? '',
+            '{{guides}}'              => $data['service']['guides'] ?? '',
+            '{{notes}}'               => $data['notes'] ?? '',
+            '{{logo}}'                => $data['logo'] ?? '',
+            '{{bank_account_owner}}'  => $data['bank']['owner'] ?? '',
+            '{{bank_account_no}}'     => $data['bank']['number'] ?? '',
+            '{{bank_account_type}}'   => $data['bank']['type'] ?? '',
+            '{{bank_name}}'           => $data['bank']['name'] ?? '',
+            '{{branch_code}}'         => $data['bank']['branch_code'] ?? '',
+        ];
+
+        $html = strtr($template, $placeholders);
+
+        // Handle dynamic line items if template includes {{lineItems}}
+        if (str_contains($html, '{{lineItems}}')) {
+            $rows = '';
+            foreach ($data['items'] ?? [] as $item) {
+                $rows .= "<tr>
+                        <td>{$item['description']}</td>
+                        <td>{$item['qty']}</td>
+                        <td>{$item['price']}</td>
+                        <td>{$item['subtotal']}</td>
+                    </tr>";
+            }
+            $html = str_replace('{{lineItems}}', $rows, $html);
+        }
+
+        return $html;
     }
 }

@@ -12,6 +12,7 @@ use App\Models\BookingPayment;
 use App\Models\Closeout;
 use App\Models\Customer;
 use App\Models\GiftVoucher;
+use App\Models\GiftVoucherItem;
 use App\Models\Inventory;
 use App\Models\InventoryTimeSlot;
 use App\Models\InventoryTypeDay;
@@ -94,7 +95,7 @@ class ActivityController extends Controller
                 });
                 //dd($fieldValues);
                 return [
-                    'inventory_id'         => optional($inventory)->id,
+                    'inventory_id' => optional($inventory)->id,
                     'tag'        => $service->tag,
                     'id'      => $service->id,
                     'name'      => $service->name,
@@ -112,6 +113,7 @@ class ActivityController extends Controller
             })->filter(); // remove nulls
         });
         //dd($activities);
+        $team = Team::select('id', 'name', 'description', 'image', 'color')->find($teamId);
 
         return Inertia::render('Welcome', [
             'canLogin' => Route::has('login'),
@@ -120,6 +122,7 @@ class ActivityController extends Controller
             'phpVersion' => PHP_VERSION,
             'activities' => $activities,
             'teams' => $teams,
+            'team' => $team,
             'team_id' => $teamId ?? 0,
         ]);
     }
@@ -654,8 +657,7 @@ class ActivityController extends Controller
         // TODO: validate the inventory is still available
 
         $validated = $request->validate([
-            'name' => 'required|string',
-            'surname' => 'required|string',
+            'full_name' => 'required|string',
             'email' => 'required|email',
             'phone' => 'required|string',
             'date' => 'required|date',
@@ -663,19 +665,28 @@ class ActivityController extends Controller
             'adults' => 'required|integer|min:1',
             'children' => 'nullable|integer|min:0',
             'activity_id' => 'required|integer',
+            'promotion_id' => 'nullable|integer',
         ]);
         try {
             $booking = DB::transaction(function () use ($validated) {
                 $activity_id = $validated['activity_id'];
-
+                $sessionId = session()->getId();
+                logger()->info('sessionId activity ' . session()->getId());
                 $season = Season::findOrFail($activity_id);
                 $inventory = Inventory::where('season_id', $season->id)->first();
                 //$FullNameOfDay = Carbon::parse($validated['date'])->format('l'); // e.g., Monday
                 //$ShortNameOfDay = Carbon::parse($validated['date'])->format('D'); // e.g., Mon
                 $isoNameOfDay = Carbon::parse($validated['date'])->format('N'); // iso week starts on Monday
                 //$numericNameOfDay = Carbon::parse($validated['date'])->format('w'); // week starts on Sunday
-
-
+                // lookup booking
+                $adultsCount = (int) ($validated['adults'] ?? 0);
+                $amount_adults = $season->rake_rate_adult * $adultsCount;
+                $childrenCount = (int) ($validated['children'] ?? 0);
+                $amount_children = $season->rake_rate_child * $childrenCount;
+                $guidesCount = (int) ($validated['guides'] ?? 0);
+                $amount_guides = $season->rake_rate_guide * $guidesCount;
+                $amount = $amount_adults + $amount_children + $amount_guides;
+                logger()->info('amount ' . $amount);
                 if (!$inventory) {
                     abort(404, 'This season has no inventory.');
                 }
@@ -685,36 +696,39 @@ class ActivityController extends Controller
                 if (!$inventoryTimeSlot) {
                     abort(404, 'This inventory has no time slot.');
                 }
-                $sessionId = session()->getId();
-                // 1. Create or find customer
-                $customer = Customer::firstOrCreate([
-                    'email_address' => $validated['email'],
-                ], [
-                    'full_name' => $validated['name'] . ' ' . $validated['surname'],
-                    'contact_number' => $validated['phone'],
-                ]);
-                $adultsCount = (int) ($validated['adults'] ?? 0);
-                $amount_adults = $season->rake_rate_adult * $adultsCount;
-                $childrenCount = (int) ($validated['children'] ?? 0);
-                $amount_children = $season->rake_rate_children * $childrenCount;
-                $guidesCount = 0; // (int) ($validated['guides'] ?? 0);
-                $amount_guides = $season->rake_rate_guide * $guidesCount;
-                $amount = $amount_adults + $amount_children + $amount_guides;
-                logger()->info('amount ' . $amount);
-                // 2. Create booking
-                $booking = Booking::create([
-                    'user_id' => $sessionId,
-                    'lead_name' => $validated['name'] . ' ' . $validated['surname'],
-                    'status_booking_id' => 1,
-                    'is_sms' => 0,
-                    'is_corporate' => 0,
-                    'due_date' => '2025-07-01',
-                    'tot_paid' => 0,
-                    'grand_tot_due' => $amount,
-                    'reference' => 'REF-' . strtoupper(Str::random(6)), //Str::uuid(),
-                    'customer_id' => $customer->id,
-                    'team_id' => $season->team_id,
-                ]);
+
+                $booking = Booking::where('session_id', $sessionId)->where('status_payment_id', 1)->first();
+                if (!$booking) {
+                    // 1. Create or find customer
+                    $customer = Customer::firstOrCreate([
+                        'email_address' => $validated['email'],
+                    ], [
+                        'full_name' => $validated['full_name'],
+                        'contact_number' => $validated['phone'],
+                    ]);
+
+                    // 2. Create booking
+                    $booking = Booking::create([
+                        'user_id' => null,
+                        'session_id' => $sessionId,
+                        'lead_name' => $validated['full_name'],
+                        'type_booking_id' => 1,
+                        'status_payment_id' => 1,
+                        'is_sms' => 0,
+                        'is_corporate' => 0,
+                        'due_date' => date('Y-m-d'),
+                        'tot_paid' => 0,
+                        'grand_tot_due' => $amount,
+                        'reference' => 'REF-' . strtoupper(Str::random(6)), //Str::uuid(),
+                        'customer_id' => $customer->id,
+                        'team_id' => $season->team_id,
+                    ]);
+                } else {
+                    $booking->update([
+                        'grand_tot_due' => $booking->grand_tot_due + $amount,
+                        'updated_at' => now(),
+                    ]);
+                }
 
                 $bookingItem = BookingItem::updateOrCreate([
                     'id' => $booking->id,
@@ -725,8 +739,7 @@ class ActivityController extends Controller
                     'price_adult' => $season->rake_rate_adult,
                     'price_child' => $season->rake_rate_child,
                     'price_guide' => $season->rake_rate_guide,
-                    'discount_id' => null,
-                    //'promotion_id' => null,
+                    'promotion_id' => $validated['promotion_id'] ?? null,
                     'pax_adults' => $adultsCount,
                     'pax_children' => $childrenCount,
                     'pax_guides' => 0,
@@ -735,7 +748,7 @@ class ActivityController extends Controller
                 // Prepare pivot data
                 $pivotData = [];
 
-                $pivotData[$customer->id] = [
+                $pivotData[$booking->customer_id] = [
                     'team_id' => $season->team_id,
                     'is_lead' => 1,
                 ];
@@ -790,7 +803,7 @@ class ActivityController extends Controller
             return response()->json([
                 'success' => true,
                 'booking_id' => $booking->id,
-                'redirect_url' => route('front.payment.review', ['booking' => $booking->id]) //  route('payfast.checkout', ['booking' => $booking->id])
+                'redirect_url' => route('front.payment.booking', ['booking' => $booking->id]) //  route('payfast.checkout', ['booking' => $booking->id])
             ]);
             //return redirect()->back()->with('booking_id', $booking->id);
         } catch (\Throwable $e) {
@@ -813,8 +826,7 @@ class ActivityController extends Controller
         // TODO: validate the inventory is still available
         //dd($request->all());
         $validated = $request->validate([
-            'name' => 'required|string',
-            'surname' => 'required|string',
+            'full_name' => 'required|string',
             'email' => 'required|email',
             'phone' => 'required|string',
             'date' => 'required|date',
@@ -826,7 +838,7 @@ class ActivityController extends Controller
         try {
             $voucher = DB::transaction(function () use ($validated) {
                 $activity_id = $validated['activity_id'];
-
+                $sessionId = session()->getId();
                 $season = Season::findOrFail($activity_id);
                 $adultsCount = (int) ($validated['adults'] ?? 0);
                 $amount_adults = $season->rake_rate_adult * $adultsCount;
@@ -836,23 +848,38 @@ class ActivityController extends Controller
                 $amount_guides = 0; //  $season->rake_rate_guide * 1;
                 $amount = $amount_adults + $amount_children + $amount_guides;
 
-                $voucher = GiftVoucher::create([
-                    'full_name' => $validated['name'] . ' ' . $validated['surname'],
-                    'email_address' => $validated['email'],
-                    'contact_number' => $validated['phone'],
-                    'voucher_code' => 'VREF-' . strtoupper(Str::random(6)),
-                    'grand_tot_due' => $amount,
-                    'note' => '',
-                    'expire_date' => null,
-                    'status_payment_id' => 1,
-                    'paid_date' => null,
-                    'redeemed' => false,
-                    'redeemed_date' => null,
+                //get gift voucher
+                $voucher = GiftVoucher::where('session_id', $sessionId)->first();
+                if (!$voucher) {
+                    $voucher = GiftVoucher::create([
+                        'full_name' => $validated['full_name'],
+                        'email_address' => $validated['email'],
+                        'contact_number' => $validated['phone'],
+                        'voucher_code' => 'VREF-' . strtoupper(Str::random(6)),
+                        'grand_tot_due' => $amount,
+                        'note' => '',
+                        'expire_date' => null,
+                        'status_payment_id' => 1,
+                        'paid_date' => null,
+                        'redeemed' => false,
+                        'redeemed_date' => null,
+                        'user_id' => null,
+                        'session_id' => $sessionId,
+                    ]);
+                }
+
+                $voucherItem = GiftVoucherItem::create([
+                    'pax_adults' => $adultsCount,
+                    'pax_children' => $childrenCount,
+                    'price_adult' => $amount_adults,
+                    'price_child' => $amount_children,
+                    'gift_voucher_id' => $voucher->id,
                     'booking_id' => null,
                     'team_id' => $season->team_id,
                     'service_id' => $season->service_id,
                     'season_id' => $season->id,
                 ]);
+
 
                 return $voucher;
             });
@@ -879,8 +906,6 @@ class ActivityController extends Controller
         }
     }
 
-
-
     public function voucher(Request $request)
     {
         dd($request->all());
@@ -888,7 +913,6 @@ class ActivityController extends Controller
         // return view('front.voucher', compact('activityId'));
         return Inertia::render('GiftVoucher', ['activityId' => $activityId]);
     }
-
 
     public function showTestOrder()
     {

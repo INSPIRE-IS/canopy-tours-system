@@ -14,9 +14,9 @@ return new class extends Migration
         Schema::create('invoices', function (Blueprint $table) {
             $table->id();
             $table->foreignId('booking_id')->nullable()->constrained()->cascadeOnDelete();
-            $table->foreignId('customer_id')->nullable()->constrained()->nullOnDelete();
+            $table->foreignId('gift_voucher_id')->nullable()->constrained()->nullOnDelete();
+            $table->string('invoice_number')->unique();
 
-            $table->string('number')->unique(); // e.g. INV-2025-0001
             $table->date('invoice_date');
             $table->date('due_date')->nullable();
 
@@ -24,8 +24,8 @@ return new class extends Migration
             $table->decimal('vat', 12, 2)->default(0);
             $table->decimal('total', 12, 2)->default(0);
 
-            $table->enum('status', ['draft', 'sent', 'paid', 'cancelled'])->default('draft');
-            $table->json('meta')->nullable(); // extra info (bank details, notes, etc.)
+
+
             $table->timestamps();
             $table->softDeletes();
 

@@ -34,6 +34,7 @@ class BookingInventory extends Model
         'inventory_type_day_id',
         'inventory_time_slot_id',
         'inventory_override_id',
+        'team_id',
         'created_at',
         'updated_at',
         'deleted_at',

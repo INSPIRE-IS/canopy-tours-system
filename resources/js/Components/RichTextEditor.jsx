@@ -8,9 +8,9 @@ export default function Editor() {
 
     window.tinymce.init({
       target: editorRef.current,
-      plugins: 'lists link code',
+      plugins: 'lists link code textcolor',
       toolbar:
-        'undo redo | styles | bold italic | alignleft aligncenter alignright | bullist numlist outdent indent',// | link | code
+        'undo redo | styles | forecolor backcolor | bold italic | alignleft aligncenter alignright | bullist numlist outdent indent',// | link | code
       menubar: false,
       branding: false,
       browser_spellcheck: true,

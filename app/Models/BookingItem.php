@@ -16,15 +16,19 @@ class BookingItem extends Model
     protected $fillable = [
         'booking_id',
         'service_id',
+        'season_id',
+        'inventory_id',
         'pax_adults',
         'pax_children',
         'pax_guides',
         'price_adult',
         'price_child',
         'price_guide',
+        'promotion_id',
+        'wholesaler_id',
         'discount_id',
-        'inventory_id',
-        'season_id',
+
+
         'created_at',
         'updated_at',
         'deleted_at',
@@ -79,9 +83,9 @@ class BookingItem extends Model
         return $this->belongsTo(Service::class, 'service_id');
     }
 
-    public function discount()
+    public function promotion()
     {
-        return $this->belongsTo(Discount::class, 'discount_id');
+        return $this->belongsTo(Promotion::class, 'promotion_id');
     }
 
     public function inventory()

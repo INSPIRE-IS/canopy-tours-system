@@ -30,6 +30,7 @@ class WholesalerBooking extends Model
         'created_at',
         'updated_at',
         'deleted_at',
+        'team_id',
     ];
 
     protected function serializeDate(DateTimeInterface $date)

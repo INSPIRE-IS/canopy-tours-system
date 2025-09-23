@@ -16,6 +16,8 @@ return new class extends Migration
             $table->string('full_name')->nullable();
             $table->string('email_address')->nullable();
             $table->string('contact_number')->nullable();
+            $table->foreignId('user_id')->nullable()->constrained('users');
+            $table->string('session_id')->nullable();
             $table->string('voucher_code')->nullable();
             $table->float('grand_tot_due', 8, 2);
             $table->longText('note')->nullable();
@@ -27,11 +29,6 @@ return new class extends Migration
 
             $table->timestamps();
             $table->softDeletes();
-
-            $table->foreignId('booking_id')->nullable()->constrained('bookings');
-            $table->foreignId('team_id')->nullable()->constrained('teams');
-            $table->foreignId('service_id')->nullable()->constrained('services');
-            $table->foreignId('season_id')->nullable()->constrained('seasons');
         });
     }
 

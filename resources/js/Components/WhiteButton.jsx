@@ -33,7 +33,7 @@ const WhiteButton = ({
             onClick={onClick}
             disabled={disabled}
             className={`flex items-center justify-center ${width} ${height} gap-2 px-4 py-2 rounded-[10px] border border-primary-14
-                bg-white-gradient-overlay text-black shadow-inset-white 
+                bg-white-gradient-overlay ${textColor} shadow-inset-white 
                 hover:border-black hover:text-black cursor-pointer ${className}`}
             {...props}
         >

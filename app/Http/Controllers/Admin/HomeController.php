@@ -63,12 +63,12 @@ class HomeController extends Controller
 
                 'service'        => 'name',
                 'season'         => 'name',
-                'status_booking' => 'name',
+                'type_booking' => 'name',
                 'lead_name'      => '',
                 'created_at'         => '',
             ],
             //'translation_key' => 'booking',
-            'data'           => \App\Models\Booking::with('booking_items', 'booking_items.service:id,name', 'booking_items.season:id,name', 'status_booking:id,name')->latest()->take(10)->get(),
+            'data'           => \App\Models\Booking::with('booking_items', 'booking_items.service:id,name', 'booking_items.season:id,name', 'type_booking:id,name')->latest()->take(10)->get(),
         ];
 
         $settings3 = [
@@ -109,13 +109,13 @@ class HomeController extends Controller
             // 'entries_number'        => '10',
             'fields'                => [
                 'season'         => 'name',
-                'status_booking' => 'name',
+                'status_payment' => 'name',
                 'lead_name'      => '',
                 'due_date'       => '',
                 'tot_paid'       => '',
             ],
             'translation_key' => 'booking',
-            'data'           => \App\Models\Booking::with('booking_items', 'booking_items.season:id,name', 'status_booking:id,name')->latest()->take(10)->get(),
+            'data'           => \App\Models\Booking::with('booking_items', 'booking_items.season:id,name', 'status_payment:id,name')->latest()->take(10)->get(),
         ];
 
 

@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void
     {
-        Schema::create('booking_pricing', function (Blueprint $table) {
+        Schema::create('booking_discounts', function (Blueprint $table) {
             $table->id();
             $table->decimal('final_price_adult', 10, 2)->default(0);
             $table->decimal('final_price_child', 10, 2)->default(0);
@@ -16,14 +16,11 @@ return new class extends Migration {
             $table->softDeletes();
 
             $table->foreignId('booking_id')->constrained('bookings')->onDelete('cascade');
-            $table->foreignId('season_id')->constrained('seasons')->onDelete('cascade');
-            $table->foreignId('wholesaler_rate_id')->constrained('wholesaler_rates')->onDelete('cascade');
-            $table->foreignId('promotion_id')->constrained('promotions')->onDelete('cascade');
         });
     }
 
     public function down(): void
     {
-        Schema::dropIfExists('booking_pricing');
+        Schema::dropIfExists('booking_discounts');
     }
 };

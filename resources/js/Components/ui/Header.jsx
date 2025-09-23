@@ -1,7 +1,7 @@
 // components/ui/Header.tsx
 import { Link } from '@inertiajs/react';
 
-export default function Header() {
+export default function Header({ auth }) {
   return (
     // <header className="bg-white shadow-md">
     //   <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
@@ -29,7 +29,7 @@ export default function Header() {
         <nav className="flex gap-6 text-sm text-gray-700">
           <Link href="/" className="hover:text-blue-600">Home</Link>
           <Link href="/" className="hover:text-blue-600">Services</Link>
-          <Link href="/cart" className="hover:text-blue-600">Cart</Link>
+          <Link href="/cart" className="hover:text-blue-600">Cart {auth?.count}</Link>
           {/* <Link href="/questionnaire" className="hover:text-blue-600">Questionnaire</Link> */}
           <Link href="/login" className="hover:text-blue-600">Login</Link>
         </nav>

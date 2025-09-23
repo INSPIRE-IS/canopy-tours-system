@@ -11,28 +11,21 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('booking_items', function (Blueprint $table) {
+        Schema::create('gift_voucher_items', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('booking_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('service_id')->constrained()->cascadeOnDelete();
-
             // Pax counts
             $table->unsignedInteger('pax_adults')->default(0);
             $table->unsignedInteger('pax_children')->default(0);
-            $table->unsignedInteger('pax_guides')->default(0);
-
             // Pricing snapshot
             $table->decimal('price_adult', 10, 2)->default(0);
             $table->decimal('price_child', 10, 2)->default(0);
-            $table->decimal('price_guide', 10, 2)->default(0);
 
-            // Relationships to existing entities
-            $table->foreignId('discount_id')->nullable()->constrained()->nullOnDelete();
-            $table->foreignId('season_id')->constrained('seasons');
-            $table->foreignId('inventory_id')->constrained('inventories');
-
+            $table->foreignId('gift_voucher_id')->nullable()->constrained('gift_vouchers');
+            $table->foreignId('booking_id')->nullable()->constrained('bookings');
+            $table->foreignId('team_id')->nullable()->constrained('teams');
+            $table->foreignId('service_id')->nullable()->constrained('services');
+            $table->foreignId('season_id')->nullable()->constrained('seasons');
             $table->timestamps();
-            $table->softDeletes();
         });
     }
 
@@ -41,6 +34,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('booking_items');
+        Schema::dropIfExists('gift_voucher_items');
     }
 };

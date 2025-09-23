@@ -14,10 +14,19 @@ return new class extends Migration
         Schema::create('teams', function (Blueprint $table) {
             $table->id();
             $table->string('name')->nullable();
+            $table->string('full_name')->nullable();
             $table->string('description')->nullable();
             $table->string('logo')->nullable();
             $table->string('image')->nullable();
             $table->string('color')->nullable();
+            $table->string('reg_no')->nullable();
+            $table->string('address')->nullable();
+            $table->string('address_code')->nullable();
+            $table->string('account_owner')->nullable();
+            $table->string('account_number')->nullable();
+            $table->string('account_type')->nullable();
+            $table->string('bank_name')->nullable();
+            $table->string('branch_code')->nullable();
             $table->timestamps();
             $table->softDeletes();
 

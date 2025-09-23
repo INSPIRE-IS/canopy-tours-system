@@ -2,6 +2,9 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Booking;
+use App\Models\Customer;
+use App\Models\GiftVoucher;
 use App\Models\Team;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -30,8 +33,11 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
-
+        $sessionId = session()->getId() ?? null;
+        logger()->info('sessionId inertia ' . $sessionId);
         $user = $request->user();
+        $teams = Team::all();
+
         if ($user) {
             $user->load('roles.permissions', 'team');
             $permissions = $user?->roles->first()?->permissions
@@ -42,6 +48,23 @@ class HandleInertiaRequests extends Middleware
             //dd($teams);
         }
 
+        if ($sessionId) {
+            $booking = Booking::where('session_id', $sessionId)->where('status_payment_id', 1)->first();
+            $bookingId = $booking?->id;
+            if (!$booking) {
+                $voucher = GiftVoucher::where('session_id', $sessionId)->where('status_payment_id', 1)->first();
+                $customer = collect([
+                    'full_name'     => $voucher?->full_name,
+                    'email_address' => $voucher?->email_address,
+                    'contact_number' => $voucher?->contact_number,
+                ]);
+                $count = $voucher?->gift_voucher_items?->count();
+                $bookingId = $voucher?->booking_id;
+            } else {
+                $customer = Customer::find($booking?->customer_id);
+                $count = $booking?->booking_items?->count();
+            }
+        }
 
         //dd($permissions);
         return [
@@ -49,6 +72,9 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $user,
                 'teams' => $teams ?? [],
+                'customer' => $customer,
+                'count' => $count ?? 0,
+                'bookingId' => $bookingId ?? null,
             ],
             'permissions' =>  $permissions ?? [],
             'currentRoutePath' => $request->path(),

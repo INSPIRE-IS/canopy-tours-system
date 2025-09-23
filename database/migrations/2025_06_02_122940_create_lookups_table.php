@@ -11,11 +11,14 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('status_bookings', function (Blueprint $table) {
+        Schema::create('lookups', function (Blueprint $table) {
             $table->id();
             $table->string('name');
+            $table->string('slug');
             $table->timestamps();
             $table->softDeletes();
+
+            $table->foreignId('team_id')->nullable()->constrained('teams');
         });
     }
 
@@ -24,6 +27,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('status_bookings');
+        Schema::dropIfExists('lookups');
     }
 };

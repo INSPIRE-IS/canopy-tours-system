@@ -25,8 +25,10 @@ class Booking extends Model
 
     protected $fillable = [
         'user_id',
+        'session_id',
         'lead_name',
-        'status_booking_id',
+        'type_booking_id',
+        'status_payment_id',
         'is_sms',
         'is_corporate',
         'due_date',
@@ -69,9 +71,14 @@ class Booking extends Model
         return $this->hasMany(BookingItem::class);
     }
 
-    public function status_booking()
+    public function type_booking()
     {
-        return $this->belongsTo(StatusBooking::class, 'status_booking_id');
+        return $this->belongsTo(TypeBooking::class, 'type_booking_id');
+    }
+
+    public function status_payment()
+    {
+        return $this->belongsTo(StatusPayment::class, 'status_payment_id');
     }
 
     public function getDueDateAttribute($value)

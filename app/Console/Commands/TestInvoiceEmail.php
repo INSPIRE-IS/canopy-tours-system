@@ -5,10 +5,11 @@ namespace App\Console\Commands;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\InvoiceMail;
+use App\Models\Email;
 use App\Models\InvoiceTemplate;
 use App\Services\TemplateRenderer;
 use Barryvdh\DomPDF\Facade\Pdf;
-
+use Illuminate\Support\Facades\Storage;
 
 class TestInvoiceEmail extends Command
 {
@@ -102,8 +103,27 @@ class TestInvoiceEmail extends Command
         // generate PDF
         $pdf = Pdf::loadHTML($html);
 
+        // 🔹 save PDF locally
+        $filename = 'invoices/' . $invoice['invoice']['number'] . '.pdf';
+        Storage::disk('local')->put($filename, $pdf->output());
         // send mail
         Mail::to($email)->send(new InvoiceMail($invoice, $pdf));
+
+
+        // 🔹 log in emails table
+        Email::create([
+            'sender'         => config('mail.from.address'),
+            'receiver'       => $email,
+            'subject'        => 'Test Invoice ' . $invoice['invoice']['number'],
+            'body'           => strip_tags($html), // or a summary
+            'attachment_path' => $filename,
+            'sent'           => true,
+            'sent_at'        => now(),
+            'user_id'        => null,
+            'booking_id'     => null,
+            'team_id'        => null,
+        ]);
+
 
         $this->info("Test invoice sent to {$email}");
     }

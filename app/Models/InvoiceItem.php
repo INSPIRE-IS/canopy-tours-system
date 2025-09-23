@@ -9,10 +9,40 @@ class InvoiceItem extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['invoice_id', 'description', 'qty', 'price', 'subtotal', 'created_at', 'updated_at', 'deleted_at', 'team_id'];
+    protected $fillable = [
+        'invoice_id',
+        'pax_adults',
+        'pax_children',
+        'pax_guides',
+        'price_adult',
+        'price_child',
+        'price_guide',
+        'team_id',
+        'service_id',
+        'season_id',
+        'booking_inventory_id',
+        'created_at',
+        'updated_at',
+        'deleted_at',
+    ];
 
     public function invoice()
     {
         return $this->belongsTo(Invoice::class);
+    }
+
+    public function service()
+    {
+        return $this->belongsTo(Service::class);
+    }
+
+    public function season()
+    {
+        return $this->belongsTo(Season::class);
+    }
+
+    public function booking_inventory()
+    {
+        return $this->belongsTo(BookingInventory::class);
     }
 }

@@ -14,17 +14,23 @@ return new class extends Migration
         Schema::create('invoice_items', function (Blueprint $table) {
             $table->id();
 
-
-            $table->string('description');
-            $table->integer('qty')->default(1);
-            $table->decimal('price', 12, 2);
-            $table->decimal('subtotal', 12, 2);
+            // Pax counts
+            $table->unsignedInteger('pax_adults')->default(0);
+            $table->unsignedInteger('pax_children')->default(0);
+            $table->unsignedInteger('pax_guides')->default(0);
+            // Pricing snapshot
+            $table->decimal('price_adult', 10, 2)->default(0);
+            $table->decimal('price_child', 10, 2)->default(0);
+            $table->decimal('price_guide', 10, 2)->default(0);
 
             $table->timestamps();
             $table->softDeletes();
 
             $table->foreignId('invoice_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('team_id')->constrained('teams')->onDelete('cascade');
+            $table->foreignId('team_id')->nullable()->constrained('teams');
+            $table->foreignId('service_id')->nullable()->constrained('services');
+            $table->foreignId('season_id')->nullable()->constrained('seasons');
+            $table->foreignId('booking_inventory_id')->nullable()->constrained('booking_inventories');
         });
     }
 

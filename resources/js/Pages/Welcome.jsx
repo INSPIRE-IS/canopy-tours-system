@@ -1,82 +1,16 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, Head, router } from '@inertiajs/react';
 import Card from '@/components/ui/card';
-import Button from '@/components/ui/button';
-import Calendar from '@/components/ui/calendar';
-import Input from '@/components/ui/input';
-import Select from '@/components/ui/select';
 import CustomSelect from '@/Components/CustomSelect';
 import NavSelect from '@/Components/NavSelect';
 import BuyGiftModal from '@/Components/BuyGiftModal';
-import { set } from 'date-fns';
 import CustomInputText from '@/Components/CustomInputText';
 import BlueButton from '@/Components/BlueButton';
+import RichTextDisplay from '@/Components/RichTextDisplay';
 
-// const activities = [
-//   {
-//     id: 1,
-//     category: 'Canopy Tour',
-//     title: 'Tsitsikamma Canopy Tour',
-//     price: 'R895.00',
-//     image: '/images/card1.jpg',
-//     badge: '1 Adult',
-//     gift: true,
-//     minPeople: 1,
-//   },
-//   {
-//     id: 2,
-//     category: 'Woodcutters',
-//     title: 'Tsitsikamma Woodcutters Journey',
-//     price: 'R540.00',
-//     image: '/images/card2.jpg',
-//     badge: 'Requires a minimum of 2 People',
-//     gift: true,
-//     minPeople: 2,
-//   },
-//   {
-//     id: 3,
-//     category: 'Guided Hikes',
-//     title: 'Tsitsikamma Guided Hikes Green route: 5.09km',
-//     price: 'R270.00',
-//     image: '/images/card3.jpg',
-//     badge: 'Book Now From 21 February 2025',
-//     gift: true,
-//     minPeople: 2,
-//   },
-//     {
-//     id: 4,
-//     category: 'Guided Hikes',
-//     title: 'Tsitsikamma Guided Hikes Red route: 7.78km',
-//     price: 'R390.00',
-//     image: '/images/card4.jpg',
-//     badge: 'Requires a minimum of 2 People',
-//     gift: true,
-//     minPeople: 2,
-//   },
-//     {
-//     id: 5,
-//     category: 'Guided Hikes',
-//     title: 'Tsitsikamma Guided Hikes Yellow route 8.09km',
-//     price: 'R450.00',
-//     image: '/images/card5.jpg',
-//     badge: 'Requires a minimum of 2 People',
-//     gift: true,
-//     minPeople: 2,
-//   },
-//     {
-//     id: 6,
-//     category: 'Guided Hikes',
-//     title: 'Tsitsikamma Canopy Tour Photographic Scavenger Hunt',
-//     price: 'R1183.00',
-//     image: '/images/card6.jpg',
-//     badge: 'Book Now From 21 February 2025',
-//     gift: true,
-//     minPeople: 2,
-//   },
-// ];
-
-export default function HomePage({activities, teams, team_id}) {
+export default function HomePage({ activities, auth, teams, team_id, team }) {
   console.log('activities', activities);
+  console.log('team', team);
   const [date, setDate] = useState(new Date());
   const [teamId, setTeamId] = useState(team_id);
   const [selectedService, setSelectedService] = useState(null);
@@ -91,25 +25,25 @@ export default function HomePage({activities, teams, team_id}) {
   const servicesRef = useRef();
 
 
-useEffect(() => {
-  console.log('team_id', team_id);
-  if (teamId != 0) {
-    setTeamId(team_id);
-    localStorage.setItem('preferred_team_id', team_id);
-    return;
-  }
-  const savedTeamId = localStorage.getItem('preferred_team_id');
-  console.log('savedTeamId', savedTeamId);
-  if (savedTeamId == null || savedTeamId == "undefined" || savedTeamId == 0) {
-    // Ask for location or show modal
-    // For now, show modal with team select
-    setShowLocationModal(true);
-  } else {
-    // Redirect to page with team_id
-    //localStorage.setItem('preferred_team_id', savedTeamId);
-    router.get(route('front.welcome', { team_id: savedTeamId }));
-  }
-}, []);
+  useEffect(() => {
+    console.log('team_id', team_id);
+    if (teamId != 0) {
+      setTeamId(team_id);
+      localStorage.setItem('preferred_team_id', team_id);
+      return;
+    }
+    const savedTeamId = localStorage.getItem('preferred_team_id');
+    console.log('savedTeamId', savedTeamId);
+    if (savedTeamId == null || savedTeamId == "undefined" || savedTeamId == 0) {
+      // Ask for location or show modal
+      // For now, show modal with team select
+      setShowLocationModal(true);
+    } else {
+      // Redirect to page with team_id
+      //localStorage.setItem('preferred_team_id', savedTeamId);
+      router.get(route('front.welcome', { team_id: savedTeamId }));
+    }
+  }, []);
 
 
   useEffect(() => {
@@ -133,67 +67,68 @@ useEffect(() => {
 
   return (
     <div className="bg-gray-50 min-h-screen">
-    <Head title="Welcome" />
-    <header className="bg-gray-50 sticky top-0 z-50">
-      <div className="max-w-screen-xl mx-auto px-4 pt-12 flex justify-between items-center">
-        <Link href="/" className="text-xl font-bold text-blue-700">
-          <img src="/images/logo.png" alt="Stormriver Adventures" className="h-10" />
-        </Link>
-        <nav className="flex gap-6 text-sm text-gray-700">
-          <Link href="/" className="hover:text-blue-600">Home</Link>
-              {/* <Link href="/services" className="hover:text-blue-600">Services</Link> */}
-              {/* Services with dropdown modal */}
-              <div className="relative" ref={locationsRef}>
-                <button
-                  onClick={() => setShowLocation(!showLocation)}
-                  className="hover:text-blue-600"
-                >
-                  Venue
-                </button>
+      <Head title="Welcome" />
+      <div className="bg-gray-50 sticky top-0 z-50">
+        <div className="max-w-screen-xl mx-auto px-4 pt-12 flex justify-between items-center">
+          <Link href="/" className="text-xl font-bold text-blue-700">
+            <img src="/images/logo.png" alt="Stormriver Adventures" className="h-10" />
+          </Link>
+          <nav className="flex gap-6 text-sm text-gray-700">
+            <Link href="/" className="hover:text-blue-600">Home</Link>
+            {/* <Link href="/services" className="hover:text-blue-600">Services</Link> */}
+            {/* Services with dropdown modal */}
+            <div className="relative" ref={locationsRef}>
+              <button
+                onClick={() => setShowLocation(!showLocation)}
+                className="hover:text-blue-600"
+              >
+                Venue
+              </button>
 
-                {showLocation && (
-                  <div className="absolute top-full mt-2 w-64 bg-white border rounded shadow-lg p-4 z-50">
-                    <h3 className="text-sm font-semibold text-gray-700 mb-2">Choose a Location</h3>
-                    {/* <NavSelect name="All Locations" onChange={() => router.get('/locations')} /> */}
-                    {teams.map((team) => (              
-                      <NavSelect name={team.name} onChange={(e) => {
-                        localStorage.setItem('preferred_team_id',team.id);
-                        setShowLocationModal(false);
-                        router.get(route('front.welcome', { team_id: team.id }));          
-                        //setData(e.target.name, e.target.value);
-                      }} />
-                    ))}
-                  </div>
-                )}
-              </div>
+              {showLocation && (
+                <div className="absolute top-full mt-2 w-64 bg-white border rounded shadow-lg p-4 z-50">
+                  <h3 className="text-sm font-semibold text-gray-700 mb-2">Choose a Location</h3>
+                  {/* <NavSelect name="All Locations" onChange={() => router.get('/locations')} /> */}
+                  {teams.map((team) => (
+                    <NavSelect name={team.name} onChange={(e) => {
+                      localStorage.setItem('preferred_team_id', team.id);
+                      setShowLocationModal(false);
+                      router.get(route('front.welcome', { team_id: team.id }));
+                      //setData(e.target.name, e.target.value);
+                    }} />
+                  ))}
+                </div>
+              )}
+            </div>
 
 
-              <div className="relative" ref={servicesRef}>
-                <button
-                  onClick={() => setShowServices(!showServices)}
-                  className="hover:text-blue-600"
-                >
-                  Services
-                </button>
+            <div className="relative" ref={servicesRef}>
+              <button
+                onClick={() => setShowServices(!showServices)}
+                className="hover:text-blue-600"
+              >
+                Services
+              </button>
 
-                {showServices && (
-                  <div className="absolute top-full mt-2 w-64 bg-white border rounded shadow-lg p-4 z-50">
-                    <h3 className="text-sm font-semibold text-gray-700 mb-2">Choose a Service</h3>
-                    {activities?.map((activity) => {
-                      return(
-                      <NavSelect name={activity.name} onChange={() => router.get(route('front.activity',{activity_id: activity.id}))} />
-                    )})}
-                  </div>
-                )}
-              </div>
-          {/* <Link href="/vouchers" className="hover:text-blue-600">Gift Vouchers</Link> */}
-          <Link href="/cart" className="hover:text-blue-600">Cart</Link>
-          {/* <Link href="/questionnaire" className="hover:text-blue-600">Questionnaire</Link> */}
-          <Link href="/login" className="hover:text-blue-600">Login</Link>
-        </nav>
+              {showServices && (
+                <div className="absolute top-full mt-2 w-64 bg-white border rounded shadow-lg p-4 z-50">
+                  <h3 className="text-sm font-semibold text-gray-700 mb-2">Choose a Service</h3>
+                  {activities?.map((activity) => {
+                    return (
+                      <NavSelect name={activity.name} onChange={() => router.get(route('front.activity', { activity_id: activity.id }))} />
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+            {/* <Link href="/vouchers" className="hover:text-blue-600">Gift Vouchers</Link> route('front.payment.booking', ['booking' => $booking->id]) */}
+            {auth?.bookingId && <Link href={route('front.payment.booking', { booking: auth?.bookingId })} className="hover:text-blue-600">Cart {auth?.count > 0 ? '(' + auth?.count + ')' : ''}</Link>}
+            {/* <Link href="/questionnaire" className="hover:text-blue-600">Questionnaire</Link> */}
+            <Link href="/login" className="hover:text-blue-600">Login</Link>
+          </nav>
+        </div>
       </div>
-    </header>
-    <div className="max-w-screen-xl mx-auto px-4 py-8">
+      <div className="max-w-screen-xl mx-auto px-4 py-8">
         <div className="grid md:grid-cols-2 gap-6 items-start">
           <div className="relative rounded-[20px] overflow-hidden shadow-lg h-[400px]">
             <img
@@ -201,14 +136,17 @@ useEffect(() => {
               alt="Stormriver Adventures"
               className="w-full h-full object-cover"
             />
-            <div className="absolute inset-0 bg-black/50 flex flex-col justify-center p-6 text-white">
-              <h1 className="text-2xl md:text-4xl font-bold">Stormriver Adventures</h1>
+            <div className="absolute inset-0 bg-black/30 flex flex-col justify-center p-6 text-white">
+              {/* <h1 className="text-2xl md:text-4xl font-bold">Stormriver Adventures</h1>
               <p className="mt-2 text-lg md:text-xl">
                 Come and Experience a World of Diversity in One Forest
               </p>
               <p className="mt-1 text-sm md:text-base">
                 A Unique Tsitsikamma Experience You’ll Never Forget!
-              </p>
+              </p> */}
+              <div className="text-sm leading-relaxed text-white space-y-2">
+                <div className="prose prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: team?.description }} />
+              </div>
             </div>
           </div>
 
@@ -220,12 +158,12 @@ useEffect(() => {
                 name="service"
                 optionText='Show me everything you can do!'
                 value={selectedService}
-                mode = "create"
-                onChange={(e) => {setSelectedService(e.target.value);}}
+                mode="create"
+                onChange={(e) => { setSelectedService(e.target.value); }}
                 options={activities}
-                //options={services.map(service => ({ label: service.name, value: service.id }))}
+              //options={services.map(service => ({ label: service.name, value: service.id }))}
               />
-              
+
               <div className="grid grid-cols-2 pt-1 gap-4">
                 <CustomInputText
                   title="Number of Adults"
@@ -246,101 +184,105 @@ useEffect(() => {
                   onChange={(e) => setChildren(e.target.value)}
                 />
               </div>
-                  <CustomInputText
-                    title="Desired Date of Booking"
-                    id="date"
-                    name="date"
-                    type='date'
-                    value={date}
-                    onChange={(e) => setDate(e.target.value)}
-                  />
-                <div className='pt-3'>
-                    <BlueButton
-                      title="Find Activities"
-                      onClick={() => router.get(route('front.activity'), {
-                        activity_id: selectedService,
-                        adults: adults,
-                        children: children,
-                        start_date: date,
-                      })}
-                    />                  
-                </div>
+              <CustomInputText
+                title="Desired Date of Booking"
+                id="date"
+                name="date"
+                type='date'
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+              />
+              <div className='pt-3'>
+                <BlueButton
+                  title="Find Activities"
+                  onClick={() => router.get(route('front.activity'), {
+                    activity_id: selectedService,
+                    adults: adults,
+                    children: children,
+                    start_date: date,
+                  })}
+                />
+              </div>
             </div>
 
           </div>
         </div>
 
-      <div className="mt-10 grid md:grid-cols-3 sm:grid-cols-2 grid-cols-1 gap-6">
-        {activities.length >= 1 ? (
-          activities?.map((activity) => {
-            
-            return(
-            <Card 
-            key={activity?.id} 
-            image={activity?.image}
-            tag={activity?.tag} 
-            service={activity?.name} 
-            season={activity?.season}
-            price={activity?.price} 
-            badge={activity?.pillbox_conditions}
-            promo={activity?.promo}
-            gift={activity?.gift} 
-            onBook={() => router.get(route('front.activity',{activity_id: activity?.id}))}
-            onGift={(e) => handleGift(e,activity)}
-            />
-          )})        
-        ) :(
-          <div className="flex justify-center items-center">
-            <div className="text-center">
-              <h1 className="text-2xl md:text-4xl font-bold">No activities found</h1>
-              <p className="mt-2 text-lg md:text-xl">
-                Please try again later or contact us for more information.
-              </p>
+        <div className="mt-10 grid md:grid-cols-3 sm:grid-cols-2 grid-cols-1 gap-6">
+          {activities.length >= 1 ? (
+            activities?.map((activity) => {
+
+              return (
+                <Card
+                  key={activity?.id + activity?.inventory_id}
+                  image={activity?.image}
+                  tag={activity?.tag}
+                  service={activity?.name}
+                  season={activity?.season}
+                  price={activity?.price}
+                  badge={activity?.pillbox_conditions}
+                  promo={activity?.promo}
+                  gift={activity?.gift}
+                  onBook={() => router.get(route('front.activity', { activity_id: activity?.id }))}
+                  onGift={(e) => handleGift(e, activity)}
+                />
+              )
+            })
+          ) : (
+            <div className="flex justify-center items-center">
+              <div className="text-center">
+                <h1 className="text-2xl md:text-4xl font-bold">No activities found</h1>
+                <p className="mt-2 text-lg md:text-xl">
+                  Please try again later or contact us for more information.
+                </p>
+              </div>
             </div>
-          </div>
 
-        )}
+          )}
 
+        </div>
       </div>
-    </div> 
 
-    {showLocationModal && (
-      <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-50">
-        <div className="bg-white p-6 rounded-lg shadow w-full max-w-md">
-          <CustomSelect
-            label="Select Location"
-            name="location"
-            value={teamId}
-            mode = "create"
-            onChange={(e) => {
-              localStorage.setItem('preferred_team_id', e.target.value);
-              setShowLocationModal(false);
-              router.get(route('front.welcome', { team_id: e.target.value }));          
-              //setData(e.target.name, e.target.value);
-            }}
-            options={teams}
-          />
+      {showLocationModal && (
+        <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow w-full max-w-md">
+            <CustomSelect
+              label="Select Location"
+              name="location"
+              value={teamId}
+              mode="create"
+              onChange={(e) => {
+                localStorage.setItem('preferred_team_id', e.target.value);
+                setShowLocationModal(false);
+                router.get(route('front.welcome', { team_id: e.target.value }));
+                //setData(e.target.name, e.target.value);
+              }}
+              options={teams}
+            />
 
 
-          {/* <Select
+            {/* <Select
             options={teams.map(team => ({ label: team.name, value: team.id }))}
             onChange={(val) => {
               console.log('val', val);
 
             }}
           /> */}
+          </div>
         </div>
-      </div>
-    )}
+      )}
       {giftModal && (
         <BuyGiftModal
           isOpen={giftModal}
-          onClose={() => {setGiftModal(false); setSelectedActivity(null);}}
+          onClose={() => { setGiftModal(false); setSelectedActivity(null); }}
           pricePerAdult={selectedActivity.rake_rate_adult}
           pricePerChild={selectedActivity.rake_rate_child}
+          activityName={selectedActivity.name}
           activityId={selectedActivity.id}
+          auth={auth}
         />
       )}
+
     </div>
 
   );

@@ -10,6 +10,10 @@ class WholesalerRate extends Model
     use HasFactory;
     public $table = 'wholesaler_rates';
 
+    protected $attributes = [
+        'price_guide' => 0.00,
+    ];
+
     protected $fillable = [
         'wholesaler_id',
         'service_id',

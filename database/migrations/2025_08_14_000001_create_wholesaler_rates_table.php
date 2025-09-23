@@ -9,9 +9,9 @@ return new class extends Migration {
     {
         Schema::create('wholesaler_rates', function (Blueprint $table) {
             $table->id();
-            $table->decimal('price_adult', 10, 2);
-            $table->decimal('price_child', 10, 2)->nullable();
-            $table->decimal('price_guide', 10, 2)->nullable();
+            $table->float('price_adult', 8, 2);
+            $table->float('price_child', 8, 2);
+            $table->float('price_guide', 8, 2)->default(0.00);
             $table->boolean('bill_back')->default(false);
             $table->timestamps();
             $table->foreignId('wholesaler_id')->constrained('wholesalers')->onDelete('cascade');

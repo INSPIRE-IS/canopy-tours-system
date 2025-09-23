@@ -22,7 +22,6 @@ use App\Models\InventoryTimeSlot;
 use App\Models\Promotion;
 use App\Models\Season;
 use App\Models\Service;
-use App\Models\StatusBooking;
 use App\Models\TypeAffiliate;
 use App\Models\TypeLocation;
 use App\Models\TypeReferral;
@@ -41,9 +40,14 @@ use Inertia\Inertia;
 use Str;
 use Symfony\Component\HttpFoundation\Response;
 use App\Mail\InvoiceMail;
+use App\Models\BookingDiscount;
+use App\Models\BookingPricing;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use App\Models\InvoiceTemplate;
+use App\Models\Team;
+use App\Models\TypeBooking;
+use App\Models\LookupItem;
 use App\Services\TemplateRenderer;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Mail;
@@ -78,18 +82,20 @@ class BookingsController extends Controller
             //->whereDate('due_date', '2025-01-01')
             ->get();
         //dd($bookings);
-        $formatted = $bookings->map(function ($booking) {
+        $vatMultiplier = LookupItem::where('lookup_id', 1)->where('is_default', true)->first()->multiplier;
+
+        $formatted = $bookings->map(function ($booking) use ($vatMultiplier) {
             try {
                 //dd($booking->booking_items[0]);
                 $booking_item = $booking->booking_items[0];
 
                 $price = 0;
                 foreach ($booking_item->booking_fees as $fee) {
-                    $price += $fee->tot_amount;
+                    $price += $fee->tot_amount * $vatMultiplier;
                 }
                 $paid = 0;
                 foreach ($booking->booking_payments as $payment) {
-                    $paid += $payment->amount;
+                    $paid += $payment->amount * $vatMultiplier;
                 }
                 //dd($price);
                 $due = $price - $paid;
@@ -102,6 +108,7 @@ class BookingsController extends Controller
                 $service = Service::find($booking_item->service_id);
                 $season = Season::find($booking_item->season_id);
                 $timeSlot = InventoryTimeSlot::find($season->id);
+
 
                 $time = $timeSlot->start_time;
                 $start_time = Carbon::parse($time);
@@ -138,7 +145,7 @@ class BookingsController extends Controller
                         'is_lead' => $c->pivot->is_lead,
                         'team_id' => $c->pivot->team_id,
                     ]),
-                    'dueStatus' => $booking->status_booking_id,
+                    'dueStatus' => $due > 0 ? true : false,
                     'due_date' => $booking->due_date,
                 ];
                 //dd($info);
@@ -177,7 +184,7 @@ class BookingsController extends Controller
 
         $users = User::select('name', 'id')->get();
         $today = now()->toDateString();
-        $status_bookings = StatusBooking::select('name', 'id')->get();
+        $status_bookings = TypeBooking::select('name', 'id')->get();
         $wholesalers = Wholesaler::select('id', 'name')->get();
         //$services = Service::select('id', 'name')->get();
         $services = Service::select('id', 'name', 'allow_internal_capacity_override', 'duration', 'capacity')
@@ -212,7 +219,7 @@ class BookingsController extends Controller
             ->where('internal_use_only', false)
             ->with('service')
             ->get();
-
+        $lookups = LookupItem::where('is_default', true)->get();
         return Inertia::render('Admin/Bookings/Create', [
             'wholesalers' => $wholesalers,
             'services' => $services,
@@ -235,66 +242,27 @@ class BookingsController extends Controller
             'discounts' => $discounts,
             'wholesaler_rates' => $wholesaler_rates,
             'promos' => $promos,
+            'lookups' => $lookups,
         ]);
     }
 
     public function store(StoreBookingRequest $request)
     {
-        //dd($request->all());
-        //   "is_wholesaler" => true
-        //   "wholesaler_id" => "1"
-        //   "add_consultant" => true
-        //   "consultant_name" => "Consultant Name"
-        //   "consultant_email" => "Consultant Email"
-        //   "consultant_mobile" => "Consultant Email Consultant Mobile"
-        //   "service_id" => "2"
-        //   "season_id" => "2"
-        //   "booking_date" => "2025-07-25"
-        //   "start_time" => "3"
-        //   "end_time" => null
-        //   "selected_slot" => array:3 [▶]
-        //   "adults" => "1"
-        //   "children" => "2"
-        //   "guides" => "1"
-        //   "include_media" => true
-        //   "override_rates" => true
-        //   "adult" => 600
-        //   "child" => 300
-        //   "guide" => 200
-        //   "booking_total" => "1400.00"
-        //   "redeem_voucher" => null
-        //   "invoice_note" => "Add Invoice Note"
-        //   "email_reminder" => "Add Email Reminder"
-        //   "booking_note" => "Add Booking Note"
-        //   "corporate_customer" => true
-        //   "send_sms" => true
-        //   "lead_person" => "Lead Person"
-        //   "lead_email" => "Lead Email"
-        //   "lead_mobile" => "Lead Mobile"
-        //   "referral_source" => "2"
-        //   "rate_per_adult" => 600
-        //   "rate_per_child" => 300
-        //   "rate_per_guide" => 200
-        //   "web_booking" => true
-        //   "needs_pickup" => true
-        //   "override_timeslots" => true
-        //   "exclusive_resource" => true
-        //   "override_reason" => "Reason for Override"
+        // dd($request->all());
 
         $validated = $request->validate([
+            'booking_id' => 'integer', //   "lead_person" => "Lead Person"
             'lead_person' => 'required|string', //   "lead_person" => "Lead Person"
             'lead_email' => 'required|email', //   "lead_email" => "Lead Email"
             'lead_mobile' => 'required|string', //   "lead_mobile" => "Lead Mobile"
             'selected_slot' => 'required|array', //   "selected_slot" => array:3 [▶] date "2025-07-28" "selected_slot" => array:3 [▶] time "08:00:00"
-            'adults' => 'required|integer|min:1', //   "adults" => "1"
-            'children' => 'nullable|integer|min:0', //   "children" => "2"
+
             'season_id' => 'required|integer', //   "season_id" => "2"
             'corporate_customer' => 'boolean', //   "corporate_customer" => "true"
             'send_sms' => 'boolean', //   "send_sms" => "true"
             'booking_date' => 'required|date', //   "booking_date" => "2025-07-28"
             'start_time' => 'required', //   "start_time" => "08:00:00"
-            'is_wholesaler' => 'boolean', //   "is_wholesaler" => "true"
-            'wholesaler_id' => 'integer|nullable', //   "wholesaler_id" => "1"
+
             'add_consultant' => 'boolean', //   "add_consultant" => "true"
             'consultant_name' => 'string|nullable', //   "consultant_name" => "Consultant Name"
             'consultant_email' => 'email|nullable', //   "consultant_email" => "Consultant Email"
@@ -304,13 +272,26 @@ class BookingsController extends Controller
             'include_media' => 'boolean', //   "videos_photos" => "true"
             'override_timeslots' => 'boolean', //   "override_timeslots" => "true"
             'exclusive_resource' => 'boolean', //   "exclusive_resource" => "true"
-            'redeem_voucher' => 'string|nullable', //   "redeem_voucher" => "Voucher Code"
+
             'invoice_note' => 'string|nullable', //   "invoice_note" => "Add Invoice Note"
             'email_reminder' => 'string|nullable', //   "email_reminder" => "Add Email Reminder"
             'booking_note' => 'string|nullable', //   "booking_note" => "Add Booking Note"
+
+            'adults' => 'required|integer|min:1', //   "adults" => "1"
+            'children' => 'nullable|integer|min:0', //   "children" => "2"      
+            'guides' => 'nullable|integer|min:0', //   "guides" => "2"
+            'adult' => 'integer|nullable',
+            'child' => 'integer|nullable',
+            'guide' => 'integer|nullable',
             'rate_per_adult' => 'integer|nullable',
             'rate_per_child' => 'integer|nullable',
             'rate_per_guide' => 'integer|nullable',
+
+            'is_wholesaler' => 'boolean', //   "is_wholesaler" => "true"
+            'wholesaler_id' => 'integer|nullable', //   "wholesaler_id" => "1"
+            'discount_lines' => 'array|nullable',
+            'promoCode' => 'nullable|string',
+            'redeem_voucher' => 'string|nullable', //   "redeem_voucher" => "Voucher Code"
         ]);
         try {
             $booking = DB::transaction(function () use ($validated) {
@@ -325,6 +306,9 @@ class BookingsController extends Controller
                 $isoNameOfDay = Carbon::parse($selected_slot['date'])->format('N'); // iso week starts on Monday
                 //$numericNameOfDay = Carbon::parse($validated['date'])->format('w'); // week starts on Sunday
 
+                // if (($validated['wholesaler_id'] && $validated['promoCode']) || (!$validated['wholesaler_id'] && $validated['discount_lines']) || ($validated['promoCode'] && $validated['discount_lines'])) {
+                //     abort(404, 'Tonly one type of discount is permitted.');
+                // }
 
                 if (!$inventory) {
                     abort(404, 'This season has no inventory.');
@@ -332,79 +316,103 @@ class BookingsController extends Controller
                 $inventoryTimeSlot = InventoryTimeSlot::where('inventory_id', $inventory->id)->where('start_time', $selected_slot['time'])->first();
                 //$inventoryTypeDay = InventoryTypeDay::where('inventory_id', $inventory->id)->first();
 
-                if (!$inventoryTimeSlot) {
+                if (!$inventoryTimeSlot && !$validated['override_timeslots']) {
                     abort(404, 'This inventory has no time slot.');
                 }
+                // $adultsCount = (int) ($validated['adults'] ?? 0);
+                // $amount_adults = (int) ($validated['rate_per_adult'] ?? 0) * $adultsCount;
+                // $childrenCount = (int) ($validated['children'] ?? 0);
+                // $amount_children = (int) ($validated['rate_per_child'] ?? 0) * $childrenCount;
+                // $guidesCount = (int) ($validated['guides'] ?? 0);
+                // $amount_guides = (int) ($validated['rate_per_guide'] ?? 0) * $guidesCount;
+                // $amount = $amount_adults + $amount_children + $amount_guides;
+                $amount = (int) ($validated['adult'] ?? 0) + (int) ($validated['child'] ?? 0) + (int) ($validated['guide'] ?? 0);
+                $booking = null; // Booking::where('id', $validated['booking_id'])->where('status_payment_id', 1)->first();
+                if (!$booking) {
+                    // 1. Create or find customer
+                    $customer = Customer::firstOrCreate([
+                        'email_address' => $validated['lead_email'],
+                    ], [
+                        'full_name' => $validated['lead_person'],
+                        'contact_number' => $validated['lead_mobile'],
+                    ]);
 
-                // 1. Create or find customer
-                $customer = Customer::firstOrCreate([
-                    'email_address' => $validated['lead_email'],
-                ], [
-                    'full_name' => $validated['lead_person'],
-                    'contact_number' => $validated['lead_mobile'],
-                ]);
-                $adultsCount = (int) ($validated['adults'] ?? 0);
-                $amount_adults = (int) ($validated['rate_per_adult'] ?? 0) * $adultsCount;
-                $childrenCount = (int) ($validated['children'] ?? 0);
-                $amount_children = (int) ($validated['rate_per_child'] ?? 0) * $childrenCount;
-                $guidesCount = (int) ($validated['guides'] ?? 0);
-                $amount_guides = (int) ($validated['rate_per_guide'] ?? 0) * $guidesCount;
-                $amount = $amount_adults + $amount_children + $amount_guides;
+                    // 2. Create booking
+                    $booking = Booking::create([
+                        'user_id' => auth()->user()->id,
+                        'session_id' => null,
+                        'lead_name' => $customer->full_name,
+                        'type_booking_id' => 1,
+                        'status_payment_id' => 1,
+                        'is_sms' => 0,
+                        'is_corporate' => $validated['corporate_customer'],
+                        'due_date' => $validated['booking_date'],
+                        'tot_paid' => 0,
+                        'grand_tot_due' => $amount,
+                        'reference' => 'REF-' . strtoupper(Str::random(6)), //Str::uuid(),
+                        'customer_id' => $customer->id,
+                        'team_id' => auth()->user()->team_id,
+                    ]);
+                } else {
+                    $booking->update([
+                        'grand_tot_due' => $booking->grand_tot_due + $amount,
+                        'updated_at' => now(),
+                    ]);
+                }
 
-                // 2. Create booking
-                $booking = Booking::create([
-                    'lead_name'      => $validated['lead_person'],
-                    'status_booking_id' => 2,
-                    'is_sms'         => $validated['send_sms'],
-                    'is_corporate'   => $validated['corporate_customer'],
-                    'due_date'       => $validated['booking_date'],
-                    'tot_paid'       => 0,
-                    'grand_tot_due'  => $amount * 1.15,
-                    'reference'      => 'REF-' . strtoupper(Str::random(6)), //Str::uuid(),
-                    'service_id'     => $season->service_id,
-                    'season_id'      => $season->id,
-                    'inventory_id'   => $inventory->id,
-                    'customer_id'      => $customer->id,
-                    'created_at'     => now(),
-                    'updated_at'     => now(),
-                    'deleted_at'     => null,
-                    'team_id'        => null,
-                ]);
+                $booking_price  = null;
+                if (is_array($validated['discount_lines']) && $validated['discount_lines'] != null) {
+                    $booking_discount = BookingDiscount::create([
+                        'booking_id'     => $booking->id,
+                        'final_price_adult'    => (int) ($validated['adult'] ?? 0),
+                        'final_price_child'    => (int) ($validated['child'] ?? 0),
+                        'final_price_guide'    => (int) ($validated['guide'] ?? 0),
+                    ]);
+                    // Remove old discount lines if you want "sync" behavior
+                    $booking_discount->booking_discount_items()->delete();
+                    foreach ($validated['discount_lines'] as $line) {
+                        $booking_discount->booking_discount_items()->updateOrCreate(
+                            [
+                                'pax_type'    => $line['type'],
+                                'discount_id' => $line['discount_id'],
+                            ],
+                            [
+                                'count'       => $line['count'],
+                                'base_rate'   => 0,
+                                'final_rate'  => 0,
+                            ]
+                        );
+                    }
+                }
+
+                $promotion = Promotion::where('promo_code', $validated['promoCode'])->first();
 
                 $booking_item = BookingItem::create([
                     'booking_id'     => $booking->id,
                     'service_id'     => $season->service_id,
                     'season_id'      => $season->id,
                     'inventory_id'   => $inventory->id,
-                    'pax_adults'     => $adultsCount,
-                    'pax_children'   => $childrenCount,
-                    'pax_guides'     => $guidesCount,
-                    'price_adult'    => $amount_adults,
-                    'price_child'    => $amount_children,
-                    'price_guide'    => $amount_guides,
-                    'discount_id'    => null,
-                    // 'promotion_id'   => null,
-                    // 'final_price_adult'    => $rates['adult'],
-                    // 'final_price_child'    => $rates['child'],
-                    // 'final_price_guide'    => $rates['guide'],
+                    'pax_adults'     => (int) ($validated['adults'] ?? 0),
+                    'pax_children'   => (int) ($validated['children'] ?? 0),
+                    'pax_guides'     => (int) ($validated['guides'] ?? 0),
+                    'price_adult'    => (int) ($validated['adult'] ?? 0),
+                    'price_child'    => (int) ($validated['child'] ?? 0),
+                    'price_guide'    => (int) ($validated['guide'] ?? 0),
+                    'promotion_id'   => $promotion ? $promotion->id : null,
+                    'wholesaler_id'  => $validated['wholesaler_id'],
+                    'discount_id'    => $booking_price ? $booking_price->id : null,
                 ]);
 
                 // Prepare pivot data
                 $pivotData = [];
 
-
                 $pivotData[$customer->id] = [
-                    'team_id' => null,   // TODO: get team from the page or session
+                    'team_id' => auth()->user()->team_id,   // TODO: get team from the page or session
                     'is_lead' => 1,     // First customer is lead, rest are not
                 ];
 
-
                 // Sync with pivot data
                 $booking_item->customers()->sync($pivotData);
-
-                // Optional Enhancements
-                // You can also lock inventory slots with for update queries if you expect concurrency.
-                // Use Laravel's retry helper if you're worried about deadlocks (rare unless high traffic).
 
                 $bookingDetail = BookingDetail::create([
                     'booking_item_id'     => $booking_item->id,
@@ -414,9 +422,7 @@ class BookingsController extends Controller
                     'is_videos_photos' => $validated['include_media'],
                     'is_exclusive_resource_use' => $validated['exclusive_resource'],
                     'is_override_time_slots' => $validated['override_timeslots'],
-                    'created_at'     => now(),
-                    'updated_at'     => now(),
-                    'team_id'        => null,
+                    'team_id'        => auth()->user()->team_id,
                 ]);
 
                 if ($validated['is_wholesaler']) {
@@ -426,22 +432,23 @@ class BookingsController extends Controller
                         'consultant_name' => $validated['consultant_name'] ?? '',
                         'consultant_email' => $validated['consultant_email'] ?? '',
                         'consultant_mobile' => $validated['consultant_mobile'] ?? '',
+                        'team_id'        => auth()->user()->team_id,
                     ]);
                 }
                 //TODO add modal to capture and update inventory overrides
                 if (false) { // $validated['override_timeslots']
                     InventoryOverride::create([
                         'inventory_id'     => $inventory->id,
-                        'date'           => $validated['date'],
-                        'time'           => $validated['time'],
-                        'capacity_override' => $validated['adult'],
-                        'price_adult' => $validated['adult'],
-                        'price_child' => $validated['child'],
-                        'price_guide' => $validated['guide'],
+                        'date'           => $validated['overide_date'],
+                        'time'           => $validated['overide_time'],
+                        'capacity' => $validated['overide_capacity'],
+                        'price_adult' => $validated['overide_adult'],
+                        'price_child' => $validated['overide_child'],
+                        'price_guide' => $validated['overide_guide'],
                         'note' => $validated['override_reason'] ?? '',
                         'created_by_id'     => $validated['user_id'],
                         'updated_by_id'     => $validated['user_id'],
-                        'team_id'        => null,
+                        'team_id'        => auth()->user()->team_id,
                     ]);
                 }
 
@@ -449,40 +456,40 @@ class BookingsController extends Controller
                 BookingInventory::create([
                     'booking_item_id'     => $booking_item->id,
                     'booking_detail_id' => $bookingDetail->id,
+                    'tot_adults'     => (int) ($validated['adults'] ?? 0),
+                    'tot_children'   => (int) ($validated['children'] ?? 0),
+                    'tot_guides'     => (int) ($validated['guides'] ?? 0),
+                    'pax'            => (int) ($validated['adults'] ?? 0) + (int) ($validated['children'] ?? 0),
                     'date'           => $validated['booking_date'],
-                    'tot_adults'     => $adultsCount,
-                    'tot_children'   => $childrenCount,
-                    'tot_guides'     => $guidesCount,
-                    'pax'            => $adultsCount + $childrenCount,
                     'inventory_type_day_id' => $isoNameOfDay,
                     'inventory_time_slot_id' => $inventoryTimeSlot->id,
                     'inventory_override_id' => null, // $validated['override_timeslots'] ? $inventoryOverride->id : null,
-                    'created_at'     => now(),
-                    'updated_at'     => now(),
-                    'team_id'        => null,
+                    'team_id'        => auth()->user()->team_id,
                 ]);
                 // TODO add logic for creating and validating a voucher code
                 $bookingFee = BookingFee::create([
                     'booking_item_id'     => $booking_item->id,
                     'booking_detail_id' => $bookingDetail->id,
-                    'tot_adults'     => $amount_adults,
-                    'tot_children'   => $amount_children,
-                    'tot_guides'     => $amount_guides,
+                    'tot_adults'     => (int) ($validated['adults'] ?? 0),
+                    'tot_children'   => (int) ($validated['children'] ?? 0),
+                    'tot_guides'     => (int) ($validated['guides'] ?? 0),
                     'is_voucher'     => $validated['redeem_voucher'] ? 1 : 0,
                     'voucher_code'   => $validated['redeem_voucher'] ?? '',
                     'invoice_note'   => $validated['invoice_note'] ?? '',
                     'is_email_reminder' => $validated['email_reminder'] ? 1 : 0,
                     'booking_note'   => $validated['booking_note'] ?? '',
                     'tot_amount'     => $amount,
-                    'created_at'     => now(),
-                    'updated_at'     => now(),
-                    'team_id'        => null,
+                    'team_id'        => auth()->user()->team_id,
                 ]);
+
+
+
+
+
                 $template = InvoiceTemplate::where('is_default', true)->firstOrFail();
                 $invoice = Invoice::create([
                     'booking_id'     => $booking->id,
-                    'customer_id'    => $customer->id,
-                    'number'         => $booking->reference,
+                    'gift_voucher_id'    => null,
                     'invoice_date'   => $validated['booking_date'],
                     'due_date'       => $validated['booking_date'],
                     'subtotal'       => $amount,
@@ -490,95 +497,81 @@ class BookingsController extends Controller
                     'total'          => $amount * 1.15,
                     'status'         => 'draft',
                     'invoice_template_id'    => $template->id,
-                    'meta'           => json_encode([
-                        'file_path' => '/assets/icons/plus.svg',
-                        'note' => '',
-                        'original_name' => '',
-                    ]),
-                    'created_at'     => now(),
-                    'updated_at'     => now(),
                     'team_id'        => auth()->user()->team_id,
+
                 ]);
 
                 $invoiceItems = InvoiceItem::create([
                     'invoice_id'     => $invoice->id,
-                    'description' => 'test',
-                    'qty' => 1,
-                    'price' => 0.00,
-                    'subtotal' => $amount,
-                    'team_id' => auth()->user()->team_id,
+                    'pax_adults'     => (int) ($validated['adults'] ?? 0),
+                    'pax_children'   => (int) ($validated['children'] ?? 0),
+                    'pax_guides'     => (int) ($validated['guides'] ?? 0),
+                    'price_adult'    => (int) ($validated['adult'] ?? 0),
+                    'price_child'    => (int) ($validated['child'] ?? 0),
+                    'price_guide'    => (int) ($validated['guide'] ?? 0),
+                    'team_id'        => auth()->user()->team_id,
+                    'service_id'     => $season->service_id,
+                    'season_id'      => $season->id,
+
+                    'promotion_id'   => $promotion ? $promotion->id : null,
+                    'wholesaler_id'  => $validated['wholesaler_id'],
+                    'discount_id'    => $booking_price ? $booking_price->id : null,
                 ]);
 
-
-
-                // fake invoice data for testing
-                $invoice = [
+                $site = Team::select('full_name', 'reg_no', 'address', 'address_code', 'account_owner', 'account_number', 'account_type', 'bank_name', 'branch_code')
+                    ->find(auth()->user()->team_id);
+                $items = $booking?->booking_items->first();
+                $data = [
                     'site' => [
-                        'name' => 'Magoebaskloof Canopy Tours',
-                        'reg_no' => '2008/018998/07',
-                        'address' => 'PO Box 3132, Tzaneen',
-                        'address_code' => '0850',
+                        'name' => $site->full_name,
+                        'reg_no' => $site->reg_no,
+                        'address' => $site->address,
+                        'address_code' => $site->address_code,
                     ],
                     'client' => [
-                        'name' => 'Jane Allison',
-                        'phone' => '+27834427429',
-                        'email' => $validated['lead_email'],
+                        'name' => $customer->full_name,
+                        'phone' => $customer->contact_number,
+                        'email' => $customer->email_address,
                     ],
                     'invoice' => [
-                        'number' => '0002129',
-                        'date'   => now()->toDateString(),
+                        'number' => $invoice->invoice_number,
+                        'date'   => $invoice->invoice_date,
                     ],
                     'booking' => [
-                        'ref' => 'B2D7-C9FD',
+                        'ref' => $booking->reference,
                     ],
                     'service' => [
-                        'name' => 'Canopy Tour Package',
-                        'adults' => 4,
-                        'children' => 2,
-                        'guides' => 1,
+                        'name' => $items->service->name,
+                        'adults' => $items->pax_adults,
+                        'children' => $items->pax_children,
+                        'guides' => $items->pax_guides,
                     ],
-                    'adults' => 4,
-                    'children' => 2,
-                    'guides' => 1,
-                    'is_voucher' => false,
-                    'voucher_code' => null,
-                    'invoice_note' => null,
-                    'email_reminder' => null,
-                    'booking_note' => null,
-                    'amount_ex_vat' => 'R2,086.96',
-                    'vat'           => 'R313.04',
-                    'amount_paid'   => 'R0.00',
-                    'balance_due'   => 'R2,400.00',
+                    'amount_ex_vat' => $booking->grand_tot_due,
+                    'vat'           => $booking->grand_tot_due * 0.15,
+                    'amount_paid'   => $booking->tot_paid,
+                    'balance_due'   => ($booking->grand_tot_due * 1.15) - $booking->tot_paid,
                     'notes'         => 'Please pay within 7 days.',
-                    'bank_account_owner'         => 'Magoebaskloof Canopy Tours',
-                    'bank_account_no'         => '1234567890',
-                    'bank_account_type'         => 'Cheque',
-                    'bank_name'         => 'ABSA',
-                    'branch_code'         => '632005',
+                    'logo'          => '<img src="logo.png" alt="Logo" style="max-height:50px;">',
                     'bank' => [
-                        'owner' => 'Magoebaskloof Canopy Tours',
-                        'number' => '1234567890',
-                        'type'   => 'Cheque',
-                        'name'   => 'ABSA',
-                        'branch_code' => '632005',
+                        'account_owner' => $site->account_owner,
+                        'account_no' => $site->account_number,
+                        'account_type'   => $site->account_type,
+                        'name'   => $site->bank_name,
+                        'branch_code' => $site->branch_code,
                     ],
-                    'items' => [
-                        ['description' => 'Adult Ticket', 'qty' => 4, 'price' => 'R600.00', 'subtotal' => 'R2400.00'],
-                    ],
+                    //     'items' => [
+                    //         ['description' => 'Adult Ticket', 'qty' => 4, 'price' => 'R600.00', 'subtotal' => 'R2400.00'],
+                    //     ],                    
                 ];
 
-                // render HTML from DB template
-                // $html =  app(\App\Services\TemplateRenderer::class)
-                //     ->render($template->content, $invoice); 
                 $renderer = app(\App\Services\TemplateRenderer::class);
-                $html = $renderer->render($template->content, $invoice);
-                // renderer->render($template->content, $invoice);
+                $html = $renderer->render($template->content, $data);
 
-                // generate PDF
+                // // generate PDF
                 $pdf = Pdf::loadHTML($html);
 
-                //send mail
-                $sent = Mail::to($validated['lead_email'])->send(new InvoiceMail($invoice, $pdf));
+                // //send mail
+                $sent = Mail::to($validated['lead_email'])->send(new InvoiceMail($data, $pdf));
 
                 Log::info('invoice email sent', [
                     'sent' => $sent,
@@ -825,7 +818,9 @@ class BookingsController extends Controller
         //     });
         // });
         //dd($booking);
-        return Inertia::render('Admin/Bookings/Add', ['booking' => $booking, 'bookingItem' => $bookingItem, 'staff' => $staff]);
+        $lookups = LookupItem::where('is_default', true)->get();
+
+        return Inertia::render('Admin/Bookings/Add', ['booking' => $booking, 'bookingItem' => $bookingItem, 'staff' => $staff, 'lookups' => $lookups]);
         // $users = User::pluck('name', 'id')->prepend(trans('global.pleaseSelect'), '');
 
         // $status_bookings = StatusBooking::pluck('name', 'id')->prepend(trans('global.pleaseSelect'), '');

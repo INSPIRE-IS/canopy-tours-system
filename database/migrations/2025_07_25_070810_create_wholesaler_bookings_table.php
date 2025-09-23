@@ -21,6 +21,7 @@ return new class extends Migration
 
             $table->foreignId('booking_id')->constrained('bookings');
             $table->foreignId('wholesaler_id')->constrained('wholesalers');
+            $table->foreignId('team_id')->nullable()->constrained('teams');
         });
     }
 

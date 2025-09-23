@@ -70,7 +70,7 @@ Route::post('/booking/store', [ActivityController::class, 'store'])->name('front
 Route::post('/booking/gift-store', [ActivityController::class, 'storeGift'])->name('front.booking.gift-store');
 
 Route::get('/test-order', [ActivityController::class, 'showTestOrder']); // Review payment screen
-Route::get('/payment/review/{booking}', [PaymentController::class, 'review'])->name('front.payment.review');
+Route::get('/payment/booking/{booking}', [PaymentController::class, 'booking'])->name('front.payment.booking');
 Route::get('/payment/gift/{gift}', [PaymentController::class, 'gift'])->name('front.payment.gift');
 
 // Fake PayFast screen
@@ -78,7 +78,7 @@ Route::get('/payment/simulated', [PaymentController::class, 'simulated'])->name(
 
 // Handle offline submission
 Route::post('/payment/offline', [PaymentController::class, 'offline'])->name('front.payment.offline');
-
+Route::get('front/invoices/download/{booking}', [PaymentController::class, 'download'])->name('front.invoices.download');
 Route::get('front/voucher', [ActivityController::class, 'voucher'])->name('front.voucher');
 
 

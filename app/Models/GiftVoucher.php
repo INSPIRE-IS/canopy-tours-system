@@ -15,6 +15,8 @@ class GiftVoucher extends Model
         'full_name',
         'email_address',
         'contact_number',
+        'user_id',
+        'session_id',
         'voucher_code',
         'grand_tot_due',
         'note',
@@ -23,10 +25,10 @@ class GiftVoucher extends Model
         'paid_date',
         'redeemed',
         'redeemed_date',
-        'booking_id',
-        'team_id',
-        'service_id',
-        'season_id',
+        // 'booking_id',
+        // 'team_id',
+        // 'service_id',
+        // 'season_id',
     ];
 
     public function booking()
@@ -52,5 +54,10 @@ class GiftVoucher extends Model
     public function statusPayment()
     {
         return $this->belongsTo(StatusPayment::class);
+    }
+
+    public function gift_voucher_items()
+    {
+        return $this->hasMany(GiftVoucherItem::class);
     }
 }

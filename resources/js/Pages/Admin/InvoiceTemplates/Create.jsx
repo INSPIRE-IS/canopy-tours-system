@@ -28,79 +28,72 @@ export default function Create() {
       setLoadingTemplate(false);
     }
   };
-      function showOutput() {
-        const html = tinymce.get("editor").getContent();
-        document.getElementById("htmlOutput").textContent = html;
-        document.getElementById("renderedOutput").innerHTML = html;
-      }
+  function showOutput() {
+    const html = tinymce.get("editor").getContent();
+    document.getElementById("htmlOutput").textContent = html;
+    document.getElementById("renderedOutput").innerHTML = html;
+  }
   return (
     <div className="flex flex-col items-center mt-10 justify-center">
-    <form
-      onSubmit={e => {
-        e.preventDefault();
-        post(route('admin.invoice-templates.store'));
-      }}
-    >
-      <div className="mb-4">
-        <label className="block">Template Name</label>
-        <input
-          type="text"
-          className="input"
-          value={data.name}
-          onChange={e => setData('name', e.target.value)}
-        />
-        {errors.name && <p className="text-red-500 text-sm">{errors.name}</p>}
-      </div>
-
-      <div className="mb-4 flex items-center gap-2">
-        <div className="flex-1">
-          <label className="block">Type</label>
-          <select
-            className="input w-full"
-            value={data.type}
-            onChange={e => setData('type', e.target.value)}
-          >
-            <option value="invoice">Invoice</option>
-            <option value="quote">Quote</option>
-            <option value="proforma">Proforma</option>
-            <option value="receipt">Receipt</option>
-          </select>
+      <form
+        onSubmit={e => {
+          e.preventDefault();
+          post(route('admin.invoice-templates.store'));
+        }}
+      >
+        <div className="mb-4">
+          <label className="block">Template Name</label>
+          <input
+            type="text"
+            className="input"
+            value={data.name}
+            onChange={e => setData('name', e.target.value)}
+          />
+          {errors.name && <p className="text-red-500 text-sm">{errors.name}</p>}
         </div>
-        <button
-          type="button"
-          className="btn-secondary mt-6 border border-gray-300 rounded-lg px-4 py-2 text-sm"
-          onClick={loadStarterTemplate}
-          disabled={loadingTemplate}
-        >
-          {loadingTemplate ? 'Loading…' : 'Load Starter'}
-        </button>
-      </div>
 
-      <InvoiceTemplateEditor
-        value={data.content}
-        handleChange={(field, val) => setData(field, val)}
-        errors={errors}
-      />
+        <div className="mb-4 flex items-center gap-2">
+          <div className="flex-1">
+            <label className="block">Type</label>
+            <select
+              className="input w-full"
+              value={data.type}
+              onChange={e => setData('type', e.target.value)}
+            >
+              <option value="invoice">Invoice</option>
+              <option value="quote">Quote</option>
+              <option value="proforma">Proforma</option>
+              <option value="receipt">Receipt</option>
+            </select>
+          </div>
+          <button
+            type="button"
+            className="btn-secondary mt-6 border border-gray-300 rounded-lg px-4 py-2 text-sm"
+            onClick={loadStarterTemplate}
+            disabled={loadingTemplate}
+          >
+            {loadingTemplate ? 'Loading…' : 'Load Starter'}
+          </button>
+        </div>
 
-      <label className="flex items-center gap-2 mt-4">
-        <input
-          type="checkbox"
-          checked={data.is_default}
-          onChange={e => setData('is_default', e.target.checked)}
+        <InvoiceTemplateEditor
+          value={data.content}
+          handleChange={(field, val) => setData(field, val)}
+          errors={errors}
         />
-        Default
-      </label>
-        {/* <button type='button' onClick={showOutput} className="btn-primary mt-4">
-            Show Output
-        </button> */}
-      <button type="submit" className="btn-primary mt-4">
-        Save
-      </button>
-    </form>
-        {/* <p id="htmlOutput" className='mt-4'></p>
 
-    <h2>Formatted Preview</h2>
-    <div id="renderedOutput" className='mt-4'></div> */}
+        <label className="flex items-center gap-2 mt-4">
+          <input
+            type="checkbox"
+            checked={data.is_default}
+            onChange={e => setData('is_default', e.target.checked)}
+          />
+          Default
+        </label>
+        <button type="submit" className="btn-primary mt-4">
+          Save
+        </button>
+      </form>
     </div>
   );
 }

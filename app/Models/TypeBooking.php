@@ -7,11 +7,11 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class StatusBooking extends Model
+class TypeBooking extends Model
 {
     use SoftDeletes, HasFactory;
 
-    public $table = 'status_bookings';
+    public $table = 'type_bookings';
 
     protected $dates = [
         'created_at',

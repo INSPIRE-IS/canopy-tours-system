@@ -11,16 +11,13 @@ class Invoice extends Model
 
     protected $fillable = [
         'booking_id',
-        'customer_id',
-        'number',
+        'gift_voucher_id',
         'invoice_date',
         'due_date',
         'subtotal',
         'vat',
         'total',
-        'status',
         'invoice_template_id',
-        'meta',
         'created_at',
         'updated_at',
         'deleted_at',
@@ -28,10 +25,30 @@ class Invoice extends Model
     ];
 
     protected $casts = [
-        'meta' => 'array',
         'invoice_date' => 'date',
         'due_date' => 'date',
     ];
+
+    public static function boot()
+    {
+        parent::boot();
+
+        static::creating(function ($model) {
+            $year = now()->format('Y');
+
+            // Find the last invoice for this year
+            $lastInvoice = self::whereYear('created_at', $year)
+                ->orderBy('id', 'desc')
+                ->first();
+
+            $nextNumber = $lastInvoice
+                ? ((int) substr($lastInvoice->invoice_number, -6)) + 1
+                : 1;
+
+            $model->invoice_number = sprintf("INV-%s-%06d", $year, $nextNumber);
+        });
+    }
+
 
     public function items()
     {
