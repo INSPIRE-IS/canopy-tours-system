@@ -1131,13 +1131,13 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                                                                 )}
 
                                                                                 {/* 
-                                                            {cell?.status === 'available' && (
-                                                                <>
-                                                                <div className="text-xs">{row.time.slice(0, 5)}</div>
-                                                                <div className="text-xs">{cell?.slots} Slots Open</div>
-                                                                {cell?.rake_rate_adult && <div className="text-xs">From R{cell.rake_rate_adult}</div>}                           
-                                                                </>
-                                                            )} */}
+                                                                                {cell?.status === 'available' && (
+                                                                                    <>
+                                                                                    <div className="text-xs">{row.time.slice(0, 5)}</div>
+                                                                                    <div className="text-xs">{cell?.slots} Slots Open</div>
+                                                                                    {cell?.rake_rate_adult && <div className="text-xs">From R{cell.rake_rate_adult}</div>}                           
+                                                                                    </>
+                                                                                )} */}
                                                                                 {cell?.status === 'full' && (
                                                                                     <div className="text-xs text-red-500">Fully Booked</div>
                                                                                 )}

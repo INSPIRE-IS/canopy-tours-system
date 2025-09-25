@@ -1,13 +1,13 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 export default function InputRichText({ title, field, value, mode, handleChange, errors }) {
   const editorRef = useRef(null);
-  const isInitialized = useRef(false); // prevent repeated init
+  const editorInstance = useRef(null);
+  const [isReady, setIsReady] = useState(false);
 
+  // Initialize TinyMCE once
   useEffect(() => {
-    if (!window.tinymce || !editorRef.current || isInitialized.current) return;
-
-    isInitialized.current = true;
+    if (!window.tinymce || !editorRef.current) return;
 
     window.tinymce.init({
       license_key: 'gpl',
@@ -21,30 +21,39 @@ export default function InputRichText({ title, field, value, mode, handleChange,
       contextmenu: false,
       readonly: mode === 'view',
       setup: (editor) => {
+        editorInstance.current = editor;
+
         editor.on('init', () => {
-          editor.setContent(value || '');
+          setIsReady(true);
+          editor.setContent(value || ''); // initial load only
         });
+
         editor.on('change keyup', () => {
-            console.log('field ', field);
           handleChange(field, editor.getContent());
         });
       },
-      style_formats: [
-        { title: 'Heading 1', block: 'h1' },
-        { title: 'Heading 2', block: 'h2' },
-        { title: 'Paragraph', block: 'p' },
-        { title: 'Arial', inline: 'span', styles: { 'font-family': 'Arial' } },
-        { title: 'Montserrat', inline: 'span', styles: { 'font-family': 'Montserrat, sans-serif' } },
-        { title: 'Courier New', inline: 'span', styles: { 'font-family': '"Courier New"' } },
-        { title: 'Small text', inline: 'span', styles: { 'font-size': '12px' } },
-        { title: 'Large text', inline: 'span', styles: { 'font-size': '24px' } },
-      ],
     });
 
     return () => {
-      if (window.tinymce) window.tinymce.remove();
+      if (editorInstance.current) {
+        editorInstance.current.remove();
+        editorInstance.current = null;
+        setIsReady(false);
+      }
     };
-  }, []); // no value or mode in dependency array
+  }, [mode]);
+
+  // Only update content if parent changes it externally (not while typing)
+  useEffect(() => {
+    if (
+      isReady &&
+      editorInstance.current &&
+      value !== undefined &&
+      value !== editorInstance.current.getContent()
+    ) {
+      editorInstance.current.setContent(value || '');
+    }
+  }, [value, isReady]);
 
   return (
     <div className="mb-4 w-full">

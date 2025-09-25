@@ -40,8 +40,10 @@ use Inertia\Inertia;
 use Str;
 use Symfony\Component\HttpFoundation\Response;
 use App\Mail\InvoiceMail;
+use App\Mail\MessageGuestMail;
 use App\Models\BookingDiscount;
 use App\Models\BookingPricing;
+use App\Models\Email;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use App\Models\InvoiceTemplate;
@@ -51,7 +53,7 @@ use App\Models\LookupItem;
 use App\Services\TemplateRenderer;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Mail;
-
+use Illuminate\Support\Facades\Storage;
 
 class BookingsController extends Controller
 {
@@ -122,6 +124,7 @@ class BookingsController extends Controller
                     'id' => $booking->id,
                     'reference' => $booking->reference,
                     'lead_name' => $booking->lead_name,
+                    'lead_id' => $booking->customer_id,
                     'bookingPax' => $booking_item->booking_inventory->pax, // $booking->customers->count(),
                     'maxPax' => $service->capacity, // $booking->customers->count(),
                     'service' => $booking_item->service->name,
@@ -132,8 +135,8 @@ class BookingsController extends Controller
                     'customers' => $booking_item->customers->map(fn($c) => [
 
                         //'reference' => $booking->reference,
-                        'name' => "{$c->name}",
-                        'email' => $c->email,
+                        'name' => "{$c->full_name}",
+                        'email' => $c->email_address,
                         'phone' => $c->contact_number,
                         //'age' => $c->age,
                         //'notes' => $c->notes,
@@ -482,10 +485,6 @@ class BookingsController extends Controller
                     'team_id'        => auth()->user()->team_id,
                 ]);
 
-
-
-
-
                 $template = InvoiceTemplate::where('is_default', true)->firstOrFail();
                 $invoice = Invoice::create([
                     'booking_id'     => $booking->id,
@@ -569,6 +568,23 @@ class BookingsController extends Controller
 
                 // // generate PDF
                 $pdf = Pdf::loadHTML($html);
+                // 🔹 save PDF locally
+                $filename = 'invoices/' . $data['invoice']['number'] . '.pdf';
+                Storage::disk('local')->put($filename, $pdf->output());
+                // send mail
+                // 🔹 log in emails table
+                Email::create([
+                    'sender'         => config('mail.from.address'),
+                    'receiver'       => $validated['lead_email'],
+                    'subject'        => 'Test Invoice ' . $data['invoice']['number'],
+                    'body'           => strip_tags($html), // or a summary
+                    'attachment_path' => $filename,
+                    'sent'           => true,
+                    'sent_at'        => now(),
+                    'user_id'        => auth()->user()->id,
+                    'booking_id'     => $booking->id,
+                    'team_id'        => auth()->user()->team_id,
+                ]);
 
                 // //send mail
                 $sent = Mail::to($validated['lead_email'])->send(new InvoiceMail($data, $pdf));
@@ -857,6 +873,41 @@ class BookingsController extends Controller
         $booking->delete();
 
         return back();
+    }
+
+    public function sendEmail(Request $request)
+    {
+        $validated = $request->validate([
+            'booking_id' => 'required|exists:bookings,id',
+            'customer_id' => 'required|exists:customers,id',
+            'recipient' => 'required|email',
+            'subject' => 'required',
+            'content' => 'required',
+        ]);
+
+        $booking = Booking::findOrFail($request->input('booking_id'));
+        $customer = Customer::findOrFail($request->input('customer_id'));
+        $recipient = $validated['recipient'];
+        $subject = $validated['subject'];
+        $content = $validated['content'];
+        // $subject = 'New Booking';
+        // $content = '<p>Hello,</p><p>A new booking has been created for you.</p><p>Please login to your account to view the booking.</p>';
+        Email::create([
+            'sender'         => config('mail.from.address'),
+            'receiver'       => $recipient,
+            'subject'        => $subject,
+            'body'           => strip_tags($content), // or a summary
+            'attachment_path' => null,
+            'sent'           => true,
+            'sent_at'        => now(),
+            'user_id'        => auth()->user()->id,
+            'booking_id'     => $booking->id,
+            'team_id'        => auth()->user()->team_id,
+        ]);
+
+        Mail::to($recipient)->send(new MessageGuestMail($subject, $content));
+
+        return redirect()->back()->with('success', 'Message sent');
     }
 
     public function calendar(Request $request)

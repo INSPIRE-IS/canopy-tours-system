@@ -16,7 +16,7 @@ use Inertia\Inertia;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\DependencyInjection\ServicesResetter;
 
-class SeasonsController extends Controller
+class SeasonsCopyController extends Controller
 {
     public function index(Request $request)
     {

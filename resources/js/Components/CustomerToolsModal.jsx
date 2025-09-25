@@ -1,7 +1,7 @@
 import { icons } from '@/icons';
 import React, { useEffect, useRef } from 'react';
 
-export default function CustomerToolsModal({ customer, position, onClose }) {
+export default function CustomerToolsModal({ customer, position, onClose, CustomerToolClick }) {
     const modalRef = useRef();
 
     // Close when clicking outside the modal
@@ -28,18 +28,18 @@ export default function CustomerToolsModal({ customer, position, onClose }) {
         >
             <div className="p-4">
                 <div className="flex justify-between items-center mb-2">
-                    <h3 className="text-tool-card-title">Tools</h3>
+                    <h3 className="text-tool-card-title">Customer Tools</h3>
                     <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-sm">{icons.close}</button>
                 </div>
 
                 <div className="flex flex-col gap-2">
-                    <button className="btn-tool">{icons.check_in} Check-In</button>
-                    <button className="btn-tool">{icons.send_invoice} Send Invoice</button>
-                    <button className="btn-tool">{icons.resend_invoice} Resend Invoice</button>
-                    <button className="btn-tool">{icons.manifest} Manifest</button>
-                    <button className="btn-tool">{icons.customer_invoice} Customer Invoice</button>
-                    <button className="btn-tool">{icons.print_ticket} Print Ticket</button>
-                    <button className="btn-tool">{icons.voucher} Voucher</button>
+                    <button type='button' onClick={() => CustomerToolClick('check_in', booking)} className="btn-tool">{icons.check_in} Check-In</button>
+                    <button type='button' onClick={() => CustomerToolClick('send_invoice', booking)} className="btn-tool">{icons.send_invoice} Send Invoice</button>
+                    <button type='button' onClick={() => CustomerToolClick('resend_invoice', booking)} className="btn-tool">{icons.resend_invoice} Resend Invoice</button>
+                    <button type='button' onClick={() => CustomerToolClick('manifest', booking)} className="btn-tool">{icons.manifest} Manifest</button>
+                    <button type='button' onClick={() => CustomerToolClick('customer_invoice', booking)} className="btn-tool">{icons.customer_invoice} Customer Invoice</button>
+                    {/* <button type='button' onClick={() => CustomerToolClick('print_ticket', booking)} className="btn-tool">{icons.print_ticket} Print Ticket</button>
+                    <button type='button' onClick={() => CustomerToolClick('voucher', booking)} className="btn-tool">{icons.voucher} Voucher</button> */}
                 </div>
             </div>
         </div>

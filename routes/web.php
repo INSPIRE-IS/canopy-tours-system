@@ -176,6 +176,7 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['auth', 'v
     //Route::get('bookings/index', [HomeController::class, 'bookings'])->name('bookings.index');
     Route::get('/booking/activity/calendar', [BookingsController::class, 'calendar'])->name('booking.activity.calendar');
     Route::post('/bookings/calculate-price', [BookingsController::class, 'calculate'])->name('booking.calculate');
+    Route::post('/bookings/send-email', [BookingsController::class, 'sendEmail'])->name('bookings.send-email');
     Route::get('bookings/add/{booking}', [BookingsController::class, 'add'])->name('bookings.add');
     Route::resource('bookings', BookingsController::class);
     Route::post('customer-manifests/add', [CustomerManifestController::class, 'add'])->name('customer-manifests.add');

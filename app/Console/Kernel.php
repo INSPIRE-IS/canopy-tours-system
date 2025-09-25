@@ -9,6 +9,7 @@ class Kernel extends ConsoleKernel
 {
     protected $commands = [
         \App\Console\Commands\TestInvoiceEmail::class,
+        \App\Console\Commands\DocumentRoutes::class,
     ];
 
     /**
