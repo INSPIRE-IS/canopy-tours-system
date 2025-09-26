@@ -679,13 +679,13 @@ class ActivityController extends Controller
                 $isoNameOfDay = Carbon::parse($validated['date'])->format('N'); // iso week starts on Monday
                 //$numericNameOfDay = Carbon::parse($validated['date'])->format('w'); // week starts on Sunday
                 // lookup booking
-                $adultsCount = (int) ($validated['adults'] ?? 0);
-                $amount_adults = $season->rake_rate_adult * $adultsCount;
-                $childrenCount = (int) ($validated['children'] ?? 0);
-                $amount_children = $season->rake_rate_child * $childrenCount;
-                $guidesCount = (int) ($validated['guides'] ?? 0);
-                $amount_guides = $season->rake_rate_guide * $guidesCount;
-                $amount = $amount_adults + $amount_children + $amount_guides;
+                $adults = (int) ($validated['adults'] ?? 0);
+                $tot_adults = $season->rake_rate_adult * $adults;
+                $children = (int) ($validated['children'] ?? 0);
+                $tot_children = $season->rake_rate_child * $children;
+                $guides = (int) ($validated['guides'] ?? 0);
+                $tot_guides = $season->rake_rate_guide * $guides;
+                $amount = $tot_adults + $tot_children + $tot_guides;
                 logger()->info('amount ' . $amount);
                 if (!$inventory) {
                     abort(404, 'This season has no inventory.');
@@ -740,8 +740,8 @@ class ActivityController extends Controller
                     'price_child' => $season->rake_rate_child,
                     'price_guide' => $season->rake_rate_guide,
                     'promotion_id' => $validated['promotion_id'] ?? null,
-                    'pax_adults' => $adultsCount,
-                    'pax_children' => $childrenCount,
+                    'pax_adults' => $adults,
+                    'pax_children' => $children,
                     'pax_guides' => 0,
                 ]);
 
@@ -771,10 +771,10 @@ class ActivityController extends Controller
                     'booking_item_id'     => $bookingItem->id,
                     'booking_detail_id' => $bookingDetail->id,
                     'date'           => $validated['date'],
-                    'tot_adults'     => $adultsCount,
-                    'tot_children'   => $childrenCount,
-                    'tot_guides'     => $guidesCount,
-                    'pax'            => $adultsCount + $childrenCount,
+                    'adults'     => $adults,
+                    'children'   => $children,
+                    'guides'     => $guides,
+                    'pax'            => $adults + $children,
                     'inventory_type_day_id' => $isoNameOfDay,
                     'inventory_time_slot_id' => $inventoryTimeSlot->id,
                     'inventory_override_id' => null,
@@ -784,9 +784,9 @@ class ActivityController extends Controller
                 $bookingFee = BookingFee::create([
                     'booking_item_id'     => $bookingItem->id,
                     'booking_detail_id' => $bookingDetail->id,
-                    'tot_adults'     => $amount_adults,
-                    'tot_children'   => $amount_children,
-                    'tot_guides'     => $amount_guides,
+                    'tot_adults'     => $tot_adults,
+                    'tot_children'   => $tot_children,
+                    'tot_guides'     => $tot_guides,
                     'is_voucher'     => 0,
                     'voucher_code'   => '',
                     'invoice_note'   => '',

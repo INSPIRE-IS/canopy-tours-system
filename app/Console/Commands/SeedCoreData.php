@@ -1984,15 +1984,15 @@ class SeedCoreData extends Command
             BookingDetail::updateOrCreate(['id' => $bookingDetail['id']], $bookingDetail);
         }
 
-        $bookingInventories = [
+        $booking_inventories = [
             [
                 'id'             => 1,
                 'booking_item_id'     => 1,
                 'booking_detail_id' => 1,
                 'date'           => '2025-03-01',
-                'tot_adults'     => 2,
-                'tot_children'   => 1,
-                'tot_guides'     => 1,
+                'adults'     => 2,
+                'children'   => 1,
+                'guides'     => 1,
                 'pax'            => 3,
                 'inventory_type_day_id' => 7,
                 'inventory_time_slot_id' => 1,
@@ -2007,9 +2007,9 @@ class SeedCoreData extends Command
                 'booking_item_id'     => 2,
                 'booking_detail_id' => 2,
                 'date'           => '2025-04-02',
-                'tot_adults'     => 3,
-                'tot_children'   => 0,
-                'tot_guides'     => 1,
+                'adults'     => 3,
+                'children'   => 0,
+                'guides'     => 1,
                 'pax'            => 3,
                 'inventory_type_day_id' => 1,
                 'inventory_time_slot_id' => 2,
@@ -2024,9 +2024,9 @@ class SeedCoreData extends Command
                 'booking_item_id'     => 3,
                 'booking_detail_id' => 3,
                 'date'           => '2025-07-03',
-                'tot_adults'     => 1,
-                'tot_children'   => 1,
-                'tot_guides'     => 1,
+                'adults'     => 1,
+                'children'   => 1,
+                'guides'     => 1,
                 'pax'            => 2,
                 'inventory_type_day_id' => 2,
                 'inventory_time_slot_id' => 2,
@@ -2041,9 +2041,9 @@ class SeedCoreData extends Command
                 'booking_item_id'     => 4,
                 'booking_detail_id' => 4,
                 'date'           => '2025-07-04',
-                'tot_adults'     => 2,
-                'tot_children'   => 0,
-                'tot_guides'     => 1,
+                'adults'     => 2,
+                'children'   => 0,
+                'guides'     => 1,
                 'pax'            => 2,
                 'inventory_type_day_id' => 3,
                 'inventory_time_slot_id' => 1,
@@ -2055,8 +2055,8 @@ class SeedCoreData extends Command
             ],
         ];
 
-        foreach ($bookingInventories as $bookingInventory) {
-            BookingInventory::updateOrCreate(['id' => $bookingInventory['id']], $bookingInventory);
+        foreach ($booking_inventories as $booking_inventory) {
+            BookingInventory::updateOrCreate(['id' => $booking_inventory['id']], $booking_inventory);
         }
 
         $bookingFees = [

@@ -134,6 +134,12 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
         // console.log('children', children);
         loadCalendar();
     }, [activityId, activityDate, view_mode, selectedTime, adults, children]);
+    useEffect(() => {
+        console.log('-----------------------Adults----------------------', adults);
+        console.log('-----------------------Children----------------------', children);
+        console.log('-----------------------Guides----------------------', guides);
+        console.log('-----------------------data----------------------', data);
+    }, [data]);
 
 
     const loadCalendar = async () => {

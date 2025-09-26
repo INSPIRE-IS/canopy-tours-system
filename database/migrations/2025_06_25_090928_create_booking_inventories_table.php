@@ -14,9 +14,9 @@ return new class extends Migration
         Schema::create('booking_inventories', function (Blueprint $table) {
             $table->id();
             $table->date('date');
-            $table->integer('tot_adults')->default(0)->nullable();
-            $table->integer('tot_children')->default(0)->nullable();
-            $table->integer('tot_guides')->default(0)->nullable();
+            $table->integer('adults')->default(0)->nullable();
+            $table->integer('children')->default(0)->nullable();
+            $table->integer('guides')->default(0)->nullable();
             $table->integer('pax')->default(0)->nullable();
             $table->timestamps();
             $table->softDeletes();

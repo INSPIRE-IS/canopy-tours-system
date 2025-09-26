@@ -459,9 +459,9 @@ class BookingsController extends Controller
                 BookingInventory::create([
                     'booking_item_id'     => $booking_item->id,
                     'booking_detail_id' => $bookingDetail->id,
-                    'tot_adults'     => (int) ($validated['adults'] ?? 0),
-                    'tot_children'   => (int) ($validated['children'] ?? 0),
-                    'tot_guides'     => (int) ($validated['guides'] ?? 0),
+                    'adults'     => (int) ($validated['adults'] ?? 0),
+                    'children'   => (int) ($validated['children'] ?? 0),
+                    'guides'     => (int) ($validated['guides'] ?? 0),
                     'pax'            => (int) ($validated['adults'] ?? 0) + (int) ($validated['children'] ?? 0),
                     'date'           => $validated['booking_date'],
                     'inventory_type_day_id' => $isoNameOfDay,
@@ -635,12 +635,16 @@ class BookingsController extends Controller
         //return redirect()->route('admin.bookings.index');
     }
 
-    public function edit(Booking $booking)
+    public function edit(Request $request, Booking $booking)
     {
         //abort_if(Gate::denies('booking_edit'), Response::HTTP_FORBIDDEN, '403 Forbidden');
         $user = auth()->user();
 
         $booking->load([
+            'booking_payments', // :id,booking_id,amount
+        ])->get();
+
+        $booking_items = BookingItem::with([
             'service',
             'season',
             'inventory',
@@ -650,52 +654,76 @@ class BookingsController extends Controller
             'customers.booking_questionnaire', // :id,booking_id,customer_id,guide_id,safety_guide_id,type_group_id,fullname,email,signature,birth_date,type_referral,country_id,province_id,is_medical,medical_detail,is_fit,is_agree
             'booking_details', //:id,booking_id ,start_time,end_time
             'booking_fees', //:id,booking_id,tot_amount
-            'booking_payments', // :id,booking_id,amount
             'booking_inventory', // :id,booking_id,inventory_id
             'booking_staff', // :id,booking_id,user_id
             'booking_staff.user', // :id,name,email,contact_number
-        ])
-            // ->select([
-            //     'id',
-            //     'lead_name',
-            //     'user_id',
-            //     'status_booking_id',
-            //     'due_date',
-            //     'tot_paid',
-            //     'grand_tot_due',
-            //     'service_id',
-            //     'season_id',
-            //     'inventory_id',
-            //     'created_at'
-            // ])
-            //->whereDate('due_date', '2025-01-01')
+        ])->where('booking_id', $booking->id)->first();
+
+        $users = User::select('name', 'id')->get();
+        $today = now()->toDateString();
+        $status_bookings = TypeBooking::select('name', 'id')->get();
+        $wholesalers = Wholesaler::select('id', 'name')->get();
+        //$services = Service::select('id', 'name')->get();
+        $services = Service::select('id', 'name', 'allow_internal_capacity_override', 'duration', 'capacity')
+            ->with('seasons:id,name,start_date,end_date,service_id,rake_rate_adult,rake_rate_child,rake_rate_guide,allow_internal_price_override,status', 'seasons.inventory', 'seasons.inventory.inventory_time_slots')
             ->get();
+        //$seasons = Season::select('id', 'name', 'service_id')->get();
+        $seasons = Season::select('start_date', 'id')->get();
+        // $inventories = Inventory::select('start_date', 'id')->get();
+        $type_affiliates = TypeReferral::select('name', 'id')->get();
+        $updated_bies = User::select('name', 'id')->get();
+        $customers = Customer::select('full_name as name', 'id')->get();
 
-        $staff = User::with('roles:id,name')
-            ->whereHas('roles', function ($query) {
-                $query->whereIn('id', [4, 5, 6]);
-            })
-            ->when($user->team_id, function ($query, $teamId) {
-                $query->where('team_id', $teamId);
-            })
-            ->select('name', 'id')
-            ->get()
-            ->map(function ($user) {
-                $roleName = $user->roles->first()?->name ?? 'No Role';
-                return collect([
-                    'id'   => $user->id,
-                    'name' => $user->name,
-                    'role' => $roleName,
-                ]);
-            });
-        // ->flatMap(function ($user) {
-        //     return $user->roles->map(function ($role) use ($user) {
-        //         return "{$user->name} - {$role->name}";
-        //     });
-        // });
-        //dd($booking);
-        return Inertia::render('Admin/Bookings/Edit', ['booking' => $booking, 'staff' => $staff]);
+        $viewMode = $request->input('view_mode', 'week');
+        $startDate = Carbon::parse($request->input('start_date', now()));
+        $timeslots = Booking::TIME_SLOTS;
 
+        $schedule = [];
+        $days = match ($viewMode) {
+            'day' => 1,
+            'week' => 7,
+            'month' => 30,
+            default => 7
+        };
+        $endDate = (clone $startDate)->addDays($days - 1);
+
+        $vouchers = Voucher::select('id', 'voucher_code as name', 'amount', 'note', 'expire_date', 'season_id', 'service_id')->with('season', 'service')->get();
+        $discounts = Discount::select('id', 'name', 'applies_to', 'percent_off')->with('services')->get();
+        $wholesaler_rates = WholesalerRate::select('id', 'wholesaler_id', 'season_id', 'price_adult', 'price_child', 'price_guide')->with('season', 'wholesaler')->get();
+        $promos = Promotion::select('id', 'name', 'promo_code', 'type', 'value', 'service_id', 'booking_start_date', 'booking_end_date', 'activity_start_date', 'activity_end_date')
+            ->where('booking_start_date', '<=', $today)
+            ->where('booking_end_date', '>=', $today)
+            ->where('internal_use_only', false)
+            ->with('service')
+            ->get();
+        $lookups = LookupItem::where('is_default', true)->get();
+
+        return Inertia::render('Admin/Bookings/Edit', [
+            'wholesalers' => $wholesalers,
+            'booking_items' => $booking_items,
+            'booking' => $booking,
+            'services' => $services,
+            'inventories' => $seasons,
+            'type_affiliates' => $type_affiliates,
+            'updated_bies' => $updated_bies,
+            'users' => $users,
+            'status_bookings' => $status_bookings,
+            'schedule' => $schedule,
+            'start_date' => $startDate->toDateString(),
+            'view_mode' => $viewMode,
+            'days' => collect(CarbonPeriod::create($startDate, $endDate))
+                ->map(fn($d) => $d->format('D d'))
+                ->values(),
+            'adults' => 0,
+            'children' => 0,
+            'guides' => 0,
+            'availableTimes' => [],
+            'vouchers' => $vouchers,
+            'discounts' => $discounts,
+            'wholesaler_rates' => $wholesaler_rates,
+            'promos' => $promos,
+            'lookups' => $lookups,
+        ]);
 
 
 
