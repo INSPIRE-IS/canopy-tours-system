@@ -8,7 +8,7 @@ export default function BookingLookup() {
   const [isWelcome, setIsWelcome] = useState(true);
   const inputRef = useRef(null);
     const { data, setData, get, post, put, errors, reset, processing } = useForm({
-        reference: "REF-AF1GD7",
+        reference: "",
     });
     const handleChange = (target, value) => {
         setData(target, value);
@@ -48,7 +48,7 @@ export default function BookingLookup() {
         console.log('Booking', response);
         if (response.success && response.booking) {
           // Booking is valid, navigate to create form
-          get(route("questionnaire.create"), {
+          get(route("booking-questionnaire.create"), {
             data: {
               reference: data.reference,
               customer: data.customerId, // Pass any extra needed data
@@ -141,8 +141,8 @@ export default function BookingLookup() {
               </p>
 
               <input
-                name="booking_id"
-                value={data.booking_id}
+                name="reference"
+                value={data.reference}
                 onChange={(e) => handleChange(e.target.name, e.target.value)}
                 type="text"
                 placeholder="Enter your booking ID"
