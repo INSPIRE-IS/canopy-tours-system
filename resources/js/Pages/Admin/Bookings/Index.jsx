@@ -79,7 +79,7 @@ export default function Dashboard({ auth, bookings }) {
 
         console.log("-------tool clicked-------", tool);
         if (tool === 'edit_timeslot') {
-            router.get(route('admin.bookings.edit_timeslot'));
+            router.get(route('admin.bookings.edit', booking.id));
         }
         if (tool === 'message_guest') {
             setSelectedBooking(booking);

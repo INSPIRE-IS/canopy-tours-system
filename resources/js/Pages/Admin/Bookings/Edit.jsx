@@ -5,7 +5,7 @@ import Calendar from '@/Components/ui/calendar';
 import Button from '@/components/ui/button';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
-import React, { useEffect, useState } from 'react';
+import React, { use, useEffect, useState } from 'react';
 import { format, addDays, addWeeks, addMonths, set } from 'date-fns';
 import CustomSelect from '@/Components/CustomSelect';
 import InputText from '@/Components/InputText';
@@ -19,14 +19,17 @@ import OutlineButton from '@/Components/OutlineButton';
 import PromoModal from './PromoModal';
 
 
-export default function Dashboard({ auth, wholesalers = [], services = [], schedule, start_date, view_mode, days, type_affiliates, vouchers, discounts, wholesaler_rates, promos, lookups }) {
+export default function Dashboard({ auth, wholesalers = [], services = [], booking, booking_items, schedule, start_date, view_mode, days, type_affiliates, vouchers, discounts, wholesaler_rates, promos, lookups }) {
     //seasons = [],, adults, children, guides
-    console.log('---------------auth----create------------ ', auth);
+    console.log('---------------auth----edit------------ ', auth);
+    console.log('---------------auth----booking------------ ', booking);
+    console.log('---------------auth----booking_items------------ ', booking_items);
     const page = usePage();
-    const mode = 'create';
+    const mode = 'edit';
     //const currentRoutePath = page.props.currentRoutePath;
 
     //// console.log('=======================currentRoutePath============== ',currentRoutePath); // outputs: "services"
+    const [isInitialized, setIsInitialized] = useState(false);
     const [viewMode, setViewMode] = useState(view_mode); // 'day', 'week', or 'month'
     const [activityId, setActivityId] = useState('');
     const [scheduleData, setScheduleData] = useState({ schedule, days });
@@ -126,30 +129,164 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
     });
 
     useEffect(() => {
+        if (booking_items) {
+
+            setSeasons([]);
+            const service = services.find(s => s.id === parseInt(booking_items?.service_id));
+            console.log('service', service);
+            //
+            const seasons = service ? service.seasons : [];
+            //setSeasons(service?.seasons ?? []);
+            console.log('seasons', seasons);
+            const selectedDate = parseDate(booking_items?.booking_inventory?.date);
+            console.log('selected Date', selectedDate);
+            const season = seasons.find(s => {
+                const start = new Date(s.start_date);
+                // console.log('start', start);
+                const end = new Date(s.end_date);
+                // console.log('end', end);
+                const out = selectedDate >= start && selectedDate <= end;
+                // console.log('selected----------ooooooooooooooooooooooooooo', selected);
+                return out;
+            });
+
+            console.log('-------------selected season---------', season);
+            //const time_slots = selectedSeason ? setTimeslots(selectedSeason?.inventory?.time_slots) : [];
+            //console.log('time_slots', selectedSeason?.inventory?.time_slots);
+            let formattedTimeSlots = [];
+            if (season) {
+
+                formattedTimeSlots = [
+                    { id: 0, name: "All" },
+                    ...(season?.inventory?.inventory_time_slots?.map(slot => ({
+                        id: slot.id,
+                        name: slot.start_time.slice(0, 5), // e.g., '08:00' from '08:00:00'
+                    })) || [])
+                ];
+
+            }
+            console.log('-------------Formatted Time Slots---------', formattedTimeSlots);
+            setSelectedService(service ?? null);
+            setSelectedSeason(season);
+            setActivityId(season.id);
+            setTimeslots(formattedTimeSlots);
+            setAdults(booking_items?.booking_inventory?.adults);
+            setChildren(booking_items?.booking_inventory?.children);
+            setGuides(booking_items?.booking_inventory?.guides);
+            // setSelectedSlot({ activityDate: booking_items?.booking_inventory?.date, day: day, time: slot.name });
+            setSelectedDate(booking_items?.booking_inventory?.date);
+            setActivityDate(() => new Date(booking_items?.booking_inventory?.date));
+            setData({
+                is_wholesaler: booking_items?.wholesaler_id ? true : false,
+                wholesaler_id: booking_items?.wholesaler_id || '',
+                add_consultant: false,
+                consultant_name: '',
+                consultant_email: '',
+                consultant_mobile: '',
+                service_id: booking_items?.service_id || '',
+                override_capacity: false,
+                capacity: booking_items?.service?.capacity || 0,
+                duration: booking_items?.service?.duration || 0,
+                season_id: booking_items?.season_id || '',
+                override_price: false,
+                base_per_adult: booking_items?.season?.rake_rate_adult || 0,
+                base_per_child: booking_items?.season?.rake_rate_child || 0,
+                base_per_guide: booking_items?.season?.rake_rate_guide || 0,
+                rate_per_adult: booking_items?.price_adult || 0,
+                rate_per_child: booking_items?.price_child || 0,
+                rate_per_guide: booking_items?.price_guide || 0,
+                override_timeslots: false,
+                booking_date: booking_items?.booking_inventory?.date || '',
+                start_time: booking_items?.booking_inventory?.time || '',
+                end_time: '',
+                adults: booking_items?.booking_inventory?.adults || '',
+                children: booking_items?.booking_inventory?.children || '',
+                guides: booking_items?.booking_inventory?.guides || '',
+                adult: booking_items?.booking_fees?.tot_adults || 0,
+                child: booking_items?.booking_fees?.tot_children || 0,
+                guide: booking_items?.booking_fees?.tot_guides || 0,
+                include_media: false,
+                web_booking: false,
+                needs_pickup: false,
+                exclusive_resource: false,
+                //rates{ activityDate: data?.booking_date, day: day, time: slot.name }
+                selected_slot: [],
+                override_rates: false,
+                override_reason: '',
+                discount_lines: [],
+                promoCode: null,
+                //redeem
+                redeem_voucher: '',
+                redeem_discount: '',
+                redeem_wholesaler_rate: '',
+                invoice_note: '',
+                email_reminder: '',
+                booking_note: '',
+                // booking details
+                corporate_customer: false,
+                send_sms: false,
+                is_lead: true,
+                lead_person: '',
+                lead_email: '',
+                lead_mobile: '',
+                referral_source: '',
+                // booking payment
+                booking_total: 0,
+                deposit_due: lookups.find(l => l.slug == 'deposit_due')?.multiplier || 1,
+                due_today: lookups.find(l => l.slug == 'due_today')?.multiplier || 1,
+                rack_value: 1,
+                bill_back: false,
+                team_id: auth.user.team_id,
+            });
+
+
+            setTimeout(() => {
+                console.log('activityId', season.id);
+                console.log('activityDate', selectedDate);
+                console.log('start_time', booking_items?.booking_inventory?.time);
+                console.log('view_mode', view_mode);
+                console.log('adults', booking_items?.booking_inventory?.adults);
+                console.log('children', children);
+                loadCalendar(season.id, selectedDate, view_mode, booking_items?.booking_inventory?.time, booking_items?.booking_inventory?.adults, booking_items?.booking_inventory?.children);
+                console.log('**************************************DONE************************************************');
+                setIsInitialized(true); // flip once populated                
+            }, 0.500);
+
+        }
+    }, [booking_items]);
+    useEffect(() => {
+        console.log('-----------------------Adults----------------------', adults);
+        console.log('-----------------------Children----------------------', children);
+        console.log('-----------------------Guides----------------------', guides);
+        console.log('-----------------------data----------------------', data);
+    }, [data]);
+
+    useEffect(() => {
+        if (!isInitialized) return;
+        console.log('*****************************************Calendar**********************************************');
         // console.log('activityId', activityId);
         // console.log('activityDate', activityDate);
         // console.log('start_time', selectedTime);
         // console.log('view_mode', view_mode);
         // console.log('adults', adults);
         // console.log('children', children);
-        loadCalendar();
+        loadCalendar(activityId, activityDate, view_mode, selectedTime, adults, children);
     }, [activityId, activityDate, view_mode, selectedTime, adults, children]);
 
-
-    const loadCalendar = async () => {
+    const loadCalendar = async (activity_id, activity_date, view_mode, selected_time, input_adults, input_children) => {
         // console.log('-----------------loadCalendar-------------');
-        // console.log('-----------------data------------- ', data);
-        if (activityId) {
+
+        if (activity_id) {
             setLoading(true);
             try {
                 const response = await axios.get(route('admin.booking.activity.calendar'), {
                     params: {
-                        activity_id: activityId,
+                        activity_id: activity_id,
                         view_mode: view_mode,
-                        start_date: format(activityDate, 'yyyy-MM-dd'),
-                        start_time: selectedTime,
-                        adults,
-                        children
+                        start_date: format(activity_date, 'yyyy-MM-dd'),
+                        start_time: selected_time,
+                        input_adults,
+                        input_children
                     }
                 });
                 // console.log('ScheduleData ', response);
@@ -163,6 +300,8 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
     };
 
     useEffect(() => {
+        if (!isInitialized) return;
+        console.log('*****************************************selected**********************************************');
         if (selectedService && selectedSeason) {
             fetchCalculatedPrice();
         }
@@ -269,7 +408,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
 
     }, [selectedService, selectedSeason, adults, children, guides, selectedDate, selectedTime]);//, selectedWholesaler, promoCode
 
-    ////////////////////////////////////////
+
     const handleCalculate = async () => {
         console.log('selectedService', selectedService);
         console.log('selectedSeason', selectedSeason);
@@ -336,8 +475,6 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
             console.error(err.response?.data || err);
         }
     };
-    ///////////////////////////////////////////////////////
-
 
     const fetchCalculatedPrice = async () => {
         // console.log('selectedService', selectedService);
@@ -368,6 +505,8 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
     };
 
     useEffect(() => {
+        if (!isInitialized) return;
+        console.log('*****************************************Wholesaler**********************************************');
         // console.log('selectedWholesaler', selectedWholesaler);
         // console.log('wholesaler_rates', wholesaler_rates);
         if (selectedWholesaler) {
@@ -426,9 +565,11 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
     };
 
     useEffect(() => {
+        if (!isInitialized) return;
+        console.log('*****************************************service**********************************************');
         const service = services.find(s => {
             // console.log('service', s);
-            // console.log('service_id ', data.service_id);
+
             const selected = s.id === parseInt(data.service_id);
             // console.log(selected);
             setSeasons([]);
@@ -490,6 +631,8 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
     }, [data.service_id]);
 
     useEffect(() => {
+        if (!isInitialized) return;
+        console.log('*****************************************season**********************************************');
         // const season = seasons.find(s => {
         //     console.log('season', s);
         //     console.log('season_id ', data.season_id);
@@ -576,6 +719,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
         //     });
         // }
     };
+
     const handleChange = (target, value) => {
         setData(target, value);
         //setData("name", e.target.value);
@@ -591,6 +735,8 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
     };
 
     useEffect(() => {
+        if (!isInitialized) return;
+        console.log('*****************************************Date**********************************************');
         if (data?.booking_date) {
             // console.log('booking_date', data.booking_date);
             //const selectedDate = new Date(value);
@@ -777,6 +923,8 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
     }, 0);
 
     useEffect(() => {
+        if (!isInitialized) return;
+        console.log('*****************************************total**********************************************');
         setData("adult", totalAdult);
         setData("booking_total", total);
     }, [total]);
