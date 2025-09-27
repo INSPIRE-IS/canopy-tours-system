@@ -17,12 +17,12 @@ return new class extends Migration
             $table->string('receiver');
             $table->string('subject')->nullable();
             $table->longText('body')->nullable();
+            $table->string('auditable_type')->nullable();
+            $table->integer('auditable_id')->nullable();
             $table->string('attachment_path')->nullable();
             $table->boolean('sent')->default(false);
             $table->timestamp('sent_at')->nullable();
-
             $table->foreignId('user_id')->nullable()->constrained('users');
-            $table->foreignId('booking_id')->nullable()->constrained('bookings');
             $table->foreignId('team_id')->nullable()->constrained('teams');
             $table->timestamps();
         });

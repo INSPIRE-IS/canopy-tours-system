@@ -120,6 +120,8 @@ class TestInvoiceEmail extends Command
             'sent'           => true,
             'sent_at'        => now(),
             'user_id'        => null,
+            'auditable_type' => 'Test',
+            'auditable_id'   => null,
             'booking_id'     => null,
             'team_id'        => null,
         ]);

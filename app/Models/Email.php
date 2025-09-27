@@ -20,7 +20,8 @@ class Email extends Model
         'sent',
         'sent_at',
         'user_id',
-        'booking_id',
+        'auditable_type',
+        'auditable_id',
         'team_id',
     ];
 
