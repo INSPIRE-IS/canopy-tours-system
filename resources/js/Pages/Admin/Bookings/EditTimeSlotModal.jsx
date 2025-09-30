@@ -10,6 +10,7 @@ const EditTimeSlotModal = ({ isOpen, onClose, mode, booking, services }) => {
     console.log("booking", booking);
     const [selectedService, setSelectedService] = useState(null);
     const [selectedSeason, setSelectedSeason] = useState(null);
+    const [seasons, setSeasons] = useState([]);
 
     const [timeslots, setTimeslots] = useState([]);
     const [selectedSlot, setSelectedSlot] = useState(null); // stores {date: string, day: string, time: string }
@@ -62,6 +63,7 @@ const EditTimeSlotModal = ({ isOpen, onClose, mode, booking, services }) => {
             console.log('-------------selectedService---------', service);
             setSelectedService(service ?? null);
             const seasons = service ? service.seasons : [];
+            setSeasons(seasons);
             const season = seasons?.find(s => {
                 const start = new Date(s.start_date);
                 const end = new Date(s.end_date);
@@ -73,7 +75,7 @@ const EditTimeSlotModal = ({ isOpen, onClose, mode, booking, services }) => {
             if (season) {
 
                 const formattedTimeSlots = [
-                    { id: 0, name: "All" },
+                    // { id: 0, name: "All" },
                     ...(season?.inventory?.inventory_time_slots?.map(slot => ({
                         id: slot.id,
                         name: slot.start_time.slice(0, 5), // e.g., '08:00' from '08:00:00'
@@ -95,7 +97,7 @@ const EditTimeSlotModal = ({ isOpen, onClose, mode, booking, services }) => {
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        if (mode === "create") {
+        if (mode === "edit") {
             post(route("admin.bookings.send-email"), {
                 onSuccess: () => onClose(),
                 onError: (err) => { console.log(err); },
@@ -116,59 +118,34 @@ const EditTimeSlotModal = ({ isOpen, onClose, mode, booking, services }) => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
             <div className="bg-white rounded-lg shadow-lg p-6 w-[50%] h-[98%] overflow-y-auto">
                 <h2 className="text-xl font-bold mb-4">
-                    {mode === "create" && "Message Guest"}
+                    {mode === "edit" && "Edit Timeslot"}
                 </h2>
                 <form onSubmit={handleSubmit}>
-
-
-                    {/* <div className="flex flex-col w-full items-center gap-2 justify-start mb-4">
-
-                        <CustomInputText
-                            title="Recipient*"
-                            name="recipient"
-                            value={data.recipient}
-                            type="text"
-                            mode={mode}
-                            onChange={(e) => setData(e.target.name, e.target.value)}
-                            errors={errors}
-                        />
-
-                        <CustomInputText
-                            title="Subject*"
-                            name="subject"
-                            value={data.subject}
-                            type="text"
-                            mode={mode}
-                            onChange={(e) => setData(e.target.name, e.target.value)}
-                            errors={errors}
-                        />
-                        <div className="mb-4 w-full"></div>
-                    </div> */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <CustomSelect
                             label="Service"
                             name="service_id"
                             value={data.service_id}
-
+                            mode={'view'}
                             onChange={(e) => handleChange(e.target.name, e.target.value)}
                             error={errors.service_id}
                             options={services}
                         />
-                        {/* <CustomSelect
+                        <CustomSelect
                             label="Season"
                             name="season_id"
                             value={data.season_id}
-                            
-                            onChange={(e) => {handleChange(e.target.name, e.target.value); setActivityId(e.target.value)}}
+                            mode={'view'}
+                            onChange={(e) => { handleChange(e.target.name, e.target.value); setActivityId(e.target.value) }}
                             error={errors.season_id}
                             options={seasons}
-                        />  */}
+                        />
                         <CustomInputText
                             title="Booking Date"
                             name="booking_date"
                             type='date'
                             value={data.booking_date}
-
+                            mode={'view'}
                             onChange={(e) => { handleChange(e.target.name, e.target.value); setSelectedDate(e.target.value); }}
                             errors={errors}
                         />
@@ -212,7 +189,7 @@ const EditTimeSlotModal = ({ isOpen, onClose, mode, booking, services }) => {
                     <div className="flex justify-center gap-4">
                         <OutlineButton title="Cancel" onClick={onClose} width="w-[180px]" />
                         {mode !== "view" && (
-                            <BlueButton title={mode === "create" ? "Send Email" : ""} width="w-[180px]" onClick={handleSubmit} disabled={processing} type="submit" />
+                            <BlueButton title={mode === "edit" ? "Submit" : ""} width="w-[180px]" onClick={handleSubmit} disabled={processing} type="submit" />
                         )}
                     </div>
                 </form>

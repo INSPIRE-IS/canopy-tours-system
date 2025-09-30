@@ -328,7 +328,7 @@ export default function Dashboard({ auth, bookings, lookups, services }) {
                 <EditTimeSlotModal
                     isOpen={isEditTimeSlotModalOpen}
                     onClose={handleCloseModal}
-                    mode='create'
+                    mode='edit'
                     booking={selectedBooking}
                     services={services}
                 />
