@@ -128,6 +128,11 @@ class Booking extends Model
         return $this->hasMany(BookingPayment::class);
     }
 
+    public function booking_discounts()
+    {
+        return $this->hasMany(BookingDiscount::class, 'booking_id');
+    }
+
     // public function booking_inventory()
     // {
     //     return $this->hasOne(BookingInventory::class);

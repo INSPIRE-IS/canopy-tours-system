@@ -61,123 +61,71 @@ class BookingsController extends Controller
     {
         abort_if(Gate::denies('bookings_access'), Response::HTTP_FORBIDDEN, '403 Forbidden');
         $bookings = Booking::with([
-            'booking_items', // :id,booking_id ,start_time,end_time
-            'booking_items.customers', // :id,name,email,contact_number
-            'booking_items.booking_details', //:id,booking_id ,start_time,end_time
-            'booking_items.booking_fees', //:id,booking_id,tot_amount
-            'booking_payments', // :id,booking_id,amount
-            'booking_items.booking_inventory', // :id,booking_id,inventory_id
-        ])
-            // ->select([
-            //     'id',
-            //     'lead_name',
-            //     'user_id',
-            //     'status_booking_id',
-            //     'due_date',
-            //     'tot_paid',
-            //     'grand_tot_due',
-            //     'service_id',
-            //     'season_id',
-            //     'inventory_id',
-            //     'created_at'
-            // ])
-            //->whereDate('due_date', '2025-01-01')
-            ->get();
-        //dd($bookings);
+            'booking_payments',
+        ])->get();
+        $booking_items = BookingItem::with([
+            'booking',
+            'customers',
+            'booking_detail',
+            'booking_fee',
+            'booking_inventory',
+        ])->get();
+        $services = Service::with('seasons', 'seasons.inventory.inventory_time_slots')->get();
+
         $vatMultiplier = LookupItem::where('lookup_id', 1)->where('is_default', true)->first()->multiplier;
 
-        $formatted = $bookings->map(function ($booking) use ($vatMultiplier) {
+        $formatted = $booking_items->map(function ($booking_item) use ($vatMultiplier) {
             try {
-                //dd($booking->booking_items[0]);
-                $booking_item = $booking->booking_items[0];
-
-                $price = 0;
-                foreach ($booking_item->booking_fees as $fee) {
-                    $price += $fee->tot_amount * $vatMultiplier;
-                }
-                $paid = 0;
-                foreach ($booking->booking_payments as $payment) {
-                    $paid += $payment->amount * $vatMultiplier;
-                }
-                //dd($price);
+                $price = $booking_item->booking_fee->tot_amount;
+                $paid = $booking_item->booking_fee->tot_paid;
                 $due = $price - $paid;
-                //dd($booking->booking_inventory->inventory_time_slot_id);
-
-                // $inventory = Inventory::with(['timeSlots' => function ($q) use ($booking) {
-                //     $q->where('id', $booking->booking_inventory->inventory_time_slot_id);
-                // }])->find($booking->booking_inventory->booking_id);
-                // dd($inventory);
                 $service = Service::find($booking_item->service_id);
                 $season = Season::find($booking_item->season_id);
-                $timeSlot = InventoryTimeSlot::find($season->id);
-
+                $timeSlot = InventoryTimeSlot::find($booking_item->booking_inventory->inventory_time_slot_id);
 
                 $time = $timeSlot->start_time;
                 $start_time = Carbon::parse($time);
-                // assuming $inventory->duration = '02:00:00'
-                //dd($inventory->duration);
+
                 list($hours, $minutes, $seconds) = explode(':', $service->duration);
                 $end_time = $start_time->copy()->addHours($hours)->addMinutes($minutes)->addSeconds($seconds);
-                // dd($end_time->format('H:i:s'));
-                //dd($booking_item->customers);
+
+                $customers = $booking_item->paxWithCustomers();
+
                 $info = [
-                    'id' => $booking->id,
-                    'reference' => $booking->reference,
-                    'lead_name' => $booking->lead_name,
-                    'lead_id' => $booking->customer_id,
+                    'id' => $booking_item->booking->id,
+                    'reference' => $booking_item->booking->reference,
+                    'lead_name' => $booking_item->booking->lead_name,
+                    'lead_id' => $booking_item->booking->customer_id,
                     'bookingPax' => $booking_item->booking_inventory->pax, // $booking->customers->count(),
                     'maxPax' => $service->capacity, // $booking->customers->count(),
                     'service' => $booking_item->service->name,
                     'time' => $start_time->format('H:i:s') . ' ' . $end_time->format('H:i:s'), // optional($booking->booking_inventory)->inventory_time_slot_id ?? '' . ' - ' . optional($booking->booking_inventory)->inventory_time_slot_id ?? '',
-                    'price' => number_format($price ?? 0, 2),
-                    'paid' =>  number_format($paid ?? 0, 2),
-                    'due' =>  number_format($due ?? 0, 2),
-                    'customers' => $booking_item->customers->map(fn($c) => [
-
-                        //'reference' => $booking->reference,
-                        'name' => "{$c->full_name}",
-                        'email' => $c->email_address,
-                        'phone' => $c->contact_number,
-                        //'age' => $c->age,
-                        //'notes' => $c->notes,
-                        'price' => $c->pivot->price ?? 190,
-                        'paid' => $c->pivot->paid ?? 0,
-                        'due' => ($c->pivot->price ?? 190) - ($c->pivot->paid ?? 0),
-                        'docs_link' => '', // route('customer.docs', $c->id),
-                        'ols_link' => '', // route('customer.ols', $c->id),
-                        'is_lead' => $c->pivot->is_lead,
-                        'team_id' => $c->pivot->team_id,
-                    ]),
+                    'price' => round($price ?? 0, 2),
+                    'paid' =>  round($paid ?? 0, 2),
+                    'due' =>  round($due ?? 0, 2),
+                    'customers' => $customers,
                     'dueStatus' => $due > 0 ? true : false,
-                    'due_date' => $booking->due_date,
+                    'due_date' => $booking_item->booking->due_date,
+                    'booking_date' => $booking_item->booking_inventory->date,
+                    'inventory_time_slot_id' => $booking_item->booking_inventory->inventory_time_slot_id,
+                    'service_id' => $booking_item->service_id,
+                    'season_id' => $booking_item->season_id,
                 ];
-                //dd($info);
                 return $info;
             } catch (\Throwable $e) {
                 Log::error('Booking', [
                     'message' => $e->getMessage(),
                     'trace' => $e->getTraceAsString(),
-                    'input' => $booking,
+                    'input' => $booking_item,
                 ]);
                 return null;
             }
         });
-
-        // [
-        //     'time' => '09:00 - 11:30',
-        //     'pax' => 6,
-        //     'maxPax' => 8,
-        //     'service' => 'Tsitsikamma Canopy Tour',
-        //     'price' => 5570,
-        //     'paid' => 5570,
-        //     'due' => 3780,
-        //     'dueStatus' => 'Overdue', // Could be 'Normal', 'Overdue', or 'Paid'
-        // ],
-
-        // $promotions = Promotion::with('service')->get();
-        //dd($formatted);
+        $lookups = LookupItem::where('is_default', true)->get();
         return Inertia::render('Admin/Bookings/Index', [
             'bookings' => $formatted,
+            'lookups' => $lookups,
+            'services' => $services,
             // 'promotions' => $promotions
         ]);
     }
@@ -251,7 +199,7 @@ class BookingsController extends Controller
 
     public function store(StoreBookingRequest $request)
     {
-        // dd($request->all());
+        //dd($request->all());
 
         $validated = $request->validate([
             'booking_id' => 'integer', //   "lead_person" => "Lead Person"
@@ -339,7 +287,7 @@ class BookingsController extends Controller
                         'full_name' => $validated['lead_person'],
                         'contact_number' => $validated['lead_mobile'],
                     ]);
-
+                    $vatMultiplier = LookupItem::where('lookup_id', 1)->where('is_default', true)->first()->multiplier;
                     // 2. Create booking
                     $booking = Booking::create([
                         'user_id' => auth()->user()->id,
@@ -381,8 +329,8 @@ class BookingsController extends Controller
                             ],
                             [
                                 'count'       => $line['count'],
-                                'base_rate'   => 0,
-                                'final_rate'  => 0,
+                                'base_rate'   => $line['base_rate'],
+                                'final_rate'  => $line['final_rate'],
                             ]
                         );
                     }
@@ -398,9 +346,9 @@ class BookingsController extends Controller
                     'pax_adults'     => (int) ($validated['adults'] ?? 0),
                     'pax_children'   => (int) ($validated['children'] ?? 0),
                     'pax_guides'     => (int) ($validated['guides'] ?? 0),
-                    'price_adult'    => (int) ($validated['adult'] ?? 0),
-                    'price_child'    => (int) ($validated['child'] ?? 0),
-                    'price_guide'    => (int) ($validated['guide'] ?? 0),
+                    'price_adult'    => (int) ($validated['rate_per_adult'] ?? 0),
+                    'price_child'    => (int) ($validated['rate_per_child'] ?? 0),
+                    'price_guide'    => (int) ($validated['rate_per_guide'] ?? 0),
                     'promotion_id'   => $promotion ? $promotion->id : null,
                     'wholesaler_id'  => $validated['wholesaler_id'],
                     'discount_id'    => $booking_price ? $booking_price->id : null,
@@ -473,9 +421,9 @@ class BookingsController extends Controller
                 $bookingFee = BookingFee::create([
                     'booking_item_id'     => $booking_item->id,
                     'booking_detail_id' => $bookingDetail->id,
-                    'tot_adults'     => (int) ($validated['adults'] ?? 0),
-                    'tot_children'   => (int) ($validated['children'] ?? 0),
-                    'tot_guides'     => (int) ($validated['guides'] ?? 0),
+                    'tot_adults'     => (int) ($validated['adult'] ?? 0),
+                    'tot_children'   => (int) ($validated['child'] ?? 0),
+                    'tot_guides'     => (int) ($validated['guide'] ?? 0),
                     'is_voucher'     => $validated['redeem_voucher'] ? 1 : 0,
                     'voucher_code'   => $validated['redeem_voucher'] ?? '',
                     'invoice_note'   => $validated['invoice_note'] ?? '',
@@ -511,7 +459,7 @@ class BookingsController extends Controller
                     'team_id'        => auth()->user()->team_id,
                     'service_id'     => $season->service_id,
                     'season_id'      => $season->id,
-
+                    'booking_inventory_id' => $inventory->id,
                     'promotion_id'   => $promotion ? $promotion->id : null,
                     'wholesaler_id'  => $validated['wholesaler_id'],
                     'discount_id'    => $booking_price ? $booking_price->id : null,
@@ -582,7 +530,8 @@ class BookingsController extends Controller
                     'sent'           => true,
                     'sent_at'        => now(),
                     'user_id'        => auth()->user()->id,
-                    'booking_id'     => $booking->id,
+                    'auditable_type' => 'App\Models\Booking',
+                    'auditable_id'   => $booking->id,
                     'team_id'        => auth()->user()->team_id,
                 ]);
 
@@ -652,8 +601,8 @@ class BookingsController extends Controller
             'customer_manifests.customer.booking_questionnaire', // :id,position,notes,is_indemnity,customer_id,booking_id\
             'booking_infos', // :id,booking_id,type_location_id,location,time,created_at,updated_at,deleted_at
             'customers.booking_questionnaire', // :id,booking_id,customer_id,guide_id,safety_guide_id,type_group_id,fullname,email,signature,birth_date,type_referral,country_id,province_id,is_medical,medical_detail,is_fit,is_agree
-            'booking_details', //:id,booking_id ,start_time,end_time
-            'booking_fees', //:id,booking_id,tot_amount
+            'booking_detail', //:id,booking_id ,start_time,end_time
+            'booking_fee', //:id,booking_id,tot_amount
             'booking_inventory', // :id,booking_id,inventory_id
             'booking_staff', // :id,booking_id,user_id
             'booking_staff.user', // :id,name,email,contact_number
@@ -807,8 +756,8 @@ class BookingsController extends Controller
         //     'booking_items.customer_manifests.customer.booking_questionnaire',
         //     'booking_items.booking_infos',
         //     'booking_items.customers.booking_questionnaire',
-        //     'booking_items.booking_details',
-        //     'booking_items.booking_fees',
+        //     'booking_items.booking_detail',
+        //     'booking_items.booking_fee',
         //     'booking_payments',
         //     'booking_items.booking_inventory',
         //     'booking_items.booking_staff',
@@ -823,13 +772,14 @@ class BookingsController extends Controller
         $bookingItem = BookingItem::with([
             'service',
             'season',
+            'booking',
             'inventory',
             'customers',
             'customer_manifests.customer.booking_questionnaire',
             'booking_infos',
             'customers.booking_questionnaire',
-            'booking_details',
-            'booking_fees',
+            'booking_detail',
+            'booking_fee',
             'booking_inventory',
             'booking_staff',
             'booking_staff.user',
@@ -839,6 +789,8 @@ class BookingsController extends Controller
             ->skip(0)       // skip the first
             ->first();      // get the second
 
+        $manifest = $bookingItem->paxByBookingItem($bookingItem->id);
+        //dd($manifest);
         $staff = User::with('roles:id,name')
             ->whereHas('roles', function ($query) {
                 $query->whereIn('id', [4, 5, 6]);
@@ -864,7 +816,7 @@ class BookingsController extends Controller
         //dd($booking);
         $lookups = LookupItem::where('is_default', true)->get();
 
-        return Inertia::render('Admin/Bookings/Add', ['booking' => $booking, 'bookingItem' => $bookingItem, 'staff' => $staff, 'lookups' => $lookups]);
+        return Inertia::render('Admin/Bookings/Add', ['booking' => $booking, 'manifest' => $manifest, 'bookingItem' => $bookingItem, 'staff' => $staff, 'lookups' => $lookups]);
         // $users = User::pluck('name', 'id')->prepend(trans('global.pleaseSelect'), '');
 
         // $status_bookings = StatusBooking::pluck('name', 'id')->prepend(trans('global.pleaseSelect'), '');
@@ -929,7 +881,8 @@ class BookingsController extends Controller
             'sent'           => true,
             'sent_at'        => now(),
             'user_id'        => auth()->user()->id,
-            'booking_id'     => $booking->id,
+            'auditable_type' => 'App\Models\Booking',
+            'auditable_id'   => $booking->id,
             'team_id'        => auth()->user()->team_id,
         ]);
 

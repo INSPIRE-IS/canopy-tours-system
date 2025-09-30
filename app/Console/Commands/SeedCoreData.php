@@ -169,7 +169,7 @@ class SeedCoreData extends Command
                 'surname'        => 'Admin',
                 'email'          => 'jason@admin.com',
                 'password'       => bcrypt('password'),
-                'team_id'        => null,
+                'team_id'        => 7,
                 'is_admin'       => true,
                 'is_email_recipient' => false,
             ],
@@ -179,7 +179,7 @@ class SeedCoreData extends Command
                 'surname'        => 'Director',
                 'email'          => 'mark@director.com',
                 'password'       => bcrypt('password'),
-                'team_id'        => null,
+                'team_id'        => 7,
                 'is_admin'       => false,
                 'is_email_recipient' => false,
             ],
@@ -393,7 +393,7 @@ class SeedCoreData extends Command
             Lookup::updateOrCreate(['id' => $lookup['id']], $lookup);
         }
 
-        $lookupItems = [
+        $lookup_items = [
             [
                 'id' => 1,
                 'slug' => 'vat_rate',
@@ -429,8 +429,8 @@ class SeedCoreData extends Command
             ],
         ];
 
-        foreach ($lookupItems as $lookupItem) {
-            LookupItem::updateOrCreate(['id' => $lookupItem['id']], $lookupItem);
+        foreach ($lookup_items as $lookup_item) {
+            LookupItem::updateOrCreate(['id' => $lookup_item['id']], $lookup_item);
         }
 
 
@@ -2075,6 +2075,7 @@ class SeedCoreData extends Command
                 'is_email_reminder' => 0,
                 'booking_note'   => '',
                 'tot_amount'     => 1500.00,
+                'tot_paid'       => 1500.00,
                 'created_at'     => now(),
                 'updated_at'     => now(),
                 'deleted_at'     => null,
@@ -2093,6 +2094,7 @@ class SeedCoreData extends Command
                 'is_email_reminder' => 0,
                 'booking_note'   => '',
                 'tot_amount'     => 1800.00,
+                'tot_paid'       => 1800.00,
                 'created_at'     => now(),
                 'updated_at'     => now(),
                 'deleted_at'     => null,
@@ -2111,6 +2113,7 @@ class SeedCoreData extends Command
                 'is_email_reminder' => 0,
                 'booking_note'   => '',
                 'tot_amount'     => 900.00,
+                'tot_paid'       => 900.00,
                 'created_at'     => now(),
                 'updated_at'     => now(),
                 'deleted_at'     => null,
@@ -2129,6 +2132,7 @@ class SeedCoreData extends Command
                 'is_email_reminder' => 0,
                 'booking_note'   => '',
                 'tot_amount'     => 1200.00,
+                'tot_paid'       => 1200.00,
                 'created_at'     => now(),
                 'updated_at'     => now(),
                 'deleted_at'     => null,
@@ -2268,7 +2272,10 @@ class SeedCoreData extends Command
                 'type_pay_option_id'   => 1,     // or 'Pay Offline'
                 'type_payment_id' => 1, // Cash // 5 eft
                 'status_payment_id'         => 2,        // 'paid', 'failed', 'cancelled'
-                'amount'         => 1500.00,          // full amount due or partial
+                'ex_vat_amount'         => 1500.00,          // full amount due or partial
+                'lookup_item_id'         => 1,          // full amount due or partial
+                'vat'         => 0.15,          // full amount due or partial
+                'vat_amount'         => 1650.00,          // full amount due or partial
                 'reference'      => $bookings[0]['reference'], //  'OFF-' . strtoupper(Str::random(6)), // can be order ref or external tx
                 'gateway_id'        => 1,        // 'Manual'
                 'meta'           => json_encode([
@@ -2290,7 +2297,10 @@ class SeedCoreData extends Command
                 'type_pay_option_id'   => 1,     // or 'Pay Offline'
                 'type_payment_id' => 1, // Cash // 5 eft
                 'status_payment_id'         => 2,        // 'paid', 'failed', 'cancelled'
-                'amount'         => 1800.00,          // full amount due or partial
+                'ex_vat_amount'         => 1800.00,          // full amount due or partial
+                'lookup_item_id'         => 1,          // full amount due or partial
+                'vat'         => 0.15,          // full amount due or partial
+                'vat_amount'         => 2070.00,          // full amount due or partial                
                 'reference'      => $bookings[1]['reference'], // 'OFF-' . strtoupper(Str::random(6)), // can be order ref or external tx
                 'gateway_id'        => 1,        // 'Manual'
                 'meta'           => json_encode([
@@ -2312,7 +2322,10 @@ class SeedCoreData extends Command
                 'type_pay_option_id'   => 1,     // or 'Pay Offline'
                 'type_payment_id' => 1, // Cash // 5 eft
                 'status_payment_id'         => 2,        // 'paid', 'failed', 'cancelled'
-                'amount'         => 900.00,          // full amount due or partial
+                'ex_vat_amount'         => 900.00,          // full amount due or partial
+                'lookup_item_id'         => 1,          // full amount due or partial
+                'vat'         => 0.15,          // full amount due or partial
+                'vat_amount'         => 1035.00,          // full amount due or partial                
                 'reference'      => $bookings[2]['reference'], //'OFF-' . strtoupper(Str::random(6)), // can be order ref or external tx
                 'gateway_id'        => 1,        // 'Manual'
                 'meta'           => json_encode([
@@ -2334,7 +2347,10 @@ class SeedCoreData extends Command
                 'type_pay_option_id'   => 1,     // or 'Pay Offline'
                 'type_payment_id' => 1, // Cash // 5 eft
                 'status_payment_id'         => 2,        // 'paid', 'failed', 'cancelled'
-                'amount'         => 1200.00,          // full amount due or partial
+                'ex_vat_amount'         => 1200.00,          // full amount due or partial
+                'lookup_item_id'         => 1,          // full amount due or partial
+                'vat'         => 0.15,          // full amount due or partial
+                'vat_amount'         => 1320.00,          // full amount due or partial                
                 'reference'      => $bookings[3]['reference'], //'OFF-' . strtoupper(Str::random(6)), // can be order ref or external tx
                 'gateway_id'        => 1,        // 'Manual'
                 'meta'           => json_encode([
@@ -2357,7 +2373,7 @@ class SeedCoreData extends Command
             // Mark as paid (in real app, you'd validate PayFast response)
             $booking->update([
                 // 'status_booking_id' => 2, // e.g., "paid"
-                'tot_paid' => $bookingPayment['amount'],
+                'tot_paid' => $bookingPayment['ex_vat_amount'],
             ]);
 
 

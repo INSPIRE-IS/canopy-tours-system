@@ -6,151 +6,97 @@ import CustomSelect from "@/Components/CustomSelect";
 import OutlineButton from "@/Components/OutlineButton";
 import BlueButton from "@/Components/BlueButton";
 
-const ManifestModal = ({isOpen, onClose, mode, customer_manifests, pax, tot_adults, tot_children}) => {
+const ManifestModal = ({ isOpen, onClose, mode, customer, customers, tot_adults, tot_children }) => {
 
-console.log("customer_manifests", customer_manifests);
-console.log("mode", mode);
+    console.log("customer", customer);
+    console.log("mode", mode);
 
-const [adults, setAdults] = useState([]);
+    const [adults, setAdults] = useState([]);
 
     const { data, setData, post, put, errors, reset, processing } = useForm({
-        customer_manifests: [],
+        id: '',
+        customer_id: '',
+        type: '',
+        parent_id: '',
+        position: '',
+        notes: '',
+        is_indemnity: '',
+        full_name: '',
+        email_address: '',
+        nationality_id: '',
+        age: '',
+        contact_number: '',
+        booking_item_id: '',
+        discount_id: '',
+        discount: '',
+        due: '',
+        is_lead: '',
+        paid: '',
+        price: '',
+        reference: '',
+        team_id: '',
+        source: '',
+        booking_discount_item_id: '',
     });
 
-useEffect(() => {
-    if (mode === "edit" && customer_manifests?.length) {
-        // Map API data into form shape
-        const mapped = customer_manifests.map((m) => {
-            console.log("m-------", m);
-            return ({
-            id: m.id,
-            customer_id: m.customer_id, // Keep existing link to customer
-            type: m.customer?.parent_id ? "child" : "adult",
-            parent_id: m.customer?.parent_id ?? null,
-            position: m.position ?? "",
-            notes: m.notes ?? "",
-            is_indemnity: !!m.is_indemnity,
-            full_name: m.customer?.full_name ?? "",
-            email_address: m.customer?.email_address ?? "",
-            nationality_id: m.customer?.nationality_id ?? "",
-            age: m.customer?.age ?? null,
-            contact_number: m.customer?.contact_number ?? "",
-            booking_item_id: m.booking_item_id ?? "",
-        })});
-        console.log("mapped", mapped);
-        // const adults = data.customer_manifests.filter(p => p.type === "adult");
-        // setAdults(adults);
-        setData("customer_manifests", mapped);
-    } else if (mode === "create") {
-        reset(); // Clear form
-    }
-}, [mode, customer_manifests]);
-useEffect(() => {
-  const updatedAdults = data.customer_manifests
-    .filter(p => p.type === "adult")
-    .map(p => {
-        console.log("p", p);
-    return ({
-      id: p.customer_id || p.id,
-      name: p.full_name || "Unnamed Adult"
-    })});
-    console.log("updatedAdults", updatedAdults);
-  setAdults(updatedAdults);
-}, [data.customer_manifests]);
-    // Add Adult/Child
-const handleAddPerson = (type) => {
-    const adultsCount = data.customer_manifests.filter(p => p.type === "adult").length;
-    const childrenCount = data.customer_manifests.filter(p => p.type === "child").length;
+    useEffect(() => {
+        if (mode === "edit") {
+            // Map API data into form shape
+            setData({
+                id: customer?.i,
+                customer_id: customer?.customer_id, // Keep existing link to customer
+                type: customer?.type,
+                parent_id: customer?.parent_id ?? null,
+                position: customer?.position ?? "",
+                notes: customer?.notes ?? "",
+                is_indemnity: !!customer?.is_indemnity,
+                full_name: customer?.full_name ?? "",
+                email_address: customer?.email_address ?? "",
+                nationality_id: customer?.nationality_id ?? "",
+                age: customer?.customer?.age ?? null,
+                contact_number: customer?.customer?.contact_number ?? "",
+                booking_item_id: customer?.booking_item_id ?? "",
+                discount_id: customer?.discount_id ?? "",
+                discount: customer?.discount ?? "",
+                due: customer?.due ?? "",
+                is_lead: customer?.is_lead ?? "",
+                paid: customer?.paid ?? "",
+                price: customer?.price ?? "",
+                reference: customer?.reference ?? "",
+                team_id: customer?.team_id ?? "",
+                source: customer?.source ?? "",
+            });
+            console.log("customer777777", customer);
+            console.log("data7777777777", data);
 
-    if (type === "adult" && adultsCount >= tot_adults) return;
-
-    if (type === "child") {
-        if (adultsCount === 0) {
-            alert("You must add at least one adult before adding a child.");
-            return;
+        } else if (mode === "create") {
+            reset(); // Clear form
         }
-        if (childrenCount >= tot_children) return;
+    }, [mode, customer]);
 
-        // Get first adult's customer_id or temporary id
-        const firstAdult = data.customer_manifests.find(p => p.type === "adult");
-        const parentId = firstAdult?.customer_id || firstAdult?.id || null;
+    useEffect(() => {
+        const updatedAdults = customers
+            ?.filter(p => p.type === "adult")
+            ?.map(p => {
+                console.log("p", p);
+                return ({
+                    id: p.customer_id || p.id,
+                    name: p.full_name || "Unnamed Adult"
+                })
+            });
+        console.log("updatedAdults", updatedAdults);
+        setAdults(updatedAdults);
+    }, [customers]);
 
-        setData("customer_manifests", [
-            ...data.customer_manifests,
-            {
-                type: "child",
-                parent_id: parentId,
-                position: "",
-                notes: "",
-                is_indemnity: false,
-                full_name: "",
-                email_address: "",
-                nationality_id: "",
-                age: null,
-                contact_number: "",
-                customer_id: null, // new record
-                booking_item_id: bookingItem.id,
-            }
-        ]);
-        return;
-    }
-
-    // Default adult adding
-    setData("customer_manifests", [
-        ...data.customer_manifests,
-        {
-            type: "adult",
-            parent_id: null,
-            position: "",
-            notes: "",
-            is_indemnity: false,
-            full_name: "",
-            email_address: "",
-            nationality_id: "",
-            age: null,
-            contact_number: "",
-            customer_id: null,
-            booking_item_id: bookingItem.id,
-        }
-    ]);
-};
-
-
-    // const handleAddPerson = (type) => {
-    //     const adultsCount = data.customer_manifests.filter((p) => p.type === "adult").length;
-    //     const childrenCount = data.customer_manifests.filter((p) => p.type === "child").length;
-
-    //     if (type === "adult" && adultsCount >= tot_adults) return;
-    //     if (type === "child" && childrenCount >= tot_children) return;
-
-    //     setData("customer_manifests", [
-    //         ...data.customer_manifests,
-    //         {
-    //             type,
-    //             position: "",
-    //             notes: "",
-    //             is_indemnity: false,
-    //             full_name: "",
-    //             email_address: "",
-    //             nationality_id: "",
-    //             age: null,
-    //             parent_id: null,
-    //         },
-    //     ]);
-    // };
-
-    // Update person data
-    const handlePersonChange = (index, field, value) => {
-        const updated = [...data.customer_manifests];
-        updated[index][field] = value;
-        setData("customer_manifests", updated);
-    };
-
-    // Remove person
     const handleRemovePerson = (index) => {
         const updated = [...data.customer_manifests];
         updated.splice(index, 1);
         setData("customer_manifests", updated);
+    };
+
+    const handleChange = (target, value) => {
+        setData(target, value);
+        //setData("name", e.target.value);
     };
 
     // Submit
@@ -159,10 +105,15 @@ const handleAddPerson = (type) => {
         if (mode === "create") {
             post(route("admin.customer-manifests.add"), {
                 onSuccess: () => onClose(),
+                onError: (err) => { console.log(err); },
+                data: {
+                    customer_manifests: data,
+                },
             });
         } else if (mode === "edit") {
-            put(route("admin.customer-manifests.edit", customer_manifests[0].booking_item_id), {
+            put(route("admin.customer-manifests.edit", { customer_manifests: data, booking_item_id: customer.booking_item_id }), {
                 onSuccess: () => onClose(),
+                onError: (err) => { console.log(err); },
             });
         }
     };
@@ -179,135 +130,104 @@ const handleAddPerson = (type) => {
                 </h2>
 
                 <form onSubmit={handleSubmit}>
-
-                    {/* Add Adult / Add Child buttons */}
-                    <div className="flex gap-4 mb-6">
-                        <BlueButton
-                            title="Add Adult"
-                            onClick={(e) => {
-                                e.preventDefault();
-                                handleAddPerson("adult");
-                            }}
-                            disabled={
-                                data.customer_manifests.filter((p) => p.type === "adult").length >= tot_adults
-                            }
-                            type="button"
-                        /> <span className="text-btn-outline-gray">{tot_adults - data.customer_manifests.filter((p) => p.type === "adult").length} more</span>
-                        <BlueButton
-                            title="Add Child"
-                            onClick={(e) => {
-                                e.preventDefault();
-                                handleAddPerson("child");
-                            }}
-                            disabled={
-                                data.customer_manifests.filter((p) => p.type === "child").length >= tot_children
-                            }
-                            type="button"
-                        />
-                        <span className="text-btn-outline-gray">{tot_children - data.customer_manifests.filter((p) => p.type === "child").length} more</span>
-                    </div>
-
                     {/* Dynamic person forms */}
-                    {data?.customer_manifests?.map((person, index) => (
-                        <div key={index} className="border p-3 mb-4 rounded-lg">
-                            <div className="flex justify-between items-center mb-2">
-                                <h3 className="font-semibold">
-                                    {person.type.toUpperCase()} #{index + 1}
-                                </h3>
-                                <button
+
+                    <div className="border p-3 mb-4 rounded-lg">
+                        <div className="flex justify-between items-center mb-2">
+                            <h3 className="font-semibold">
+                                {data?.type?.toUpperCase()} {data?.is_lead ? "(Lead)" : ""} {data?.discount ? "(Discount) " + data?.discount : ""}
+                            </h3>
+                            {/* <button
                                     type="button"
                                     onClick={() => handleRemovePerson(index)}
                                     className="text-red-500 hover:underline"
                                 >
                                     Remove
-                                </button>
-                            </div>
+                                </button> */}
+                        </div>
 
-                            <InputText
-                                title="Full Name"
-                                field="full_name"
-                                value={person.full_name}
-                                mode={mode}
-                                handleChange={(f, val) => handlePersonChange(index, f, val)}
-                                errors={errors}
-                            />
+                        <InputText
+                            title="Full Name"
+                            field="full_name"
+                            value={data?.full_name}
+                            mode={mode}
+                            handleChange={handleChange}
+                            errors={errors}
+                        />
 
-                            <InputText
-                                title="Email Address"
-                                field="email_address"
-                                value={person.email_address}
-                                mode={mode}
-                                handleChange={(f, val) => handlePersonChange(index, f, val)}
-                                errors={errors}
+                        <InputText
+                            title="Email Address"
+                            field="email_address"
+                            value={data?.email_address}
+                            mode={mode}
+                            handleChange={handleChange}
+                            errors={errors}
+                        />
+                        {data?.type === "child" && (
+                            <CustomSelect
+                                title="Parent"
+                                field="parent_id"
+                                value={data?.parent_id}
+                                options={adults} // Pass nationality options here
+                                handleChange={(e) => handleChange(e.target.name, e.target.value)}
                             />
-                            {person.type === "child" && (
-                            <select
-                                value={person.parent_id || ""}
-                                onChange={(e) => {
-                                const updated = data.customer_manifests.map((p, idx) =>
-                                    idx === index ? { ...p, parent_id: e.target.value } : p
-                                );
-                                setData("customer_manifests", updated);
-                                }}
-                            >
-                                {adults?.map(adult => {
-                                    console.log("adult", adult);
-                                return (
-                                <option key={adult.id} value={adult.id}>
-                                    {adult.name}
-                                </option>
-                                )})}
-                            </select>
-                            )}
-                            {/* <CustomSelect
+                        )}
+                        {/* <CustomSelect
                                 title="Nationality"
                                 field="nationality_id"
-                                value={person.nationality_id}
+                                value={data?.nationality_id}
                                 options={[]} // Pass nationality options here
-                                handleChange={(f, val) => handlePersonChange(index, f, val)}
+                                handleChange={(e) => handleChange(e.target.name, e.target.value)}
                             /> */}
 
-                            <InputText
-                                title="Age"
-                                field="age"
-                                type="number"
-                                value={person.age}
-                                mode={mode}
-                                handleChange={(f, val) => handlePersonChange(index, f, val)}
-                                errors={errors}
-                            />
 
+                        <div className="flex flex-row w-full items-center justify-start gap-2 mt-2">
                             <CustomCheckbox
                                 label="Indemnity Signed?"
                                 name="is_indemnity"
-                                checked={person.is_indemnity}
-                                onChange={(f, val) => handlePersonChange(index, f, val)}
+                                checked={data?.is_indemnity}
+                                onChange={(e) => handleChange(e.target.name, e.target.value)}
                                 errors={errors}
                             />
-
-                            <InputText
-                                title="Position"
-                                field="position"
-                                value={person.position}
-                                mode={mode}
-                                handleChange={(f, val) => handlePersonChange(index, f, val)}
-                                errors={errors}
-                            />
-
-                            <InputText
-                                title="Notes"
-                                field="notes"
-                                value={person.notes}
-                                mode={mode}
-                                handleChange={(f, val) => handlePersonChange(index, f, val)}
-                                errors={errors}
-                            />
+                            <span className="flex flex-row items-center justify-start gap-2">
+                                <span className="text-[#161618] font-poppins text-[12px] font-normal  leading-[130%]">Age</span>
+                                <InputText
+                                    field="age"
+                                    type="number"
+                                    value={data?.age}
+                                    width="w-100px"
+                                    mode={mode}
+                                    handleChange={handleChange}
+                                    errors={errors}
+                                />
+                            </span>
+                            <span className=" flex flex-row items-center justify-start gap-2">
+                                <span className="text-[#161618] font-poppins text-[12px] font-normal  leading-[130%]">Position</span>
+                                <InputText
+                                    field="position"
+                                    value={data?.position}
+                                    width="w-100px"
+                                    mode={mode}
+                                    handleChange={handleChange}
+                                    errors={errors}
+                                />
+                            </span>
                         </div>
-                    ))}
+
+                        <InputText
+                            title="Notes"
+                            field="notes"
+                            value={data?.notes}
+                            mode={mode}
+                            handleChange={handleChange}
+                            errors={errors}
+                        />
+                    </div>
+
 
                     {/* Footer buttons */}
                     <div className="flex justify-center gap-4 mt-6">
-                        <OutlineButton title="Cancel" onClick={onClose} width="w-[180px]" />
+                        <OutlineButton type="button" title="Cancel" onClick={onClose} width="w-[180px]" />
                         {mode !== "view" && (
                             <BlueButton
                                 title={mode === "create" ? "Create" : "Update"}

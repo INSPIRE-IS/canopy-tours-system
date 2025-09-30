@@ -9,7 +9,7 @@ class LookupItem extends Model
 {
     use HasFactory;
 
-    public $table = 'lookupItems';
+    public $table = 'lookup_items';
 
     protected $dates = [
         'created_at',

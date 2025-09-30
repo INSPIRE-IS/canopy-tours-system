@@ -10,6 +10,7 @@ use App\Models\Booking;
 use App\Models\BookingItem;
 use App\Models\BookingPayment;
 use App\Models\Gateway;
+use App\Models\LookupItem;
 use App\Models\StatusPayment;
 use App\Models\TypePayment;
 use App\Models\TypePayOption;
@@ -54,7 +55,7 @@ class BookingPaymentController extends Controller
         $updated_bies = User::select('name', 'id')->get();
 
         logger()->info($booking->load('booking_items'));
-
+        $lookups = LookupItem::where('is_default', true)->get();
         return Inertia::render('Admin/Bookings/Payment', [
             'booking' => $booking,
             'gateways' => $gateways,
@@ -63,12 +64,14 @@ class BookingPaymentController extends Controller
             'type_payments' => $type_payments,
             'updated_bies' => $updated_bies,
             'mode' => 'create',
+            'lookups' => $lookups,
 
         ]);
     }
 
     public function store(StoreBookingPaymentRequest $request)
     {
+        // dd($request->all());
         $validated = $request->validate([
             'booking_id' => 'required|exists:bookings,id',
             'redeemer_name' => 'required|string',
@@ -76,7 +79,10 @@ class BookingPaymentController extends Controller
             'type_payment_id' => 'required|exists:type_payments,id',
             //'gateway_id' => 'required|exists:gateways,id',
             'payment_date' => 'required|date',
-            'amount' => 'required|integer|min:0',
+            'ex_vat_amount' => 'required|numeric|min:0',
+            'lookup_item_id' => 'required|numeric',
+            'vat' => 'required|numeric|min:0',
+            'vat_amount' => 'required|numeric|min:0',
             'voucher_code' => 'nullable|string',
             'redeemer_name' => 'required|string',
             'note' => 'nullable|string',
@@ -86,19 +92,26 @@ class BookingPaymentController extends Controller
             'team_id' => 'nullable|exists:teams,id',
         ]);
 
+
         try {
             //$booking = DB::transaction(function () use ($validated) {
             //$payment = $request->all();
-            $validated['status_payment_id'] = 4; // paid
+            $validated['status_payment_id'] = 2; // paid
             $validated['gateway_id'] = 2; // manual
             logger()->info($validated);
             $bookingPayment = BookingPayment::create($validated);
             $booking = $bookingPayment->booking;
             logger()->info($booking);
             $booking->update([
-                'status_booking_id' => 4, // paid
-                'tot_paid' => $bookingPayment->amount,
+                'status_payment_id' => 2, // paid
+                'tot_paid' => $bookingPayment->ex_vat_amount,
             ]);
+            //TODO update booking item with payment amount if this is a multiple booking activity
+            $booking->booking_items->each(function ($item) use ($bookingPayment) {
+                $item->update([
+                    'tot_paid' => $bookingPayment->ex_vat_amount,
+                ]);
+            });
 
             Log::info('booking updated', [
                 'booking' => $booking,

@@ -14,7 +14,10 @@ return new class extends Migration
         Schema::create('booking_payments', function (Blueprint $table) {
             $table->id();
             $table->date('payment_date');
-            $table->float('amount', 8, 2);
+            $table->float('ex_vat_amount', 8, 2);
+            $table->foreignId('lookup_item_id')->constrained('lookup_items');
+            $table->float('vat', 8, 2);
+            $table->float('vat_amount', 8, 2);
             $table->string('voucher_code')->nullable();
             $table->string('redeemer_name')->nullable();
             $table->longText('note')->nullable();
@@ -22,6 +25,7 @@ return new class extends Migration
             $table->longText('meta')->nullable();
             $table->timestamps();
             $table->softDeletes();
+
 
             $table->foreignId('booking_id')->constrained('bookings');
             $table->foreignId('type_pay_option_id')->constrained('type_pay_options');

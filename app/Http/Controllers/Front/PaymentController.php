@@ -3,13 +3,16 @@
 namespace App\Http\Controllers\Front;
 
 use App\Http\Controllers\Controller;
+use App\Mail\MessageGuestMail;
 use App\Models\Booking;
 use App\Models\BookingPayment;
 use App\Models\Customer;
+use App\Models\Email;
 use App\Models\GiftVoucher;
 use App\Models\InvoiceTemplate;
 use App\Models\Team;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
 use Inertia\Inertia;
 use Str;
 
@@ -25,7 +28,7 @@ class PaymentController extends Controller
         }
 
         return Inertia::render('BookingPayment', [
-            'booking' => $booking->load('booking_items', 'booking_items.customers', 'booking_items.booking_fees'),
+            'booking' => $booking->load('booking_items', 'booking_items.customers', 'booking_items.booking_fee'),
         ]);
     }
 
@@ -51,7 +54,7 @@ class PaymentController extends Controller
             $booking = Booking::findOrFail($request->booking);
             // Mark as paid (in real app, you'd validate PayFast response)
             $booking->update([
-                'status_booking_id' => 2, // e.g., "paid"
+                'status_payment_id' => 2, // e.g., "paid"
                 'tot_paid' => $booking->grand_tot_due,
             ]);
 
@@ -60,22 +63,56 @@ class PaymentController extends Controller
                 [
                     'type_pay_option_id'   => 2,     // or 'Pay Offline'
                     'type_payment_id' => 3, // credit card
-                    'status_payment_id' => 1,        // 'paid', 'failed', 'cancelled'
+                    'status_payment_id' => 2,        // 'paid', 'failed', 'cancelled'
                     'amount'         => $booking->grand_tot_due,          // full amount due or partial
                     'reference'      => $booking->reference, // Str::uuid(),      // can be order ref or external tx
-                    'gateway_id'        => 1,        // or 'Manual', 'Stripe', etc.
+                    'gateway_id'        => 1,        // PayFast
                     'meta'           => json_encode(['ip' => request()->ip()]),
                     'payment_date'   =>  now(),
                     'redeemer_name'  => '', //$validated['name'] . ' ' . $validated['surname'],
                     'voucher_code' => null,
                     'note'           => '',
-                    'updated_by_id'  => 1,
-                    'created_at'     => now(),
-                    'updated_at'     => now(),
-                    'deleted_at'     => null,
-                    'team_id'        => null,
+                    'updated_by_id'  => null,
+                    'team_id'        => $booking->team_id,
                 ]
             );
+
+            $grand_tot = $booking->grand_tot_due;
+            foreach ($booking->booking_items as $item) {
+                $booking_fee = $item->booking_fee;
+                $tot_paid = $grand_tot >= $booking_fee->tot_amount ? $booking_fee->tot_amount : 0;
+                $booking_fee->tot_paid = $tot_paid;
+                $booking_fee->save();
+                $grand_tot = $grand_tot - $tot_paid;
+            }
+
+
+            $customer = Customer::findOrFail($booking->customer_id);
+            $recipient = $customer->email_address;
+            $subject = 'Payment Confirmation';
+            $content = "
+                <p>Hello {$customer->full_name},</p>
+                <p>Your booking has been paid.</p>
+                <p>Thank you for choosing Canopy Tours.</p>
+                <p>Your booking reference is {$booking->reference}.</p>
+                <p>Please Contact us if you have any questions.</p>";
+
+            Email::create([
+                'sender'         => config('mail.from.address'),
+                'receiver'       => $recipient,
+                'subject'        => $subject,
+                'body'           => strip_tags($content), // or a summary
+                'attachment_path' => null,
+                'sent'           => true,
+                'sent_at'        => now(),
+                'user_id'        => null,
+                'auditable_type' => 'App\Models\Booking',
+                'auditable_id'   => $booking->id,
+                'team_id'        => $booking->team_id,
+            ]);
+
+            Mail::to($recipient)->send(new MessageGuestMail($subject, $content));
+
 
             return Inertia::render('SimulatedPayment', [
                 'booking' => $booking,
@@ -89,6 +126,31 @@ class PaymentController extends Controller
                 'redeemed' => true,
                 'redeemed_date' => now(),
             ]);
+
+            $recipient = $voucher->email_address;
+            $subject = 'Payment Confirmation';
+            $content = "
+                <p>Hello {$voucher->full_name},</p>
+                <p>Your booking has been paid.</p>
+                <p>Thank you for choosing Canopy Tours.</p>
+                <p>Your booking reference is {$voucher->reference}.</p>
+                <p>Please Contact us if you have any questions.</p>";
+
+            Email::create([
+                'sender'         => config('mail.from.address'),
+                'receiver'       => $recipient,
+                'subject'        => $subject,
+                'body'           => strip_tags($content), // or a summary
+                'attachment_path' => null,
+                'sent'           => true,
+                'sent_at'        => now(),
+                'user_id'        => null,
+                'auditable_type' => 'App\Models\GiftVoucher',
+                'auditable_id'   => $voucher->id,
+                'team_id'        => $voucher->team_id,
+            ]);
+
+            Mail::to($recipient)->send(new MessageGuestMail($subject, $content));
 
             return Inertia::render('SimulatedPayment', [
                 'booking' => $voucher,

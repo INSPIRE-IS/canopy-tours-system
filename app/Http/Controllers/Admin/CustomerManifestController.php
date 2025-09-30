@@ -7,7 +7,9 @@ use App\Http\Requests\MassDestroyCustomerManifestRequest;
 use App\Http\Requests\StoreCustomerManifestRequest;
 use App\Http\Requests\UpdateCustomerManifestRequest;
 use App\Models\Booking;
+use App\Models\BookingItem;
 use App\Models\Customer;
+use App\Models\CustomerDiscount;
 use App\Models\CustomerManifest;
 use Gate;
 use Illuminate\Http\Request;
@@ -26,6 +28,8 @@ class CustomerManifestController extends Controller
             'customer_id' => 'required|exists:customers,id',
             'booking_item_id' => 'required|exists:booking_items,id',
         ]);
+
+
         $customerManifest = CustomerManifest::create($request->all());
 
         return redirect()->route('admin.customer-manifests.index');
@@ -33,9 +37,15 @@ class CustomerManifestController extends Controller
 
     public function edit(UpdateCustomerManifestRequest $request)
     {
+        // dd($request->all());
+        $validated = $request->validate([
+            'customer_manifests' => 'required|array',
+        ]);
+        $details = $validated['customer_manifests'];
+        dd($details);
 
-        $details = $request->all();
-        foreach ($details['customer_manifests'] as $detail) {
+        //dd($details);
+        foreach ($details as $detail) {
 
             $customer = Customer::updateOrCreate(
                 [
@@ -51,6 +61,16 @@ class CustomerManifestController extends Controller
                 ]
             );
 
+            $bookingItem  = BookingItem::find($detail['booking_item_id']);
+            // dd($bookingItem);
+            $pivotData = [];
+            $pivotData[$customer->id] = [
+                'team_id' => auth()->user()->team_id,   // TODO: get team from the page or session
+            ];
+
+            // Sync with pivot data
+            $bookingItem->customers()->sync($pivotData);
+
             CustomerManifest::updateOrCreate(
                 [
                     'customer_id' => $customer->id,
@@ -62,6 +82,14 @@ class CustomerManifestController extends Controller
                     'is_indemnity' => $detail['is_indemnity'],
                 ]
             );
+            if ($detail['discount_id'] != null) {
+                CustomerDiscount::updateOrCreate(
+                    [
+                        'customer_id' => $customer->id,
+                        'booking_discount_item_id' => $detail['discount_id'],
+                    ]
+                );
+            }
         }
 
         //$customerManifest->update($request->all());

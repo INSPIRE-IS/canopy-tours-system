@@ -33,6 +33,7 @@ class BookingFee extends Model
         'is_email_reminder',
         'booking_note',
         'tot_amount',
+        'tot_paid',
         'created_at',
         'updated_at',
         'deleted_at',

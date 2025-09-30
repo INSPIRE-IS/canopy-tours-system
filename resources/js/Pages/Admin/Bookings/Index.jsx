@@ -6,10 +6,13 @@ import { icons } from '@/icons';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import React, { useState } from 'react';
+import ManifestsModal from './ManifestsModal';
+import ManifestModal from './ManifestModal';
+import EditTimeSlotModal from './EditTimeSlotModal';
 // import { useRoute } from 'ziggy-js';
 // import { Ziggy } from '@/ziggy'; // the generated file
 
-export default function Dashboard({ auth, bookings }) {
+export default function Dashboard({ auth, bookings, lookups, services }) {
 
 
     console.log("bookings", bookings)
@@ -18,47 +21,27 @@ export default function Dashboard({ auth, bookings }) {
     const [customerToolsTarget, setCustomerToolsTarget] = useState(null); // { customer, position }
     const [bookingToolsTarget, setBookingToolsTarget] = useState(null); // { customer, position }
     const [guestEmailTarget, setGuestEmailTarget] = useState(null); // { customer, position }
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [modalMode, setModalMode] = useState("create");
+    const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
+    const [isEditTimeSlotModalOpen, setIsEditTimeSlotModalOpen] = useState(false);
+    const [isManifestModalOpen, setIsManifestModalOpen] = useState(false);
+    const [isManifestsModalOpen, setIsManifestsModalOpen] = useState(false);
     const [selectedBooking, setSelectedBooking] = useState(null);
+    const [selectedManifests, setSelectedManifests] = useState(null);
+    const [selectedManifest, setSelectedManifest] = useState(null);
 
-    const openCustomerToolsModal = (event, customer) => {
+    const openCustomerToolsModal = (event, index, customer) => {
         event.preventDefault();
         console.log("customer----------tool-------- ", customer)
 
         const rect = event.target.getBoundingClientRect();
         setCustomerToolsTarget({
+            index,
             customer,
             position: {
                 top: rect.top + window.scrollY + 30, // offset below the button
                 left: rect.left + window.scrollX,
             }
         });
-    };
-
-    const CustomerToolClick = (tool, booking) => {
-        console.log("-------tool clicked-------", tool);
-        if (tool === 'check_in') {
-            router.get(route('admin.bookings.check_in'));
-        }
-        if (tool === 'send_invoice') {
-            router.get(route('admin.bookings.send_invoice'));
-        }
-        if (tool === 'resend_invoice') {
-            router.get(route('admin.bookings.resend_invoice'));
-        }
-        if (tool === 'manifest') {
-            router.get(route('admin.bookings.manifest'));
-        }
-        if (tool === 'customer_invoice') {
-            router.get(route('admin.bookings.customer_invoice'));
-        }
-        if (tool === 'print_ticket') {
-            router.get(route('admin.bookings.print_ticket'));
-        }
-        if (tool === 'voucher') {
-            router.get(route('admin.bookings.voucher'));
-        }
     };
 
     const openBookingToolsModal = (event, booking) => {
@@ -79,11 +62,13 @@ export default function Dashboard({ auth, bookings }) {
 
         console.log("-------tool clicked-------", tool);
         if (tool === 'edit_timeslot') {
-            router.get(route('admin.bookings.edit', booking.id));
+            //router.get(route('admin.bookings.edit', booking.id));
+            setSelectedBooking(booking);
+            setIsEditTimeSlotModalOpen(true);
         }
         if (tool === 'message_guest') {
             setSelectedBooking(booking);
-            setGuestEmailTarget(true);
+            isEmailModalOpen(true);
         }
         if (tool === 'message_staff') {
             router.get(route('admin.messenger.createTopic'));
@@ -92,7 +77,10 @@ export default function Dashboard({ auth, bookings }) {
             router.get(route('admin.bookings.check_in_progress'));
         }
         if (tool === 'manifest_edit') {
-            router.get(route('admin.bookings.manifest_edit'));
+            //router.get(route('admin.bookings.manifest_edit'));
+            setSelectedManifests(booking.customers);
+            setIsManifestsModalOpen(true);
+
         }
         if (tool === 'remove_resource') {
             router.get(route('admin.bookings.remove_resource'));
@@ -102,9 +90,46 @@ export default function Dashboard({ auth, bookings }) {
         }
 
     };
+
+    const CustomerToolClick = (tool, index, customer) => {
+        console.log("-------tool customer clicked-------", tool);
+        console.log("-------tool customer clicked-------", index);
+        console.log("-------tool customer clicked-------", customer);
+        if (tool === 'check_in') {
+            router.get(route('admin.bookings.check_in'));
+        }
+        if (tool === 'send_invoice') {
+            router.get(route('admin.bookings.send_invoice'));
+        }
+        if (tool === 'resend_invoice') {
+            router.get(route('admin.bookings.resend_invoice'));
+        }
+        if (tool === 'manifest') {
+            //router.get(route('admin.bookings.manifest'));
+            const customers = bookings[index].customers;
+            console.log('-------customers------', customers);
+            setSelectedManifests(customers);
+            setSelectedManifest(customer);
+            setIsManifestModalOpen(true);
+        }
+        if (tool === 'customer_invoice') {
+            router.get(route('admin.bookings.customer_invoice'));
+        }
+        if (tool === 'print_ticket') {
+            router.get(route('admin.bookings.print_ticket'));
+        }
+        if (tool === 'voucher') {
+            router.get(route('admin.bookings.voucher'));
+        }
+    };
+
+
     const handleCloseModal = () => {
         setGuestEmailTarget(false);
+        setIsEditTimeSlotModalOpen(false);
         setSelectedBooking(null);
+        setIsEmailModalOpen(false);
+        window.location.reload();
     };
 
     return (
@@ -182,6 +207,8 @@ export default function Dashboard({ auth, bookings }) {
                                 <tbody className="divide-y divide-gray-100">
                                     {bookings?.map((item, i) => {
                                         console.log('item ', item);
+
+
                                         return (
                                             <React.Fragment key={i}>
                                                 {/* Main Booking Row */}
@@ -202,19 +229,17 @@ export default function Dashboard({ auth, bookings }) {
                                                     </td>
                                                     <td className="w-[95px] p-3">{item?.bookingPax} ({item?.maxPax})</td>
                                                     <td className="w-[268px] p-3">{item?.service}</td>
-                                                    <td className="w-[132px] p-3">R{item?.price.toLocaleString()}</td>
-                                                    <td className="w-[111px] p-3">R{item?.paid.toLocaleString()}</td>
+                                                    <td className="w-[132px] p-3">R{(item?.price * lookups.find(l => l.slug == 'vat_rate')?.multiplier).toFixed(2)}</td>
+                                                    <td className="w-[111px] p-3">R{(item?.paid * lookups.find(l => l.slug == 'vat_rate')?.multiplier).toFixed(2)}</td>
                                                     <td className="w-[107px] p-3">
-                                                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${item?.due === 0 ? 'bg-blue-100 text-blue-600'
-                                                            : item?.dueStatus === 'Normal' ? 'bg-orange-100 text-orange-600'
-                                                                : 'bg-red-100 text-red-600'
-                                                            }`}>
-                                                            • {item?.due === 0 ? 'R0.00' : item?.dueStatus === 'Normal' ? 'Normal' : `R${item?.due.toLocaleString()}`}
+                                                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium 
+                                                        ${item?.dueStatus ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`}>
+                                                            • {item?.due === 0 ? 'R0.00' : `R${(item?.due * lookups.find(l => l.slug == 'vat_rate')?.multiplier).toFixed(2)}`}
                                                         </span>
                                                     </td>
                                                     <td className="w-[185px] p-3 flex gap-2">
                                                         {expanded === i ? (
-                                                            <button onClick={() => router.get(route('admin.booking_payments.edit', item?.id))} className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border border-primary-14 text-primary-14 cursor-pointer">
+                                                            <button onClick={() => router.get(route('admin.bookings.edit', item?.id))} className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border border-primary-14 text-primary-14 cursor-pointer">
                                                                 {icons.eye}
                                                                 <span className="text-btn-outline-gray">View Booking</span>
                                                             </button>
@@ -239,23 +264,23 @@ export default function Dashboard({ auth, bookings }) {
                                                                 </td>
                                                                 <td className="w-[95px] p-3">{index + 1}</td>
                                                                 <td className="w-[268px] p-3">
-                                                                    <div className="text-sm text-gray-800 font-medium">{customer.name}</div>
-                                                                    <div className="text-sm text-gray-600">{customer.email} | {customer.phone}</div>
-                                                                    <div className="text-sm text-gray-600">Children Age: {customer?.age || 'N/A'}</div>
+                                                                    <div className="text-sm text-gray-800 font-medium">{customer.full_name ?? 'Unknown Customer'}</div>
+                                                                    <div className="text-sm text-gray-600">{customer.email_address ?? 'Unknown Email'} | {customer.contact_number ?? 'Unknown Phone'}</div>
+                                                                    <div className="text-sm text-gray-600 capitalize">{customer.type} Age: {customer?.age || 'Unknown Age'}</div>
                                                                 </td>
-                                                                <td className="w-[132px] p-3">R{customer.price?.toLocaleString() || '0.00'}</td>
-                                                                <td className="w-[111px] p-3">R{customer.paid?.toLocaleString() || '0.00'}</td>
+                                                                <td className="w-[132px] p-3">R{(customer?.price * lookups.find(l => l.slug == 'vat_rate')?.multiplier).toFixed(2) || '0.00'}</td>
+                                                                <td className="w-[111px] p-3">R{(customer.paid * lookups.find(l => l.slug == 'vat_rate')?.multiplier).toFixed(2) || '0.00'}</td>
                                                                 <td className="w-[107px] p-3">
                                                                     <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${customer.due === 0 ? 'bg-blue-100 text-blue-600'
                                                                         : customer.dueStatus === 'Normal' ? 'bg-orange-100 text-orange-600'
                                                                             : 'bg-red-100 text-red-600'
                                                                         }`}>
-                                                                        • {customer.due === 0 ? 'R0.00' : customer.dueStatus === 'Normal' ? 'Normal' : `R${customer.due.toLocaleString()}`}
+                                                                        • {customer.due === 0 ? 'R0.00' : customer.dueStatus === 'Normal' ? 'Normal' : `R${(customer.due * lookups.find(l => l.slug == 'vat_rate')?.multiplier).toFixed(2)}`}
                                                                     </span>
                                                                 </td>
                                                                 <td className="flex flex-col w-[120px] p-3  gap-2">
                                                                     <button type='button' className="btn-tool">{icons.docs} Docs</button>
-                                                                    <button type='button' onClick={(e) => openCustomerToolsModal(e, customer)} className="btn-tool">{icons.tools} Tools</button>
+                                                                    <button type='button' onClick={(e) => openCustomerToolsModal(e, index, customer)} className="btn-tool">{icons.tools} Tools</button>
                                                                     {/* <button type='button'
                                                                     onClick={(e) => openCustomerToolsModal(e, customer)}
                                                                     className="flex items-center gap-1 text-blue-600 hover:text-blue-800"
@@ -280,14 +305,7 @@ export default function Dashboard({ auth, bookings }) {
                         </div>
                     </div>
                 </div>
-                {customerToolsTarget && (
-                    <CustomerToolsModal
-                        customer={customerToolsTarget.customer}
-                        position={customerToolsTarget.position}
-                        onClose={() => setCustomerToolsTarget(null)}
-                        CustomerToolClick={CustomerToolClick}
-                    />
-                )}
+
                 {bookingToolsTarget && (
                     <BookingToolsModal
                         booking={bookingToolsTarget.booking}
@@ -297,11 +315,49 @@ export default function Dashboard({ auth, bookings }) {
                     />
                 )}
 
-                <GuestEmailModal
-                    isOpen={guestEmailTarget}
+                {customerToolsTarget && (
+                    <CustomerToolsModal
+                        index={customerToolsTarget.index}
+                        customer={customerToolsTarget.customer}
+                        position={customerToolsTarget.position}
+                        onClose={() => setCustomerToolsTarget(null)}
+                        CustomerToolClick={CustomerToolClick}
+                    />
+                )}
+
+                <EditTimeSlotModal
+                    isOpen={isEditTimeSlotModalOpen}
                     onClose={handleCloseModal}
                     mode='create'
                     booking={selectedBooking}
+                    services={services}
+                />
+
+
+                <GuestEmailModal
+                    isOpen={isEmailModalOpen}
+                    onClose={handleCloseModal}
+                    mode='create'
+                    booking={selectedBooking}
+                />
+
+                <ManifestModal
+                    isOpen={isManifestModalOpen}
+                    onClose={handleCloseModal}
+                    mode="edit"
+                    customers={selectedManifests}
+                    customer={selectedManifest}
+                    tot_adults='0'
+                    tot_children='0'
+                />
+
+                <ManifestsModal
+                    isOpen={isManifestsModalOpen}
+                    onClose={handleCloseModal}
+                    mode="edit"
+                    customers={selectedManifests}
+                    tot_adults='0'
+                    tot_children='0'
                 />
 
 

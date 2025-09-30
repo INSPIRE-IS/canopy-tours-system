@@ -22,6 +22,7 @@ return new class extends Migration
             $table->boolean('is_email_reminder')->default(0)->nullable();
             $table->longText('booking_note')->nullable();
             $table->float('tot_amount', 8, 2)->nullable();
+            $table->float('tot_paid', 8, 2)->nullable();
             $table->timestamps();
             $table->softDeletes();
 

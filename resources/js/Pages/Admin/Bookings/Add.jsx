@@ -10,7 +10,7 @@ import WhiteButton from '@/Components/WhiteButton';
 import CustomSelect from '@/Components/CustomSelect';
 import ManifestCount from '@/Components/ManifestCount';
 import CustomTimePicker from '@/Components/CustomTimePicker';
-import ManifestModal from './ManifestModal';
+import ManifestModal from './ManifestsModal';
 // import { useRoute } from 'ziggy-js';
 // import { Ziggy } from '@/ziggy'; // the generated file
 

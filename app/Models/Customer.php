@@ -56,4 +56,10 @@ class Customer extends Model
     {
         return $this->hasOne(BookingQuestionnaire::class);
     }
+
+
+    public function booking_discount_items()
+    {
+        return $this->belongsToMany(BookingDiscountItem::class, 'customer_discounts');
+    }
 }
