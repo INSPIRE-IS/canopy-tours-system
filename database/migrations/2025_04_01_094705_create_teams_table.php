@@ -15,12 +15,10 @@ return new class extends Migration
             $table->id();
             $table->string('name')->nullable();
             $table->string('full_name')->nullable();
-            $table->string('description')->nullable();
-            $table->string('logo')->nullable();
-            $table->string('image')->nullable();
+            $table->text('description')->nullable();
             $table->string('color')->nullable();
             $table->string('reg_no')->nullable();
-            $table->string('address')->nullable();
+            $table->text('address')->nullable();
             $table->string('address_code')->nullable();
             $table->string('account_owner')->nullable();
             $table->string('account_number')->nullable();
@@ -30,7 +28,7 @@ return new class extends Migration
             $table->timestamps();
             $table->softDeletes();
 
-            //$table->foreignId('owner_id')->nullable();
+            $table->foreignId('team_id')->nullable();
         });
     }
 

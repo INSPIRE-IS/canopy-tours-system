@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\MassDestroyTeamRequest;
 use App\Http\Requests\StoreTeamRequest;
 use App\Http\Requests\UpdateTeamRequest;
+use App\Models\File;
 use App\Models\Team;
 use App\Models\User;
 use Gate;
@@ -28,7 +29,7 @@ class TeamController extends Controller
         $sortDirection = $request->get('direction', 'asc');
         /** @var \App\Models\User $user */
         $teamId = Session::get('team_id');
-        $teams = Team::with(['owner'])
+        $teams = Team::with('owner', 'file_image', 'file_logo') // with(['owner'])
             ->where('name', 'like', '%' . $searchTerm . '%')
             ->orderBy($sortColumn, $sortDirection)
             ->paginate(10);
@@ -45,6 +46,7 @@ class TeamController extends Controller
 
     public function store(StoreTeamRequest $request)
     {
+        dd('here');
         dd($request->all());
         // TODO: add logic to save image and logo
         $data             = $request->all();
@@ -57,9 +59,49 @@ class TeamController extends Controller
 
     public function update(UpdateTeamRequest $request, Team $team)
     {
-        dd($request->all());
+        //dd($request->all());
         // TODO: add logic to save image and logo
+        $request['owner_id'] = auth()->user()->id;
         $team->update($request->all());
+
+        // Handle file upload
+        if ($request->hasFile('logo')) {
+            $uploaded = $request->file('logo');
+            $path = $uploaded->store("teams/{$team->id}", 'public'); // stores in `storage/app/public/seasons/{id}`
+            $logo_file = File::where('table_name', 'teams')->where('table_row_id', $team->id)->where('type_file_id', 1)->first();
+            if ($logo_file) {
+                $logo_file->delete();
+            }
+
+            File::create([
+                'team_id'      => auth()->user()->team_id,
+                'table_name'   => 'teams',
+                'table_row_id' => $team->id,
+                'file_name'    => $uploaded->getClientOriginalName(),
+                'file_type'    => $uploaded->getMimeType(),
+                'type_file_id' => 1, // logo
+                'path'         => $path,
+            ]);
+        }
+        // Handle file upload
+        if ($request->hasFile('image')) {
+            $uploaded = $request->file('image');
+            $path = $uploaded->store("teams/{$team->id}", 'public'); // stores in `storage/app/public/seasons/{id}`
+            $image_file = File::where('table_name', 'teams')->where('table_row_id', $team->id)->where('type_file_id', 2)->first();
+            if ($image_file) {
+                $image_file->delete();
+            }
+
+            File::create([
+                'team_id'      => auth()->user()->team_id,
+                'table_name'   => 'teams',
+                'table_row_id' => $team->id,
+                'file_name'    => $uploaded->getClientOriginalName(),
+                'file_type'    => $uploaded->getMimeType(),
+                'type_file_id' => 2, // image
+                'path'         => $path,
+            ]);
+        }
 
         return redirect()->route('admin.teams.index');
     }
