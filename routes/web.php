@@ -24,6 +24,7 @@ use App\Http\Controllers\Admin\TeamController;
 use App\Http\Controllers\Admin\UserAlertsController;
 use App\Http\Controllers\Admin\UsersController;
 use App\Http\Controllers\Admin\VoucherController;
+use App\Http\Controllers\Admin\WholesalerContactsController;
 use App\Http\Controllers\Admin\WholesalerController;
 use App\Http\Controllers\Admin\WholesalerRateController;
 use App\Http\Controllers\Front\ActivityController;
@@ -141,6 +142,7 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['auth', 'v
     Route::resource('closeouts', CloseoutsController::class);
     // Wholesalers
     Route::resource('wholesalers', WholesalerController::class);
+    Route::resource('wholesaler-contacts', WholesalerContactsController::class);
     // Vouchers
     Route::resource('vouchers', VoucherController::class);
 

@@ -103,7 +103,7 @@ export default function AppLayout({ user, children }) {
         },
         {
             match: 'admin.teams.index',
-            title: 'teams',
+            title: 'Site',
             showBack: false,
         },
         {
@@ -114,6 +114,11 @@ export default function AppLayout({ user, children }) {
         {
             match: 'admin.user-alerts.index',
             title: 'user alerts',
+            showBack: false,
+        },
+        {
+            match: 'admin.questionnaire.index',
+            title: 'Questionnaires',
             showBack: false,
         },
         {
@@ -332,82 +337,83 @@ export default function AppLayout({ user, children }) {
                 </div>
                 <nav className="px-4 space-y-2 ">
                     <label className="menu-label text-menu-heading">Main Menu</label>
+                    {permissions?.dashboard_access && (
+                        <SidebarMenuItem
+                            label="Dashboard"
+                            isOpen={isOpen}
+                            url='admin.dashboard'
+                            iconName="dashboard"
+                        />
+                    )}
+                    {permissions?.bookings_access && (
+                        <SidebarMenuItem
+                            label="Bookings"
+                            isOpen={isOpen}
+                            url='admin.bookings.index'
+                            iconName="bookings"
+                        />
+                    )}
 
-                    <SidebarMenuItem
-                        label="Dashboard"
-                        isOpen={isOpen}
-                        url='admin.dashboard'
-                        iconName="dashboard"
-                    />
-                    <SidebarMenuItem
-                        label="Bookings"
-                        isOpen={isOpen}
-                        url='admin.bookings.index'
-                        iconName="bookings"
-                    />
-                    {/* <SidebarMenuItem
-                label="Seasons"
-                isOpen={isOpen}
-                url= 'admin.seasons.index'
-                iconName="services"
-            /> 
-            <SidebarMenuItem
-                label="Inventory"
-                isOpen={isOpen}
-                url= 'admin.inventories.index'
-                iconName="inventory"
-            /> 
-            <SidebarMenuItem
-                label="closeouts"
-                isOpen={isOpen}
-                url= 'admin.closeouts.index'
-                iconName="inventory"
-            />*/}
-                    <SidebarMenuItem
-                        label="Messages"
-                        isOpen={isOpen}
-                        url='admin.messenger.index'
-                        iconName="messages"
-                    />
-                    <SidebarMenuItem
-                        label="Reports"
-                        isOpen={isOpen}
-                        url='admin.reports.index'
-                        iconName="reports"
-                    />
+                    {permissions?.messenger_access && (
+                        <SidebarMenuItem
+                            label="Messages"
+                            isOpen={isOpen}
+                            url='admin.messenger.index'
+                            iconName="messages"
+                        />
+                    )}
+                    {permissions?.reports_access && (
+                        <SidebarMenuItem
+                            label="Reports"
+                            isOpen={isOpen}
+                            url='admin.reports.index'
+                            iconName="reports"
+                        />
+                    )}
                     <div>
                         <span className={`${isOpen ? '' : 'hidden'} text-menu-heading`}>Settings</span>
                     </div>
-                    <SidebarMenuItem
-                        label="Help & Center"
-                        isOpen={isOpen}
-                        url='admin.help-questions.index'
-                        iconName="helpcenter"
-                    />
-                    <SidebarMenuItem
-                        label="Service"
-                        isOpen={isOpen}
-                        url='admin.services.index'
-                        iconName="services"
-                    />
-                    <SidebarMenuItem
-                        label="Marketing"
-                        isOpen={isOpen}
-                        url='admin.vouchers.index'
-                        iconName="services"
-                    />
-                    <SidebarMenuItem
-                        label="Wholesalers"
-                        isOpen={isOpen}
-                        url='admin.wholesalers.index'
-                        iconName="services"
-                    />
-                    <SidebarMenuItem
-                        label="Site"
-                        isOpen={isOpen}
-                        url='admin.teams.index'
-                        iconName="settings"
-                    />
+                    {permissions?.help_questions_access && (
+                        <SidebarMenuItem
+                            label="Help & Center"
+                            isOpen={isOpen}
+                            url='admin.help-questions.index'
+                            iconName="helpcenter"
+                        />
+                    )}
+                    {permissions?.services_access && (
+                        <SidebarMenuItem
+                            label="Service"
+                            isOpen={isOpen}
+                            url='admin.services.index'
+                            iconName="services"
+                        />
+                    )}
+                    {permissions?.markets_access && (
+                        <SidebarMenuItem
+                            label="Marketing"
+                            isOpen={isOpen}
+                            url='admin.discounts.index'
+                            iconName="services"
+                        />
+                    )}
+                    {permissions?.wholesalers_access && (
+                        <SidebarMenuItem
+                            label="Wholesalers"
+                            isOpen={isOpen}
+                            url='admin.wholesalers.index'
+                            iconName="services"
+                        />
+                    )}
+                    {permissions?.sites_access && (
+                        <SidebarMenuItem
+                            label="Site"
+                            isOpen={isOpen}
+                            url='admin.teams.index'
+                            iconName="settings"
+                        />
+                    )}
+
                     {/*{permissions?.user_management_access && (
             <SidebarMenuItem
                 label="Settings"

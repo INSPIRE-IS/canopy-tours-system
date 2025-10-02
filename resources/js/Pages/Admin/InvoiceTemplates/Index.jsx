@@ -16,6 +16,7 @@ export default function Index({ templates, users, auth, permissions, searchTerm,
     const [selectedTemplate, setSelectedTemplate] = useState(null);
     const { props } = usePage();
     console.log('auth on template ', auth);
+    console.log('auth on users ', users);
     console.log('auth on templates ', templates);
     const [search, setSearch] = useState(searchTerm);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -74,7 +75,7 @@ export default function Index({ templates, users, auth, permissions, searchTerm,
             </div>
         </header> */}
             <div className="bg-white p-6 ">
-                <SettingsHeader isOpenTab={isOpenTab} setIsOpenTab={setIsOpenTab} />
+                <SettingsHeader permissions={permissions} isOpenTab={isOpenTab} setIsOpenTab={setIsOpenTab} />
                 {/* top */}
                 <div className="flex justify-between items-center mb-6">
                     <SearchBar search={search} handleSearchChange={(e) => handleSearchChange(e)} handleSearchSubmit={handleSearchSubmit} />

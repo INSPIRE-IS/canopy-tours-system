@@ -10,12 +10,13 @@ import Pagination from '@/Components/Pagination';
 import SettingsHeader from '@/Components/HeaderSites';
 
 
-export default function Index({ questionnaires, users, auth, inputTypes, dataTypes, permissions, searchTerm, sortColumn, sortDirection }) {
+export default function Index({ questionnaires, users, auth, inputTypes, dataTypes, services, questionnaireFields, permissions, searchTerm, sortColumn, sortDirection }) {
     //const [modalOpen, setModalOpen] = useState(false);
 
     const [selectedQuestionnaire, setSelectedQuestionnaire] = useState(null);
     const { props } = usePage();
-    console.log('auth on questionnaire ', auth);
+    console.log('questionnaireFields on questionnaire ', questionnaireFields);
+    //console.log('questionnaires on questionnaire ', questionnaires);
     const [search, setSearch] = useState(searchTerm);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalMode, setModalMode] = useState("create");
@@ -77,7 +78,7 @@ export default function Index({ questionnaires, users, auth, inputTypes, dataTyp
             </div>
         </header> */}
             <div className="bg-white p-6 ">
-                <SettingsHeader isOpenTab={isOpenTab} setIsOpenTab={setIsOpenTab} />
+                <SettingsHeader permissions={permissions} isOpenTab={isOpenTab} setIsOpenTab={setIsOpenTab} />
                 {/* top */}
                 <div className="flex justify-between items-center mb-6">
                     <SearchBar search={search} handleSearchChange={(e) => handleSearchChange(e)} handleSearchSubmit={handleSearchSubmit} />
@@ -111,32 +112,35 @@ export default function Index({ questionnaires, users, auth, inputTypes, dataTyp
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100">
-                                    {questionnaires?.data.map((questionnaire, i) => (
-                                        <tr key={questionnaire.id} className="flex justify-between items-center hover:bg-gray-50">
-                                            <td className="w-[95px] p-3">{questionnaire.id}</td>
-                                            <td className="w-[95px] p-3">{questionnaire.name}</td>
-                                            <td className="w-[268px] p-3">{questionnaire.description}</td>
-                                            <td className="w-[132px] p-3">{questionnaire?.fields?.length()}</td>
-                                            <td className="w-[185px] p-3 flex  gap-2">
-                                                {permissions.questionnaires_edit && (
-                                                    <button onClick={() => handleOpenModal("edit", questionnaire)}
-                                                        className="flex items-center gap-1 text-green-600 hover:text-green-800">
-                                                        Edit
-                                                    </button>)}
+                                    {questionnaires?.data.map((questionnaire, i) => {
+                                        // console.log('questionnaire ', questionnaire);
+                                        return (
+                                            <tr key={questionnaire.id} className="flex justify-between items-center hover:bg-gray-50">
+                                                <td className="w-[95px] p-3">{questionnaire.id}</td>
+                                                <td className="w-[95px] p-3">{questionnaire?.name}</td>
+                                                <td className="w-[268px] p-3">{questionnaire?.description}</td>
+                                                <td className="w-[132px] p-3">{questionnaire?.fields?.length}</td>
+                                                <td className="w-[185px] p-3 flex  gap-2">
+                                                    {permissions.questionnaires_edit && (
+                                                        <button onClick={() => handleOpenModal("edit", questionnaire)}
+                                                            className="flex items-center gap-1 text-green-600 hover:text-green-800">
+                                                            Edit
+                                                        </button>)}
 
-                                                {permissions.questionnaires_edit && (
-                                                    <button onClick={() => handleDelete(questionnaire)}
-                                                        className="flex items-center gap-1 text-red-600 hover:text-red-800">
-                                                        Remove
-                                                    </button>)}
-                                                {permissions.questionnaires_edit && (
-                                                    <button onClick={() => handleShow(questionnaire)}
-                                                        className="flex items-center gap-1 text-blue-600 hover:text-blue-800">
-                                                        View
-                                                    </button>)}
-                                            </td>
-                                        </tr>
-                                    ))}
+                                                    {permissions.questionnaires_edit && (
+                                                        <button onClick={() => handleDelete(questionnaire)}
+                                                            className="flex items-center gap-1 text-red-600 hover:text-red-800">
+                                                            Remove
+                                                        </button>)}
+                                                    {permissions.questionnaires_edit && (
+                                                        <button onClick={() => handleShow(questionnaire)}
+                                                            className="flex items-center gap-1 text-blue-600 hover:text-blue-800">
+                                                            View
+                                                        </button>)}
+                                                </td>
+                                            </tr>
+                                        )
+                                    })}
                                 </tbody>
                             </table>
 
@@ -157,6 +161,8 @@ export default function Index({ questionnaires, users, auth, inputTypes, dataTyp
                 questionnaire={selectedQuestionnaire}
                 inputTypes={inputTypes}
                 dataTypes={dataTypes}
+                services={services}
+                questionnaireFields={questionnaireFields}
                 users={users}
                 team_id={auth.user.team_id}
             />

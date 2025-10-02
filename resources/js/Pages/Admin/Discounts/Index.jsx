@@ -39,7 +39,7 @@ export default function Index({ discounts, searchTerm, sortColumn, sortDirection
       router.delete(route('admin.discounts.destroy', item), { preserveScroll: true });
     }
   };
-  function toggleDropdown (tab, routeName) {
+  function toggleDropdown(tab, routeName) {
     setIsOpenTab(prev => (prev === tab ? '' : tab));
     router.get(route(routeName), {}, {
       preserveScroll: true,
@@ -50,12 +50,12 @@ export default function Index({ discounts, searchTerm, sortColumn, sortDirection
     <AuthenticatedLayout header={<h2 className="font-semibold text-xl text-gray-800 leading-tight">DISCOUNTS</h2>}>
       <Head title="DISCOUNTS" />
       <div className="bg-white p-6">
-        <HeaderMarketing isOpenTab={isOpenTab} setIsOpenTab={setIsOpenTab} />
+        <HeaderMarketing permissions={permissions} isOpenTab={isOpenTab} setIsOpenTab={setIsOpenTab} />
         <div className="flex justify-between items-center mb-6">
           <SearchBar search={search} handleSearchChange={(e) => setSearch(e.target.value)} handleSearchSubmit={handleSearchSubmit} />
           <span className="flex gap-2">
             {permissions?.discounts_create && (
-              <BlueButton title="Add" onClick={() => handleOpenModal("create")} icon={true}/>
+              <BlueButton title="Add" onClick={() => handleOpenModal("create")} icon={true} />
             )}
           </span>
         </div>
@@ -113,7 +113,7 @@ export default function Index({ discounts, searchTerm, sortColumn, sortDirection
         </div>
       </div>
 
-      <Modal isOpen={isModalOpen} onClose={handleCloseModal} mode={modalMode} item={selected} permissions={permissions}  services={services} />
+      <Modal isOpen={isModalOpen} onClose={handleCloseModal} mode={modalMode} item={selected} permissions={permissions} services={services} />
     </AuthenticatedLayout>
   );
 }

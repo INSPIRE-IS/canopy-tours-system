@@ -8,7 +8,7 @@ import Pagination from '@/Components/Pagination';
 import Modal from './Modal';
 import HeaderMarketing from '@/Components/HeaderMarketing';
 
-export default function Index({ promos, searchTerm, sortColumn, sortDirection, permissions,services }) {
+export default function Index({ promos, searchTerm, sortColumn, sortDirection, permissions, services }) {
   const [selected, setSelected] = useState(null);
   const [search, setSearch] = useState(searchTerm || '');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -39,7 +39,7 @@ export default function Index({ promos, searchTerm, sortColumn, sortDirection, p
       router.delete(route('admin.promotions.destroy', item), { preserveScroll: true });
     }
   };
-  function toggleDropdown (tab, routeName) {
+  function toggleDropdown(tab, routeName) {
     setIsOpenTab(prev => (prev === tab ? '' : tab));
     router.get(route(routeName), {}, {
       preserveScroll: true,
@@ -50,12 +50,12 @@ export default function Index({ promos, searchTerm, sortColumn, sortDirection, p
     <AuthenticatedLayout header={<h2 className="font-semibold text-xl text-gray-800 leading-tight">PROMOTIONS</h2>}>
       <Head title="PROMOTIONS" />
       <div className="bg-white p-6">
-        <HeaderMarketing isOpenTab={isOpenTab} setIsOpenTab={setIsOpenTab} />
+        <HeaderMarketing permissions={permissions} isOpenTab={isOpenTab} setIsOpenTab={setIsOpenTab} />
         <div className="flex justify-between items-center mb-6">
           <SearchBar search={search} handleSearchChange={(e) => setSearch(e.target.value)} handleSearchSubmit={handleSearchSubmit} />
           <span className="flex gap-2">
             {permissions?.promotions_create && (
-              <BlueButton title="Add" onClick={() => handleOpenModal("create")} icon={true}/>
+              <BlueButton title="Add" onClick={() => handleOpenModal("create")} icon={true} />
             )}
           </span>
         </div>
