@@ -45,6 +45,15 @@ class HomeController extends Controller
             }
             $data[] = $value;
         }
+        //dd($settings1);
+        $bookings = \App\Models\Booking::with([
+            'booking_items.service:id,name',
+            'booking_items.season:id,name',
+            'type_booking:id,name'
+        ])
+            ->latest()
+            ->take(10)
+            ->get();
 
         $settings2 = [
             'chart_title'           => 'Bookings for Month',
@@ -68,9 +77,19 @@ class HomeController extends Controller
                 'created_at'         => '',
             ],
             //'translation_key' => 'booking',
-            'data'           => \App\Models\Booking::with('booking_items', 'booking_items.service:id,name', 'booking_items.season:id,name', 'type_booking:id,name')->latest()->take(10)->get(),
+            'data' => $bookings->flatMap(function ($booking) {
+                return $booking->booking_items->map(function ($item) use ($booking) {
+                    return [
+                        'service'      => $item->service ?? null,
+                        'season'       => $item->season ?? null,
+                        'type_booking' => $booking->type_booking ?? null,
+                        'lead_name'    => $booking->lead_name ?? null,
+                        'created_at'   => $booking->created_at->format('Y-m-d'),
+                    ];
+                });
+            }),
         ];
-
+        // dd($settings2);
         $settings3 = [
             'chart_title'           => 'Notifications',
             // 'chart_type'            => 'latest_entries',
@@ -92,8 +111,8 @@ class HomeController extends Controller
             //'translation_key' => 'userAlert',
             'data'           => \App\Models\UserAlert::with('users:id,name')->latest()->take(10)->get(),
         ];
-
-
+        // dd($settings3);
+        $booking = \App\Models\Booking::with('booking_items', 'booking_items.season:id,name', 'status_payment:id,name')->latest()->take(10)->get();
         $settings4 = [
             'chart_title'           => 'Booking Status',
             // 'chart_type'            => 'latest_entries',
@@ -115,10 +134,26 @@ class HomeController extends Controller
                 'tot_paid'       => '',
             ],
             'translation_key' => 'booking',
-            'data'           => \App\Models\Booking::with('booking_items', 'booking_items.season:id,name', 'status_payment:id,name')->latest()->take(10)->get(),
+            'data' => $bookings->flatMap(function ($booking) {
+                return $booking->booking_items->map(function ($item) use ($booking) {
+                    return [
+                        'season'       => $item->season ?? null,
+                        'status_payment' => $booking->status_payment ?? null,
+                        'lead_name'    => $booking->lead_name ?? null,
+                        'due_date'     => $booking->due_date ?? null,
+                        'tot_paid'     => $booking->tot_paid ?? null,
+                    ];
+                });
+            }),
         ];
-
-
+        // dd($settings4);
+        $manifests = \App\Models\CustomerManifest::with([
+            'customer:id,full_name',
+            'booking_item.booking:id,reference' // 👈 note singular now
+        ])
+            ->latest()
+            ->take(10)
+            ->get();
         $settings5 = [
             'chart_title'           => 'Customer Manifest',
             // 'chart_type'            => 'latest_entries',
@@ -139,7 +174,14 @@ class HomeController extends Controller
                 'created_at'   => '',
             ],
             'translation_key' => 'customerManifest',
-            'data'           => \App\Models\CustomerManifest::with('customer:id,full_name', 'booking_items.booking:id,reference')->latest()->take(10)->get(),
+            'data' => $manifests->map(function ($manifest) {
+                return [
+                    'is_indemnity' => $manifest->is_indemnity ? 'Yes' : 'No',
+                    'customer'     => $manifest->customer ?? null,
+                    'booking'      => $manifest->booking_item?->booking,
+                    'created_at'   => $manifest->created_at->format('Y-m-d'),
+                ];
+            }),
         ];
 
         //dd($settings5);

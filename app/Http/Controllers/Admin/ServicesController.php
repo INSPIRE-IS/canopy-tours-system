@@ -116,12 +116,12 @@ class ServicesController extends Controller
                 $path = $uploaded->store("services/{$service->id}", 'public'); // stores in `storage/app/public/seasons/{id}`
 
                 File::create([
-                    'team_id'      => 1, // auth()->user()->team_id,
+                    'team_id'      => auth()->user()->team_id,
                     'table_name'   => 'services',
                     'table_row_id' => $service->id,
                     'file_name'    => $uploaded->getClientOriginalName(),
                     'file_type'    => $uploaded->getMimeType(),
-                    'type_file_id' => 1, // optional enum/type
+                    'type_file_id' => 2, // optional enum/type
                     'path'         => $path,
                 ]);
             }
