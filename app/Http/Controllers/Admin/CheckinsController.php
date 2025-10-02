@@ -42,8 +42,8 @@ class CheckinsController extends Controller
             'customer_manifests.customer.booking_questionnaire',
             'booking_infos',
             'customers.booking_questionnaire',
-            'booking_details',
-            'booking_fees',
+            'booking_detail',
+            'booking_fee',
             'booking_inventory',
             'booking_staff',
             'booking_staff.user',
@@ -69,8 +69,8 @@ class CheckinsController extends Controller
         //     //'customer_manifests',  :id,position,notes,is_indemnity,customer_id,booking_id\
         //     'booking_items.booking_infos', // :id,booking_id,type_location_id,location,time,created_at,updated_at,deleted_at
         //     //'customers.booking_questionnaire',  :id,booking_id,customer_id,guide_id,safety_guide_id,type_group_id,fullname,email,signature,birth_date,type_referral,country_id,province_id,is_medical,medical_detail,is_fit,is_agree
-        //     'booking_items.booking_details', //:id,booking_id ,start_time,end_time
-        //     'booking_items.booking_fees', //:id,booking_id,tot_amount
+        //     'booking_items.booking_detail', //:id,booking_id ,start_time,end_time
+        //     'booking_items.booking_fee', //:id,booking_id,tot_amount
         //     'booking_payments', // :id,booking_id,amount
         //     'booking_items.booking_inventory', // :id,booking_id,inventory_id
         //     'booking_items.booking_staff', // :id,booking_id,user_id
