@@ -15,8 +15,10 @@ const EditTimeSlotModal = ({ isOpen, onClose, mode, booking, services }) => {
     const [timeslots, setTimeslots] = useState([]);
     const [selectedSlot, setSelectedSlot] = useState(null); // stores {date: string, day: string, time: string }
     const [selectedDate, setSelectedDate] = useState(null);
-    const [activityDate, setActivityDate] = useState(() => new Date(booking?.booking_date));
+    const [activityDate, setActivityDate] = useState(null);// () => new Date(booking?.booking_date)
     const [selectedTime, setSelectedTime] = useState(null);
+    const days = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21', '22', '23', '24', '25', '26', '27', '28', '29', '30', '31'];
+
     const parseDate = (str) => {
         const [datePart] = str.split(" "); // strip time if present
         const [y, m, d] = datePart.split("-").map(Number);
@@ -43,6 +45,7 @@ const EditTimeSlotModal = ({ isOpen, onClose, mode, booking, services }) => {
                 booking_date: booking.booking_date,
                 inventory_time_slot_id: booking.inventory_time_slot_id,
             });
+            setActivityDate(new Date(booking.booking_date));
         }
     }, [mode, booking]);
 
@@ -97,8 +100,11 @@ const EditTimeSlotModal = ({ isOpen, onClose, mode, booking, services }) => {
 
     const handleSubmit = (e) => {
         e.preventDefault();
+        console.log('data', data);
+        return;
+
         if (mode === "edit") {
-            post(route("admin.bookings.send-email"), {
+            post(route("admin.bookings.update-timeslot"), {
                 onSuccess: () => onClose(),
                 onError: (err) => { console.log(err); },
                 data: {
@@ -163,9 +169,9 @@ const EditTimeSlotModal = ({ isOpen, onClose, mode, booking, services }) => {
                                     //setSelectedDate(cell.date);                                    
                                 } else {
                                     console.log('--------date--------', activityDate.toLocaleDateString());
-                                    console.log('--------scheduleData.days--------', scheduleData.days);
-                                    const selectedDay = new Date(activityDate).getDate(); // 11
-                                    const day = scheduleData.days.find(d =>
+                                    const selectedDay = new Date(activityDate).getDate();
+                                    console.log('selectedDay', selectedDay.toString().padStart(2, "0"));
+                                    const day = days.find(d =>
                                         (typeof d === "string" ? d : d.day)?.endsWith(selectedDay.toString().padStart(2, "0"))
                                     );
 

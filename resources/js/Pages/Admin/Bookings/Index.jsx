@@ -67,14 +67,15 @@ export default function Dashboard({ auth, bookings, lookups, services }) {
             setIsEditTimeSlotModalOpen(true);
         }
         if (tool === 'message_guest') {
-            setSelectedBooking(booking);
-            isEmailModalOpen(true);
+            setGuestEmailTarget(booking);
+            setIsEmailModalOpen(true);
         }
         if (tool === 'message_staff') {
             router.get(route('admin.messenger.createTopic'));
         }
         if (tool === 'check_in_progress') {
-            router.get(route('admin.bookings.check_in_progress'));
+            // router.get(route('admin.bookings.check_in_progress'));
+            router.get(route('booking-questionnaire.index'))
         }
         if (tool === 'manifest_edit') {
             //router.get(route('admin.bookings.manifest_edit'));
@@ -95,8 +96,12 @@ export default function Dashboard({ auth, bookings, lookups, services }) {
         console.log("-------tool customer clicked-------", tool);
         console.log("-------tool customer clicked-------", index);
         console.log("-------tool customer clicked-------", customer);
+        const booking = bookings[index];
+        console.log("-------tool booking clicked-------", booking);
+        const customers = bookings[index].customers;
+        console.log("-------tool customers clicked-------", customers);
         if (tool === 'check_in') {
-            router.get(route('admin.bookings.check_in'));
+            router.get(route('booking-questionnaire.create', { reference: booking.reference }));
         }
         if (tool === 'send_invoice') {
             router.get(route('admin.bookings.send_invoice'));
@@ -106,7 +111,7 @@ export default function Dashboard({ auth, bookings, lookups, services }) {
         }
         if (tool === 'manifest') {
             //router.get(route('admin.bookings.manifest'));
-            const customers = bookings[index].customers;
+
             console.log('-------customers------', customers);
             setSelectedManifests(customers);
             setSelectedManifest(customer);
@@ -125,7 +130,7 @@ export default function Dashboard({ auth, bookings, lookups, services }) {
 
 
     const handleCloseModal = () => {
-        setGuestEmailTarget(false);
+        setGuestEmailTarget(null);
         setIsEditTimeSlotModalOpen(false);
         setSelectedBooking(null);
         setIsEmailModalOpen(false);
@@ -142,8 +147,8 @@ export default function Dashboard({ auth, bookings, lookups, services }) {
                 {/* top */}
                 <div className="flex justify-between items-center mb-6">
                     <span>
-                        <span className="font-semibold text-lg text-gray-800 block text-start">Welcome Back, {auth?.user?.name}👋</span>
-                        <span className="font-semibold text-lg text-gray-800 block text-start">We have 2 Pending Tasks and 5 New Bookings.</span>
+                        <span className="font-semibold text-lg text-gray-800 block text-start">Welcome Back, {auth?.user?.name}</span>
+                        {/* <span className="font-semibold text-lg text-gray-800 block text-start">We have 2 Pending Tasks and 5 New Bookings.</span> */}
 
                     </span>
                     <span className="flex gap-2">
@@ -338,7 +343,7 @@ export default function Dashboard({ auth, bookings, lookups, services }) {
                     isOpen={isEmailModalOpen}
                     onClose={handleCloseModal}
                     mode='create'
-                    booking={selectedBooking}
+                    booking={guestEmailTarget}
                 />
 
                 <ManifestModal

@@ -6,9 +6,7 @@ import InputRichText from "./InputRichText";
 import CustomInputText from "./CustomInputText";
 
 const GuestEmailModal = ({ isOpen, onClose, mode, booking }) => {
-    // console.log("mode", mode);
-    console.log("booking", booking);
-    // console.log("roles", roles);
+
     const { data, setData, post, put, errors, reset, processing } = useForm({
         booking_id: '',
         customer_id: '',
@@ -19,14 +17,11 @@ const GuestEmailModal = ({ isOpen, onClose, mode, booking }) => {
     useEffect(() => {
         if (booking) {
             //reset();
-            const customer = booking.customers.find(c => c.is_lead);
-            console.log('customer ', customer);
-
-
+            const customer = booking.customers.find(c => c.id == booking.customer_id);
             setData({
                 booking_id: booking.id,
                 customer_id: booking.lead_id,
-                recipient: customer.email || "",
+                recipient: customer?.email_address || "",
                 subject: 'New Booking',
                 content: `<p>Hello ${booking.lead_name},</p><p>${booking.service} ${booking.time} .</p><p>Booking ${booking.reference}</p><p>Please login to your account to view the booking.</p>`,
             });

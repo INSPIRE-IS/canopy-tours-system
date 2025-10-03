@@ -37,10 +37,10 @@ export default function BookingToolsModal({ booking, position, onClose, BookingT
                     <button type='button' onClick={() => BookingToolClick('edit_timeslot', booking)} className="btn-tool">{icons.edit_timeslot} Edit Timeslot</button>
                     <button type='button' onClick={() => BookingToolClick('message_guest', booking)} className="btn-tool">{icons.message} Message Guests</button>
                     {/* <button type="button" onClick={() => router.get(route('admin.messenger.createTopic'))} className="btn-tool">{icons.message} Message Staff</button> */}
-                    <button type="button" onClick={() => BookingToolClick('message_staff', booking)} className="btn-tool">{icons.message} Message Staff</button>
+                    {/* <button type="button" onClick={() => BookingToolClick('message_staff', booking)} className="btn-tool">{icons.message} Message Staff</button> */}
                     <button type="button" onClick={() => BookingToolClick('check_in_progress', booking)} className="btn-tool">{icons.check_in_progress} Check-In Progress</button>
                     <button type="button" onClick={() => BookingToolClick('manifest_edit', booking)} className="btn-tool">{icons.manifest_edit} Edit Manifest</button>
-                    <button type="button" onClick={() => BookingToolClick('remove_resource', booking)} className="btn-tool">{icons.remove_resource} Remove Resources</button>
+                    {/* <button type="button" onClick={() => BookingToolClick('remove_resource', booking)} className="btn-tool">{icons.remove_resource} Remove Resources</button> */}
                     <button type="button" onClick={() => BookingToolClick('cancel_all_bookings', booking)} className="btn-tool-red">{icons.cancel_all_bookings} Cancel all Bookings</button>
                 </div>
             </div>
