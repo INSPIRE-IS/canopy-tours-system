@@ -40,14 +40,14 @@ class UsersController extends Controller
             ->where('name', 'like', '%' . $searchTerm . '%')
 
             // unless user has this role do not show users with this role
-            // ->when(
-            //     ! $user->hasAnyRoles(['Admin', 'Director']),
-            //     function ($query) {
-            //         $query->whereDoesntHave('roles', function ($subQuery) {
-            //             $subQuery->whereIn('name', ['Admin', 'Director']);
-            //         });
-            //     }
-            // )
+            ->when(
+                ! $user->hasAnyRoles(['Admin', 'Director']),
+                function ($query) {
+                    $query->whereDoesntHave('roles', function ($subQuery) {
+                        $subQuery->whereIn('name', ['Admin', 'Director']);
+                    });
+                }
+            )
             ->orderBy($sortColumn, $sortDirection)
             ->paginate(10);
 
