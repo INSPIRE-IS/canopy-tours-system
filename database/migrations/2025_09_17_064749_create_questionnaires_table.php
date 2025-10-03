@@ -13,11 +13,13 @@ return new class extends Migration
     {
         Schema::create('questionnaires', function (Blueprint $table) {
             $table->id();
-            $table->string('name');
-            $table->text('description');
+            $table->string('name')->nullable();
+            $table->text('description')->nullable();
             $table->timestamps();
             $table->softDeletes();
 
+            $table->foreignId('season_id')->constrained('seasons');
+            $table->foreignId('service_id')->constrained('services');
             $table->foreignId('team_id')->nullable()->constrained('teams');
         });
     }

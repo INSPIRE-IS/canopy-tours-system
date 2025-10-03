@@ -11,9 +11,21 @@ class Questionnaire extends Model
 
     protected $table = 'questionnaires';
 
+    protected $hidden = [
+        'pivot',
+        'pivot_questionnaire_id',
+        'pivot_questionnaire_field_id',
+        'pivot_visable',
+        'pivot_sort_order',
+        'pivot_created_at',
+        'pivot_updated_at',
+    ];
+
     protected $fillable = [
         'name',
         'description',
+        'season_id',
+        'service_id',
         'team_id',
         'created_by_id',
         'updated_by_id',
@@ -21,7 +33,9 @@ class Questionnaire extends Model
 
     public function fields()
     {
-        return $this->hasMany(QuestionnaireField::class);
+        return $this->belongsToMany(QuestionnaireField::class)
+            ->withPivot(['required', 'visable', 'sort_order'])
+            ->withTimestamps();
     }
 
     public function answers()

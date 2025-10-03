@@ -44,7 +44,7 @@ class CustomerManifest extends Model
         return $this->belongsTo(Customer::class, 'customer_id');
     }
 
-    public function booking_items()
+    public function booking_item()
     {
         return $this->belongsTo(BookingItem::class, 'booking_item_id');
     }

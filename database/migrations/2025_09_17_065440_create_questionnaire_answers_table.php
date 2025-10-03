@@ -20,6 +20,7 @@ return new class extends Migration
             $table->foreignId('questionnaire_id')->constrained()->cascadeOnDelete();
             $table->foreignId('questionnaire_field_id')->constrained('questionnaire_fields')->cascadeOnDelete();
             $table->foreignId('customer_id')->constrained('customers');
+            $table->foreignId('booking_id')->constrained('bookings');
         });
     }
 

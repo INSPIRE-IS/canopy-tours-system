@@ -10,6 +10,8 @@ use Symfony\Component\HttpFoundation\Response;
 use App\Models\Continent;
 use App\Models\Country;
 use App\Models\QuestionnaireAnswer;
+use App\Models\Season;
+use App\Models\Service;
 use App\Models\State;
 use App\Models\TypeData;
 use App\Models\TypeInput;
@@ -27,14 +29,18 @@ class QuestionnaireController extends Controller
         $sortDirection = $request->get('direction', 'asc');
 
         $questionnaires = Questionnaire::query()
+            ->with('fields')
             ->where('name', 'like', '%' . $searchTerm . '%')
             ->orderBy($sortColumn, $sortDirection)
             ->paginate(10);
 
+        //$questionnaires
         return Inertia::render('Admin/Questionnaires/Index', [
             'questionnaires' => $questionnaires,
             'inputTypes' => TypeInput::all(), //  ['text', 'textarea', 'number', 'select', 'radio', 'checkbox', 'date'],
             'dataTypes' => TypeData::all(), // ['string', 'integer', 'boolean', 'date'],
+            'services' => Service::with('seasons')->get(),
+            'questionnaireFields' => QuestionnaireField::all(),
             'searchTerm' => $searchTerm,
             'sortColumn' => $sortColumn,
             'sortDirection' => $sortDirection,
@@ -45,30 +51,63 @@ class QuestionnaireController extends Controller
     {
         //dd($request->all());
         $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
+            'name' => ['nullable', 'string', 'max:255'], // 'required', 
             'description' => ['nullable', 'string'],
+            'service_id' => ['required', 'integer', 'exists:services,id'],
+            'season_id' => ['required', 'integer', 'exists:seasons,id'],
             'fields' => ['required', 'array'],
-            'fields.*.label' => ['required', 'string'],
-            'fields.*.input_type' => ['required', 'string'],
-            'fields.*.data_type' => ['required', 'string'],
-            'fields.*.required' => ['boolean'],
-            'fields.*.options' => ['nullable', 'string'],
+            // 'fields.*.label' => ['required', 'string'],
+            // 'fields.*.input_type' => ['required', 'string'],
+            // 'fields.*.data_type' => ['required', 'string'],
+            // 'fields.*.required' => ['boolean'],
+            // 'fields.*.options' => ['nullable', 'string'],
+            'fields.*.id' => ['required', 'integer', 'exists:questionnaire_fields,id'],
+            'fields.*.visable' => ['required', 'boolean'],
+            'fields.*.sort_order' => ['required', 'integer'],
+            'fields.*.required' => ['required', 'boolean'],
         ]);
 
+        $name = Service::findOrFail($validated['service_id'])->name;
+        $description = Season::findOrFail($validated['season_id'])->name;
+
         // create questionnaire
-        $questionnaire = Questionnaire::create($request->only('name', 'description', 'team_id'));
+        $questionnaire = Questionnaire::updateOrCreate(
+            [
+                'team_id' => $request->team_id ?? null,
+                'service_id' => $validated['service_id'],
+                'season_id' => $validated['season_id'],
+            ],
+            [
+                'name' => $name,
+                'description' => $description,
+            ]
+        );
+
+
+        $syncData = collect($validated['fields'])->mapWithKeys(function ($field) {
+            return [
+                $field['id'] => [
+                    'visable'    => $field['visable'],
+                    'sort_order' => $field['sort_order'],
+                    'required'   => $field['required'],
+                ]
+            ];
+        });
+
+        $questionnaire->fields()->sync($syncData);
+
 
         // store fields
-        foreach ($validated['fields'] as $field) {
-            $questionnaire->fields()->create([
-                'question' => $field['label'],
-                'slug' => $field['label'],
-                'type_input_id' => $field['input_type'],
-                'type_data_id' => $field['data_type'],
-                'required' => $field['required'] ?? false,
-                'options' => $field['options'] ?? null,
-            ]);
-        }
+        // foreach ($validated['fields'] as $field) {
+        //     $questionnaire->fields()->create([
+        //         'question' => $field['question'],
+        //         'slug' => $field['slug'],
+        //         'type_input_id' => $field['input_type'],
+        //         'type_data_id' => $field['data_type'],
+        //         'required' => $field['required'] ?? false,
+        //         'options' => $field['options'] ?? null,
+        //     ]);
+        // }
 
         // 'required',
         // 'hidden',
@@ -79,14 +118,49 @@ class QuestionnaireController extends Controller
 
     public function update(Request $request, Questionnaire $questionnaire)
     {
-        $request->validate([
-            'name' => ['required', 'string', 'max:255'],
+
+        //dd($request->all());
+        $validated = $request->validate([
+            'name' => ['nullable', 'string', 'max:255'], // 'required', 
             'description' => ['nullable', 'string'],
+            'service_id' => ['required', 'integer', 'exists:services,id'],
+            'season_id' => ['required', 'integer', 'exists:seasons,id'],
+            'fields'      => ['array'],
+            'fields.*.id' => ['required', 'integer', 'exists:questionnaire_fields,id'],
+            'fields.*.visable' => ['required', 'boolean'],
+            'fields.*.sort_order' => ['required', 'integer'],
+            'fields.*.required' => ['boolean'],
         ]);
 
-        $questionnaire->update($request->only('name', 'description'));
+        $name = Service::findOrFail($validated['service_id'])->name;
+        $description = Season::findOrFail($validated['season_id'])->name;
 
-        return redirect()->route('admin.questionnaires.index');
+        $questionnaire = Questionnaire::updateOrCreate(
+            [
+                'team_id' => $request->team_id ?? null,
+                'service_id' => $validated['service_id'],
+                'season_id' => $validated['season_id'],
+            ],
+            [
+                'name' => $name,
+                'description' => $description,
+            ]
+        );
+
+        $syncData = collect($validated['fields'])->mapWithKeys(function ($field) {
+            return [
+                $field['id'] => [
+                    'visable'    => $field['visable'],
+                    'sort_order' => $field['sort_order'],
+                    'required'   => $field['required'],
+                ]
+            ];
+        });
+
+        $questionnaire->fields()->sync($syncData);
+
+        return redirect()->route('admin.questionnaire.index')
+            ->with('success', 'Questionnaire updated successfully.');
     }
 
     public function show(Questionnaire $questionnaire)

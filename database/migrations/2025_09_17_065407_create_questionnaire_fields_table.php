@@ -15,19 +15,18 @@ return new class extends Migration
             $table->id();
 
             $table->string('question');
+            $table->text('description')->nullable();
             $table->string('slug');
             $table->json('options')->nullable();
+            $table->string('type_name')->nullable();
             // $table->enum('type', ['text', 'long_text', 'number', 'date', 'time', 'checkbox']);
-            $table->boolean('required')->default(false);
-            $table->boolean('hidden')->default(false);
-            $table->integer('sort_order')->default(0); // if you want multi-step forms            
-            //$table->json('conditional_logic')->nullable(); //  e.g. show this only if Age < 18
+
+            $table->json('conditional_logic')->nullable(); //  e.g. show this only if Age < 18
             $table->timestamps();
             $table->softDeletes();
 
             $table->foreignId('type_input_id')->nullable()->constrained('type_inputs');
             $table->foreignId('type_data_id')->nullable()->constrained('type_datas');
-            $table->foreignId('questionnaire_id')->constrained()->cascadeOnDelete();
         });
     }
 

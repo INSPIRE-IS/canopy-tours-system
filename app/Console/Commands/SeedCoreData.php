@@ -42,6 +42,8 @@ use App\Models\Gateway;
 use App\Models\Lookup;
 use App\Models\LookupItem;
 use App\Models\Promotion;
+use App\Models\Questionnaire;
+use App\Models\QuestionnaireField;
 use App\Models\StatusPayment;
 use App\Models\TypeConfirmation;
 use App\Models\TypeGender;
@@ -75,6 +77,15 @@ class SeedCoreData extends Command
 
         $permissions = [
             ['name' => 'user_management_access'],
+            ['name' => 'dashboard_access'],
+            ['name' => 'bookings_access'],
+            ['name' => 'messenger_access'],
+            ['name' => 'reports_access'],
+            ['name' => 'help_questions_access'],
+            ['name' => 'services_access'],
+            ['name' => 'markets_access'],
+            ['name' => 'wholesalers_access'],
+            ['name' => 'sites_access'],
         ];
 
         foreach ($tables as $table) {
@@ -105,9 +116,32 @@ class SeedCoreData extends Command
         // Assign permissions
         $adminPermissions = Permission::all();
         Role::findOrFail(1)->permissions()->sync($adminPermissions->pluck('id'));
-        Role::findOrFail(2)->permissions()->sync($adminPermissions->pluck('id'));
-        Role::findOrFail(3)->permissions()->sync($adminPermissions->pluck('id'));
-        $userFilterPermissions = Permission::whereNotIn('name', ['closeout_create', 'closeout_edit', 'closeout_delete'])->get();
+
+        $directorFilterPermissions = Permission::whereNotIn(
+            'name',
+            ['audit_logs_access', 'booking_questionnaires_access', 'teams_create']
+        )->get();
+        $directorPermissions = $directorFilterPermissions->filter(
+            fn($p) =>
+            !str_starts_with($p->name, 'user_') &&
+                !str_starts_with($p->name, 'role_') &&
+                !str_starts_with($p->name, 'permission_')
+        );
+        Role::findOrFail(2)->permissions()->sync($directorPermissions->pluck('id'));
+
+        $managerFilterPermissions = Permission::whereNotIn(
+            'name',
+            ['audit_logs_access', 'booking_questionnaires_access', 'invoice_templates_access', 'help_questions_access', 'user_alerts_access', 'vouchers_access', 'teams_create']
+        )->get();
+        $managerPermissions = $managerFilterPermissions->filter(
+            fn($p) =>
+            !str_starts_with($p->name, 'user_') &&
+                !str_starts_with($p->name, 'role_') &&
+                !str_starts_with($p->name, 'permission_')
+        );
+        Role::findOrFail(3)->permissions()->sync($managerPermissions->pluck('id'));
+
+        $userFilterPermissions = Permission::whereNotIn('name', ['audit_logs_access', 'booking_questionnaires_access', 'invoice_templates_access', 'help_questions_access', 'user_alerts_access', 'vouchers_access', 'teams_create'])->get();
         $userPermissions = $userFilterPermissions->filter(
             fn($p) =>
             !str_starts_with($p->name, 'user_') &&
@@ -120,15 +154,18 @@ class SeedCoreData extends Command
         // Teams
         Team::updateOrCreate(['id' => 1], [
             'name' => 'Cape',
+            'team_id' => 1,
             // 'description' => 'The Tsitsikamma team is a group of volunteers who are dedicated to helping the community of Tsitsikamma. We are passionate about making a positive impact on the lives of the people who live here and are committed to making a difference.',
             // 'image' => '/images/teams/tsitsikamma.jpg',
         ]);
-        Team::updateOrCreate(['id' => 2], ['name' => 'Drakensburg']);
-        Team::updateOrCreate(['id' => 3], ['name' => 'Karkloof']);
+        Team::updateOrCreate(['id' => 2], ['name' => 'Drakensburg', 'team_id' => 2,]);
+        Team::updateOrCreate(['id' => 3], ['name' => 'Karkloof', 'team_id' => 3,]);
         Team::updateOrCreate([
             'id' => 4
         ], [
             'name' => 'Magaliesberg',
+            'team_id' => 1,
+            'team_id' => 4,
             // 'full_name' => 'Tsitsikamma',
             // 'description' => '<h3 style="color:white;">Stormriver Adventures </h3> <p style="color:white;">Come and Experience a World of Diversity in One Forest </p> <p style="color:white;">A Unique Tsitsikamma Experience You’ll Never Forget!.</p>',
             // 'logo' => '/images/teams/tsitsikamma.jpg',
@@ -143,14 +180,14 @@ class SeedCoreData extends Command
             // 'name'   => 'ABSA',
             // 'branch_code' => '632005',        
         ]);
-        Team::updateOrCreate(['id' => 5], ['name' => 'Magoebskloof']);
-        Team::updateOrCreate(['id' => 6], ['name' => 'Malolotja']);
+        Team::updateOrCreate(['id' => 5], ['name' => 'Magoebskloof', 'team_id' => 5,]);
+        Team::updateOrCreate(['id' => 6], ['name' => 'Malolotja', 'team_id' => 6,]);
         Team::updateOrCreate(['id' => 7], [
             'name' => 'Tsitsikamma',
             'full_name' => 'Tsitsikamma Canopy Tours',
-            'description' => '<h3 style="color:white;">Stormriver Adventures </h3> <p style="color:white;">Come and Experience a World of Diversity in One Forest </p> <p style="color:white;">A Unique Tsitsikamma Experience You’ll Never Forget!.</p>',
-            'logo' => '/images/teams/tsitsikamma.jpg',
-            'image' => '/images/teams/tsitsikamma.jpg',
+            'description' => '<h3>Storms River Adventures </h3> <p>Come and Experience a World of Diversity in One Forest </p> <p>A Unique Tsitsikamma Experience You’ll Never Forget!.</p>',
+            // 'logo' => '/images/teams/tsitsikamma.jpg',
+            // 'image' => '/images/teams/tsitsikamma.jpg',
             'color' => '#31B700',
             'reg_no' => '0000/0000/00',
             'address' => 'PO Box 0000, Somewhere',
@@ -160,6 +197,7 @@ class SeedCoreData extends Command
             'account_type'   => 'Cheque',
             'bank_name'   => 'FNB',
             'branch_code' => '50001',
+            'team_id' => 7,
         ]);
         // Users
         $users = [
@@ -495,20 +533,7 @@ class SeedCoreData extends Command
         // <li><a href="/services/11271/portal_featured/edit">Featured Services</a></li>
         // <li><a href="/services/11271/edit_integrated_distributors">Integrated Distributors</a></li></ul>
 
-
-        $type_datas = [
-            ['id' => 1, 'name' => 'string'],
-            ['id' => 2, 'name' => 'text'],
-            ['id' => 3, 'name' => 'integer'],
-            ['id' => 4, 'name' => 'float'],
-            ['id' => 5, 'name' => 'date'],
-            ['id' => 6, 'name' => 'time'],
-            ['id' => 7, 'name' => 'boolean'],
-        ]; // ['string', 'integer', 'boolean', 'date'],
-        foreach ($type_datas as $type_data) {
-            TypeData::updateOrCreate(['id' => $type_data['id']], $type_data);
-        }
-
+        // mostly html 5 input types
         $type_inputs = [
             ['id' => 1, 'name' => 'text'],       // <input type="text">
             ['id' => 2, 'name' => 'textarea'],   // <textarea>
@@ -518,9 +543,33 @@ class SeedCoreData extends Command
             ['id' => 6, 'name' => 'checkbox'],   // <input type="checkbox">
             ['id' => 7, 'name' => 'radio'],   // <input type="checkbox">
             ['id' => 8, 'name' => 'select'],   // <input type="checkbox">
+            ['id' => 9, 'name' => 'image'],   // <input type="checkbox">
+            ['id' => 10, 'name' => 'signature'],   // <input type="checkbox">
+            ['id' => 11, 'name' => 'continent'],   // <input type="checkbox">
+            ['id' => 12, 'name' => 'country'],   // <input type="checkbox">
+            ['id' => 13, 'name' => 'province'],   // <input type="checkbox">
+            ['id' => 14, 'name' => 'lead guide'],   // <input type="checkbox">
+            ['id' => 15, 'name' => 'safety guide'],   // <input type="checkbox">
+            ['id' => 16, 'name' => 'group type'],   // <input type="checkbox">
+            ['id' => 17, 'name' => 'referral type'],   // <input type="checkbox">
+            ['id' => 18, 'name' => 'confirmation type'],   // <input type="checkbox">
         ]; //'text', 'textarea', 'number', 'select', 'radio', 'checkbox', 'date' 
         foreach ($type_inputs as $type_input) {
             TypeInput::updateOrCreate(['id' => $type_input['id']], $type_input);
+        }
+        // mostly database store types
+        $type_datas = [
+            ['id' => 1, 'name' => 'string'],
+            ['id' => 2, 'name' => 'text'],
+            ['id' => 3, 'name' => 'integer'],
+            ['id' => 4, 'name' => 'float'],
+            ['id' => 5, 'name' => 'date'],
+            ['id' => 6, 'name' => 'time'],
+            ['id' => 7, 'name' => 'boolean'],
+            ['id' => 8, 'name' => 'json'],
+        ]; // ['string', 'integer', 'boolean', 'date'],
+        foreach ($type_datas as $type_data) {
+            TypeData::updateOrCreate(['id' => $type_data['id']], $type_data);
         }
 
         $type_locations = [
@@ -573,7 +622,10 @@ class SeedCoreData extends Command
 
         $type_files = [
             ['id' => 1, 'name' => 'logo'],
-            ['id' => 2, 'name' => 'service'],
+            ['id' => 2, 'name' => 'image'],
+            ['id' => 3, 'name' => 'service'],
+            ['id' => 4, 'name' => 'invoice'],
+            ['id' => 5, 'name' => 'checkin'],
         ];
         foreach ($type_files as $type_file) {
             TypeFile::updateOrCreate(['id' => $type_file['id']], $type_file);
@@ -683,8 +735,6 @@ class SeedCoreData extends Command
         $lat_lon_start = "0,0";
         $lat_long_end = "1,1";
 
-
-
         $serviceFieldValues = [
             ['service_id' => 1, 'field_id' => 1, 'value' => $description,],
             ['service_id' => 1, 'field_id' => 2, 'value' => '1 Adult',],
@@ -750,8 +800,8 @@ class SeedCoreData extends Command
                 "file_type" => "image/jpeg",
                 "path" => "services/1/VG1575vJQfQGmo6TFAk5gE0DknbgZ00qYNv5XR2Q.jpg",
                 "expiry" => null,
-                "team_id" => null,
-                "type_file_id" => 1
+                "team_id" => 7,
+                "type_file_id" => 3
             ],
             [
                 "id" => 2,
@@ -761,8 +811,8 @@ class SeedCoreData extends Command
                 "file_type" => "image/jpeg",
                 "path" => "services/6/A8f8mauVaWW4C6REWtltV3WXnrK1u7bRqNqvDMo0.jpg",
                 "expiry" => null,
-                "team_id" => null,
-                "type_file_id" => 1
+                "team_id" => 7,
+                "type_file_id" => 3
             ],
             [
                 "id" => 3,
@@ -772,8 +822,8 @@ class SeedCoreData extends Command
                 "file_type" => "image/jpeg",
                 "path" => "services/3/gSjvgA1MyCqhhcxqdVOFNu4AAX9hAUdocjhZuVLV.jpg",
                 "expiry" => null,
-                "team_id" => null,
-                "type_file_id" => 1
+                "team_id" => 7,
+                "type_file_id" => 3
             ],
             [
                 "id" => 4,
@@ -783,8 +833,8 @@ class SeedCoreData extends Command
                 "file_type" => "image/jpeg",
                 "path" => "services/4/ahRAMEjm1Udj3OGILUq9YnzSz7KNsSVl3KDRIxUc.jpg",
                 "expiry" => null,
-                "team_id" => null,
-                "type_file_id" => 1
+                "team_id" => 7,
+                "type_file_id" => 3
             ],
             [
                 "id" => 5,
@@ -794,8 +844,8 @@ class SeedCoreData extends Command
                 "file_type" => "image/jpeg",
                 "path" => "services/5/P9BTOjmG1DiaLDMfxU7S7Tg3AewtJBitOzP1TTyd.jpg",
                 "expiry" => null,
-                "team_id" => null,
-                "type_file_id" => 1
+                "team_id" => 7,
+                "type_file_id" => 3
             ],
             [
                 "id" => 6,
@@ -805,20 +855,42 @@ class SeedCoreData extends Command
                 "file_type" => "image/jpeg",
                 "path" => "services/2/2y6BtQAwOEuAEt98H5p0Nuyab00mhWM4yqgJHJXW.jpg",
                 "expiry" => null,
-                "team_id" => null,
+                "team_id" => 7,
+                "type_file_id" => 3
+            ],
+            [
+                "id" => 7,
+                "table_name" => "teams",
+                "table_row_id" => "7",
+                "file_name" => "logo.png",
+                "file_type" => "image/jpeg",
+                "path" => "teams/7/KQheuzHHSpe3SM5xfX5O3MdI4gc3F2f41qd9a7v1.png",
+                "expiry" => null,
+                "team_id" => 7,
                 "type_file_id" => 1
+            ],
+            [
+                "id" => 8,
+                "table_name" => "teams",
+                "table_row_id" => "7",
+                "file_name" => "main1.jpg",
+                "file_type" => "image/jpeg",
+                "path" => "teams/7/GtHzovMTDkSqnN4KbjVVLcBWozdNjg8UsY4s2CuF.jpg",
+                "expiry" => null,
+                "team_id" => 7,
+                "type_file_id" => 2
             ]
         ];
 
         foreach ($files as $file) {
             File::updateOrCreate(
                 [
-                    'team_id'      => null, // auth()->user()->team_id,
-                    'table_name'   => 'services',
+                    'team_id'      => $file['team_id'], // auth()->user()->team_id,
+                    'table_name'   => $file['table_name'],
                     'table_row_id' => $file['table_row_id'],
                     'file_name'    => $file['file_name'],
                     'file_type'    => $file['file_type'],
-                    'type_file_id' => 1, // optional enum/type
+                    'type_file_id' => $file['type_file_id'], // optional enum/type
                     'path'         => $file['path'],
                     'expiry'       => $file['expiry'],
                 ],
@@ -2380,7 +2452,367 @@ class SeedCoreData extends Command
             BookingPayment::updateOrCreate(['id' => $bookingPayment['id']], $bookingPayment);
         }
 
+        $questionnaires = [
+            [
+                'id' => 1,
+                'name' => 'Canopy Tour',
+                'description' => 'Canopy Tour Description',
+                'season_id' => 1,
+                'service_id' => 1,
+                'team_id' => 7,
+            ],
+            // [
+            //     'id' => 2,
+            //     'name' => 'Woodcutters',
+            //     'description' => 'Woodcutters Description',
+            //     'season_id' => 1,
+            //     'service_id' => 2,
+            //     'team_id' => 7,
+            // ],
+            // [
+            //     'id' => 3,
+            //     'name' => 'Guided Hikes',
+            //     'description' => 'Guided Hikes Description',
+            //     'season_id' => 1,
+            //     'service_id' => 3,
+            //     'team_id' => 7,
+            // ],
+            // [
+            //     'id' => 4,
+            //     'name' => 'Team Building',
+            //     'description' => 'Team Building Description',
+            //     'season_id' => 1,
+            //     'service_id' => 4,
+            //     'team_id' => 7,
+            // ],
+            // [
+            //     'id' => 5,
+            //     'name' => 'Canopy Tour Photographic Scavenger Hunt',
+            //     'description' => 'Canopy Tour Photographic Scavenger Hunt Description',
+            //     'season_id' => 1,
+            //     'service_id' => 5,
+            //     'team_id' => 7,
+            // ],
+            // [
+            //     'id' => 6,
+            //     'name' => 'Canopy Tour Check-In Progress',
+            //     'description' => 'Canopy Tour Check-In Progress Description',
+            //     'season_id' => 1,
+            //     'service_id' => 6,
+            //     'team_id' => 7,
+            // ],
+        ];
 
+        foreach ($questionnaires as $questionnaire) {
+            Questionnaire::updateOrCreate(['id' => $questionnaire['id']], $questionnaire);
+        }
+
+
+        $this->info('Questionnaires seeded successfully.');
+
+        $questionnaire_fields = [
+            [
+                'id' => 1,
+                'question' => 'Select your Lead Guide',
+                'slug' => 'lead_guide_id',
+                'type_input_id' => 14,
+                'type_data_id' => 3,
+                'options' => [],
+                'type_name' => 'leadGuides',
+                'required' => true,
+                'hidden' => false,
+                'sort_order' => 1,
+                'conditional_logic' => null,
+                'questionnaire_id' => 1,
+            ],
+            [
+                'id' => 2,
+                'question' => 'Select your Safety Guide',
+                'slug' => 'safety_guide_id',
+                'type_input_id' => 15,
+                'type_data_id' => 3,
+                'options' => [],
+                'type_name' => 'safetyGuides',
+                'required' => true,
+                'hidden' => false,
+                'sort_order' => 2,
+                'conditional_logic' => null,
+                'questionnaire_id' => 1,
+            ],
+            [
+                'id' => 3,
+                'question' => 'What kind of a group are you with?',
+                'slug' => 'type_group_id',
+                'type_input_id' => 16,
+                'type_data_id' => 3,
+                'options' => [],
+                'type_name' => 'typeGroup',
+                'required' => true,
+                'hidden' => false,
+                'sort_order' => 3,
+                'conditional_logic' => null,
+                'questionnaire_id' => 1,
+            ],
+            [
+                'id' => 4,
+                'question' => 'Please enter your First and Last name',
+                'slug' => 'full_name',
+                'type_input_id' => 1,
+                'type_data_id' => 1,
+                'required' => true,
+                'hidden' => false,
+                'sort_order' => 4,
+                'conditional_logic' => null,
+                'questionnaire_id' => 1,
+
+            ],
+            [
+                'id' => 5,
+                'question' => 'Age',
+                'slug' => 'age',
+                'type_input_id' => 3,
+                'type_data_id' => 3,
+                'required' => true,
+                'hidden' => false,
+                'sort_order' => 5,
+                'conditional_logic' => null,
+                'questionnaire_id' => 1,
+            ],
+            [
+                'id' => 6,
+                'question' => 'Where did you hear about us',
+                'slug' => 'referral_id',
+                'type_input_id' => 17,
+                'type_data_id' => 3,
+                'options' => [],
+                'required' => true,
+                'hidden' => false,
+                'sort_order' => 6,
+                'conditional_logic' => null,
+                'questionnaire_id' => 1,
+            ],
+            [
+                'id' => 7,
+                'question' => 'Where are you from? Select your Continent',
+                'slug' => 'continent_id',
+                'type_input_id' => 11,
+                'type_data_id' => 3,
+                'options' => [],
+                'type_name' => 'continents',
+                'required' => true,
+                'hidden' => false,
+                'sort_order' => 7,
+                'conditional_logic' => null,
+                'questionnaire_id' => 1,
+            ],
+            [
+                'id' => 8,
+                'question' => 'Country of Residence',
+                'slug' => 'country_id',
+                'type_input_id' => 12,
+                'type_data_id' => 3,
+                'options' => [],
+                'type_name' => 'countries',
+                'required' => true,
+                'hidden' => false,
+                'sort_order' => 8,
+                'conditional_logic' => null,
+                'questionnaire_id' => 1,
+            ],
+            [
+                'id' => 9,
+                'question' => 'Select Province',
+                'slug' => 'province_id',
+                'type_input_id' => 13,
+                'type_data_id' => 3,
+                'options' => [],
+                'type_name' => 'states',
+                'required' => true,
+                'hidden' => false,
+                'sort_order' => 9,
+                'conditional_logic' => null,
+                'questionnaire_id' => 1,
+            ],
+            [
+                'id' => 10,
+                'question' => 'Do you have any medical conditions we should be aware of?',
+                'slug' => 'medical_id',
+                'type_input_id' => 18,
+                'type_data_id' => 3,
+                'options' => ['Yes', 'No'],
+                'type_name' => 'typeConfirmation',
+                'required' => true,
+                'hidden' => false,
+                'sort_order' => 10,
+                'conditional_logic' => null,
+                'questionnaire_id' => 1,
+            ],
+            [
+                'id' => 11,
+                'question' => 'Please let us know what medical conditions you have and confirm that your doctor has agreed that you may partake in this activity?',
+                'slug' => 'medical_detail',
+                'type_input_id' => 1,
+                'type_data_id' => 2,
+                'required' => true,
+                'hidden' => false,
+                'sort_order' => 11,
+                'conditional_logic' => null,
+                'questionnaire_id' => 1,
+            ],
+            [
+                'id' => 12,
+                'question' => 'I am fit enough to walk 1km in steep terrain',
+                'slug' => 'is_fit',
+                'type_input_id' => 18,
+                'type_data_id' => 3,
+                'options' => ['Yes', 'No'],
+                'type_name' => 'typeConfirmation',
+                'required' => true,
+                'hidden' => false,
+                'sort_order' => 12,
+                'conditional_logic' => null,
+                'questionnaire_id' => 1,
+            ],
+            [
+                'id' => 13,
+                'question' => 'Please agree to the following terms and conditions',
+                'description' => 'By accessing and using this website, you acknowledge and agree to the terms outlined in this Indemnity Agreement. This form serves to protect the website owners, administrators, and affiliated parties from any liability arising from the use of the site, its content, or any services provided. By proceeding, you confirm that you understand and accept full responsibility for any risks associated with your use of this website and waive any claims against its owners for potential losses, damages, or liabilities.',
+                'slug' => 'is_agree',
+                'type_input_id' => 18,
+                'type_data_id' => 3,
+                'options' => ['Yes', 'No'],
+                'required' => true,
+                'hidden' => false,
+                'sort_order' => 13,
+                'conditional_logic' => null,
+                'questionnaire_id' => 1,
+            ],
+            [
+                'id' => 14,
+                'question' => 'Please enter your email address',
+                'slug' => 'email_address',
+                'type_input_id' => 1,
+                'type_data_id' => 2,
+                'required' => true,
+                'hidden' => false,
+                'sort_order' => 14,
+                'conditional_logic' => null,
+                'questionnaire_id' => 1,
+            ],
+            [
+                'id' => 15,
+                'question' => 'Please sign below',
+                'slug' => 'signature',
+                'type_input_id' => 10,
+                'type_data_id' => 8,
+                'required' => true,
+                'hidden' => false,
+                'sort_order' => 15,
+                'conditional_logic' => null,
+                'questionnaire_id' => 1,
+            ],
+            [
+                'id' => 16,
+                'question' => 'Phone Number',
+                'slug' => 'phone_number',
+                'type_input_id' => 1,
+                'type_data_id' => 3,
+                'required' => true,
+                'hidden' => false,
+                'sort_order' => 16,
+                'conditional_logic' => null,
+                'questionnaire_id' => 1,
+            ],
+            [
+                'id' => 17,
+                'question' => 'Gender',
+                'slug' => 'gender',
+                'type_input_id' => 18,
+                'type_data_id' => 3,
+                'options' => ['Yes', 'No', 'N/A'],
+                'required' => true,
+                'hidden' => false,
+                'sort_order' => 17,
+                'conditional_logic' => null,
+                'questionnaire_id' => 1,
+            ],
+
+            [
+                'id' => 18,
+                'question' => 'Birth Date',
+                'slug' => 'birth_date',
+                'type_input_id' => 1,
+                'type_data_id' => 1,
+                'required' => true,
+                'hidden' => false,
+                'sort_order' => 18,
+                'conditional_logic' => null,
+                'questionnaire_id' => 1,
+            ],
+            [
+                'id' => 19,
+                'question' => 'Is Minor',
+                'slug' => 'is_minor',
+                'type_input_id' => 18,
+                'type_data_id' => 3,
+                'options' => ['Yes', 'No'],
+                'required' => true,
+                'hidden' => false,
+                'sort_order' => 19,
+                'conditional_logic' => null,
+                'questionnaire_id' => 1,
+            ],
+            [
+                'id' => 20,
+                'question' => 'Recieve Invite',
+                'slug' => 'recieve_invite',
+                'type_input_id' => 18,
+                'type_data_id' => 3,
+                'options' => ['Yes', 'No'],
+                'required' => true,
+                'hidden' => false,
+                'sort_order' => 20,
+                'conditional_logic' => null,
+                'questionnaire_id' => 1,
+            ],
+            [
+                'id' => 21,
+                'question' => 'Helmet Size',
+                'slug' => 'helmet_size',
+                'type_input_id' => 7,
+                'type_data_id' => 3,
+                'options' => [7, 8, 9],
+                'required' => true,
+                'hidden' => false,
+                'sort_order' => 21,
+                'conditional_logic' => null,
+                'questionnaire_id' => 1,
+            ],
+            [
+                'id' => 22,
+                'question' => 'Pully Number',
+                'slug' => 'pully_number',
+                'type_input_id' => 1,
+                'type_data_id' => 1,
+                'required' => true,
+                'hidden' => false,
+                'sort_order' => 22,
+                'conditional_logic' => null,
+                'questionnaire_id' => 1,
+            ],
+        ];
+
+        foreach ($questionnaire_fields as $field) {
+            $questionnaire_field = QuestionnaireField::updateOrCreate(['id' => $field['id']], $field);
+
+            $questionnaire_field->questions()->sync([
+                $field['questionnaire_id'] => [
+                    'required' => $field['required'],
+                    'visable'    => true,
+                    'sort_order' => $field['sort_order'],
+                ]
+            ]);
+        }
 
         $this->info('Core data seeded successfully.');
 

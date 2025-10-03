@@ -17,21 +17,22 @@ class QuestionnaireField extends Model
 
     protected $fillable = [
         'question',
+        'description',
         'slug',
         'options',
-        'required',
-        'hidden',
-        'sort_order',
+        'type_name',
+        'conditional_logic',
         'type_input_id',
         'type_data_id',
-        'questionnaire_id',
         'created_by_id',
         'updated_by_id',
     ];
 
-    public function questionnaire()
+    public function questions()
     {
-        return $this->belongsTo(Questionnaire::class);
+        return $this->belongsToMany(Questionnaire::class)
+            ->withPivot(['required', 'visable', 'sort_order'])
+            ->withTimestamps();
     }
 
     public function typeInput()

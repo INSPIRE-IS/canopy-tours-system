@@ -19,7 +19,7 @@ class BookingQuestionnaire extends Model
         'safety_guide_id',
         'type_group_id',
         'signature',
-        'birth_date',
+        'age',
         'type_referral',
         'country_id',
         'province_id',
