@@ -1,12 +1,27 @@
 // components/ui/Header.tsx
 import { Link } from '@inertiajs/react';
 
-export default function TopNav({ auth }) {
+export default function TopNav({ auth, team }) {
   return (
     <header className="bg-gray-50 sticky top-0 z-50">
       <div className="max-w-screen-xl mx-auto px-4 pt-12 flex justify-between items-center">
         <Link href="/" className="text-xl font-bold text-blue-700">
-          <img src="/images/logo.png" alt="Stormriver Adventures" className="h-10" />
+          {/* <img src="/images/logo.png" alt="Stormriver Adventures" className="h-10" /> */}
+          {team?.file_logo?.path != null ? (
+            <img
+              src={`/storage/${team?.file_logo?.path}`}
+              alt="Canopy Tours"
+              className="h-10"
+            />
+          ) : (
+            <img
+              src="/images/logo.png"
+              alt="Canopy Tours"
+              className="h-10"
+            />
+          )}
+
+
         </Link>
         <nav className="flex gap-6 text-sm text-gray-700">
           <Link href="/" className="hover:text-blue-600">Home</Link>
