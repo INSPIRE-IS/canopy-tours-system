@@ -36,6 +36,7 @@ class ActivityController extends Controller
 
     public function index($team_id = 0)
     {
+
         $teamId = $team_id;
         //dd($request);
 
@@ -113,7 +114,9 @@ class ActivityController extends Controller
             })->filter(); // remove nulls
         });
         //dd($activities);
-        $team = Team::select('id', 'name', 'description', 'image', 'color')->find($teamId);
+        //dd($teamId);
+        $team = Team::select('id', 'name', 'description', 'color')->with('file_image', 'file_logo')->find($teamId);
+        //dd($team);
 
         return Inertia::render('Welcome', [
             'canLogin' => Route::has('login'),

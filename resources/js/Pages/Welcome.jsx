@@ -71,7 +71,7 @@ export default function HomePage({ activities, auth, teams, team_id, team }) {
       <div className="bg-gray-50 sticky top-0 z-50">
         <div className="max-w-screen-xl mx-auto px-4 pt-12 flex justify-between items-center">
           <Link href="/" className="text-xl font-bold text-blue-700">
-            <img src="/images/logo.png" alt="Stormriver Adventures" className="h-10" />
+            <img src={`/storage/${team?.file_logo?.path}`} alt="Canopy Tours" className="h-10" />
           </Link>
           <nav className="flex gap-6 text-sm text-gray-700">
             <Link href="/" className="hover:text-blue-600">Home</Link>
@@ -132,8 +132,8 @@ export default function HomePage({ activities, auth, teams, team_id, team }) {
         <div className="grid md:grid-cols-2 gap-6 items-start">
           <div className="relative rounded-[20px] overflow-hidden shadow-lg h-[400px]">
             <img
-              src="/images/main1.jpg"
-              alt="Stormriver Adventures"
+              src={`/storage/${team?.file_image?.path}`}
+              alt="Canopy Tours"
               className="w-full h-full object-cover"
             />
             <div className="absolute inset-0 bg-black/30 flex flex-col justify-center p-6 text-white">
