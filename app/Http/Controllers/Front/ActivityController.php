@@ -187,6 +187,8 @@ class ActivityController extends Controller
             default => 5
         };
         $endDate = (clone $startDate)->addDays($days - 1);
+        $team = Team::select('id', 'name', 'description', 'color')->with('file_image', 'file_logo')->find($season->team_id);
+
         return Inertia::render('Activities', [
             'canLogin' => Route::has('login'),
             'canRegister' => Route::has('register'),
@@ -206,6 +208,7 @@ class ActivityController extends Controller
             'i_children' => $request->input('children', 0),
             'start_date' => $request->input('start_date', now()),
             'availableTimes' => [],
+            'team' => $team,
         ]);
     }
 

@@ -121,11 +121,16 @@ class BookingsController extends Controller
                 return null;
             }
         });
+
         $lookups = LookupItem::where('is_default', true)->get();
+        $activities = Service::with('seasons')->get();
+
+
         return Inertia::render('Admin/Bookings/Index', [
             'bookings' => $formatted,
             'lookups' => $lookups,
             'services' => $services,
+            'activities' => $activities,
             // 'promotions' => $promotions
         ]);
     }

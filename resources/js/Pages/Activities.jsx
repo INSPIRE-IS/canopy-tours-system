@@ -14,7 +14,7 @@ import BlueButton from '@/Components/BlueButton';
 import GreenButton from '@/Components/GreenButton';
 import WhiteButton from '@/Components/WhiteButton';
 
-export default function ActivitySchedulePage({ activity, auth, activityId, schedule, start_date, i_adults, i_children, view_mode, days, availableTimes }) {
+export default function ActivitySchedulePage({ activity, auth, team, activityId, schedule, start_date, i_adults, i_children, view_mode, days, availableTimes }) {
   console.log('activity', activity);
   console.log('activityId', activityId);
   console.log('start_date', start_date);
@@ -90,22 +90,30 @@ export default function ActivitySchedulePage({ activity, auth, activityId, sched
   return (
     <div className="bg-gray-50 min-h-screen">
       <Head title="Activity" />
-      <TopNav auth={auth} />
+      <TopNav auth={auth} team={team} />
 
       <div className="max-w-screen-xl mx-auto px-4 py-8">
         {/* Jumbo Hero Section */}
         <div className="relative rounded-xl overflow-hidden shadow-lg h-[400px]">
-          <img
-            src="/images/hero.jpg"
-            alt="Tsitsikamma Canopy Tour"
-            className="w-full h-full object-cover"
-          />
+          {team?.file_logo?.path != null ? (
+            <img
+              src={`/storage/${team?.file_image?.path}`}
+              alt="Canopy Tours"
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <img
+              src="/images/hero.jpg"
+              alt="Tsitsikamma Canopy Tour"
+              className="w-full h-full object-cover"
+            />
+          )}
           <div className="absolute inset-0 bg-black/10 flex flex-col justify-center p-6 text-white">
             <h2 className="text-lg font-light">{activity?.service}</h2>
             <h1 className="text-3xl md:text-4xl font-bold">{activity?.season}</h1>
             <p className="mt-2 max-w-md">{activity?.description}</p>
             <div className="mt-4 flex gap-2 items-center justify-start">
-              <WhiteButton
+              {/* <WhiteButton
                 title="View Gallery"
                 className="mt-2"
                 textColor='text-white'
@@ -116,7 +124,7 @@ export default function ActivitySchedulePage({ activity, auth, activityId, sched
                 className="mt-2"
                 textColor='text-white'
                 onClick={() => setShowContent('videoContent')}
-              />
+              /> */}
               {/* <Button onClick={() => setShowContent('galleryContent')} variant="outline" className="bg-white text-blue-600">View Gallery</Button>
               <Button onClick={() => setShowContent('videoContent')} variant="outline" className="bg-white text-blue-600">Watch Video</Button> */}
             </div>

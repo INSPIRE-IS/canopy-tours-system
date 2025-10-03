@@ -5,17 +5,21 @@ import Header from '@/Components/Header';
 import { icons } from '@/icons';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import ManifestsModal from './ManifestsModal';
 import ManifestModal from './ManifestModal';
 import EditTimeSlotModal from './EditTimeSlotModal';
+import NavSelect from '@/Components/NavSelect';
+import CustomInputText from '@/Components/CustomInputText';
+import { format } from 'date-fns';
 // import { useRoute } from 'ziggy-js';
 // import { Ziggy } from '@/ziggy'; // the generated file
 
-export default function Dashboard({ auth, bookings, lookups, services }) {
+export default function Dashboard({ auth, bookings, activities, lookups, services }) {
 
 
     console.log("bookings", bookings)
+    const [filteredBookings, setFilteredBookings] = useState(bookings);
     const [expanded, setExpanded] = useState(null); // track which booking is expanded
     const [toolsCustomer, setToolsCustomer] = useState(null); // null or { id: ..., name: ... }
     const [customerToolsTarget, setCustomerToolsTarget] = useState(null); // { customer, position }
@@ -28,7 +32,9 @@ export default function Dashboard({ auth, bookings, lookups, services }) {
     const [selectedBooking, setSelectedBooking] = useState(null);
     const [selectedManifests, setSelectedManifests] = useState(null);
     const [selectedManifest, setSelectedManifest] = useState(null);
-
+    const [selectedDate, setSelectedDate] = useState(new Date());
+    const [showServices, setShowServices] = useState(false);
+    const servicesRef = useRef();
     const openCustomerToolsModal = (event, index, customer) => {
         event.preventDefault();
         console.log("customer----------tool-------- ", customer)
@@ -70,9 +76,9 @@ export default function Dashboard({ auth, bookings, lookups, services }) {
             setGuestEmailTarget(booking);
             setIsEmailModalOpen(true);
         }
-        if (tool === 'message_staff') {
-            router.get(route('admin.messenger.createTopic'));
-        }
+        // if (tool === 'message_staff') {
+        //     router.get(route('admin.messenger.createTopic'));
+        // }
         if (tool === 'check_in_progress') {
             // router.get(route('admin.bookings.check_in_progress'));
             router.get(route('booking-questionnaire.index'))
@@ -81,7 +87,6 @@ export default function Dashboard({ auth, bookings, lookups, services }) {
             //router.get(route('admin.bookings.manifest_edit'));
             setSelectedManifests(booking.customers);
             setIsManifestsModalOpen(true);
-
         }
         if (tool === 'remove_resource') {
             router.get(route('admin.bookings.remove_resource'));
@@ -89,17 +94,16 @@ export default function Dashboard({ auth, bookings, lookups, services }) {
         if (tool === 'cancel_all_bookings') {
             router.get(route('admin.bookings.cancel_all_bookings'));
         }
-
     };
 
     const CustomerToolClick = (tool, index, customer) => {
-        console.log("-------tool customer clicked-------", tool);
-        console.log("-------tool customer clicked-------", index);
-        console.log("-------tool customer clicked-------", customer);
+        // console.log("-------tool customer clicked-------", tool);
+        // console.log("-------tool customer clicked-------", index);
+        // console.log("-------tool customer clicked-------", customer);
         const booking = bookings[index];
-        console.log("-------tool booking clicked-------", booking);
+        //console.log("-------tool booking clicked-------", booking);
         const customers = bookings[index].customers;
-        console.log("-------tool customers clicked-------", customers);
+        //console.log("-------tool customers clicked-------", customers);
         if (tool === 'check_in') {
             router.get(route('booking-questionnaire.create', { reference: booking.reference }));
         }
@@ -110,9 +114,6 @@ export default function Dashboard({ auth, bookings, lookups, services }) {
             router.get(route('admin.bookings.resend_invoice'));
         }
         if (tool === 'manifest') {
-            //router.get(route('admin.bookings.manifest'));
-
-            console.log('-------customers------', customers);
             setSelectedManifests(customers);
             setSelectedManifest(customer);
             setIsManifestModalOpen(true);
@@ -120,14 +121,110 @@ export default function Dashboard({ auth, bookings, lookups, services }) {
         if (tool === 'customer_invoice') {
             router.get(route('admin.bookings.customer_invoice'));
         }
-        if (tool === 'print_ticket') {
-            router.get(route('admin.bookings.print_ticket'));
-        }
-        if (tool === 'voucher') {
-            router.get(route('admin.bookings.voucher'));
-        }
+        // if (tool === 'print_ticket') {
+        //     router.get(route('admin.bookings.print_ticket'));
+        // }
+        // if (tool === 'voucher') {
+        //     router.get(route('admin.bookings.voucher'));
+        // }
     };
 
+    const handleExportCSV = (bookings) => {
+        const headers = [
+            "Booking ID",
+            "Reference",
+            "Lead Name",
+            "Service",
+            "Time",
+            "Booking Date",
+            "Booking Pax",
+            "Total Price",
+            "Total Paid",
+            "Total Due",
+            "Customer Name",
+            "Customer Email",
+            "Customer Phone",
+            "Customer Age",
+            "Customer Type",
+            "Customer Price",
+            "Customer Paid",
+            "Customer Due",
+            "Notes",
+        ];
+
+        const rows = [];
+
+        bookings.forEach((booking) => {
+            // Booking-level row
+            rows.push([
+                booking.id,
+                booking.reference,
+                booking.lead_name,
+                booking.service,
+                booking.time,
+                booking.booking_date,
+                booking.bookingPax,
+                booking.price,
+                booking.paid,
+                booking.due,
+                "", "", "", "", "", "", "", "", "" // empty customer columns
+            ]);
+
+            // Customer rows indented
+            booking.customers.forEach((cust, idx) => {
+                rows.push([
+                    "", // blank booking ID for nesting effect
+                    booking.reference, // keep reference if you want traceability
+                    idx === 0 ? "Customers:" : "", // only label once
+                    "", "", "", "", "", "", "",
+                    cust.full_name || "Unknown Customer",
+                    cust.email_address || "Unknown Email",
+                    cust.contact_number || "Unknown Phone",
+                    cust.age || "Unknown Age",
+                    cust.type || "Unknown Type",
+                    cust.price,
+                    cust.paid,
+                    cust.due,
+                    cust.notes || "None",
+                ]);
+            });
+        });
+
+        const csvContent =
+            "data:text/csv;charset=utf-8," +
+            [headers, ...rows]
+                .map((e) =>
+                    e.map((v) => `"${v ?? ""}"`).join(",")
+                )
+                .join("\n");
+
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", "bookings_export.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (servicesRef.current && !servicesRef.current.contains(event.target)) {
+                setShowServices(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const handleFilterBookings = (activity_id) => {
+        if (activity_id === '0') {
+            setFilteredBookings(bookings);
+            return;
+        }
+        bookings = bookings.filter(booking => booking.service_id === activity_id);
+        setFilteredBookings(bookings);
+    };
 
     const handleCloseModal = () => {
         setGuestEmailTarget(null);
@@ -143,7 +240,7 @@ export default function Dashboard({ auth, bookings, lookups, services }) {
             header={<h2 className="font-semibold text-xl text-gray-800 leading-tight">Bookings</h2>}
         >
             <Head title="Dashboard" />
-            <div className="bg-white p-6 ">
+            <div className="bg-white min-h-[80%] p-6 ">
                 {/* top */}
                 <div className="flex justify-between items-center mb-6">
                     <span>
@@ -152,10 +249,16 @@ export default function Dashboard({ auth, bookings, lookups, services }) {
 
                     </span>
                     <span className="flex gap-2">
-                        <button className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] border-primary-14 text-primary-14 cursor-pointer">
-                            <img src="/assets/icons/bookings.svg" alt="bookings" className="w-5 h-5" />
-                            <span className="text-btn-outline-gray">01 January 2025</span>
-                        </button>
+                        <div className="flex items-center w-auto h-[40px]">
+                            <input
+                                type='date'
+                                id='selected_date'
+                                name='selected_date'
+                                value={selectedDate ? format(selectedDate, 'yyyy-MM-dd') : ''}
+                                onChange={(e) => { setSelectedDate(e.target.value); }}
+                                className={`w-auto h-[40px] rounded-xl border-[3px] border-primary-14 text-primary-14 cursor-pointer`}
+                            />
+                        </div>
                         <button onClick={() => router.get(route('admin.bookings.create'))} className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-blue-gradient-overlay border-[#3863C6] text-white shadow-inset-white cursor-pointer">
                             <img src="/assets/icons/plus.svg" alt="bookings" className="w-5 h-5" />
                             <span className="text-btn-outline-gray">New Booking</span>
@@ -167,23 +270,38 @@ export default function Dashboard({ auth, bookings, lookups, services }) {
                     </span>
                 </div>
                 {/* bottom */}
-                <div className="bg-white border border-secondary-100">
-                    <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+                <div className="bg-white min-h-[500px] ">
+                    <div className="bg-white overflow-hidden min-h-[500px] shadow-sm sm:rounded-lg">
                         <div className="flex justify-between items-center px-4 pt-4 pb-[9px] ">
                             <span className='flex items-center gap-2'>
                                 <img src="/assets/icons/task-square.svg" alt="bookings" className="w-5 h-5" />
                                 <span className="font-semibold text-lg text-gray-800 block text-start">Bookings</span>
                             </span>
                             <span className="flex gap-2">
+                                <div className="relative" ref={servicesRef}>
+                                    <button onClick={() => setShowServices(!showServices)}
+                                        className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] border-primary-14 text-primary-14 cursor-pointer">
+                                        <img src="/assets/icons/filter.svg" alt="filter" className="w-5 h-5" />
+                                        <span className="text-btn-outline-gray">Filter</span>
+                                    </button>
+                                    {showServices && (
+                                        <div className="absolute top-full mt-2 w-64 bg-white border rounded shadow-lg p-4 z-50">
+                                            <h3 className="text-sm font-semibold text-gray-700 mb-2">Choose a Service</h3>
+                                            <NavSelect key="0" name={'All'} onChange={(e) => handleFilterBookings('0')} />
+                                            {activities?.map((activity, i) => {
+                                                return (
+                                                    <NavSelect key={i} name={activity.name} onChange={() => handleFilterBookings(activity.id)} />
+                                                )
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
                                 <button className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] border-primary-14 text-primary-14 cursor-pointer">
                                     <img src="/assets/icons/search-normal.svg" alt="bookings" className="w-5 h-5" />
                                     <span className="text-btn-outline-gray">Search here</span>
                                 </button>
-                                <button className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] border-primary-14 text-primary-14 cursor-pointer">
-                                    <img src="/assets/icons/filter.svg" alt="filter" className="w-5 h-5" />
-                                    <span className="text-btn-outline-gray">Filter</span>
-                                </button>
-                                <button className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] border-primary-14 text-primary-14 cursor-pointer">
+
+                                <button onClick={() => handleExportCSV(bookings)} className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] border-primary-14 text-primary-14 cursor-pointer">
                                     <img src="/assets/icons/export.svg" alt="export" className="w-5 h-5" />
                                     <span className="text-btn-outline-gray">Export</span>
                                 </button>
@@ -210,7 +328,7 @@ export default function Dashboard({ auth, bookings, lookups, services }) {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100">
-                                    {bookings?.map((item, i) => {
+                                    {filteredBookings?.map((item, i) => {
                                         console.log('item ', item);
 
 
