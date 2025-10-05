@@ -2,7 +2,7 @@
 import CustomerToolsModal from '@/Components/CustomerToolsModal';
 import Header from '@/Components/Header';
 import Calendar from '@/Components/ui/calendar';
-import Button from '@/components/ui/button';
+import Button from '@/Components/ui/button';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import React, { useEffect, useState } from 'react';

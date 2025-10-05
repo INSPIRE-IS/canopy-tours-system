@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, Head, router } from '@inertiajs/react';
-import Card from '@/components/ui/card';
+import Card from '@/Components/ui/card';
 import CustomSelect from '@/Components/CustomSelect';
 import NavSelect from '@/Components/NavSelect';
 import BuyGiftModal from '@/Components/BuyGiftModal';

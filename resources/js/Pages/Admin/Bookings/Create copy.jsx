@@ -2,7 +2,7 @@
 import CustomerToolsModal from '@/Components/CustomerToolsModal';
 import Header from '@/Components/Header';
 import Calendar from '@/Components/ui/calendar';
-import Button from '@/components/ui/button';
+import Button from '@/Components/ui/button';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import React, { useEffect, useState } from 'react';
@@ -394,10 +394,10 @@ export default function Dashboard({ auth, wholesalers = [], services = [], times
                                                             >
                                                                 <div className="w-full h-full flex items-center justify-center">
                                                                     <div className={`p-[6px] text-start w-[135px] h-[99px] cursor-pointer rounded-[10px] space-y-[10px] transition ${selectedSlot?.day === day && selectedSlot?.time === row.time
-                                                                            ? 'bg-[#55FF9E] text-black'
-                                                                            : cell?.status === 'available'
-                                                                                ? 'bg-[#D6FBE6] border border-[#E5E5EC] text-green-700 hover:bg-green-200'
-                                                                                : 'bg-[#FCE4DF] border border-[#E5E5EC] text-gray-400 cursor-not-allowed'
+                                                                        ? 'bg-[#55FF9E] text-black'
+                                                                        : cell?.status === 'available'
+                                                                            ? 'bg-[#D6FBE6] border border-[#E5E5EC] text-green-700 hover:bg-green-200'
+                                                                            : 'bg-[#FCE4DF] border border-[#E5E5EC] text-gray-400 cursor-not-allowed'
                                                                         }`}>
                                                                         {cell?.status === 'available' && (
                                                                             <>
