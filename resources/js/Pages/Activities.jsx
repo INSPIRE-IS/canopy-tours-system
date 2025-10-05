@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { icons } from '@/icons';
-import TopNav from '@/components/TopNav';
-import Button from '@/components/ui/button';
-import Input from '@/components/ui/input';
+import TopNav from '@/Components/TopNav';
+import Button from '@/Components/ui/button';
+import Input from '@/Components/ui/input';
 import Calendar from '@/components/ui/calendar';
 import InfoCard from '@/components/ui/InfoCard';
 import { Head, router } from '@inertiajs/react';
@@ -10,9 +10,9 @@ import { format, set } from 'date-fns';
 import BookingModal from '@/Components/BookingModal';
 import BuyGiftModal from '@/Components/BuyGiftModal';
 import CustomInputText from '@/Components/CustomInputText';
-import BlueButton from '@/Components/BlueButton';
 import GreenButton from '@/Components/GreenButton';
 import WhiteButton from '@/Components/WhiteButton';
+import AlertModal from "@/Components/AlertModal";
 
 export default function ActivitySchedulePage({ activity, auth, team, activityId, schedule, start_date, i_adults, i_children, view_mode, days, availableTimes }) {
   console.log('activity', activity);
@@ -27,23 +27,34 @@ export default function ActivitySchedulePage({ activity, auth, team, activityId,
   const [date, setDate] = useState(formatDate);
   const [adults, setAdults] = useState(i_adults);
   const [children, setChildren] = useState(i_children);
+  const [promoCode, setPromoCode] = useState(null);
+  const [selectedPromo, setSelectedPromo] = useState(null);
+  const [selectedTime, setSelectedTime] = useState(null);
   const [selectedSlot, setSelectedSlot] = useState(null); // stores {date: string, day: string, time: string }
   const [scheduleData, setScheduleData] = useState({ schedule, days });
   const [loading, setLoading] = useState(true);
   const [bookModal, setBookModal] = useState(false);
   const [giftModal, setGiftModal] = useState(false);
   const [showContent, setShowContent] = useState('activityContent');
-
+  const [show, setShow] = useState(false);
+  const [alert, setAlert] = useState({
+    title: "",
+    message: "",
+    type: "success",
+  });
   useEffect(() => {
     loadCalendar();
   }, [date, view_mode, adults, children]);
 
   useEffect(() => {
-    const sum = (Number(adults) * activity.rake_rate_adult + Number(children) * activity.rake_rate_child);
+    let sum = (Number(adults) * activity.rake_rate_adult + Number(children) * activity.rake_rate_child);
+    if (selectedPromo) {
+      sum = sum * (1 - selectedPromo.value / 100);
+    }
     if (sum > 0) {
       setTotal(sum.toFixed(2));
     }
-  }, [adults, children, activity.rake_rate_adult, activity.rake_rate_child]);
+  }, [adults, children, activity.rake_rate_adult, activity.rake_rate_child, selectedPromo]);
 
   const loadCalendar = async () => {
     setLoading(true);
@@ -84,6 +95,7 @@ export default function ActivitySchedulePage({ activity, auth, team, activityId,
       start_date: format(newDate, 'yyyy-MM-dd')
     });
     setSelectedSlot(null); // reset selected slotdatedate.toDateString() // 
+    setSelectedTime(null); // reset selected slotdatedate.toDateString() //
   };
 
 
@@ -173,34 +185,32 @@ export default function ActivitySchedulePage({ activity, auth, team, activityId,
                         children: children
                       });
                       setSelectedSlot(null); // reset selected slotdatedate.toDateString() // 
+                      setSelectedTime(null); // reset selected slotdatedate.toDateString() //
 
                     }}
                   />
 
-                  {/* <Input placeholder="Number of Adults" value={adults} onChange={(e) => setAdults(e.target.value)} />
-                <Input placeholder="Number of Children" value={children} onChange={(e) => setChildren(e.target.value)} />
-                <Calendar selected={date} onSelect={handleDateChange} /> */}
-                  {availableTimes.length > 0 && (
-                    <Select onValueChange={(value) => setSelectedSlot({ date: date.toISOString().split('T')[0], time: value })}>
+                  {/* {availableTimes.length > 0 && (
+                    <Select onValueChange={(value) => { setSelectedSlot({ date: date.toISOString().split('T')[0], time: value }); alert(value); setSelectedTime(value); }}>
                       {availableTimes.map(time => (
                         <SelectItem key={time} value={time}>{time}</SelectItem>
                       ))}
                     </Select>
-                  )}
-                  <BlueButton
-                    title="Find Activities"
-                    onClick={() => router.get(route('front.welcome'), {
-                      activity_id: selectedService,
-                      adults: adults,
-                      children: children,
-                      start_date: date,
-                    })}
+                  )} */}
+                  <CustomInputText
+                    title="Promo code"
+                    id="promoCode"
+                    name="promoCode"
+                    value={promoCode}
+                    onChange={(e) => setPromoCode(e.target.value)}
                   />
+
                   <div className="mt-4">
                     <div className="text-lg font-semibold text-green-700">R {total}</div>
                     <div className="text-sm text-gray-600">{adults} Adults</div>
                     <div className="text-sm text-gray-600">{children} Children</div>
-                    <div className="text-sm text-gray-600">on {date.toLocaleDateString()}</div>
+                    <div className="text-sm text-gray-600">{date.toLocaleDateString()} Date</div>
+                    <div className="text-sm text-gray-600">{selectedTime?.slice(0, 5) ?? 'Select a Time Slot'} Time</div>
                     <GreenButton
                       title="Book Now"
                       icon={true}
@@ -209,6 +219,15 @@ export default function ActivitySchedulePage({ activity, auth, team, activityId,
                       className="mt-2"
                       disabled={!selectedSlot}
                       onClick={() => {
+                        if (!adults || !date || !selectedTime) {
+                          setAlert({
+                            title: "Warning!",
+                            message: "Please select at least one adult and a date and time slot.",
+                            type: "warning",
+                          });
+                          setShow(true);
+                          return;
+                        }
                         setBookModal(true);
                       }}
                     />
@@ -272,19 +291,33 @@ export default function ActivitySchedulePage({ activity, auth, team, activityId,
                                     key={day}
                                     className={`flex-1 items-center justify-center w-[133px] h-[111px] border border-gray-200 cursor-pointer transition `}
                                     onClick={() => {
+                                      setSelectedSlot(null);
+                                      setSelectedTime(null);
+                                      setPromoCode(null);
+                                      setSelectedPromo(null);
                                       if (cell?.status === 'available') {
                                         setSelectedSlot({ date: cell.date, day: day, time: row.time });
+                                        setSelectedTime(row.time);
+                                        if (cell?.promo && cell.promo.value > 0) {
+                                          setPromoCode(cell.promo.promo_code);
+                                          setSelectedPromo(cell.promo);
+                                        }
                                       }
                                     }}
                                   >
                                     <div className="w-full h-full flex items-center justify-center">
-                                      <div className={` p-[6px] text-start w-[135px] h-[99px] cursor-pointer rounded-[10px] space-y-[10px] transition ${selectedSlot?.day === day && selectedSlot?.time === row.time
+                                      <div className={`relative p-[6px] text-start w-[135px] h-[99px] cursor-pointer rounded-[10px] space-y-[10px] transition ${selectedSlot?.day === day && selectedSlot?.time === row.time
                                         ? 'bg-[#55FF9E] text-black'
                                         : cell?.status === 'available'
                                           ? 'bg-[#D6FBE6] border border-[#E5E5EC] text-green-700 hover:bg-green-200'
                                           : 'bg-[#FCE4DF] border border-[#E5E5EC] text-gray-400 cursor-not-allowed'
                                         }`}>
-
+                                        {/* Discount Badge */}
+                                        {cell?.promo && cell.promo.value > 0 && (
+                                          <span className="absolute top-1 right-1 bg-red-500 text-white  text-[10px] px-2 py-[2px] rounded-full shadow z-10">
+                                            -{cell.promo.value}%
+                                          </span>
+                                        )}
                                         {cell?.status === 'available' && (
                                           <>
                                             <div className="text-xs">{row.time.slice(0, 5)}</div>
@@ -293,7 +326,21 @@ export default function ActivitySchedulePage({ activity, auth, team, activityId,
                                             {/* Price with discount handling */}
                                             {cell?.rake_rate_adult && (
                                               <div className="text-xs">
-                                                <span>From R{cell.rake_rate_adult}</span>
+                                                {cell?.promo && cell.promo.value > 0 ? (
+                                                  <>
+                                                    <span className="line-through text-gray-500 mr-1">
+                                                      R{cell.rake_rate_adult}
+                                                    </span>
+                                                    <span className="font-bold text-green-700">
+                                                      R{(
+                                                        cell.rake_rate_adult -
+                                                        (cell.rake_rate_adult * parseFloat(cell.promo.value)) / 100
+                                                      ).toFixed(0)}
+                                                    </span>
+                                                  </>
+                                                ) : (
+                                                  <span>From R{cell.rake_rate_adult}</span>
+                                                )}
                                               </div>
                                             )}
                                           </>
@@ -410,6 +457,8 @@ export default function ActivitySchedulePage({ activity, auth, team, activityId,
           activity={activity}
           adults={adults}
           children={children}
+          promoCode={promoCode}
+          selectedPromo={selectedPromo}
           pricePerAdult={activity.rake_rate_adult}
           pricePerChild={activity.rake_rate_child}
           activityId={activityId}
@@ -423,12 +472,23 @@ export default function ActivitySchedulePage({ activity, auth, team, activityId,
           activityName={activity.service}
           adults={adults}
           children={children}
+          promoCode={promoCode}
+          selectedPromo={selectedPromo}
           pricePerAdult={activity.rake_rate_adult}
           pricePerChild={activity.rake_rate_child}
           activityId={activityId}
           auth={auth}
         />
       )}
+      {show && (
+        <AlertModal
+          type={alert.type}
+          title={alert.title}
+          message={alert.message}
+          onClose={() => setShow(false)}
+        />
+      )}
+
     </div>
   );
 }
