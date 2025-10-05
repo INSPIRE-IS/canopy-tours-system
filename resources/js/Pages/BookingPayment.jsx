@@ -5,7 +5,7 @@ import CustomSelect from '@/Components/CustomSelect';
 import NavSelect from '@/Components/NavSelect';
 import TopNav from '@/Components/TopNav';
 
-export default function ReviewPayment({ auth, booking }) {
+export default function ReviewPayment({ auth, booking, lookups }) {
   //const { props, booking } = usePage();
   console.log('auth ', auth);
   console.log('booking ', booking);
@@ -118,10 +118,12 @@ export default function ReviewPayment({ auth, booking }) {
         <div className="bg-white shadow p-6 rounded-xl space-y-6">
           <div>
             <h2 className="font-semibold">Booking Details</h2>
-            <p><strong>Name:</strong><span className='capitalize'> {booking.lead_name}</span></p>
-            <p><strong>Due Date:</strong> {booking.due_date}</p>
-            <p><strong>Refererence:</strong> {booking.reference}</p>
-            <p><strong>Amount:</strong> R{Number(booking.grand_tot_due).toFixed(2)}</p>
+            <p className='flex w-auto'><strong className='w-[200px] capitalize'>Name:</strong> {booking.lead_name}</p>
+            <p className='flex w-auto'><strong className='w-[200px] capitalize'>Due Date:</strong> {booking.due_date}</p>
+            <p className='flex w-auto'><strong className='w-[200px] capitalize'>Refererence:</strong> {booking.reference}</p>
+            <p className='flex w-auto'><strong className='w-[200px] capitalize'>Amount:</strong> R{Number(booking.grand_tot_due).toFixed(2)}</p>
+            <p className='flex w-auto'><strong className='w-[200px] capitalize'>VAT:</strong> {Number(lookups.rate).toFixed(2)}%</p>
+            <p className='flex w-auto'><strong className='w-[200px] capitalize'>VAT Amount:</strong> R{Number(booking.grand_tot_due * lookups.multiplier).toFixed(2)}</p>
           </div>
 
           <div>

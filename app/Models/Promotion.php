@@ -19,6 +19,7 @@ class Promotion extends Model
         'value',
         'params',
         'service_id',
+        'season_id',
         'booking_start_date',
         'booking_end_date',
         'activity_start_date',
@@ -94,5 +95,43 @@ class Promotion extends Model
         }
 
         return true;
+    }
+
+    public function validateCode($slotDate, $dayNumber, $timeSlot, $activityId)
+    {
+        $today = now()->toDateString();
+
+        // 1. Booking window must include today
+        if ($today < $this->booking_start_date->toDateString() || $today > $this->booking_end_date->toDateString()) {
+            return ['status' => false, 'message' => 'period in valid'];
+        }
+
+        // 2. Activity window must include the slot date
+        $activityStart = $this->activity_start_date;
+        $activityEnd   = $this->activity_end_date;
+
+        if ($slotDate < $activityStart->toDateString() || $slotDate > $activityEnd->toDateString()) {
+            return ['status' => false, 'message' => 'activity in valid'];
+        }
+
+        // 3. Service must match
+        if ($this->service_id != $activityId) {
+            return ['status' => false, 'message' => 'service in valid'];
+        }
+
+        // 4. promo day time slot must match
+        if ($this->promo_day_time_slots->isNotEmpty()) {
+            $valid = $this->promo_day_time_slots
+                ->where('day_id', $dayNumber)
+                ->where('time_slot_id', $timeSlot->id)->first();
+            logger()->info('day time slot valid ', [$valid]);
+            if (!$valid) {
+                return ['status' => false, 'promo' => 'day time slot in valid'];
+            }
+        } else {
+            logger()->info('not checking promo day time slot');
+        }
+
+        return ['status' => true, 'message' => 'valid'];
     }
 }

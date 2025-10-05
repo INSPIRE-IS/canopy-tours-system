@@ -39,6 +39,7 @@ use App\Models\TypeGroup;
 use App\Models\TypeInput;
 use App\Models\File;
 use App\Models\Gateway;
+use App\Models\InvoiceTemplate;
 use App\Models\Lookup;
 use App\Models\LookupItem;
 use App\Models\Promotion;
@@ -48,6 +49,7 @@ use App\Models\StatusPayment;
 use App\Models\TypeConfirmation;
 use App\Models\TypeGender;
 use App\Models\TypeHelpQuestion;
+use App\Models\TypeInvoice;
 use App\Models\TypeLocation;
 use App\Models\TypeReferral;
 use App\Models\VatRate;
@@ -1018,6 +1020,223 @@ class SeedCoreData extends Command
         }
         $this->info('Seasons seeded successfully.');
 
+        $type_invoices = [
+            [
+                'id' => 1,
+                'name' => 'Standard Invoice Inline',
+                'slug' => 'std',
+            ],
+            [
+                'id' => 2,
+                'name' => 'Wholesale Invoice',
+                'slug' => 'wholesale',
+            ],
+            [
+                'id' => 3,
+                'name' => 'Quote',
+                'slug' => 'quote',
+            ],
+            [
+                'id' => 4,
+                'name' => 'Proforma',
+                'slug' => 'proforma',
+            ],
+            [
+                'id' => 5,
+                'name' => 'Receipt',
+                'slug' => 'receipt',
+            ],
+            [
+                'id' => 6,
+                'name' => 'Booking Confirmation',
+                'slug' => 'booking_confirmation',
+            ],
+            [
+                'id' => 7,
+                'name' => 'message Guest',
+                'slug' => 'message_guest',
+            ],
+        ];
+        foreach ($type_invoices as $type_invoice) {
+            TypeInvoice::updateOrCreate(['id' => $type_invoice['id']], $type_invoice);
+        }
+
+
+        $invoice_templates = [
+            [
+                'id' => 1,
+                'name' => 'std',
+                'content' => '<p style="padding-left: 880px;">{{logo}}</p>
+                <p>{{site_name}}</p>
+                <p>{{site_reg_no}} &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
+                    &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
+                    &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
+                    &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
+                    &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;INVOICE</p>
+                <table style="border:1px solid white; border-collapse: collapse; width: 100%;">
+                    <colgroup>
+                        <col style="width: 64.8577%; border:1px solid white;">
+                        <col style="width: 35.1423%; border:1px solid white;">
+                    </colgroup>
+                    <tbody>
+                        <tr>
+                            <td>
+                                <table style="border:1px solid black; border-collapse: collapse; width: 79.3275%; height: 85px;">
+                                    <colgroup>
+                                        <col style="width: 46.5876%;">
+                                        <col style="width: 53.4894%;">
+                                    </colgroup>
+                                    <tbody>
+                                        <tr style="height: 21px;">
+                                            <td>From:</td>
+                                            <td>To:</td>
+                                        </tr>
+                                        <tr style="height: 21px;">
+                                            <td>{{site_name}}</td>
+                                            <td>{{client_name}}</td>
+                                        </tr>
+                                        <tr style="height: 21px;">
+                                            <td>{{site_address}}</td>
+                                            <td>{{client_phone}}</td>
+                                        </tr>
+                                        <tr style="height: 10px;">
+                                            <td>{{site_address_code}}</td>
+                                            <td>{{client_email}}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </td>
+                            <td>
+                                <table style="border:1px solid black; border-collapse: collapse; width: 101.773%; height: 73px;">
+                                    <colgroup>
+                                        <col style="width: 35.0316%;">
+                                        <col style="width: 65.1228%;">
+                                    </colgroup>
+                                    <tbody>
+                                        <tr style="height: 21px;">
+                                            <td>Invoice #:</td>
+                                            <td>{{invoice_number}}</td>
+                                        </tr>
+                                        <tr style="height: 21px;">
+                                            <td>Booking #:</td>
+                                            <td>{{booking_ref}}</td>
+                                        </tr>
+                                        <tr style="height: 21px;">
+                                            <td>Date:</td>
+                                            <td>{{invoice_date}}</td>
+                                        </tr>
+                                        <tr style="height: 10px;">
+                                            <td>Amount Due:</td>
+                                            <td>{{balance_due}}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+                <p>&nbsp;</p>
+                <table style="border:1px solid black; border-collapse: collapse; width: 100%; height: 228px;">
+                    <colgroup>
+                        <col style="width: 20%; border-bottom:1px solid black;">
+                        <col style="width: 20%; border-bottom:1px solid black;">
+                        <col style="width: 20%; border-bottom:1px solid black;">
+                        <col style="width: 20%; border-bottom:1px solid black;">
+                        <col style="width: 20%; border-bottom:1px solid black;">
+                    </colgroup>
+                    <tbody>
+                        <tr style="height: 21px;">
+                            <td style="border: 1px solid black;">Service</td>
+                            <td style="border: 1px solid black;">Adults (Qty)</td>
+                            <td style="border: 1px solid black;">Children (Qty)</td>
+                            <td style="border: 1px solid black;">Guides (Qty)</td>
+                            <td style="border: 1px solid black;">Total Cost (ZAR)</td>
+                        </tr>
+                        <tr style="height: 39px;">
+                            <td style="border: 1px solid black;">{{service_name}}</td>
+                            <td style="border: 1px solid black;">{{service_adults}}</td>
+                            <td style="border: 1px solid black;">{{service_children}}</td>
+                            <td style="border: 1px solid black;">{{service_guides}}</td>
+                            <td style="border: 1px solid black;">{{balance_due}}</td>
+                        </tr>
+                        <tr style="height: 21px;">
+                            <td colspan="2" style="border-bottom: 1px solid white;"></td>
+                            <td style="border: 1px solid black;">Sub-total</td>
+                            <td style="border: 1px solid black;">(Excl VAT)</td>
+                            <td style="border: 1px solid black;">{{amount_ex_vat}}</td>
+                        </tr>
+                        <tr style="height: 21px;">
+                            <td colspan="3"></td>
+                            <td style="border: 1px solid black;">VAT - 15.0%</td>
+                            <td style="border: 1px solid black;">{{vat}}</td>
+                        </tr>
+                        <tr style="height: 21px;">
+                            <td colspan="3"></td>
+                            <td style="border: 1px solid black;">Total:</td>
+                            <td style="border: 1px solid black;">{{balance_due}}</td>
+                        </tr>
+                        <tr style="height: 21px;">
+                            <td colspan="3"></td>
+                            <td style="border: 1px solid black;">Amount Paid:</td>
+                            <td style="border: 1px solid black;">{{amount_paid}}</td>
+                        </tr>
+                        <tr style="height: 21px;">
+                            <td colspan="3"></td>
+                            <td style="border: 1px solid black;">Balance Due:</td>
+                            <td style="border: 1px solid black;">{{balance_due}}</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <p>&nbsp;</p>
+                <table style="border-collapse: collapse; width: 100%;" border="1">
+                    <colgroup>
+                        <col style="width: 51.057%;">
+                        <col style="width: 48.943%;">
+                    </colgroup>
+                    <tbody>
+                        <tr>
+                            <td>NOTES:</td>
+                            <td>Banking Details</td>
+                        </tr>
+                        <tr>
+                            <td>{{notes}}</td>
+                            <td>
+                                <p>Account Owner:&nbsp; {{bank_account_owner}}</p>
+                                <p>Account&nbsp;Number: {{bank_account_no}}</p>
+                                <p>Account Type: {{bank_account_type}}</p>
+                                <p>Bank Name: {{bank_name}}</p>
+                                <p>Branch Code: {{bank_branch_code}}</p>
+                                <p>Reference: {{booking_ref}}</p>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>',
+                'is_default' => 1,
+                'team_id' => 7,
+                'type_invoice_id' => 1,
+            ],
+            [
+                'id' => 2,
+                'name' => 'Booking confirmation',
+                'content' => '<p>Hello {{customer_name}},</p><p>Your booking has been paid.</p><p>Thank you for choosing Canopy Tours.</p><p>Your booking reference is {{booking_reference}}.</p><p>Please Contact us if you have any questions.</p>',
+                'is_default' => 0,
+                'type_invoice_id' => 6,
+                'team_id' => 7,
+            ],
+            [
+                'id' => 3,
+                'name' => 'message guest',
+                'content' => '<p>Hello {{customer_name}},</p><p>Your booking has been paid.</p><p>Thank you for choosing Canopy Tours.</p><p>Your booking reference is {{booking_reference}}.</p><p>Please Contact us if you have any questions.</p>',
+                'is_default' => 0,
+                'team_id' => 7,
+                'type_invoice_id' => 7,
+            ],
+        ];
+
+        foreach ($invoice_templates as $template) {
+            InvoiceTemplate::updateOrCreate(['id' => $template['id']], $template);
+        }
+
         $wholesaler_rates = [
             [
                 'id' => 1,
@@ -1072,262 +1291,6 @@ class SeedCoreData extends Command
         foreach ($wholesaler_rates as $wholesaler_rate) {
             WholesalerRate::updateOrCreate(['id' => $wholesaler_rate['id']], $wholesaler_rate);
         }
-
-        $discounts = [
-            [
-                'id' => 1,
-                'name' => 'Pensioner',
-                'applies_to' => 'line_item',
-                'percent_off' => 8,
-            ],
-            [
-                'id' => 2,
-                'name' => 'Student',
-                'applies_to' => 'line_item',
-                'percent_off' => 5,
-            ],
-            [
-                'id' => 3,
-                'name' => 'Regular',
-                'applies_to' => 'line_item',
-                'percent_off' => 10,
-            ],
-            [
-                'id' => 4,
-                'name' => 'Local',
-                'applies_to' => 'line_item',
-                'percent_off' => 10,
-            ],
-            [
-                'id' => 5,
-                'name' => '3% Invoice Pax(8)',
-                'applies_to' => 'invoice',
-                'percent_off' => 3,
-            ],
-            [
-                'id' => 6,
-                'name' => '5% Invoice Pax(15)',
-                'applies_to' => 'invoice',
-                'percent_off' => 5,
-            ]
-        ];
-
-        foreach ($discounts as $discount) {
-            Discount::updateOrCreate(['id' => $discount['id']], $discount);
-        }
-
-        $discount_services = [
-            [
-                'id' => 1,
-                'discount_id' => 1,
-                'service_id' => 1,
-            ],
-            [
-                'id' => 2,
-                'discount_id' => 2,
-                'service_id' => 1,
-            ],
-            [
-                'id' => 3,
-                'discount_id' => 3,
-                'service_id' => 1,
-            ],
-            [
-                'id' => 4,
-                'discount_id' => 4,
-                'service_id' => 1,
-            ],
-            [
-                'id' => 5,
-                'discount_id' => 5,
-                'service_id' => 1,
-            ],
-            [
-                'id' => 6,
-                'discount_id' => 6,
-                'service_id' => 1,
-            ],
-            [
-                'id' => 7,
-                'discount_id' => 1,
-                'service_id' => 2,
-            ],
-            [
-                'id' => 8,
-                'discount_id' => 2,
-                'service_id' => 2,
-            ],
-            [
-                'id' => 9,
-                'discount_id' => 3,
-                'service_id' => 2,
-            ],
-            [
-                'id' => 10,
-                'discount_id' => 4,
-                'service_id' => 2,
-            ],
-            [
-                'id' => 11,
-                'discount_id' => 5,
-                'service_id' => 2,
-            ],
-            [
-                'id' => 12,
-                'discount_id' => 6,
-                'service_id' => 2,
-            ],
-            [
-                'id' => 13,
-                'discount_id' => 1,
-                'service_id' => 3,
-            ],
-            [
-                'id' => 14,
-                'discount_id' => 2,
-                'service_id' => 3,
-            ],
-            [
-                'id' => 15,
-                'discount_id' => 3,
-                'service_id' => 3,
-            ],
-            [
-                'id' => 16,
-                'discount_id' => 4,
-                'service_id' => 3,
-            ],
-            [
-                'id' => 17,
-                'discount_id' => 5,
-                'service_id' => 3,
-            ],
-            [
-                'id' => 18,
-                'discount_id' => 6,
-                'service_id' => 3,
-            ],
-            [
-                'id' => 19,
-                'discount_id' => 1,
-                'service_id' => 4,
-            ],
-            [
-                'id' => 20,
-                'discount_id' => 2,
-                'service_id' => 4,
-            ],
-        ];
-
-        foreach ($discount_services as $discount_service) {
-            DiscountService::updateOrCreate(['id' => $discount_service['id']], $discount_service);
-        }
-
-        $promotions = [
-            [
-                'id' => 1,
-                'name' => 'Percent',
-                'promo_code' => 'PERCENT',
-                'type' => 'percent',
-                'value' => 10,
-                'params' => null,
-                'service_id' => 1,
-                'booking_start_date' => '2025-08-01',
-                'booking_end_date' => '2025-08-31',
-                'activity_start_date' => '2025-08-01',
-                'activity_end_date' => '2025-08-31',
-                'internal_use_only' => 0,
-            ],
-            [
-                'id' => 2,
-                'name' => 'Fixed Value',
-                'promo_code' => 'FIXED_VALUE',
-                'type' => 'fixed_value',
-                'value' => 10,
-                'params' => null,
-                'service_id' => 1,
-                'booking_start_date' => '2025-08-01',
-                'booking_end_date' => '2025-12-31',
-                'activity_start_date' => '2025-11-01',
-                'activity_end_date' => '2025-12-31',
-                'internal_use_only' => 0,
-            ],
-            [
-                'id' => 3, // {"lookup":{"1":"300","2":"300","3":"300","4":"250","5":"250","6":"200","7":"200","8":"200"}}
-                'name' => 'Graduated',
-                'promo_code' => 'GRADUATED',
-                'type' => 'graduated',
-                'value' => 0,
-                'params' => [
-                    'lookup' => [
-                        '1' => '300',
-                        '2' => '300',
-                        '3' => '300',
-                        '4' => '250',
-                        '5' => '250',
-                        '6' => '200',
-                        '7' => '200',
-                        '8' => '200',
-                    ],
-                ],
-                'service_id' => 1,
-                'booking_start_date' => '2025-08-01',
-                'booking_end_date' => '2025-12-31',
-                'activity_start_date' => '2025-10-01',
-                'activity_end_date' => '2025-12-31',
-                'internal_use_only' => 0,
-            ],
-            [ // {"min_adults":"5","child_discount_percent":"10"} 
-                'id' => 4,
-                'name' => 'Varied Child',
-                'promo_code' => 'VARIED_CHILD',
-                'type' => 'varied_child',
-                'value' => 0,
-                'params' =>
-                [
-                    'min_adults' => 2,
-                    'child_discount_percent' => 20,
-                ],
-                'service_id' => 1,
-                'booking_start_date' => '2025-08-01',
-                'booking_end_date' => '2025-12-31',
-                'activity_start_date' => '2025-11-01',
-                'activity_end_date' => '2025-12-31',
-                'internal_use_only' => 0,
-            ],
-            [
-                'id' => 5, // {"tiers":[{"pax":"6","type":"percent","value":"4"},{"pax":"10","type":"percent","value":"6"},{"pax":"20","type":"percent","value":"8"}]}
-                'name' => 'Volume Discount',
-                'promo_code' => 'VOLUME_DISCOUNT',
-                'type' => 'volume_discount',
-                'value' => 0,
-                'params' => [
-                    'tiers' => [
-                        [
-                            'pax' => 4,
-                            'type' => "percent",
-                            'value' => 5,
-                        ],
-                        [
-                            'pax' => 8,
-                            'type' => "percent",
-                            'value' => 10,
-                        ],
-                    ],
-                ],
-                'service_id' => 1,
-                'booking_start_date' => '2025-08-01',
-                'booking_end_date' => '2025-12-31',
-                'activity_start_date' => '2025-08-01',
-                'activity_end_date' => '2025-12-31',
-                'internal_use_only' => 0,
-            ],
-        ];
-
-        foreach ($promotions as $promo) {
-            Promotion::updateOrCreate(['id' => $promo['id']], $promo);
-        }
-
 
         $inventory = [
             [
@@ -1581,6 +1544,297 @@ class SeedCoreData extends Command
         foreach ($closeoutDayTimeSlots as $closeoutDayTimeSlot) {
             CloseoutDayTimeSlot::updateOrCreate(['id' => $closeoutDayTimeSlot['id']], $closeoutDayTimeSlot);
         }
+
+        $discounts = [
+            [
+                'id' => 1,
+                'name' => 'Pensioner',
+                'applies_to' => 'line_item',
+                'percent_off' => 8,
+            ],
+            [
+                'id' => 2,
+                'name' => 'Student',
+                'applies_to' => 'line_item',
+                'percent_off' => 5,
+            ],
+            [
+                'id' => 3,
+                'name' => 'Regular',
+                'applies_to' => 'line_item',
+                'percent_off' => 10,
+            ],
+            [
+                'id' => 4,
+                'name' => 'Local',
+                'applies_to' => 'line_item',
+                'percent_off' => 10,
+            ],
+            [
+                'id' => 5,
+                'name' => '3% Invoice Pax(8)',
+                'applies_to' => 'invoice',
+                'percent_off' => 3,
+            ],
+            [
+                'id' => 6,
+                'name' => '5% Invoice Pax(15)',
+                'applies_to' => 'invoice',
+                'percent_off' => 5,
+            ]
+        ];
+
+        foreach ($discounts as $discount) {
+            Discount::updateOrCreate(['id' => $discount['id']], $discount);
+        }
+
+        $discount_services = [
+            [
+                'id' => 1,
+                'discount_id' => 1,
+                'service_id' => 1,
+            ],
+            [
+                'id' => 2,
+                'discount_id' => 2,
+                'service_id' => 1,
+            ],
+            [
+                'id' => 3,
+                'discount_id' => 3,
+                'service_id' => 1,
+            ],
+            [
+                'id' => 4,
+                'discount_id' => 4,
+                'service_id' => 1,
+            ],
+            [
+                'id' => 5,
+                'discount_id' => 5,
+                'service_id' => 1,
+            ],
+            [
+                'id' => 6,
+                'discount_id' => 6,
+                'service_id' => 1,
+            ],
+            [
+                'id' => 7,
+                'discount_id' => 1,
+                'service_id' => 2,
+            ],
+            [
+                'id' => 8,
+                'discount_id' => 2,
+                'service_id' => 2,
+            ],
+            [
+                'id' => 9,
+                'discount_id' => 3,
+                'service_id' => 2,
+            ],
+            [
+                'id' => 10,
+                'discount_id' => 4,
+                'service_id' => 2,
+            ],
+            [
+                'id' => 11,
+                'discount_id' => 5,
+                'service_id' => 2,
+            ],
+            [
+                'id' => 12,
+                'discount_id' => 6,
+                'service_id' => 2,
+            ],
+            [
+                'id' => 13,
+                'discount_id' => 1,
+                'service_id' => 3,
+            ],
+            [
+                'id' => 14,
+                'discount_id' => 2,
+                'service_id' => 3,
+            ],
+            [
+                'id' => 15,
+                'discount_id' => 3,
+                'service_id' => 3,
+            ],
+            [
+                'id' => 16,
+                'discount_id' => 4,
+                'service_id' => 3,
+            ],
+            [
+                'id' => 17,
+                'discount_id' => 5,
+                'service_id' => 3,
+            ],
+            [
+                'id' => 18,
+                'discount_id' => 6,
+                'service_id' => 3,
+            ],
+            [
+                'id' => 19,
+                'discount_id' => 1,
+                'service_id' => 4,
+            ],
+            [
+                'id' => 20,
+                'discount_id' => 2,
+                'service_id' => 4,
+            ],
+        ];
+
+        foreach ($discount_services as $discount_service) {
+            DiscountService::updateOrCreate(['id' => $discount_service['id']], $discount_service);
+        }
+
+        $promotions = [
+            [
+                'id' => 1,
+                'name' => 'Percent',
+                'promo_code' => 'PERCENT',
+                'type' => 'percent',
+                'value' => 10,
+                'params' => null,
+                'service_id' => 1,
+                'booking_start_date' => '2025-08-01',
+                'booking_end_date' => '2025-08-31',
+                'activity_start_date' => '2025-08-01',
+                'activity_end_date' => '2025-08-31',
+                'internal_use_only' => 0,
+            ],
+            [
+                'id' => 2,
+                'name' => 'Fixed Value',
+                'promo_code' => 'FIXED_VALUE',
+                'type' => 'fixed_value',
+                'value' => 10,
+                'params' => null,
+                'service_id' => 1,
+                'booking_start_date' => '2025-08-01',
+                'booking_end_date' => '2025-12-31',
+                'activity_start_date' => '2025-11-01',
+                'activity_end_date' => '2025-12-31',
+                'internal_use_only' => 0,
+            ],
+            [
+                'id' => 3, // {"lookup":{"1":"300","2":"300","3":"300","4":"250","5":"250","6":"200","7":"200","8":"200"}}
+                'name' => 'Graduated',
+                'promo_code' => 'GRADUATED',
+                'type' => 'graduated',
+                'value' => 0,
+                'params' => [
+                    'lookup' => [
+                        '1' => '300',
+                        '2' => '300',
+                        '3' => '300',
+                        '4' => '250',
+                        '5' => '250',
+                        '6' => '200',
+                        '7' => '200',
+                        '8' => '200',
+                    ],
+                ],
+                'service_id' => 1,
+                'booking_start_date' => '2025-08-01',
+                'booking_end_date' => '2025-12-31',
+                'activity_start_date' => '2025-10-01',
+                'activity_end_date' => '2025-12-31',
+                'internal_use_only' => 0,
+            ],
+            [ // {"min_adults":"5","child_discount_percent":"10"} 
+                'id' => 4,
+                'name' => 'Varied Child',
+                'promo_code' => 'VARIED_CHILD',
+                'type' => 'varied_child',
+                'value' => 0,
+                'params' =>
+                [
+                    'min_adults' => 2,
+                    'child_discount_percent' => 20,
+                ],
+                'service_id' => 1,
+                'booking_start_date' => '2025-08-01',
+                'booking_end_date' => '2025-12-31',
+                'activity_start_date' => '2025-11-01',
+                'activity_end_date' => '2025-12-31',
+                'internal_use_only' => 0,
+            ],
+            [
+                'id' => 5, // {"tiers":[{"pax":"6","type":"percent","value":"4"},{"pax":"10","type":"percent","value":"6"},{"pax":"20","type":"percent","value":"8"}]}
+                'name' => 'Volume Discount',
+                'promo_code' => 'VOLUME_DISCOUNT',
+                'type' => 'volume_discount',
+                'value' => 0,
+                'params' => [
+                    'tiers' => [
+                        [
+                            'pax' => 4,
+                            'type' => "percent",
+                            'value' => 5,
+                        ],
+                        [
+                            'pax' => 8,
+                            'type' => "percent",
+                            'value' => 10,
+                        ],
+                    ],
+                ],
+                'service_id' => 1,
+                'booking_start_date' => '2025-08-01',
+                'booking_end_date' => '2025-12-31',
+                'activity_start_date' => '2025-08-01',
+                'activity_end_date' => '2025-12-31',
+                'internal_use_only' => 0,
+            ],
+            [
+                'id' => 6,
+                'name' => 'Time Slot Oct 10am',
+                'promo_code' => 'OCT-10/15',
+                'type' => 'time_slot',
+                'value' => 15.00,
+                'params' => null,
+                'service_id' => 1,
+                'season_id' => 1,
+                'booking_start_date' => '2025-10-01',
+                'booking_end_date' => '2025-10-31',
+                'activity_start_date' => '2025-10-01',
+                'activity_end_date' => '2025-10-31',
+                'internal_use_only' => 0,
+            ],
+
+        ];
+
+        foreach ($promotions as $promo) {
+            $promo = Promotion::updateOrCreate(['id' => $promo['id']], $promo);
+
+            if ($promo->type == 'time_slot') {
+                $promo->promo_day_time_slots()->updateOrCreate([
+                    'day_id' => 4,
+                    'time_slot_id' => 1,
+                    'promotion_id' => $promo['id'],
+                ]);
+
+                $promo->promo_day_time_slots()->updateOrCreate([
+                    'day_id' => 3,
+                    'time_slot_id' => 1,
+                    'promotion_id' => $promo['id'],
+                ]);
+                $promo->promo_day_time_slots()->updateOrCreate([
+                    'day_id' => 2,
+                    'time_slot_id' => 1,
+                    'promotion_id' => $promo['id'],
+                ]);
+            }
+        }
+
 
         $customers = [
             [

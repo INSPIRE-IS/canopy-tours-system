@@ -3,13 +3,31 @@ import React from 'react';
 import GreenButton from '../GreenButton';
 import WhiteButton from '../WhiteButton';
 
-const Card = ({ image, service, season, price, badge, tag, gift, onBook, onGift }) => {
+const Card = ({ image, service, season, price, badge, promo, tag, gift, onBook, onGift }) => {
   return (
     <div className="border rounded-xl overflow-hidden shadow bg-white">
       {/* Image with dark overlay */}
-      <div>
+      <div className="relative">
         <img src={image} alt={season} className="w-full h-48 object-cover" />
-
+        {promo && (
+          <div className="absolute inset-0 bg-black bg-opacity-40 flex flex-col items-center justify-center">
+            <span
+              className="text-md font-bold text-white px-3 py-2 rounded" title={promo?.promo_code}
+            >Promotion: {promo?.name}</span>
+            <span
+              className="text-sm font-bold text-white px-3 py-2 rounded"
+            >{promo?.value} %</span>
+            <span
+              className="text-xl font-bold text-white px-3 py-2 rounded"
+            >Booking now</span>
+            <p className="text-sm font-bold text-white px-3 py-2 rounded">
+              Booking Period: {promo?.booking_start_date.split('T')[0]} to {promo?.booking_end_date.split('T')[0]}
+            </p>
+            <p className="text-sm font-bold text-white px-3 py-2 rounded">
+              Booking Activity: {promo?.activity_start_date.split('T')[0]} to {promo?.activity_end_date.split('T')[0]}
+            </p>
+          </div>
+        )}
       </div>
       <div className="p-4">
 

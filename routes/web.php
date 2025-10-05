@@ -68,6 +68,8 @@ Route::redirect('/', '/front/welcome');
 Route::get('/front/welcome/{team_id?}', [ActivityController::class, 'index'])->name('front.welcome');
 Route::get('/activity', [ActivityController::class, 'activity'])->name('front.activity');
 Route::get('/activity/calendar', [ActivityController::class, 'calendar'])->name('front.activity.calendar');
+// Route::get('/front/activity/selected-promo/{promo_id}', [ActivityController::class, 'selectedPromo']);
+Route::get('/front/activity/selected-promo', [ActivityController::class, 'selectedPromo']);
 Route::post('/booking/store', [ActivityController::class, 'store'])->name('front.booking.store');
 Route::post('/booking/gift-store', [ActivityController::class, 'storeGift'])->name('front.booking.gift-store');
 

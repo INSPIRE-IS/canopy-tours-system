@@ -9,11 +9,17 @@ use App\Models\BookingPayment;
 use App\Models\Customer;
 use App\Models\Email;
 use App\Models\GiftVoucher;
+use App\Models\Invoice;
+use App\Mail\InvoiceMail;
 use App\Models\InvoiceTemplate;
+use App\Models\LookupItem;
 use App\Models\Team;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Facades\Log;
 use Str;
 
 class PaymentController extends Controller
@@ -26,9 +32,11 @@ class PaymentController extends Controller
         if ($sessionId != $booking->session_id || $booking->status_payment_id != 1) {
             return redirect()->route('front.welcome');
         }
+        $lookups = LookupItem::where('is_default', true)->where('slug', '=', 'vat_rate')->first();
 
         return Inertia::render('BookingPayment', [
             'booking' => $booking->load('booking_items', 'booking_items.customers', 'booking_items.booking_fee'),
+            'lookups' => $lookups,
         ]);
     }
 
@@ -36,6 +44,7 @@ class PaymentController extends Controller
     {
         //dd($gift);
         $sessionId = session()->getId() ?? null;
+        $lookups = LookupItem::where('is_default', true)->where('slug', '=', 'vat_rate')->first();
         //logger()->info('sessionId inertia ' . $sessionId);
         if ($sessionId != $gift->session_id || $gift->status_payment_id != 1) {
             return redirect()->route('front.welcome');
@@ -57,14 +66,17 @@ class PaymentController extends Controller
                 'status_payment_id' => 2, // e.g., "paid"
                 'tot_paid' => $booking->grand_tot_due,
             ]);
-
+            $lookups = LookupItem::where('is_default', true)->where('slug', '=', 'vat_rate')->first();
             $payment = BookingPayment::updateOrCreate(
                 ['booking_id' => $booking->id,],
                 [
                     'type_pay_option_id'   => 2,     // or 'Pay Offline'
                     'type_payment_id' => 3, // credit card
-                    'status_payment_id' => 2,        // 'paid', 'failed', 'cancelled'
-                    'amount'         => $booking->grand_tot_due,          // full amount due or partial
+                    'status_payment_id' => 2,  // 'paid', 'failed', 'cancelled'
+                    'ex_vat_amount'         => $booking->grand_tot_due, // full amount due or partial
+                    'lookup_item_id' => $lookups->id,
+                    'vat' => $lookups->rate,
+                    'vat_amount' => ($booking->grand_tot_due * $lookups->multiplier),
                     'reference'      => $booking->reference, // Str::uuid(),      // can be order ref or external tx
                     'gateway_id'        => 1,        // PayFast
                     'meta'           => json_encode(['ip' => request()->ip()]),
@@ -90,6 +102,7 @@ class PaymentController extends Controller
             $customer = Customer::findOrFail($booking->customer_id);
             $recipient = $customer->email_address;
             $subject = 'Payment Confirmation';
+            //TODO : update to use template invoice
             $content = "
                 <p>Hello {$customer->full_name},</p>
                 <p>Your booking has been paid.</p>
@@ -113,6 +126,84 @@ class PaymentController extends Controller
 
             Mail::to($recipient)->send(new MessageGuestMail($subject, $content));
 
+            $invoice = Invoice::where('booking_id', $booking->id)->first();
+            $customer = Customer::where('id', $booking->customer_id)->first();
+            $site = Team::select('full_name', 'reg_no', 'address', 'address_code', 'account_owner', 'account_number', 'account_type', 'bank_name', 'branch_code')
+                ->find($invoice->team_id);
+            $items = $booking?->booking_items->first();
+            $data = [
+                'site' => [
+                    'name' => $site->full_name,
+                    'reg_no' => $site->reg_no,
+                    'address' => $site->address,
+                    'address_code' => $site->address_code,
+                ],
+                'client' => [
+                    'name' => $customer->full_name,
+                    'phone' => $customer->contact_number,
+                    'email' => $customer->email_address,
+                ],
+                'invoice' => [
+                    'number' => $invoice->invoice_number,
+                    'date'   => $invoice->invoice_date,
+                ],
+                'booking' => [
+                    'ref' => $booking->reference,
+                ],
+                'service' => [
+                    'name' => $items->service->name,
+                    'adults' => $items->pax_adults,
+                    'children' => $items->pax_children,
+                    'guides' => $items->pax_guides,
+                ],
+                'amount_ex_vat' => $booking->grand_tot_due,
+                'vat'           => $booking->grand_tot_due * 0.15,
+                'amount_paid'   => $booking->tot_paid,
+                'balance_due'   => ($booking->grand_tot_due * 1.15) - $booking->tot_paid,
+                'notes'         => 'Please pay within 7 days.',
+                'logo'          => '<img src="logo.png" alt="Logo" style="max-height:50px;">',
+                'bank' => [
+                    'account_owner' => $site->account_owner,
+                    'account_no' => $site->account_number,
+                    'account_type'   => $site->account_type,
+                    'name'   => $site->bank_name,
+                    'branch_code' => $site->branch_code,
+                ],
+                //     'items' => [
+                //         ['description' => 'Adult Ticket', 'qty' => 4, 'price' => 'R600.00', 'subtotal' => 'R2400.00'],
+                //     ],                    
+            ];
+            $template = InvoiceTemplate::where('is_default', true)->where('type_invoice_id', 1)->first();
+            $renderer = app(\App\Services\TemplateRenderer::class);
+            $html = $renderer->render($template->content, $data);
+
+            // // generate PDF
+            $pdf = Pdf::loadHTML($html);
+            // 🔹 save PDF locally
+            $filename = 'invoices/' . $data['invoice']['number'] . '.pdf';
+            Storage::disk('local')->put($filename, $pdf->output());
+            // send mail
+            // 🔹 log in emails table
+            Email::create([
+                'sender'         => config('mail.from.address'),
+                'receiver'       => $customer->email_address,
+                'subject'        => 'Test Invoice ' . $data['invoice']['number'],
+                'body'           => strip_tags($html), // or a summary
+                'attachment_path' => $filename,
+                'sent'           => true,
+                'sent_at'        => now(),
+                'user_id'        => null,
+                'auditable_type' => 'App\Models\Booking',
+                'auditable_id'   => $booking->id,
+                'team_id'        => $invoice->team_id,
+            ]);
+
+            // //send mail
+            $sent = Mail::to($customer->email_address)->send(new InvoiceMail($data, $pdf));
+
+            Log::info('invoice email sent', [
+                'sent' => $sent,
+            ]);
 
             return Inertia::render('SimulatedPayment', [
                 'booking' => $booking,
@@ -129,6 +220,7 @@ class PaymentController extends Controller
 
             $recipient = $voucher->email_address;
             $subject = 'Payment Confirmation';
+            //TODO : update to use template invoice
             $content = "
                 <p>Hello {$voucher->full_name},</p>
                 <p>Your booking has been paid.</p>

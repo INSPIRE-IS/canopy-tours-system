@@ -286,7 +286,7 @@ export default function AppLayout({ user, children }) {
                                 </span>
                                 <span className="menu-label text-entity-name">{auth?.user?.team?.name ?? 'All'}</span>
                             </span>
-                            <span className="arrow transform transition-transform duration-300 group-[data-open=true]:!rotate-90">
+                            <span className="arrow transform transition-transform duration-300">
                                 <img src="/assets/icons/arrow-down.svg" alt="My Icon" className="w-5 h-5" />
                             </span>
                         </button>
@@ -448,7 +448,7 @@ export default function AppLayout({ user, children }) {
                             data-target="submenu-dashboard-21"
                             className={`${isOpen ? 'px-3' : 'px-1.5'} group menu-link flex items-center py-2 hover:bg-secondary-200 rounded-lg`}>
                             <span className="flex items-center gap-2">
-                                <span className="light-icon transition-colors duration-300 text-primary-0 group-[data-open=true]:text-black">
+                                <span className="light-icon transition-colors duration-300 text-primary-0">
                                     <img src="/assets/icons/logout.svg" alt="Logout" className="w-5 h-5" />
                                 </span>
                                 <span className={`${isOpen ? '' : 'hidden'} text-menu-heading`} >Logout</span>

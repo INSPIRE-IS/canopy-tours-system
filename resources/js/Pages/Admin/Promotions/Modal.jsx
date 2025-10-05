@@ -11,36 +11,58 @@ import VolumeDiscountEditor from "@/Components/VolumeDiscountEditor";
 const Modal = ({ isOpen, onClose, mode, item = null, services }) => {
 
   const { data, setData, post, put, errors, reset, processing } = useForm({});
-  const [checkDays, setCheckDays] = useState([]);  
+  const [checkDays, setCheckDays] = useState([]);
+  const [checkTimes, setCheckTimes] = useState([]);
+  const [seasons, setSeasons] = useState(null);
+  const [inventories, setInventories] = useState(null);
   console.log('item ', item);
   console.log('services ', services);
 
   useEffect(() => {
     if (item && mode !== "create") {
+      console.log('---------item-------', item);
       setData({ ...item });
       setCheckDays(item.valid_days ? item.valid_days.split(",") : []);
     } else if (mode === "create") {
       reset();
       setCheckDays([]);
+      setCheckTimes([]);
+      setSeasons([]);
+      setInventories([]);
     }
   }, [mode, item]);
 
-  const handleChange = (target, value) =>  setData(target, value);
+  useEffect(() => {
+    if (data.service_id) {
+      setCheckDays([]);
+      setCheckTimes([]);
+      setSeasons([]);
+      setInventories([]);
+      const service = services.find(s => s.id == data.service_id);
+      console.log('seasons', service?.seasons);
+      setSeasons(service?.seasons);
+    };
+  }, [data.service_id]);
 
-  const handleCheckChange = (day,value) => {
-    setCheckDays((prev) =>
-      prev.includes(day)
-        ? prev.filter((d) => d !== day) // remove if already checked
-        : [...prev, day]                // add if not checked
-    );
-  };
+  useEffect(() => {
+    if (data.season_id) {
+      setCheckDays([]);
+      setCheckTimes([]);
+      setInventories([]);
+      const season = seasons.find(s => s.id == data.season_id);
+      console.log('time_slots', season?.inventory?.inventory_time_slots);
+      setInventories(season?.inventory?.inventory_time_slots);
+    };
+  }, [data.season_id]);
 
+  const handleChange = (target, value) => setData(target, value);
 
 
   const handleSubmit = (e) => {
     e.preventDefault();
     //console.log('checkDays ', checkDays);
     data.valid_days = checkDays.join(',');
+    data.valid_slots = checkTimes.join(',');
     // --- Validate booking & activity dates ---
     const { booking_start_date, booking_end_date, activity_start_date, activity_end_date } = data;
 
@@ -97,7 +119,7 @@ const Modal = ({ isOpen, onClose, mode, item = null, services }) => {
                 mode={mode}
                 onChange={(e) => handleChange(e.target.name, e.target.value)}
                 errors={errors}
-              />              
+              />
               <CustomSelect
                 label="Type"
                 name="type"
@@ -108,33 +130,47 @@ const Modal = ({ isOpen, onClose, mode, item = null, services }) => {
                   { id: 'fixed_value', name: 'Fixed Value' },
                   { id: 'graduated', name: 'Graduated (per pax)' },
                   { id: 'varied_child', name: 'Varied Child (by adults)' },
-                  { id: 'volume_discount', name: 'Volume Discount' }
+                  { id: 'volume_discount', name: 'Volume Discount' },
+                  { id: 'time_slot', name: 'Time Slot' },
                 ]}
                 onChange={(e) => handleChange(e.target.name, e.target.value)}
                 errors={errors}
               />
-            </div>            
-            <div className="flex flex-row w-full items-center gap-2 justify-between mb-4">
-              <CustomInputText title="Name" name="name" value={data.name} mode={mode} onChange={(e) => {handleChange(e.target.name, e.target.value);}} errors={errors} />
-              <CustomInputText title="Promo Code" name="promo_code" value={data.promo_code} mode={mode} onChange={(e) => {handleChange(e.target.name, e.target.value);}} errors={errors} />    
             </div>
-                <span className="text-booking-card-title">Booking Dates</span>
             <div className="flex flex-row w-full items-center gap-2 justify-between mb-4">
-              <CustomInputText title="Start Date (YYYY-MM-DD)" type="date" name="booking_start_date" value={data.booking_start_date} mode={mode} onChange={(e) => {handleChange(e.target.name, e.target.value);}} errors={errors} />  
-              <CustomInputText title="End Date (YYYY-MM-DD)" type="date" name="booking_end_date" value={data.booking_end_date} mode={mode} onChange={(e) => {handleChange(e.target.name, e.target.value);}} errors={errors} />            
+              <CustomInputText title="Name" name="name" value={data.name} mode={mode} onChange={(e) => { handleChange(e.target.name, e.target.value); }} errors={errors} />
+              <CustomInputText title="Promo Code" name="promo_code" value={data.promo_code} mode={mode} onChange={(e) => { handleChange(e.target.name, e.target.value); }} errors={errors} />
+            </div>
+            <span className="text-booking-card-title">Booking Dates</span>
+            <div className="flex flex-row w-full items-center gap-2 justify-between mb-4">
+              <CustomInputText title="Start Date (YYYY-MM-DD)" type="date" name="booking_start_date" value={data.booking_start_date} mode={mode} onChange={(e) => { handleChange(e.target.name, e.target.value); }} errors={errors} />
+              <CustomInputText title="End Date (YYYY-MM-DD)" type="date" name="booking_end_date" value={data.booking_end_date} mode={mode} onChange={(e) => { handleChange(e.target.name, e.target.value); }} errors={errors} />
             </div>
             <span className="text-booking-card-title">Activity Dates</span>
             <div className="flex flex-row w-full items-center gap-2 justify-between mb-4">
-              <CustomInputText title="Start Date (YYYY-MM-DD)" type="date" name="activity_start_date" value={data.activity_start_date} mode={mode} onChange={(e) => {handleChange(e.target.name, e.target.value);}} errors={errors} />
-              <CustomInputText title="End Date (YYYY-MM-DD)" type="date" name="activity_end_date" value={data.activity_end_date} mode={mode} onChange={(e) => {handleChange(e.target.name, e.target.value);}} errors={errors} />            
+              <CustomInputText title="Start Date (YYYY-MM-DD)" type="date" name="activity_start_date" value={data.activity_start_date} mode={mode} onChange={(e) => { handleChange(e.target.name, e.target.value); }} errors={errors} />
+              <CustomInputText title="End Date (YYYY-MM-DD)" type="date" name="activity_end_date" value={data.activity_end_date} mode={mode} onChange={(e) => { handleChange(e.target.name, e.target.value); }} errors={errors} />
             </div>
+            {data?.type === 'time_slot' && (
+              <div className="flex flex-row w-full items-center gap-2 justify-between mb-4">
+                <CustomSelect
+                  label="Season"
+                  name="season_id"
+                  value={data.season_id}
+                  options={seasons}
+                  mode={mode}
+                  onChange={(e) => handleChange(e.target.name, e.target.value)}
+                  errors={errors}
+                />
+              </div>
+            )}
             <div className="flex gap-2 flex-wrap mb-4">
-              {["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map((day, idx) => (
+              {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day, idx) => (
                 <CustomCheckbox
                   key={idx}
                   label={day}
-                  name={(idx+1).toString()}
-                  checked={checkDays.includes((idx+1).toString())}
+                  name={(idx + 1).toString()}
+                  checked={checkDays.includes((idx + 1).toString())}
                   onChange={(name, val) =>
                     setCheckDays((prev) =>
                       prev.includes(name) ? prev.filter((d) => d !== name) : [...prev, name]
@@ -142,70 +178,29 @@ const Modal = ({ isOpen, onClose, mode, item = null, services }) => {
                   }
                 />
               ))}
-            </div>        
-
-            {/* <div className="flex flex-row w-[90%] items-center justify-evenly gap-2 mb-4">
-              <CustomCheckbox
-                  label="Mon"
-                  name="1"
-                  checked={checkDays.includes('1')}
-                  mode={mode}
-                  onChange={handleCheckChange}
-                  errors={errors}
-              />
-              <CustomCheckbox
-                  label="Tue"
-                  name="2"
-                  checked={checkDays.includes('2')}
-                  mode={mode}
-                  onChange={handleCheckChange}
-                  errors={errors}
-              />
-              <CustomCheckbox
-                  label="Wed"
-                  name="3"
-                  checked={checkDays.includes('3')}
-                  mode={mode}
-                  onChange={handleCheckChange}
-                  errors={errors}
-              />
-              <CustomCheckbox
-                  label="Thur"
-                  name="4"
-                  checked={checkDays.includes('4')}
-                  mode={mode}
-                  onChange={handleCheckChange}
-                  errors={errors}
+            </div>
+            <div className="flex gap-2 flex-wrap mb-4">
+              {inventories?.map((time, idx) => {
+                console.log('time', time);
+                return (
+                  <CustomCheckbox
+                    key={idx}
+                    label={time?.start_time.slice(0, 5)}
+                    name={(idx + 1).toString()}
+                    checked={checkTimes.includes((idx + 1).toString())}
+                    onChange={(name, val) =>
+                      setCheckTimes((prev) =>
+                        prev.includes(name) ? prev.filter((d) => d !== name) : [...prev, name]
+                      )
+                    }
                   />
-              <CustomCheckbox
-                  label="Fri"
-                  name="5"
-                  checked={checkDays.includes('5')}
-                  mode={mode}
-                  onChange={handleCheckChange}
-                  errors={errors}
-              />
-              <CustomCheckbox
-                  label="Sat"
-                  name="6"
-                  checked={checkDays.includes('6')}
-                  mode={mode}
-                  onChange={handleCheckChange}
-                  errors={errors}
-              />
-              <CustomCheckbox
-                  label="Sun"
-                  name="7"
-                  checked={checkDays.includes('7')}
-                  mode={mode}
-                  onChange={handleCheckChange}
-                  errors={errors}
-              />
-            </div> */}
+                )
+              })}
+            </div>
             {/* <div className="flex flex-row w-full items-center gap-2 justify-between mb-4">
               <CustomInputText title="Value" name="value" value={data.value} mode={mode} onChange={(e) => {handleChange(e.target.name, e.target.value);}} errors={errors} />
             </div> */}
-            {data.type === 'percent' && (
+            {data.type === 'percent' || data.type === 'time_slot' && (
               <CustomInputText
                 title="Percent Off (%)"
                 type="number"
@@ -265,16 +260,14 @@ const Modal = ({ isOpen, onClose, mode, item = null, services }) => {
             )}
 
 
-
-
             <div className="flex flex-row w-full items-center gap-2 justify-between mb-4">
               <CustomCheckbox
-                  label="Internal Use Only"
-                  name="internal_use_only"
-                  checked={data.internal_use_only}
-                  mode={mode}
-                  onChange={handleChange}
-                  errors={errors}
+                label="Internal Use Only"
+                name="internal_use_only"
+                checked={data.internal_use_only}
+                mode={mode}
+                onChange={handleChange}
+                errors={errors}
               />
             </div>
           </div>

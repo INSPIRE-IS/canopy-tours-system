@@ -16,6 +16,10 @@ use App\Models\GiftVoucherItem;
 use App\Models\Inventory;
 use App\Models\InventoryTimeSlot;
 use App\Models\InventoryTypeDay;
+use App\Models\Invoice;
+use App\Models\InvoiceItem;
+use App\Models\InvoiceTemplate;
+use App\Models\Promotion;
 use App\Models\Season;
 use App\Models\Service;
 use App\Models\Team;
@@ -94,6 +98,14 @@ class ActivityController extends Controller
                 $fieldValues = $service->serviceFieldValues->mapWithKeys(function ($fv) {
                     return [$fv->field->name => $fv->value];
                 });
+                // from services it already filters out the promos that are not active
+                $promos = $service->activePromotions;
+                $promo = null;
+                if ($promos->count() > 0) {
+                    $promo = $promos
+                        ->where('type', 'time_slot')
+                        ->first();
+                }
                 //dd($fieldValues);
                 return [
                     'inventory_id' => optional($inventory)->id,
@@ -101,7 +113,7 @@ class ActivityController extends Controller
                     'id'      => $service->id,
                     'name'      => $service->name,
                     'season_id'      => $season->id,
-                    'promo'      => $service->activePromotions->first(),
+                    'promo'      => $promo,
                     'image'      => $service->file ? '/storage/' . $service->file->path : null,
                     'pillbox_conditions'      => $service->pillbox_conditions ?? null,
                     'gift'       => filter_var($fieldValues['gift'] ?? false, FILTER_VALIDATE_BOOLEAN),
@@ -286,6 +298,67 @@ class ActivityController extends Controller
         ]);
     }
 
+    public function selectedPromo(Request $request)
+    {
+        //return response()->json($request->all());
+        $promoCode = $request->promo_code;
+        $slotDate = $request->slot_date;
+        $dateSlot = Carbon::parse($request->slot_date);
+        // $dayName = $dateSlot->format('l'); // "Monday"
+        $dayNumber = $dateSlot->dayOfWeekIso; // 1
+        $slotTime = $request->slot_time;
+        $activityId = $request->activity_id;
+
+        $promo = Promotion::with('promo_day_time_slots')->where('promo_code', $promoCode)->first();
+        // return response()->json($promo);
+        $today = now()->toDateString();
+        // 0. Booking window must include today
+        if (!$promo) {
+            return response()->json(['status' => false, 'promo' => 'code in valid']);;
+        }
+
+        // 1. Booking window must include today
+        if ($today < $promo->booking_start_date->toDateString() || $today > $promo->booking_end_date->toDateString()) {
+            return response()->json(['status' => false, 'promo' => 'period in valid']);;
+        }
+
+        // 2. Activity window must include the slot date
+        $activityStart = $promo->activity_start_date;
+        $activityEnd   = $promo->activity_end_date;
+
+        if ($slotDate < $activityStart->toDateString() || $slotDate > $activityEnd->toDateString()) {
+            return response()->json(['status' => false, 'promo' => 'activity in valid']);;
+        }
+
+        // 3. Service must match
+        if ($promo->service_id != $activityId) {
+            return response()->json(['status' => false, 'promo' => 'service in valid']);;
+        }
+
+        // 4. promo day time slot must match
+        if ($promo->promo_day_time_slots->isNotEmpty()) {
+            $inventory = Inventory::with(['inventory_time_slots'])->where('season_id', $promo->season_id)->first();
+            $timeSlot = $inventory->inventory_time_slots?->where('start_time', $slotTime)->first();
+            logger()->info('time slot ', [$timeSlot]);
+
+            $valid = $promo->promo_day_time_slots
+                ->where('day_id', $dayNumber)
+                ->where('time_slot_id', $timeSlot->id)->first();
+            logger()->info('day time slot valid ', [$valid]);
+            if (!$valid) {
+                return response()->json(['status' => false, 'promo' => 'day time slot in valid']);
+            }
+        } else {
+            logger()->info('nor checking promo day time slot');
+        }
+
+        // 4. Activity must match
+        // if ($promo->season?->activity_id != $activityId) {
+        //     return response()->json(['status' => false, 'message' => 'season in valid']);;
+        // }
+
+        return response()->json(['status' => true, 'promo' => $promo]);
+    }
 
     public function calendar1(Request $request)
     {
@@ -666,24 +739,25 @@ class ActivityController extends Controller
             'full_name' => 'required|string',
             'email' => 'required|email',
             'phone' => 'required|string',
-            'date' => 'required|date',
-            'time' => 'required',
+            'slot_date' => 'required|date',
+            'slot_time' => 'required',
+            'promo_code' => 'nullable|string',
             'adults' => 'required|integer|min:1',
             'children' => 'nullable|integer|min:0',
             'activity_id' => 'required|integer',
-            'promotion_id' => 'nullable|integer',
         ]);
+        // dd($validated);
         try {
             $booking = DB::transaction(function () use ($validated) {
                 $activity_id = $validated['activity_id'];
                 $sessionId = session()->getId();
                 logger()->info('sessionId activity ' . session()->getId());
                 $season = Season::findOrFail($activity_id);
-                $inventory = Inventory::where('season_id', $season->id)->first();
-                //$FullNameOfDay = Carbon::parse($validated['date'])->format('l'); // e.g., Monday
-                //$ShortNameOfDay = Carbon::parse($validated['date'])->format('D'); // e.g., Mon
-                $isoNameOfDay = Carbon::parse($validated['date'])->format('N'); // iso week starts on Monday
-                //$numericNameOfDay = Carbon::parse($validated['date'])->format('w'); // week starts on Sunday
+                $inventory = Inventory::with(['inventory_time_slots'])->where('season_id', $season->id)->first();
+                //$FullNameOfDay = Carbon::parse($validated['slot_date'])->format('l'); // e.g., Monday
+                //$ShortNameOfDay = Carbon::parse($validated['slot_date'])->format('D'); // e.g., Mon
+                $isoNameOfDay = Carbon::parse($validated['slot_date'])->format('N'); // iso week starts on Monday
+                //$numericNameOfDay = Carbon::parse($validated['slot_date'])->format('w'); // week starts on Sunday
                 // lookup booking
                 $adults = (int) ($validated['adults'] ?? 0);
                 $tot_adults = $season->rake_rate_adult * $adults;
@@ -693,10 +767,66 @@ class ActivityController extends Controller
                 $tot_guides = $season->rake_rate_guide * $guides;
                 $amount = $tot_adults + $tot_children + $tot_guides;
                 logger()->info('amount ' . $amount);
+                $promoCode = $validated['promo_code'];
+                $promotion_id = null;
+                $is_voucher = false;
+                if ($promoCode !== null) {
+                    $promo = Promotion::where('promo_code', $promoCode)->first();
+                    if (!$promo) {
+                        abort(404, 'code in valid');
+                    } else {
+                        $timeSlot = null;
+                        if ($promo->promo_day_time_slots->isNotEmpty()) {
+                            $timeSlot = $inventory->inventory_time_slots?->where('start_time', $validated['slot_time'])->first();
+                        }
+                        logger()->info('time slot ', [$timeSlot]);
+                        $dateSlot = Carbon::parse($validated['slot_date']);
+                        // $dayName = $dateSlot->format('l'); // "Monday"
+                        $dayNumber = $dateSlot->dayOfWeekIso; // 1
+                        $response = $promo->validateCode($validated['slot_date'], $dayNumber, $timeSlot, $validated['activity_id']);
+                        if ($response['status'] == false) {
+                            abort(404, $response['message']);
+                        }
+                    }
+                    $is_voucher = true;
+                    $promotion_id = $promo->id;
+                    if ($promo->type == 'time_slot') {
+                        $tot_adults = $adults > 0 ? $tot_adults * (1 - $promo->value / 100) : 0;
+                        $tot_children = $children > 0 ? $tot_children * (1 - $promo->value / 100) : 0;
+                        $tot_guides = $guides > 0 ? $tot_guides * (1 - $promo->value / 100) : 0;
+                    }
+                    if ($promo->type == 'fixed_value') {
+                        $tot_adults = $adults > 0 ? $tot_adults -  $promo->value : 0;
+                        $tot_children = $children > 0 ? $tot_children -  $promo->value : 0;
+                        $tot_guides = $guides > 0 ? $tot_guides -  $promo->value : 0;
+                    }
+                    // if($promo->type == 'graduated'){
+                    //     $tot_adults = $adults > 0 ? $tot_adults -  $promo->value : 0;
+                    //     $tot_children = $children > 0 ? $tot_children -  $promo->value : 0;
+                    //     $tot_guides = $guides > 0 ? $tot_guides -  $promo->value : 0;
+                    // }
+                    if ($promo->type == 'percent') {
+                        $tot_adults = $adults > 0 ? $tot_adults -  $promo->value : 0;
+                        $tot_children = $children > 0 ? $tot_children -  $promo->value : 0;
+                        $tot_guides = $guides > 0 ? $tot_guides -  $promo->value : 0;
+                    }
+                    // if($promo->type == 'varied_child'){
+                    //     $tot_adults = $adults > 0 ? $tot_adults -  $promo->value : 0;
+                    //     $tot_children = $children > 0 ? $tot_children -  $promo->value : 0;
+                    //     $tot_guides = $guides > 0 ? $tot_guides -  $promo->value : 0;
+                    // }
+                    // if($promo->type == 'volume_discount'){
+                    //     $tot_adults = $adults > 0 ? $tot_adults -  $promo->value : 0;
+                    //     $tot_children = $children > 0 ? $tot_children -  $promo->value : 0;
+                    //     $tot_guides = $guides > 0 ? $tot_guides -  $promo->value : 0;
+                    // }
+                    $amount = $tot_adults + $tot_children + $tot_guides;
+                }
+
                 if (!$inventory) {
                     abort(404, 'This season has no inventory.');
                 }
-                $inventoryTimeSlot = InventoryTimeSlot::where('inventory_id', $inventory->id)->where('start_time', $validated['time'])->first();
+                $inventoryTimeSlot = InventoryTimeSlot::where('inventory_id', $inventory->id)->where('start_time', $validated['slot_time'])->first();
                 //$inventoryTypeDay = InventoryTypeDay::where('inventory_id', $inventory->id)->first();
 
                 if (!$inventoryTimeSlot) {
@@ -745,7 +875,7 @@ class ActivityController extends Controller
                     'price_adult' => $season->rake_rate_adult,
                     'price_child' => $season->rake_rate_child,
                     'price_guide' => $season->rake_rate_guide,
-                    'promotion_id' => $validated['promotion_id'] ?? null,
+                    'promotion_id' => $promotion_id,
                     'pax_adults' => $adults,
                     'pax_children' => $children,
                     'pax_guides' => 0,
@@ -776,7 +906,7 @@ class ActivityController extends Controller
                 $bookingInventory = BookingInventory::create([
                     'booking_item_id'     => $bookingItem->id,
                     'booking_detail_id' => $bookingDetail->id,
-                    'date'           => $validated['date'],
+                    'date'           => $validated['slot_date'],
                     'adults'     => $adults,
                     'children'   => $children,
                     'guides'     => $guides,
@@ -793,13 +923,55 @@ class ActivityController extends Controller
                     'tot_adults'     => $tot_adults,
                     'tot_children'   => $tot_children,
                     'tot_guides'     => $tot_guides,
-                    'is_voucher'     => 0,
-                    'voucher_code'   => '',
+                    'is_voucher'     => $is_voucher,
+                    'voucher_code'   => $promotion_id,
                     'invoice_note'   => '',
                     'is_email_reminder' => 0,
                     'booking_note'   => '',
                     'tot_amount'     => $amount,
                     'team_id'        => $season->team_id,
+                ]);
+                $template = InvoiceTemplate::where('is_default', true)->where('type_invoice_id', 1)->first();
+                $invoice = Invoice::where('booking_id', $booking->id)->where('team_id', $season->team_id)->first();
+                if (!$invoice) {
+                    $invoice = Invoice::create(
+                        [
+                            'booking_id'     => $booking->id,
+                            'gift_voucher_id'    => null,
+                            'invoice_date'   => $booking->due_date,
+                            'due_date'       => $booking->due_date,
+                            'subtotal'       => $amount,
+                            'vat'            => $amount * 0.15,
+                            'total'          => $amount * 1.15,
+                            'status'         => 'draft',
+                            'invoice_template_id'    => $template->id,
+                            'team_id'        => $season->team_id,
+
+                        ]
+                    );
+                } else {
+                    $invoice->update([
+                        'subtotal'       => $invoice ? $invoice->subtotal + $amount : $amount,
+                        'vat'            => $invoice ? $invoice->vat + $amount * 0.15 : $amount * 0.15,
+                        'total'          => $invoice ? $invoice->total + $amount * 1.15 : $amount * 1.15,
+                    ]);
+                }
+
+                $invoiceItems = InvoiceItem::create([
+                    'invoice_id'     => $invoice->id,
+                    'pax_adults'     => (int) ($validated['adults'] ?? 0),
+                    'pax_children'   => (int) ($validated['children'] ?? 0),
+                    'pax_guides'     => (int) ($validated['guides'] ?? 0),
+                    'price_adult'    => $tot_adults,
+                    'price_child'    => $tot_children,
+                    'price_guide'    => $tot_guides,
+                    'team_id'        => $season->team_id,
+                    'service_id'     => $season->service_id,
+                    'season_id'      => $season->id,
+                    'booking_inventory_id' => $inventory->id,
+                    'promotion_id'   => $promotion_id,
+                    'wholesaler_id'  => null,
+                    'discount_id'    => null,
                 ]);
 
                 return $booking;
@@ -835,8 +1007,8 @@ class ActivityController extends Controller
             'full_name' => 'required|string',
             'email' => 'required|email',
             'phone' => 'required|string',
-            'date' => 'required|date',
-            'time' => 'required',
+            // 'date' => 'required|date',
+            // 'time' => 'required',
             'adults' => 'required|integer|min:1',
             'children' => 'nullable|integer|min:0',
             'activity_id' => 'required|integer',

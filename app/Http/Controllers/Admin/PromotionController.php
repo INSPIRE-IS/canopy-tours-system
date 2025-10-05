@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\InventoryTimeSlot;
 use App\Models\Promotion;
 use App\Models\PromotionDayTimeSlot;
 use App\Models\Season;
@@ -35,25 +36,27 @@ class PromotionController extends Controller
             'searchTerm' => $search,
             'sortColumn' => $sort,
             'sortDirection' => $direction,
-            'services' => Service::select('id', 'name', 'capacity')->orderBy('name')->get(),
+            'services' => Service::select('id', 'name', 'capacity')->with('seasons.inventory.inventory_time_slots')->orderBy('name')->get(),
         ]);
     }
 
     public function store(Request $request)
     {
-        //dd($request->all());
+        // dd($request->all());
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'promo_code' => ['required', 'string', 'max:50', 'unique:promotions,promo_code'],
-            'type' => ['required', 'in:percent,fixed_value,graduated,varied_child,volume_discount'],
+            'type' => ['required', 'in:percent,fixed_value,graduated,varied_child,volume_discount,time_slot'],
             'value' => ['numeric', 'min:0'],
             'params' => ['nullable'],
             'service_id' => ['required', 'exists:services,id'],
+            'season_id' => ['nullable', 'exists:seasons,id'],
             'booking_start_date' => ['required', 'date'],
             'booking_end_date' => ['required', 'date', 'after_or_equal:booking_start_date'],
             'activity_start_date' => ['required', 'date'],
             'activity_end_date' => ['required', 'date', 'after_or_equal:activity_start_date'],
-            //'valid_days' => ['nullable', 'string'],
+            'valid_days' => ['nullable', 'string'],
+            'valid_slots' => ['nullable', 'string'],
             'internal_use_only' => ['boolean'],
         ]);
 
@@ -105,16 +108,29 @@ class PromotionController extends Controller
 
         $promo = Promotion::create($data);
         $valid_days = explode(',', $request->valid_days);
+        $valid_times = explode(',', $request->valid_slots);
         foreach ($valid_days as $day) {
             $day = TypeDay::where('id', $day)->first();
             if (!$day) {
                 continue;
             }
-
-            $promo->promo_day_time_slots()->create([
-                'day_id' => $day->id,
-                'time_slot_id' => null,
-            ]);
+            if ($valid_times == null) {
+                $promo->promo_day_time_slots()->create([
+                    'day_id' => $day->id,
+                    'time_slot_id' => null,
+                ]);
+            } else {
+                foreach ($valid_times as $time) {
+                    $time = InventoryTimeSlot::where('id', $time)->first();
+                    if (!$time) {
+                        continue;
+                    }
+                    $promo->promo_day_time_slots()->create([
+                        'day_id' => $day->id,
+                        'time_slot_id' => $time->id,
+                    ]);
+                }
+            }
         }
 
 

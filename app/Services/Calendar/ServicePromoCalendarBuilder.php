@@ -13,6 +13,7 @@ class ServicePromoCalendarBuilder
         $today = Carbon::today();
         $promos = Promotion::with('promo_day_time_slots')
             ->where('service_id', $serviceId)
+            ->where('type', 'time_slot')
             ->where('booking_start_date', '<=', $today)
             ->where('booking_end_date', '>=', $today)
             ->where('internal_use_only', false) // skip internal promos for frontend
@@ -42,6 +43,9 @@ class ServicePromoCalendarBuilder
                             'promo_id' => $p->id,
                             'type'     => $p->type,
                             'value'    => $p->value,
+                            'promo_code'     => $p->promo_code,
+                            'name'     => $p->name,
+
                         ];
                         continue;
                     }
@@ -55,6 +59,8 @@ class ServicePromoCalendarBuilder
                                     'promo_id' => $p->id,
                                     'type'     => $p->type,
                                     'value'    => $p->value,
+                                    'promo_code'     => $p->promo_code,
+                                    'name'     => $p->name,
                                 ];
                             }
                         }

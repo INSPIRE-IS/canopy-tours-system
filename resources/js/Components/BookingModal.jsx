@@ -4,8 +4,10 @@ import { set } from 'date-fns';
 import { useForm } from '@inertiajs/react';
 import InputText from './InputText';
 
-export default function BookingModal({ isOpen, onClose, activity, slot, adults, children, pricePerAdult, pricePerChild, activityId, auth }) {
+export default function BookingModal({ isOpen, onClose, activity, slot, adults, children, promoCode, selectedPromo, pricePerAdult, pricePerChild, activityId, auth }) {
+
   const [total, setTotal] = useState(0.00);
+  const [promo, setPromo] = useState(selectedPromo);
   const mode = 'create';
   const { data, setData, post, put, errors, reset, processing } = useForm({
     adults: adults,
@@ -32,13 +34,25 @@ export default function BookingModal({ isOpen, onClose, activity, slot, adults, 
 
   useEffect(() => {
 
-    const sum = (Number(data.adults) * pricePerAdult + Number(data.children) * pricePerChild);
+    let sum = (Number(data.adults) * pricePerAdult + Number(data.children) * pricePerChild);
+    if (promo) {
+      sum = sum * (1 - promo.value / 100);
+    }
+
     if (sum > 0) {
       setTotal(sum.toFixed(2));
     }
     // setTotal((Number(data.adults) * pricePerAdult + Number(data.children) * pricePerChild).toFixed(2));
-  }, [data.adults, data.children, pricePerAdult, pricePerChild]);
-
+  }, [data.adults, data.children, pricePerAdult, pricePerChild, promo]);
+  useEffect(() => {
+    console.log('promoCode------', promoCode);
+    if (promoCode) {
+      axios.get('/front/activity/selected-promo', {
+        params: { promo_code: promoCode, slot_date: slot.date, slot_time: slot.time, activity_id: activityId }
+      })
+        .then(res => { console.log(res.data); if (res.data.status == false) { alert(res.data.promo) }; if (res.data.status == true) { setPromo(res.data.promo) } });
+    }
+  }, [promoCode]);
   // const handleChange = (e) => {
   //   setData({ ...data, [e.target.name]: e.target.value });
   // };
@@ -51,8 +65,9 @@ export default function BookingModal({ isOpen, onClose, activity, slot, adults, 
     try {
       const response = await axios.post(route('front.booking.store'), {
         ...data,
-        date: slot.date,
-        time: slot.time,
+        slot_date: slot.date,
+        slot_time: slot.time,
+        promo_code: selectedPromo?.promo_code ?? '',
         activity_id: activityId,
       });
 

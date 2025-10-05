@@ -14,12 +14,12 @@ return new class extends Migration
         Schema::create('invoice_templates', function (Blueprint $table) {
             $table->id();
             $table->string('name'); // "Standard Invoice", "Wholesale Invoice"
-            $table->enum('type', ['invoice', 'quote', 'proforma', 'receipt']);
             $table->longText('content'); // TinyMCE HTML with placeholders
             $table->boolean('is_default')->default(false);
             $table->timestamps();
             $table->softDeletes();
 
+            $table->foreignId('type_invoice_id')->constrained('type_invoices')->onDelete('cascade');
             $table->foreignId('team_id')->constrained('teams')->onDelete('cascade');
         });
     }

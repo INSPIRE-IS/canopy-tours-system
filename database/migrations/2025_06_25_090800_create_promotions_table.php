@@ -11,7 +11,7 @@ return new class extends Migration {
             $table->id();
             $table->string('name');
             $table->string('promo_code')->unique();
-            $table->enum('type', ['percent', 'fixed_value', 'graduated', 'varied_child', 'volume_discount'])->default('percent');
+            $table->enum('type', ['percent', 'fixed_value', 'graduated', 'varied_child', 'volume_discount', 'time_slot'])->default('percent');
             $table->decimal('value', 10, 2)->default(0); // meaning depends on type
             $table->json('params')->nullable(); // store graduated tables, tiers, child rules
             $table->date('booking_start_date'); // so basically like black friday weekend we pick a start friday
@@ -23,7 +23,8 @@ return new class extends Migration {
             $table->timestamps();
 
             $table->foreignId('service_id')->constrained('services')->onDelete('cascade');
-            $table->index(['service_id', 'booking_start_date', 'booking_end_date']);
+            $table->foreignId('season_id')->nullable()->constrained('seasons');
+            $table->index(['service_id', 'season_id', 'booking_start_date', 'booking_end_date'])->name('service_season_booking_dates');
         });
     }
 

@@ -15,7 +15,7 @@ class InvoiceTemplate extends Model
 
     protected $fillable = [
         'name',
-        'type',
+        'type_invoice_id',
         'content',
         'is_default',
         'team_id',
@@ -29,5 +29,10 @@ class InvoiceTemplate extends Model
     public function scopeDefault($query)
     {
         return $query->where('is_default', true);
+    }
+
+    public function typeInvoice()
+    {
+        return $this->belongsTo(TypeInvoice::class);
     }
 }
