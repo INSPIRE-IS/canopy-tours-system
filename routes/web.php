@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\AuditLogsController;
 use App\Http\Controllers\Admin\BookingPaymentController;
 use App\Http\Controllers\Admin\BookingsController;
+use App\Http\Controllers\Admin\BookingVouchersController;
 use App\Http\Controllers\Admin\CheckinsController;
 use App\Http\Controllers\Admin\CloseoutsController;
 use App\Http\Controllers\Admin\CustomerManifestController;
@@ -153,7 +154,8 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['auth', 'v
     Route::get('promotions/valid', [PromotionController::class, 'valid'])->name('promotions.valid');
     Route::resource('promotions', PromotionController::class);
 
-
+    Route::get('booking_vouchers/download/{bookingVoucher}', [BookingVouchersController::class, 'bookingVoucherDownload'])->name('booking_vouchers.download');
+    Route::resource('booking_vouchers', BookingVouchersController::class);
 
     // Inventory Overrides
     Route::resource('inventories-overrides', InventoryOverridesController::class);

@@ -10,7 +10,7 @@ import Pagination from '@/Components/Pagination';
 import SettingsHeader from '@/Components/HeaderSites';
 
 
-export default function Index({ templates, users, auth, permissions, searchTerm, sortColumn, sortDirection }) {
+export default function Index({ templates, typeInvoices, users, auth, permissions, searchTerm, sortColumn, sortDirection }) {
     //const [modalOpen, setModalOpen] = useState(false);
 
     const [selectedTemplate, setSelectedTemplate] = useState(null);
@@ -169,6 +169,7 @@ export default function Index({ templates, users, auth, permissions, searchTerm,
                 onClose={handleCloseModal}
                 mode={modalMode}
                 template={selectedTemplate}
+                typeInvoices={typeInvoices}
                 users={users}
                 team={auth?.team}
             />

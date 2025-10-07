@@ -4,10 +4,12 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\InvoiceTemplate;
+use App\Models\TypeInvoice;
 use Illuminate\Http\Request;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Gate;
 use Illuminate\Support\Facades\Auth;
+use Mockery\Matcher\Type;
 use Symfony\Component\HttpFoundation\Response;
 
 
@@ -34,9 +36,17 @@ class InvoiceTemplateController extends Controller
         //     'sortColumn' => $sortColumn,
         //     'sortDirection' => $sortDirection,
         // ]);
+        $typeInvoices = TypeInvoice::all();
+        $typeInvoices = $typeInvoices->map(function ($typeInvoice) {
+            return [
+                'id' => $typeInvoice->id,
+                'name' => $typeInvoice->name,
+                'type' => $typeInvoice->slug,
+            ];
+        });
 
 
-        return inertia('Admin/InvoiceTemplates/Index', compact('templates'));
+        return inertia('Admin/InvoiceTemplates/Index', compact('templates', 'typeInvoices'));
     }
 
     public function create()
