@@ -13,7 +13,7 @@ class ServiceField extends Model
 {
     use SoftDeletes, MultiTenantModelTrait, Auditable, HasFactory;
 
-    public $table = 'Service_fields';
+    public $table = 'service_fields';
 
     protected $dates = [
         'created_at',
