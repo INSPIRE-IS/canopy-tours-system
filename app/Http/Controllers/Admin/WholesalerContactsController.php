@@ -37,6 +37,16 @@ class WholesalerContactsController extends Controller
 
     public function store(Request $request)
     {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email',
+            'phone' => 'required|string',
+            'type' => 'required|string|max:255',
+            'wholesaler_id' => 'required|exists:wholesalers,id',
+        ]);
+
+        $validated['team_id'] = auth()->user()->team_id;
+
         $wholesalerContact = WholesalerContact::create($request->all());
         // $wholesalerContact->users()->sync($request->input('users', []));
 

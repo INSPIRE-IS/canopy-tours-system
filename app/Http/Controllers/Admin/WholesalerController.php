@@ -23,7 +23,6 @@ class WholesalerController extends Controller
         /** @var \App\Models\User $user */
         $teamId = Session::get('team_id');
         $wholesalers = Wholesaler::with([
-
             'created_by',
             'updated_by',
             'team',

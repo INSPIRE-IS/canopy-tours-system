@@ -2,18 +2,20 @@
 
 namespace App\Models;
 
+use App\Traits\MultiTenantModelTrait;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Discount extends Model
 {
-    use HasFactory;
+    use HasFactory, MultiTenantModelTrait;
     public $table = 'discounts';
 
     protected $fillable = [
         'name',
         'applies_to',
         'percent_off',
+        'team_id',
     ];
 
     public function services()

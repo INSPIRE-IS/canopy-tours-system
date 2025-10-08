@@ -2,13 +2,14 @@
 
 namespace App\Models;
 
+use App\Traits\MultiTenantModelTrait;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Promotion extends Model
 {
-    use HasFactory;
+    use HasFactory, MultiTenantModelTrait;
 
     public $table = 'promotions';
 
@@ -25,6 +26,7 @@ class Promotion extends Model
         'activity_start_date',
         'activity_end_date',
         'internal_use_only',
+        'team_id',
     ];
     protected $appends = ['status', 'is_valid'];
     protected $casts = [

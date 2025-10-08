@@ -50,6 +50,7 @@ class WholesalerRateController extends Controller
             'price_child' => ['nullable', 'numeric', 'min:0'],
             'price_guide' => ['nullable', 'numeric', 'min:0'],
         ]);
+        $data['team_id'] = auth()->user()->team_id;
 
         WholesalerRate::create($data);
         return redirect()->back()->with('message', 'Wholesaler rate created.');

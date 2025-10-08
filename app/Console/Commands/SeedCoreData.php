@@ -1276,6 +1276,7 @@ class SeedCoreData extends Command
                 'season_id' => 1,
                 'price_adult' => '590.00',
                 'price_child' => '290.00',
+                'team_id' => 4,
             ],
             [
                 'id' => 2,
@@ -1284,6 +1285,7 @@ class SeedCoreData extends Command
                 'season_id' => 4,
                 'price_adult' => '500.00',
                 'price_child' => '200.00',
+                'team_id' => 4,
             ],
             [
                 'id' => 3,
@@ -1292,6 +1294,7 @@ class SeedCoreData extends Command
                 'season_id' => 5,
                 'price_adult' => '560.00',
                 'price_child' => '260.00',
+                'team_id' => 4,
             ],
             [
                 'id' => 4,
@@ -1300,6 +1303,7 @@ class SeedCoreData extends Command
                 'season_id' => 2,
                 'price_adult' => '540.00',
                 'price_child' => '240.00',
+                'team_id' => 7,
             ],
             [
                 'id' => 5,
@@ -1308,6 +1312,7 @@ class SeedCoreData extends Command
                 'season_id' => 3,
                 'price_adult' => '580.00',
                 'price_child' => '280.00',
+                'team_id' => 7,
             ],
             [
                 'id' => 6,
@@ -1316,6 +1321,7 @@ class SeedCoreData extends Command
                 'season_id' => 4,
                 'price_adult' => '570.00',
                 'price_child' => '270.00',
+                'team_id' => 7,
             ],
         ];
 
@@ -1323,12 +1329,13 @@ class SeedCoreData extends Command
             WholesalerRate::updateOrCreate(['id' => $wholesaler_rate['id']], $wholesaler_rate);
         }
 
-        $inventory = [
+        $inventories = [
             [
                 'id' => 1,
                 'allow_internal_override' => 1,
                 'service_id' => 1,
                 'season_id' => 1,
+                'team_id' => 7,
 
             ],
             [
@@ -1336,6 +1343,7 @@ class SeedCoreData extends Command
                 'allow_internal_override' => 1,
                 'service_id' => 2,
                 'season_id' => 2,
+                'team_id' => 7,
 
             ],
             [
@@ -1343,6 +1351,7 @@ class SeedCoreData extends Command
                 'allow_internal_override' => 1,
                 'service_id' => 3,
                 'season_id' => 3,
+                'team_id' => 7,
 
             ],
             [
@@ -1350,6 +1359,7 @@ class SeedCoreData extends Command
                 'allow_internal_override' => 1,
                 'service_id' => 4,
                 'season_id' => 4,
+                'team_id' => 7,
 
             ],
             [
@@ -1357,6 +1367,7 @@ class SeedCoreData extends Command
                 'allow_internal_override' => 1,
                 'service_id' => 5,
                 'season_id' => 5,
+                'team_id' => 7,
 
             ],
             [
@@ -1364,6 +1375,7 @@ class SeedCoreData extends Command
                 'allow_internal_override' => 1,
                 'service_id' => 6,
                 'season_id' => 6,
+                'team_id' => 7,
 
             ],
             [
@@ -1371,11 +1383,11 @@ class SeedCoreData extends Command
                 'allow_internal_override' => 1,
                 'service_id' => 6,
                 'season_id' => 7,
-
+                'team_id' => 7,
             ],
         ];
 
-        foreach ($inventory as $inv) {
+        foreach ($inventories as $inv) {
             Inventory::updateOrCreate(['id' => $inv['id']], $inv);
         }
 
@@ -1584,6 +1596,7 @@ class SeedCoreData extends Command
                 'start_date' => '2025-06-20',
                 'end_date' => '2025-06-27',
                 'reason' => 'general maintenance',
+                'team_id' => 7,
             ],
             [
                 'id' => 2,
@@ -1593,6 +1606,7 @@ class SeedCoreData extends Command
                 'start_date' => '2025-07-25',
                 'end_date' => '2025-07-26',
                 'reason' => 'general',
+                'team_id' => 7,
             ],
             [
                 'id' => 3,
@@ -1602,6 +1616,7 @@ class SeedCoreData extends Command
                 'start_date' => '2025-12-25',
                 'end_date' => '2025-12-26',
                 'reason' => 'general',
+                'team_id' => 7,
             ],
         ];
 
@@ -1653,36 +1668,42 @@ class SeedCoreData extends Command
                 'name' => 'Pensioner',
                 'applies_to' => 'line_item',
                 'percent_off' => 8,
+                'team_id' => 7,
             ],
             [
                 'id' => 2,
                 'name' => 'Student',
                 'applies_to' => 'line_item',
                 'percent_off' => 5,
+                'team_id' => 7,
             ],
             [
                 'id' => 3,
                 'name' => 'Regular',
                 'applies_to' => 'line_item',
                 'percent_off' => 10,
+                'team_id' => 7,
             ],
             [
                 'id' => 4,
                 'name' => 'Local',
                 'applies_to' => 'line_item',
                 'percent_off' => 10,
+                'team_id' => 7,
             ],
             [
                 'id' => 5,
                 'name' => '3% Invoice Pax(8)',
                 'applies_to' => 'invoice',
                 'percent_off' => 3,
+                'team_id' => 7,
             ],
             [
                 'id' => 6,
                 'name' => '5% Invoice Pax(15)',
                 'applies_to' => 'invoice',
                 'percent_off' => 5,
+                'team_id' => 7,
             ]
         ];
 
@@ -1811,6 +1832,7 @@ class SeedCoreData extends Command
                 'activity_start_date' => '2025-08-01',
                 'activity_end_date' => '2025-08-31',
                 'internal_use_only' => 0,
+                'team_id' => 7,
             ],
             [
                 'id' => 2,
@@ -1825,6 +1847,7 @@ class SeedCoreData extends Command
                 'activity_start_date' => '2025-11-01',
                 'activity_end_date' => '2025-12-31',
                 'internal_use_only' => 0,
+                'team_id' => 7,
             ],
             [
                 'id' => 3, // {"lookup":{"1":"300","2":"300","3":"300","4":"250","5":"250","6":"200","7":"200","8":"200"}}
@@ -1850,6 +1873,7 @@ class SeedCoreData extends Command
                 'activity_start_date' => '2025-10-01',
                 'activity_end_date' => '2025-12-31',
                 'internal_use_only' => 0,
+                'team_id' => 7,
             ],
             [ // {"min_adults":"5","child_discount_percent":"10"} 
                 'id' => 4,
@@ -1868,6 +1892,7 @@ class SeedCoreData extends Command
                 'activity_start_date' => '2025-11-01',
                 'activity_end_date' => '2025-12-31',
                 'internal_use_only' => 0,
+                'team_id' => 7,
             ],
             [
                 'id' => 5, // {"tiers":[{"pax":"6","type":"percent","value":"4"},{"pax":"10","type":"percent","value":"6"},{"pax":"20","type":"percent","value":"8"}]}
@@ -1895,6 +1920,7 @@ class SeedCoreData extends Command
                 'activity_start_date' => '2025-08-01',
                 'activity_end_date' => '2025-12-31',
                 'internal_use_only' => 0,
+                'team_id' => 7,
             ],
             [
                 'id' => 6,
@@ -1910,6 +1936,7 @@ class SeedCoreData extends Command
                 'activity_start_date' => '2025-10-01',
                 'activity_end_date' => '2025-10-31',
                 'internal_use_only' => 0,
+                'team_id' => 7,
             ],
 
         ];

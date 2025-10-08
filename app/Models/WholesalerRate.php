@@ -2,12 +2,14 @@
 
 namespace App\Models;
 
+use App\Traits\MultiTenantModelTrait;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class WholesalerRate extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes, MultiTenantModelTrait;
     public $table = 'wholesaler_rates';
 
     protected $attributes = [
@@ -22,6 +24,7 @@ class WholesalerRate extends Model
         'price_child',
         'price_guide',
         'bill_back',
+        'team_id',
     ];
 
     public function service()

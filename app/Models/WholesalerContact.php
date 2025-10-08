@@ -2,13 +2,14 @@
 
 namespace App\Models;
 
+use App\Traits\MultiTenantModelTrait;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class WholesalerContact extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, MultiTenantModelTrait;
 
     protected $table = 'wholesaler_contacts';
 
@@ -18,6 +19,7 @@ class WholesalerContact extends Model
         'phone',
         'type',
         'wholesaler_id',
+        'team_id',
     ];
 
     public function wholesaler()

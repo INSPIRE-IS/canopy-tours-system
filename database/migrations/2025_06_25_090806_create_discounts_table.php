@@ -16,6 +16,7 @@ return new class extends Migration {
 
             // $table->foreign('service_id')->references('id')->on('services')->cascadeOnDelete();
             // $table->index(['service_id', 'applies_to']);
+            $table->foreignId('team_id')->nullable();
         });
     }
 
