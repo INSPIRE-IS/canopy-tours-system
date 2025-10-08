@@ -9,6 +9,8 @@ use App\Models\BookingInfo;
 use App\Models\BookingInventory;
 use App\Models\BookingItem;
 use App\Models\BookingPayment;
+use App\Models\BookingVoucher;
+use App\Models\BookingVoucherItem;
 use App\Models\Closeout;
 use App\Models\CloseoutDayTimeSlot;
 use App\Models\Customer;
@@ -46,6 +48,7 @@ use App\Models\Promotion;
 use App\Models\Questionnaire;
 use App\Models\QuestionnaireField;
 use App\Models\StatusPayment;
+use App\Models\TypeAlert;
 use App\Models\TypeConfirmation;
 use App\Models\TypeGender;
 use App\Models\TypeHelpQuestion;
@@ -602,6 +605,19 @@ class SeedCoreData extends Command
             TypeGender::updateOrCreate(['id' => $type_gender['id']], $type_gender);
         }
 
+        $type_alerts = [
+            ['id' => 1, 'name' => 'Payment Confirmation', 'slug' => 'payment_confirmation'],
+            ['id' => 2, 'name' => 'Payment Overdue', 'slug' => 'payment_overdue'],
+            ['id' => 3, 'name' => 'Booking Confirmation', 'slug' => 'booking_confirmation'],
+            ['id' => 4, 'name' => 'Booking Arrival', 'slug' => 'booking_arrival'],
+            ['id' => 5, 'name' => 'has Medical', 'slug' => 'has_medical'],
+            ['id' => 5, 'name' => 'Manifest Completed', 'slug' => 'manifest_completed'],
+        ];
+        foreach ($type_alerts as $type_alert) {
+            TypeAlert::updateOrCreate(['id' => $type_alert['id']], $type_alert);
+        }
+
+
         $service_fields = [
             //['id' => 1, 'name' => 'header_pillbox_text','slug' => 'header_pillbox_text', 'type_category' => 1, 'order' => 1, 'type_data_id' => 1, 'type_input_id' => 1, 'required' => 1],
             ['id' => 1, 'name' => 'Description', 'slug' => 'description', 'type_category' => 1, 'order' => 1, 'type_data_id' => 2, 'type_input_id' => 2, 'required' => 1],
@@ -628,6 +644,7 @@ class SeedCoreData extends Command
             ['id' => 3, 'name' => 'service'],
             ['id' => 4, 'name' => 'invoice'],
             ['id' => 5, 'name' => 'checkin'],
+            ['id' => 6, 'name' => 'booking_voucher'],
         ];
         foreach ($type_files as $type_file) {
             TypeFile::updateOrCreate(['id' => $type_file['id']], $type_file);
@@ -803,7 +820,8 @@ class SeedCoreData extends Command
                 "path" => "services/1/VG1575vJQfQGmo6TFAk5gE0DknbgZ00qYNv5XR2Q.jpg",
                 "expiry" => null,
                 "team_id" => 7,
-                "type_file_id" => 3
+                "type_file_id" => 3,
+                "booking_id" => null,
             ],
             [
                 "id" => 2,
@@ -814,7 +832,8 @@ class SeedCoreData extends Command
                 "path" => "services/6/A8f8mauVaWW4C6REWtltV3WXnrK1u7bRqNqvDMo0.jpg",
                 "expiry" => null,
                 "team_id" => 7,
-                "type_file_id" => 3
+                "type_file_id" => 3,
+                "booking_id" => null,
             ],
             [
                 "id" => 3,
@@ -825,7 +844,8 @@ class SeedCoreData extends Command
                 "path" => "services/3/gSjvgA1MyCqhhcxqdVOFNu4AAX9hAUdocjhZuVLV.jpg",
                 "expiry" => null,
                 "team_id" => 7,
-                "type_file_id" => 3
+                "type_file_id" => 3,
+                "booking_id" => null,
             ],
             [
                 "id" => 4,
@@ -836,7 +856,8 @@ class SeedCoreData extends Command
                 "path" => "services/4/ahRAMEjm1Udj3OGILUq9YnzSz7KNsSVl3KDRIxUc.jpg",
                 "expiry" => null,
                 "team_id" => 7,
-                "type_file_id" => 3
+                "type_file_id" => 3,
+                "booking_id" => null,
             ],
             [
                 "id" => 5,
@@ -847,7 +868,8 @@ class SeedCoreData extends Command
                 "path" => "services/5/P9BTOjmG1DiaLDMfxU7S7Tg3AewtJBitOzP1TTyd.jpg",
                 "expiry" => null,
                 "team_id" => 7,
-                "type_file_id" => 3
+                "type_file_id" => 3,
+                "booking_id" => null,
             ],
             [
                 "id" => 6,
@@ -858,7 +880,8 @@ class SeedCoreData extends Command
                 "path" => "services/2/2y6BtQAwOEuAEt98H5p0Nuyab00mhWM4yqgJHJXW.jpg",
                 "expiry" => null,
                 "team_id" => 7,
-                "type_file_id" => 3
+                "type_file_id" => 3,
+                "booking_id" => null,
             ],
             [
                 "id" => 7,
@@ -869,7 +892,8 @@ class SeedCoreData extends Command
                 "path" => "teams/7/KQheuzHHSpe3SM5xfX5O3MdI4gc3F2f41qd9a7v1.png",
                 "expiry" => null,
                 "team_id" => 7,
-                "type_file_id" => 1
+                "type_file_id" => 1,
+                "booking_id" => null,
             ],
             [
                 "id" => 8,
@@ -880,21 +904,23 @@ class SeedCoreData extends Command
                 "path" => "teams/7/GtHzovMTDkSqnN4KbjVVLcBWozdNjg8UsY4s2CuF.jpg",
                 "expiry" => null,
                 "team_id" => 7,
-                "type_file_id" => 2
+                "type_file_id" => 2,
+                "booking_id" => null,
             ]
         ];
 
         foreach ($files as $file) {
             File::updateOrCreate(
                 [
-                    'team_id'      => $file['team_id'], // auth()->user()->team_id,
+                    'team_id'      => $file['team_id'],
                     'table_name'   => $file['table_name'],
                     'table_row_id' => $file['table_row_id'],
                     'file_name'    => $file['file_name'],
                     'file_type'    => $file['file_type'],
-                    'type_file_id' => $file['type_file_id'], // optional enum/type
+                    'type_file_id' => $file['type_file_id'],
                     'path'         => $file['path'],
                     'expiry'       => $file['expiry'],
+                    'booking_id'   => $file['booking_id'],
                 ],
             );
         }
@@ -1366,63 +1392,134 @@ class SeedCoreData extends Command
             ],
             [
                 'id' => 3,
-                'inventory_id' => 2,
-                'start_time' => '08:00:00',
+                'inventory_id' => 1,
+                'start_time' => '14:00:00',
             ],
             [
                 'id' => 4,
-                'inventory_id' => 2,
-                'start_time' => '10:00:00',
+                'inventory_id' => 1,
+                'start_time' => '16:00:00',
             ],
             [
                 'id' => 5,
-                'inventory_id' => 3,
+                'inventory_id' => 2,
                 'start_time' => '08:00:00',
             ],
             [
                 'id' => 6,
-                'inventory_id' => 3,
+                'inventory_id' => 2,
                 'start_time' => '10:00:00',
             ],
             [
                 'id' => 7,
-                'inventory_id' => 4,
-                'start_time' => '08:00:00',
+                'inventory_id' => 2,
+                'start_time' => '14:00:00',
             ],
             [
                 'id' => 8,
-                'inventory_id' => 4,
-                'start_time' => '10:00:00',
+                'inventory_id' => 2,
+                'start_time' => '16:00:00',
             ],
             [
                 'id' => 9,
-                'inventory_id' => 5,
+                'inventory_id' => 3,
                 'start_time' => '08:00:00',
             ],
             [
                 'id' => 10,
-                'inventory_id' => 5,
+                'inventory_id' => 3,
                 'start_time' => '10:00:00',
             ],
             [
                 'id' => 11,
-                'inventory_id' => 6,
-                'start_time' => '08:00:00',
+                'inventory_id' => 3,
+                'start_time' => '14:00:00',
             ],
             [
                 'id' => 12,
-                'inventory_id' => 6,
-                'start_time' => '10:00:00',
+                'inventory_id' => 3,
+                'start_time' => '16:00:00',
             ],
             [
                 'id' => 13,
-                'inventory_id' => 7,
+                'inventory_id' => 4,
                 'start_time' => '08:00:00',
             ],
             [
                 'id' => 14,
+                'inventory_id' => 4,
+                'start_time' => '10:00:00',
+            ],
+            [
+                'id' => 15,
+                'inventory_id' => 4,
+                'start_time' => '14:00:00',
+            ],
+            [
+                'id' => 16,
+                'inventory_id' => 4,
+                'start_time' => '16:00:00',
+            ],
+
+            [
+                'id' => 17,
+                'inventory_id' => 5,
+                'start_time' => '08:00:00',
+            ],
+            [
+                'id' => 18,
+                'inventory_id' => 5,
+                'start_time' => '10:00:00',
+            ],
+            [
+                'id' => 19,
+                'inventory_id' => 5,
+                'start_time' => '14:00:00',
+            ],
+            [
+                'id' => 20,
+                'inventory_id' => 5,
+                'start_time' => '16:00:00',
+            ],
+            [
+                'id' => 21,
+                'inventory_id' => 6,
+                'start_time' => '08:00:00',
+            ],
+            [
+                'id' => 22,
+                'inventory_id' => 6,
+                'start_time' => '10:00:00',
+            ],
+            [
+                'id' => 23,
+                'inventory_id' => 6,
+                'start_time' => '14:00:00',
+            ],
+            [
+                'id' => 24,
+                'inventory_id' => 6,
+                'start_time' => '16:00:00',
+            ],
+            [
+                'id' => 25,
+                'inventory_id' => 7,
+                'start_time' => '08:00:00',
+            ],
+            [
+                'id' => 26,
                 'inventory_id' => 7,
                 'start_time' => '10:00:00',
+            ],
+            [
+                'id' => 27,
+                'inventory_id' => 7,
+                'start_time' => '14:00:00',
+            ],
+            [
+                'id' => 28,
+                'inventory_id' => 7,
+                'start_time' => '16:00:00',
             ],
         ];
 
@@ -1840,876 +1937,1125 @@ class SeedCoreData extends Command
             }
         }
 
-
-        $customers = [
+        $booking_vouchers = [
             [
-                'id'             => 1,
-                'full_name'      => 'Customer1',
-                'email_address'  => 'Customer1@email.com',
-                'contact_number' => '1234567890',
-                'nationality_id'    => '',
-                'created_at'     => now(),
-                'updated_at'     => now(),
-                'deleted_at'     => null,
+                'id' => 1,
+                'name' => 'Booking Voucher 1',
+                'service_id' => 1,
+                'season_id' => 1,
+                'team_id' => 7,
             ],
             [
-                'id'             => 2,
-                'full_name'           => 'Customer2',
-                'email_address'          => 'Customer2@email.com',
-                'contact_number' => '0987654321',
-                'nationality'    => '',
-                'created_at'     => now(),
-                'updated_at'     => now(),
-                'deleted_at'     => null,
+                'id' => 2,
+                'name' => 'Booking Voucher 2',
+                'service_id' => 2,
+                'season_id' => 2,
+                'team_id' => 7,
             ],
             [
-                'id'             => 3,
-                'full_name'           => 'Customer3',
-                'email_address'          => 'Customer3@email.com',
-                'contact_number' => '9876543210',
-                'nationality'    => '',
-                'created_at'     => now(),
-                'updated_at'     => now(),
-                'deleted_at'     => null,
-                'parent_id'      => 1,
+                'id' => 3,
+                'name' => 'Booking Voucher 3',
+                'service_id' => 3,
+                'season_id' => 3,
+                'team_id' => 7,
             ],
             [
-                'id'             => 4,
-                'full_name'           => 'Customer4',
-                'email_address'          => 'Customer4@email.com',
-                'contact_number' => '9876543211',
-                'nationality'    => '',
-                'created_at'     => now(),
-                'updated_at'     => now(),
-                'deleted_at'     => null,
+                'id' => 4,
+                'name' => 'Booking Voucher 4',
+                'service_id' => 4,
+                'season_id' => 4,
+                'team_id' => 7,
             ],
             [
-                'id'             => 5,
-                'full_name'           => 'Customer5',
-                'email_address'          => 'Customer5@email.com',
-                'contact_number' => '9876543212',
-                'nationality'    => '',
-                'created_at'     => now(),
-                'updated_at'     => now(),
-                'deleted_at'     => null,
+                'id' => 5,
+                'name' => 'Booking Voucher 5',
+                'service_id' => 5,
+                'season_id' => 5,
+                'team_id' => 7,
             ],
             [
-                'id'             => 6,
-                'full_name'           => 'Customer6',
-                'email_address'          => 'Customer6@email.com',
-                'contact_number' => '9876543213',
-                'nationality'    => '',
-                'created_at'     => now(),
-                'updated_at'     => now(),
-                'deleted_at'     => null,
-            ],
-            [
-                'id'             => 7,
-                'full_name'           => 'Customer7',
-                'email_address'          => 'Customer7@email.com',
-                'contact_number' => '9876543214',
-                'nationality'    => '',
-                'created_at'     => now(),
-                'updated_at'     => now(),
-                'deleted_at'     => null,
-            ],
-            [
-                'id'             => 8,
-                'full_name'           => 'Customer8',
-                'email_address'          => 'Customer8@email.com',
-                'contact_number' => '9876543215',
-                'nationality'    => '',
-                'created_at'     => now(),
-                'updated_at'     => now(),
-                'deleted_at'     => null,
-                'parent_id'      => 7,
-            ],
-            [
-                'id'             => 9,
-                'full_name'           => 'Customer9',
-                'email_address'          => 'Customer9@email.com',
-                'contact_number' => '9876543216',
-                'nationality'    => '',
-                'created_at'     => now(),
-                'updated_at'     => now(),
-                'deleted_at'     => null,
-            ],
-            [
-                'id'             => 10,
-                'full_name'           => 'Customer10',
-                'email_address'          => 'Customer10@email.com',
-                'contact_number' => '9876543217',
-                'nationality'    => '',
-                'created_at'     => now(),
-                'updated_at'     => now(),
-                'deleted_at'     => null,
+                'id' => 6,
+                'name' => 'Booking Voucher 6',
+                'service_id' => 6,
+                'season_id' => 6,
+                'team_id' => 7,
             ],
         ];
 
-        foreach ($customers as $customer) {
-            Customer::updateOrCreate(['id' => $customer['id']], $customer);
+        $booking_voucher_items = [
+            [
+                'id' => 1,
+                'booking_voucher_id' => 1,
+                'name' => 'Welcome Message',
+                'helper' => 'This is the welcome message for the voucher',
+                'description' => 'This voucher is valid to secure delivery of the service set out below by Tsitsikamma Canopy Tour on the
+                    date and time indicated, to the lead participant and the number of additional participants included here below.',
+                'disabled' => false,
+                'type' => 'textarea',
+                'format' => 'paragraph',
+            ],
+            [
+                'id' => 2,
+                'booking_voucher_id' => 1,
+                'name' => 'Reference',
+                'helper' => 'This is the description for the booking voucher item',
+                'description' => '{{reference}}',
+                'disabled' => true,
+                'type' => 'text',
+                'format' => 'table',
+            ],
+            [
+                'id' => 3,
+                'booking_voucher_id' => 1,
+                'name' => 'Provider',
+                'helper' => 'This is the name of the provider',
+                'description' => '{{provider}}',
+                'disabled' => true,
+                'type' => 'text',
+                'format' => 'table',
+            ],
+            [
+                'id' => 4,
+                'booking_voucher_id' => 1,
+                'name' => 'Service',
+                'helper' => 'This is the name of the service',
+                'description' => '{{service}}',
+                'disabled' => true,
+                'type' => 'text',
+                'format' => 'table',
+            ],
+            [
+                'id' => 5,
+                'booking_voucher_id' => 1,
+                'name' => 'Location',
+                'helper' => 'This is the location of the service',
+                'description' => 'Experience a World of Diversity in One Forest – Just a short drive from Knysna and 2 hours from Port-Elizabeth. 
+                    Situated in the Garden of the Garden Route and heart of Tsitsikamma – Stormsriver Village. 
+                    Tsitsikamma Canopy Tour is an Award-Winning Canopy Tour company that turns Tourism activities into Tourism experiences! 
+                    Enjoy being suspended 30m above the forest floor on the Tsitsikamma Canopy Tour, cable sliding from ten platforms, 
+                    tree to tree while discovering the spectacular and unique wilderness of the Tsitsikamma Indigenous forest. 
+                    Surrounded by birdlife and giant trees like the Outeniqua Yellowwood, known to us as Uncle Sam who is over 
+                    600 years old! One can easily feel like a dwarf standing against it. The tour begins with a detailed safety briefing 
+                    followed by a ‘kitting up’ session where a full-body harness, pulleys, and climbing equipment is issued and checked. 
+                    A short drive into the Tsitsikamma forest and it is time to monkey around! From the start on the launch platform, 
+                    a new world unfolds as one gently glides on a steel cable to the first tree platform. All groups are escorted through 
+                    the forest canopy by a lead guide and a follow guide to ensure your safety as you slide from tree to tree. 
+                    The platforms built high up in the giant Outeniqua Yellowwoods, provide an unbelievable view of this enchanting 
+                    new world – any fear of heights is soon lost as you gather in your new surroundings.',
+                'disabled' => false,
+                'type' => 'textarea',
+                'format' => 'table',
+            ],
+            [
+                'id' => 6,
+                'booking_voucher_id' => 1,
+                'name' => 'What to Wear',
+                'helper' => 'This is the what to wear for the service',
+                'description' => 'Please wear river shoes, strops or trainers that can get wet (not
+                    flip-flops), swimming costume, shorts and t-shirt and sunscreen.
+                    Bring a towel, dry clothes and a warm jacket for after.',
+                'disabled' => false,
+                'type' => 'textarea',
+                'format' => 'table',
+            ],
+            [
+                'id' => 7,
+                'booking_voucher_id' => 1,
+                'name' => 'Starting Time and Date',
+                'helper' => 'This is the starting time and date for the service',
+                'description' => '{{start_time_and_date}}',
+                'disabled' => true,
+                'type' => 'text',
+                'format' => 'table',
+            ],
+            [
+                'id' => 8,
+                'booking_voucher_id' => 1,
+                'name' => 'Starting Location',
+                'helper' => 'This is the starting location for the service',
+                'description' => 'Tsitsikamma Canopy Tour, short drive from Knysna',
+                'disabled' => false,
+                'type' => 'textarea',
+                'format' => 'table',
+            ],
+            [
+                'id' => 9,
+                'booking_voucher_id' => 1,
+                'name' => 'Ending Location',
+                'helper' => 'This is the ending location for the service',
+                'description' => 'Tsitsikamma Canopy Tour, short drive from Knysna',
+                'disabled' => false,
+                'type' => 'textarea',
+                'format' => 'table',
+            ],
+            [
+                'id' => 10,
+                'booking_voucher_id' => 1,
+                'name' => 'Lead Passenger Name',
+                'helper' => 'This is the lead name for the service',
+                'description' => '{{lead_name}}',
+                'disabled' => true,
+                'type' => 'text',
+                'format' => 'table',
+            ],
+            [
+                'id' => 11,
+                'booking_voucher_id' => 1,
+                'name' => 'Lead Passenger Email',
+                'helper' => 'This is the lead email for the service',
+                'description' => '{{lead_email}}',
+                'disabled' => true,
+                'type' => 'text',
+                'format' => 'table',
+            ],
+            [
+                'id' => 12,
+                'booking_voucher_id' => 1,
+                'name' => 'Number in Party',
+                'helper' => 'This is the number in party for the service',
+                'description' => '{{number_in_party}}',
+                'disabled' => true,
+                'type' => 'text',
+                'format' => 'table',
+            ],
+            [
+                'id' => 13,
+                'booking_voucher_id' => 1,
+                'name' => 'Supplier Email',
+                'helper' => 'This is the supplier email for the service',
+                'description' => 'manager@magaliesberg.com',
+                'disabled' => false,
+                'type' => 'email',
+                'format' => 'table',
+            ],
+            [
+                'id' => 14,
+                'booking_voucher_id' => 1,
+                'name' => 'Supplier Landline',
+                'helper' => 'This is the supplier landline for the service',
+                'description' => '0000000000',
+                'disabled' => false,
+                'type' => 'text',
+                'format' => 'table',
+            ],
+            [
+                'id' => 15,
+                'booking_voucher_id' => 1,
+                'name' => 'Supplier Mobile',
+                'helper' => 'This is the supplier mobile for the service',
+                'description' => '0000000000',
+                'disabled' => false,
+                'type' => 'text',
+                'format' => 'table',
+            ],
+
+        ];
+
+        foreach ($booking_vouchers as $booking_voucher) {
+            $voucher = BookingVoucher::updateOrCreate(
+                [
+                    'id' => $booking_voucher['id'],
+
+                ],
+                [
+                    'name' => $booking_voucher['name'],
+                    'service_id' => $booking_voucher['service_id'],
+                    'season_id' => $booking_voucher['season_id'],
+                    'team_id' => $booking_voucher['team_id'],
+                ]
+            );
+
+            foreach ($booking_voucher_items as $booking_voucher_item) {
+                $voucherItem = BookingVoucherItem::updateOrCreate(
+                    [
+                        'id' => $booking_voucher_item['id'],
+                        'booking_voucher_id' => $voucher->id,
+                    ],
+                    [
+                        'name' => $booking_voucher_item['name'],
+                        'helper' => $booking_voucher_item['helper'],
+                        'description' => $booking_voucher_item['description'],
+                        'disabled' => $booking_voucher_item['disabled'],
+                        'type' => $booking_voucher_item['type'],
+                        'format' => $booking_voucher_item['format'],
+                    ]
+                );
+            }
         }
 
-        $bookings = [
-            [
-                'id'             => 1,
-                'lead_name'      => 'Customer1',
-                'user_id'        => 1,
-                'type_booking_id' => 2,
-                'status_payment_id' => 2,
-                'is_sms'         => 0,
-                'is_corporate'   => 0,
-                'due_date'       => '2025-03-01',
-                'tot_paid'       => 0,
-                'grand_tot_due'  => 1500.00,
-                'reference'      => 'REF-' . strtoupper(Str::random(6)), //Str::uuid(),
-                'customer_id'     => 1,
-                'updated_by_id'  => 1,
-                'customers'      => [1, 2, 3],
-                'created_at'     => now(),
-                'updated_at'     => now(),
-                'deleted_at'     => null,
-                'team_id'        => 7,
-            ],
-            [
-                'id'             => 2,
-                'lead_name'      => 'Customer4',
-                'user_id'        => 1,
-                'type_booking_id' => 2,
-                'status_payment_id' => 2,
-                'is_sms'         => 0,
-                'is_corporate'   => 0,
-                'due_date'       => '2025-04-02',
-                'tot_paid'       => 0,
-                'grand_tot_due'  => 1800.00,
-                'reference'      => 'REF-' . strtoupper(Str::random(6)), //Str::uuid(),
-                'customer_id'     => 4,
-                'updated_by_id'  => 1,
-                'customers'      => [4, 5, 6],
-                'created_at'     => now(),
-                'updated_at'     => now(),
-                'deleted_at'     => null,
-                'team_id'        => 7,
-            ],
-            [
-                'id'             => 3,
-                'lead_name'      => 'Customer7',
-                'user_id'        => 1,
-                'type_booking_id' => 2,
-                'status_payment_id' => 2,
-                'is_sms'         => 0,
-                'is_corporate'   => 0,
-                'due_date'       => '2025-07-03',
-                'tot_paid'       => 0,
-                'grand_tot_due'  => 900.00,
-                'reference'      => 'REF-' . strtoupper(Str::random(6)), //Str::uuid(),
-                'customer_id'     => 7,
-                'updated_by_id'  => 1,
-                'customers'      => [7, 8],
-                'created_at'     => now(),
-                'updated_at'     => now(),
-                'deleted_at'     => null,
-                'team_id'        => 7,
-            ],
-            [
-                'id'             => 4,
-                'lead_name'      => 'Customer9',
-                'user_id'        => 1,
-                'type_booking_id' => 2,
-                'status_payment_id' => 2,
-                'is_sms'         => 0,
-                'is_corporate'   => 0,
-                'due_date'       => '2025-07-04',
-                'tot_paid'       => 0,
-                'grand_tot_due'  => 1200.00,
-                'reference'      => 'REF-' . strtoupper(Str::random(6)), //Str::uuid(),
-                'customer_id'     => 9,
-                'updated_by_id'  => 1,
-                'customers'      => [9, 10],
-                'created_at'     => now(),
-                'updated_at'     => now(),
-                'deleted_at'     => null,
-                'team_id'        => 7,
-            ],
-        ];
+        if (false) {
+            $customers = [
+                [
+                    'id'             => 1,
+                    'full_name'      => 'Customer1',
+                    'email_address'  => 'Customer1@email.com',
+                    'contact_number' => '1234567890',
+                    'nationality_id'    => '',
+                    'created_at'     => now(),
+                    'updated_at'     => now(),
+                    'deleted_at'     => null,
+                ],
+                [
+                    'id'             => 2,
+                    'full_name'           => 'Customer2',
+                    'email_address'          => 'Customer2@email.com',
+                    'contact_number' => '0987654321',
+                    'nationality'    => '',
+                    'created_at'     => now(),
+                    'updated_at'     => now(),
+                    'deleted_at'     => null,
+                ],
+                [
+                    'id'             => 3,
+                    'full_name'           => 'Customer3',
+                    'email_address'          => 'Customer3@email.com',
+                    'contact_number' => '9876543210',
+                    'nationality'    => '',
+                    'created_at'     => now(),
+                    'updated_at'     => now(),
+                    'deleted_at'     => null,
+                    'parent_id'      => 1,
+                ],
+                [
+                    'id'             => 4,
+                    'full_name'           => 'Customer4',
+                    'email_address'          => 'Customer4@email.com',
+                    'contact_number' => '9876543211',
+                    'nationality'    => '',
+                    'created_at'     => now(),
+                    'updated_at'     => now(),
+                    'deleted_at'     => null,
+                ],
+                [
+                    'id'             => 5,
+                    'full_name'           => 'Customer5',
+                    'email_address'          => 'Customer5@email.com',
+                    'contact_number' => '9876543212',
+                    'nationality'    => '',
+                    'created_at'     => now(),
+                    'updated_at'     => now(),
+                    'deleted_at'     => null,
+                ],
+                [
+                    'id'             => 6,
+                    'full_name'           => 'Customer6',
+                    'email_address'          => 'Customer6@email.com',
+                    'contact_number' => '9876543213',
+                    'nationality'    => '',
+                    'created_at'     => now(),
+                    'updated_at'     => now(),
+                    'deleted_at'     => null,
+                ],
+                [
+                    'id'             => 7,
+                    'full_name'           => 'Customer7',
+                    'email_address'          => 'Customer7@email.com',
+                    'contact_number' => '9876543214',
+                    'nationality'    => '',
+                    'created_at'     => now(),
+                    'updated_at'     => now(),
+                    'deleted_at'     => null,
+                ],
+                [
+                    'id'             => 8,
+                    'full_name'           => 'Customer8',
+                    'email_address'          => 'Customer8@email.com',
+                    'contact_number' => '9876543215',
+                    'nationality'    => '',
+                    'created_at'     => now(),
+                    'updated_at'     => now(),
+                    'deleted_at'     => null,
+                    'parent_id'      => 7,
+                ],
+                [
+                    'id'             => 9,
+                    'full_name'           => 'Customer9',
+                    'email_address'          => 'Customer9@email.com',
+                    'contact_number' => '9876543216',
+                    'nationality'    => '',
+                    'created_at'     => now(),
+                    'updated_at'     => now(),
+                    'deleted_at'     => null,
+                ],
+                [
+                    'id'             => 10,
+                    'full_name'           => 'Customer10',
+                    'email_address'          => 'Customer10@email.com',
+                    'contact_number' => '9876543217',
+                    'nationality'    => '',
+                    'created_at'     => now(),
+                    'updated_at'     => now(),
+                    'deleted_at'     => null,
+                ],
+            ];
 
-        foreach ($bookings as $item) {
-            $booking =  Booking::updateOrCreate(['id' => $item['id']], $item);
-        }
-        $this->info('booking seeded successfully.');
-
-        $bookingItems = [
-            [
-                'id'             => 1,
-                'service_id'     => 1,
-                'season_id'      => 1,
-                'inventory_id'   => 1,
-                'booking_id'     => 1,
-                'price_adult'    => 600.00,
-                'price_child'    => 300.00,
-                'price_guide'    => 0.00,
-                'promotion_id'   => null,
-                'pax_adults'    => 2,
-                'pax_children'    => 1,
-                'pax_guides'    => 0,
-                'customers' => [1, 2, 3],
-            ],
-            [
-                'id'             => 2,
-                'service_id'     => 2,
-                'season_id'      => 2,
-                'inventory_id'   => 2,
-                'booking_id'     => 2,
-                'price_adult'    => 600.00,
-                'price_child'    => 300.00,
-                'price_guide'    => 0.00,
-                'promotion_id'   => null,
-                'pax_adults'    => 3,
-                'pax_children'    => 0,
-                'pax_guides'    => 0,
-                'customers' => [4, 5, 6],
-            ],
-            [
-                'id'             => 3,
-                'service_id'     => 3,
-                'season_id'      => 3,
-                'inventory_id'   => 3,
-                'booking_id'     => 3,
-                'price_adult'    => 600.00,
-                'price_child'    => 300.00,
-                'price_guide'    => 0.00,
-                'promotion_id'   => null,
-                'pax_adults'    => 1,
-                'pax_children'    => 1,
-                'pax_guides'    => 1,
-                'customers' => [7, 8],
-            ],
-            [
-                'id'             => 4,
-                'service_id'     => 4,
-                'season_id'      => 4,
-                'inventory_id'   => 4,
-                'booking_id'     => 4,
-                'price_adult'    => 600.00,
-                'price_child'    => 300.00,
-                'price_guide'    => 0.00,
-                'promotion_id'   => null,
-                'pax_adults'    => 2,
-                'pax_children'    => 0,
-                'pax_guides'    => 1,
-                'customers' => [9, 10],
-            ],
-        ];
-
-        foreach ($bookingItems as $bookingItem) {
-            $bookingItem['price_adult'] = floatval(str_replace('R', '', $bookingItem['price_adult']));
-            $bookingItem['price_child'] = floatval(str_replace('R', '', $bookingItem['price_child']));
-            $bookingItem['price_guide'] = floatval(str_replace('R', '', $bookingItem['price_guide']));
-
-            $out =  BookingItem::updateOrCreate(['id' => $bookingItem['id']], $bookingItem);
-            // Prepare pivot data
-            $pivotData = [];
-
-            foreach ($bookingItem['customers'] as $index => $customerId) {
-                $pivotData[$customerId] = [
-                    'team_id' => $item['team_id'],         // Or use logic to assign different teams
-                    'is_lead' => $index === 0 ? 1 : 0,     // First customer is lead, rest are not
-                ];
+            foreach ($customers as $customer) {
+                Customer::updateOrCreate(['id' => $customer['id']], $customer);
             }
 
-            // Sync with pivot data
-            $out->customers()->sync($pivotData);
-            //$booking->customers()->sync($item['customers']);
-
-
-        }
-        $this->info('bookingItems seeded successfully.');
-
-        $customerManifests = [
-            [
-                'id'             => 1,
-                'position'       => '1',
-                'notes'          => '',
-                'is_indemnity'   => 0,
-                'customer_id'    => 1,
-                'booking_item_id'     => 1,
-                'created_at'     => now(),
-                'updated_at'     => now(),
-                'deleted_at'     => null,
-                'team_id'        => 7,
-            ],
-            [
-                'id'             => 2,
-                'position'       => '2',
-                'notes'          => '',
-                'is_indemnity'   => 0,
-                'customer_id'    => 2,
-                'booking_item_id'     => 1,
-                'created_at'     => now(),
-                'updated_at'     => now(),
-                'deleted_at'     => null,
-                'team_id'        => 7,
-            ],
-            [
-                'id'             => 3,
-                'position'       => '3',
-                'notes'          => '',
-                'is_indemnity'   => 0,
-                'customer_id'    => 3,
-                'booking_item_id'     => 1,
-                'created_at'     => now(),
-                'updated_at'     => now(),
-                'deleted_at'     => null,
-                'team_id'        => 7,
-                'type'           => 'child',
-            ],
-            [
-                'id'             => 4,
-                'position'       => '1',
-                'notes'          => '',
-                'is_indemnity'   => 0,
-                'customer_id'    => 4,
-                'booking_item_id'     => 2,
-                'created_at'     => now(),
-                'updated_at'     => now(),
-                'deleted_at'     => null,
-                'team_id'        => 7,
-            ],
-            [
-                'id'             => 5,
-                'position'       => '2',
-                'notes'          => '',
-                'is_indemnity'   => 0,
-                'customer_id'    => 5,
-                'booking_item_id'     => 2,
-                'created_at'     => now(),
-                'updated_at'     => now(),
-                'deleted_at'     => null,
-                'team_id'        => 7,
-            ],
-            [
-                'id'             => 6,
-                'position'       => '3',
-                'notes'          => '',
-                'is_indemnity'   => 0,
-                'customer_id'    => 6,
-                'booking_item_id'     => 2,
-                'created_at'     => now(),
-                'updated_at'     => now(),
-                'deleted_at'     => null,
-                'team_id'        => 7,
-            ],
-            [
-                'id'             => 7,
-                'position'       => '1',
-                'notes'          => '',
-                'is_indemnity'   => 0,
-                'customer_id'    => 7,
-                'booking_item_id'     => 3,
-                'created_at'     => now(),
-                'updated_at'     => now(),
-                'deleted_at'     => null,
-                'team_id'        => 7,
-            ],
-            [
-                'id'             => 8,
-                'position'       => '2',
-                'notes'          => '',
-                'is_indemnity'   => 0,
-                'customer_id'    => 8,
-                'booking_item_id'     => 3,
-                'created_at'     => now(),
-                'updated_at'     => now(),
-                'deleted_at'     => null,
-                'team_id'        => 7,
-                'type'           => 'child',
-            ],
-            [
-                'id'             => 9,
-                'position'       => '1',
-                'notes'          => '',
-                'is_indemnity'   => 0,
-                'customer_id'    => 9,
-                'booking_item_id'     => 4,
-                'created_at'     => now(),
-                'updated_at'     => now(),
-                'deleted_at'     => null,
-                'team_id'        => 7,
-            ],
-            [
-                'id'             => 10,
-                'position'       => '2',
-                'notes'          => '',
-                'is_indemnity'   => 0,
-                'customer_id'    => 10,
-                'booking_item_id'     => 4,
-                'created_at'     => now(),
-                'updated_at'     => now(),
-                'deleted_at'     => null,
-                'team_id'        => 7,
-            ],
-        ];
-
-        foreach ($customerManifests as $customerManifest) {
-            CustomerManifest::updateOrCreate(['id' => $customerManifest['id']], $customerManifest);
-        }
-
-        $bookingDetails = [
-            [
-                'id'             => 1,
-                'booking_item_id'     => 1,
-                'is_wholesaler_booking' => 0,
-                'is_needs_pickup' => 0,
-                'is_web_booking' => 0,
-                'is_videos_photos' => 0,
-                'is_exclusive_resource_use' => 0,
-                'is_override_time_slots' => 0,
-                'created_at'     => now(),
-                'updated_at'     => now(),
-                'deleted_at'     => null,
-                'team_id'        => 7,
-            ],
-            [
-                'id'             => 2,
-                'booking_item_id'     => 2,
-                'is_wholesaler_booking' => 0,
-                'is_needs_pickup' => 0,
-                'is_web_booking' => 0,
-                'is_videos_photos' => 0,
-                'is_exclusive_resource_use' => 0,
-                'is_override_time_slots' => 0,
-                'created_at'     => now(),
-                'updated_at'     => now(),
-                'deleted_at'     => null,
-                'team_id'        => 7,
-            ],
-            [
-                'id'             => 3,
-                'booking_item_id'     => 3,
-                'is_wholesaler_booking' => 0,
-                'is_needs_pickup' => 0,
-                'is_web_booking' => 0,
-                'is_videos_photos' => 0,
-                'is_exclusive_resource_use' => 0,
-                'is_override_time_slots' => 0,
-                'created_at'     => now(),
-                'updated_at'     => now(),
-                'deleted_at'     => null,
-                'team_id'        => 7,
-            ],
-            [
-                'id'             => 4,
-                'booking_item_id'     => 4,
-                'is_wholesaler_booking' => 0,
-                'is_needs_pickup' => 0,
-                'is_web_booking' => 0,
-                'is_videos_photos' => 0,
-                'is_exclusive_resource_use' => 0,
-                'is_override_time_slots' => 0,
-                'created_at'     => now(),
-                'updated_at'     => now(),
-                'deleted_at'     => null,
-                'team_id'        => 7,
-            ],
-        ];
-
-        foreach ($bookingDetails as $bookingDetail) {
-            BookingDetail::updateOrCreate(['id' => $bookingDetail['id']], $bookingDetail);
-        }
-
-        $booking_inventories = [
-            [
-                'id'             => 1,
-                'booking_item_id'     => 1,
-                'booking_detail_id' => 1,
-                'date'           => '2025-03-01',
-                'adults'     => 2,
-                'children'   => 1,
-                'guides'     => 1,
-                'pax'            => 3,
-                'inventory_type_day_id' => 7,
-                'inventory_time_slot_id' => 1,
-                'inventory_override_id' => null,
-                'created_at'     => now(),
-                'updated_at'     => now(),
-                'deleted_at'     => null,
-                'team_id'        => 7,
-            ],
-            [
-                'id'             => 2,
-                'booking_item_id'     => 2,
-                'booking_detail_id' => 2,
-                'date'           => '2025-04-02',
-                'adults'     => 3,
-                'children'   => 0,
-                'guides'     => 1,
-                'pax'            => 3,
-                'inventory_type_day_id' => 1,
-                'inventory_time_slot_id' => 2,
-                'inventory_override_id' => null,
-                'created_at'     => now(),
-                'updated_at'     => now(),
-                'deleted_at'     => null,
-                'team_id'        => 7,
-            ],
-            [
-                'id'             => 3,
-                'booking_item_id'     => 3,
-                'booking_detail_id' => 3,
-                'date'           => '2025-07-03',
-                'adults'     => 1,
-                'children'   => 1,
-                'guides'     => 1,
-                'pax'            => 2,
-                'inventory_type_day_id' => 2,
-                'inventory_time_slot_id' => 2,
-                'inventory_override_id' => null,
-                'created_at'     => now(),
-                'updated_at'     => now(),
-                'deleted_at'     => null,
-                'team_id'        => 7,
-            ],
-            [
-                'id'             => 4,
-                'booking_item_id'     => 4,
-                'booking_detail_id' => 4,
-                'date'           => '2025-07-04',
-                'adults'     => 2,
-                'children'   => 0,
-                'guides'     => 1,
-                'pax'            => 2,
-                'inventory_type_day_id' => 3,
-                'inventory_time_slot_id' => 1,
-                'inventory_override_id' => null,
-                'created_at'     => now(),
-                'updated_at'     => now(),
-                'deleted_at'     => null,
-                'team_id'        => 7,
-            ],
-        ];
-
-        foreach ($booking_inventories as $booking_inventory) {
-            BookingInventory::updateOrCreate(['id' => $booking_inventory['id']], $booking_inventory);
-        }
-
-        $bookingFees = [
-            [
-                'id'             => 1,
-                'booking_item_id'     => 1,
-                'booking_detail_id' => 1,
-                'tot_adults'     => 1200.00,
-                'tot_children'   => 300.00,
-                'tot_guides'     => 0,
-                'is_voucher'     => 0,
-                'voucher_code'   => '',
-                'invoice_note'   => '',
-                'is_email_reminder' => 0,
-                'booking_note'   => '',
-                'tot_amount'     => 1500.00,
-                'tot_paid'       => 1500.00,
-                'created_at'     => now(),
-                'updated_at'     => now(),
-                'deleted_at'     => null,
-                'team_id'        => 7,
-            ],
-            [
-                'id'             => 2,
-                'booking_item_id'     => 2,
-                'booking_detail_id' => 2,
-                'tot_adults'     => 1800.00,
-                'tot_children'   => 0,
-                'tot_guides'     => 0,
-                'is_voucher'     => 0,
-                'voucher_code'   => '',
-                'invoice_note'   => '',
-                'is_email_reminder' => 0,
-                'booking_note'   => '',
-                'tot_amount'     => 1800.00,
-                'tot_paid'       => 1800.00,
-                'created_at'     => now(),
-                'updated_at'     => now(),
-                'deleted_at'     => null,
-                'team_id'        => 7,
-            ],
-            [
-                'id'             => 3,
-                'booking_item_id'     => 3,
-                'booking_detail_id' => 3,
-                'tot_adults'     => 600.00,
-                'tot_children'   => 300.00,
-                'tot_guides'     => 0,
-                'is_voucher'     => 0,
-                'voucher_code'   => '',
-                'invoice_note'   => '',
-                'is_email_reminder' => 0,
-                'booking_note'   => '',
-                'tot_amount'     => 900.00,
-                'tot_paid'       => 900.00,
-                'created_at'     => now(),
-                'updated_at'     => now(),
-                'deleted_at'     => null,
-                'team_id'        => 7,
-            ],
-            [
-                'id'             => 4,
-                'booking_item_id'     => 4,
-                'booking_detail_id' => 4,
-                'tot_adults'     => 1200.00,
-                'tot_children'   => 0,
-                'tot_guides'     => 0,
-                'is_voucher'     => 0,
-                'voucher_code'   => '',
-                'invoice_note'   => '',
-                'is_email_reminder' => 0,
-                'booking_note'   => '',
-                'tot_amount'     => 1200.00,
-                'tot_paid'       => 1200.00,
-                'created_at'     => now(),
-                'updated_at'     => now(),
-                'deleted_at'     => null,
-                'team_id'        => 7,
-            ],
-        ];
-        foreach ($bookingFees as $bookingFee) {
-            BookingFee::updateOrCreate(['id' => $bookingFee['id']], $bookingFee);
-        }
-
-        $bookingInfos = [
-            [
-                'id'             => 1,
-                'booking_item_id'     => 1,
-                'type_location_id' => 1,
-                'location'         => 'pickup',
-                'time'             => '08:00:00',
-                'meridiem'         => 'AM',
-                'team_id'        => 7,
-            ],
-            [
-                'id'             => 2,
-                'booking_item_id'     => 1,
-                'type_location_id' => 2,
-                'location'         => 'start',
-                'time'             => '08:00:00',
-                'meridiem'         => 'AM',
-                'team_id'        => 7,
-            ],
-            [
-                'id'             => 3,
-                'booking_item_id'     => 1,
-                'type_location_id' => 3,
-                'location'         => 'dropoff',
-                'time'             => '08:00:00',
-                'meridiem'         => 'AM',
-                'team_id'        => 7,
-            ],
-            [
-                'id'             => 4,
-                'booking_item_id'     => 2,
-                'type_location_id' => 1,
-                'location'         => 'pickup',
-                'time'             => '08:00:00',
-                'meridiem'         => 'AM',
-                'team_id'        => 7,
-            ],
-            [
-                'id'             => 5,
-                'booking_item_id'     => 2,
-                'type_location_id' => 2,
-                'location'         => 'start',
-                'time'             => '08:00:00',
-                'meridiem'         => 'AM',
-                'team_id'        => 7,
-            ],
-            [
-                'id'             => 6,
-                'booking_item_id'     => 2,
-                'type_location_id' => 3,
-                'location'         => 'dropoff',
-                'time'             => '08:00:00',
-                'meridiem'         => 'AM',
-                'team_id'        => 7,
-            ],
-            [
-                'id'             => 7,
-                'booking_item_id'     => 3,
-                'type_location_id' => 1,
-                'location'         => 'pickup',
-                'time'             => '08:00:00',
-                'meridiem'         => 'AM',
-                'team_id'        => 7,
-            ],
-            [
-                'id'             => 8,
-                'booking_item_id'     => 3,
-                'type_location_id' => 2,
-                'location'         => 'start',
-                'time'             => '08:00:00',
-                'meridiem'         => 'AM',
-                'team_id'        => 7,
-            ],
-            [
-                'id'             => 9,
-                'booking_item_id'     => 3,
-                'type_location_id' => 3,
-                'location'         => 'dropoff',
-                'time'             => '08:00:00',
-                'meridiem'         => 'AM',
-                'team_id'        => 7,
-            ],
-            [
-                'id'             => 10,
-                'booking_item_id'     => 4,
-                'type_location_id' => 1,
-                'location'         => 'pickup',
-                'time'             => '08:00:00',
-                'meridiem'         => 'AM',
-                'team_id'        => 7,
-            ],
-            [
-                'id'             => 11,
-                'booking_item_id'     => 4,
-                'type_location_id' => 2,
-                'location'         => 'start',
-                'time'             => '08:00:00',
-                'meridiem'         => 'AM',
-                'team_id'        => 7,
-            ],
-            [
-                'id'             => 12,
-                'booking_item_id'     => 4,
-                'type_location_id' => 3,
-                'location'         => 'dropoff',
-                'time'             => '08:00:00',
-                'meridiem'         => 'AM',
-                'team_id'        => 7,
-            ],
-        ];
-
-        foreach ($bookingInfos as $info) {
-            BookingInfo::updateOrCreate(
+            $bookings = [
                 [
-                    'booking_item_id' => $info['booking_item_id'],
-                    'type_location_id' => $info['type_location_id'],
+                    'id'             => 1,
+                    'lead_name'      => 'Customer1',
+                    'user_id'        => 1,
+                    'type_booking_id' => 2,
+                    'status_payment_id' => 2,
+                    'is_sms'         => 0,
+                    'is_corporate'   => 0,
+                    'due_date'       => '2025-03-01',
+                    'tot_paid'       => 0,
+                    'grand_tot_due'  => 1500.00,
+                    'reference'      => 'REF-' . strtoupper(Str::random(6)), //Str::uuid(),
+                    'customer_id'     => 1,
+                    'updated_by_id'  => 1,
+                    'customers'      => [1, 2, 3],
+                    'created_at'     => now(),
+                    'updated_at'     => now(),
+                    'deleted_at'     => null,
+                    'team_id'        => 7,
                 ],
-                $info
-            );
+                [
+                    'id'             => 2,
+                    'lead_name'      => 'Customer4',
+                    'user_id'        => 1,
+                    'type_booking_id' => 2,
+                    'status_payment_id' => 2,
+                    'is_sms'         => 0,
+                    'is_corporate'   => 0,
+                    'due_date'       => '2025-04-02',
+                    'tot_paid'       => 0,
+                    'grand_tot_due'  => 1800.00,
+                    'reference'      => 'REF-' . strtoupper(Str::random(6)), //Str::uuid(),
+                    'customer_id'     => 4,
+                    'updated_by_id'  => 1,
+                    'customers'      => [4, 5, 6],
+                    'created_at'     => now(),
+                    'updated_at'     => now(),
+                    'deleted_at'     => null,
+                    'team_id'        => 7,
+                ],
+                [
+                    'id'             => 3,
+                    'lead_name'      => 'Customer7',
+                    'user_id'        => 1,
+                    'type_booking_id' => 2,
+                    'status_payment_id' => 2,
+                    'is_sms'         => 0,
+                    'is_corporate'   => 0,
+                    'due_date'       => '2025-07-03',
+                    'tot_paid'       => 0,
+                    'grand_tot_due'  => 900.00,
+                    'reference'      => 'REF-' . strtoupper(Str::random(6)), //Str::uuid(),
+                    'customer_id'     => 7,
+                    'updated_by_id'  => 1,
+                    'customers'      => [7, 8],
+                    'created_at'     => now(),
+                    'updated_at'     => now(),
+                    'deleted_at'     => null,
+                    'team_id'        => 7,
+                ],
+                [
+                    'id'             => 4,
+                    'lead_name'      => 'Customer9',
+                    'user_id'        => 1,
+                    'type_booking_id' => 2,
+                    'status_payment_id' => 2,
+                    'is_sms'         => 0,
+                    'is_corporate'   => 0,
+                    'due_date'       => '2025-07-04',
+                    'tot_paid'       => 0,
+                    'grand_tot_due'  => 1200.00,
+                    'reference'      => 'REF-' . strtoupper(Str::random(6)), //Str::uuid(),
+                    'customer_id'     => 9,
+                    'updated_by_id'  => 1,
+                    'customers'      => [9, 10],
+                    'created_at'     => now(),
+                    'updated_at'     => now(),
+                    'deleted_at'     => null,
+                    'team_id'        => 7,
+                ],
+            ];
+
+            foreach ($bookings as $item) {
+                $booking =  Booking::updateOrCreate(['id' => $item['id']], $item);
+            }
+            $this->info('booking seeded successfully.');
+
+            $bookingItems = [
+                [
+                    'id'             => 1,
+                    'service_id'     => 1,
+                    'season_id'      => 1,
+                    'inventory_id'   => 1,
+                    'booking_id'     => 1,
+                    'price_adult'    => 600.00,
+                    'price_child'    => 300.00,
+                    'price_guide'    => 0.00,
+                    'promotion_id'   => null,
+                    'pax_adults'    => 2,
+                    'pax_children'    => 1,
+                    'pax_guides'    => 0,
+                    'customers' => [1, 2, 3],
+                ],
+                [
+                    'id'             => 2,
+                    'service_id'     => 2,
+                    'season_id'      => 2,
+                    'inventory_id'   => 2,
+                    'booking_id'     => 2,
+                    'price_adult'    => 600.00,
+                    'price_child'    => 300.00,
+                    'price_guide'    => 0.00,
+                    'promotion_id'   => null,
+                    'pax_adults'    => 3,
+                    'pax_children'    => 0,
+                    'pax_guides'    => 0,
+                    'customers' => [4, 5, 6],
+                ],
+                [
+                    'id'             => 3,
+                    'service_id'     => 3,
+                    'season_id'      => 3,
+                    'inventory_id'   => 3,
+                    'booking_id'     => 3,
+                    'price_adult'    => 600.00,
+                    'price_child'    => 300.00,
+                    'price_guide'    => 0.00,
+                    'promotion_id'   => null,
+                    'pax_adults'    => 1,
+                    'pax_children'    => 1,
+                    'pax_guides'    => 1,
+                    'customers' => [7, 8],
+                ],
+                [
+                    'id'             => 4,
+                    'service_id'     => 4,
+                    'season_id'      => 4,
+                    'inventory_id'   => 4,
+                    'booking_id'     => 4,
+                    'price_adult'    => 600.00,
+                    'price_child'    => 300.00,
+                    'price_guide'    => 0.00,
+                    'promotion_id'   => null,
+                    'pax_adults'    => 2,
+                    'pax_children'    => 0,
+                    'pax_guides'    => 1,
+                    'customers' => [9, 10],
+                ],
+            ];
+
+            foreach ($bookingItems as $bookingItem) {
+                $bookingItem['price_adult'] = floatval(str_replace('R', '', $bookingItem['price_adult']));
+                $bookingItem['price_child'] = floatval(str_replace('R', '', $bookingItem['price_child']));
+                $bookingItem['price_guide'] = floatval(str_replace('R', '', $bookingItem['price_guide']));
+
+                $out =  BookingItem::updateOrCreate(['id' => $bookingItem['id']], $bookingItem);
+                // Prepare pivot data
+                $pivotData = [];
+
+                foreach ($bookingItem['customers'] as $index => $customerId) {
+                    $pivotData[$customerId] = [
+                        'team_id' => $item['team_id'],         // Or use logic to assign different teams
+                        'is_lead' => $index === 0 ? 1 : 0,     // First customer is lead, rest are not
+                    ];
+                }
+
+                // Sync with pivot data
+                $out->customers()->sync($pivotData);
+                //$booking->customers()->sync($item['customers']);
+
+
+            }
+            $this->info('bookingItems seeded successfully.');
+
+            $customerManifests = [
+                [
+                    'id'             => 1,
+                    'position'       => '1',
+                    'notes'          => '',
+                    'is_indemnity'   => 0,
+                    'customer_id'    => 1,
+                    'booking_item_id'     => 1,
+                    'created_at'     => now(),
+                    'updated_at'     => now(),
+                    'deleted_at'     => null,
+                    'team_id'        => 7,
+                ],
+                [
+                    'id'             => 2,
+                    'position'       => '2',
+                    'notes'          => '',
+                    'is_indemnity'   => 0,
+                    'customer_id'    => 2,
+                    'booking_item_id'     => 1,
+                    'created_at'     => now(),
+                    'updated_at'     => now(),
+                    'deleted_at'     => null,
+                    'team_id'        => 7,
+                ],
+                [
+                    'id'             => 3,
+                    'position'       => '3',
+                    'notes'          => '',
+                    'is_indemnity'   => 0,
+                    'customer_id'    => 3,
+                    'booking_item_id'     => 1,
+                    'created_at'     => now(),
+                    'updated_at'     => now(),
+                    'deleted_at'     => null,
+                    'team_id'        => 7,
+                    'type'           => 'child',
+                ],
+                [
+                    'id'             => 4,
+                    'position'       => '1',
+                    'notes'          => '',
+                    'is_indemnity'   => 0,
+                    'customer_id'    => 4,
+                    'booking_item_id'     => 2,
+                    'created_at'     => now(),
+                    'updated_at'     => now(),
+                    'deleted_at'     => null,
+                    'team_id'        => 7,
+                ],
+                [
+                    'id'             => 5,
+                    'position'       => '2',
+                    'notes'          => '',
+                    'is_indemnity'   => 0,
+                    'customer_id'    => 5,
+                    'booking_item_id'     => 2,
+                    'created_at'     => now(),
+                    'updated_at'     => now(),
+                    'deleted_at'     => null,
+                    'team_id'        => 7,
+                ],
+                [
+                    'id'             => 6,
+                    'position'       => '3',
+                    'notes'          => '',
+                    'is_indemnity'   => 0,
+                    'customer_id'    => 6,
+                    'booking_item_id'     => 2,
+                    'created_at'     => now(),
+                    'updated_at'     => now(),
+                    'deleted_at'     => null,
+                    'team_id'        => 7,
+                ],
+                [
+                    'id'             => 7,
+                    'position'       => '1',
+                    'notes'          => '',
+                    'is_indemnity'   => 0,
+                    'customer_id'    => 7,
+                    'booking_item_id'     => 3,
+                    'created_at'     => now(),
+                    'updated_at'     => now(),
+                    'deleted_at'     => null,
+                    'team_id'        => 7,
+                ],
+                [
+                    'id'             => 8,
+                    'position'       => '2',
+                    'notes'          => '',
+                    'is_indemnity'   => 0,
+                    'customer_id'    => 8,
+                    'booking_item_id'     => 3,
+                    'created_at'     => now(),
+                    'updated_at'     => now(),
+                    'deleted_at'     => null,
+                    'team_id'        => 7,
+                    'type'           => 'child',
+                ],
+                [
+                    'id'             => 9,
+                    'position'       => '1',
+                    'notes'          => '',
+                    'is_indemnity'   => 0,
+                    'customer_id'    => 9,
+                    'booking_item_id'     => 4,
+                    'created_at'     => now(),
+                    'updated_at'     => now(),
+                    'deleted_at'     => null,
+                    'team_id'        => 7,
+                ],
+                [
+                    'id'             => 10,
+                    'position'       => '2',
+                    'notes'          => '',
+                    'is_indemnity'   => 0,
+                    'customer_id'    => 10,
+                    'booking_item_id'     => 4,
+                    'created_at'     => now(),
+                    'updated_at'     => now(),
+                    'deleted_at'     => null,
+                    'team_id'        => 7,
+                ],
+            ];
+
+            foreach ($customerManifests as $customerManifest) {
+                CustomerManifest::updateOrCreate(['id' => $customerManifest['id']], $customerManifest);
+            }
+
+            $bookingDetails = [
+                [
+                    'id'             => 1,
+                    'booking_item_id'     => 1,
+                    'is_wholesaler_booking' => 0,
+                    'is_needs_pickup' => 0,
+                    'is_web_booking' => 0,
+                    'is_videos_photos' => 0,
+                    'is_exclusive_resource_use' => 0,
+                    'is_override_time_slots' => 0,
+                    'created_at'     => now(),
+                    'updated_at'     => now(),
+                    'deleted_at'     => null,
+                    'team_id'        => 7,
+                ],
+                [
+                    'id'             => 2,
+                    'booking_item_id'     => 2,
+                    'is_wholesaler_booking' => 0,
+                    'is_needs_pickup' => 0,
+                    'is_web_booking' => 0,
+                    'is_videos_photos' => 0,
+                    'is_exclusive_resource_use' => 0,
+                    'is_override_time_slots' => 0,
+                    'created_at'     => now(),
+                    'updated_at'     => now(),
+                    'deleted_at'     => null,
+                    'team_id'        => 7,
+                ],
+                [
+                    'id'             => 3,
+                    'booking_item_id'     => 3,
+                    'is_wholesaler_booking' => 0,
+                    'is_needs_pickup' => 0,
+                    'is_web_booking' => 0,
+                    'is_videos_photos' => 0,
+                    'is_exclusive_resource_use' => 0,
+                    'is_override_time_slots' => 0,
+                    'created_at'     => now(),
+                    'updated_at'     => now(),
+                    'deleted_at'     => null,
+                    'team_id'        => 7,
+                ],
+                [
+                    'id'             => 4,
+                    'booking_item_id'     => 4,
+                    'is_wholesaler_booking' => 0,
+                    'is_needs_pickup' => 0,
+                    'is_web_booking' => 0,
+                    'is_videos_photos' => 0,
+                    'is_exclusive_resource_use' => 0,
+                    'is_override_time_slots' => 0,
+                    'created_at'     => now(),
+                    'updated_at'     => now(),
+                    'deleted_at'     => null,
+                    'team_id'        => 7,
+                ],
+            ];
+
+            foreach ($bookingDetails as $bookingDetail) {
+                BookingDetail::updateOrCreate(['id' => $bookingDetail['id']], $bookingDetail);
+            }
+
+            $booking_inventories = [
+                [
+                    'id'             => 1,
+                    'booking_item_id'     => 1,
+                    'booking_detail_id' => 1,
+                    'date'           => '2025-03-01',
+                    'adults'     => 2,
+                    'children'   => 1,
+                    'guides'     => 1,
+                    'pax'            => 3,
+                    'inventory_type_day_id' => 7,
+                    'inventory_time_slot_id' => 1,
+                    'inventory_override_id' => null,
+                    'created_at'     => now(),
+                    'updated_at'     => now(),
+                    'deleted_at'     => null,
+                    'team_id'        => 7,
+                ],
+                [
+                    'id'             => 2,
+                    'booking_item_id'     => 2,
+                    'booking_detail_id' => 2,
+                    'date'           => '2025-04-02',
+                    'adults'     => 3,
+                    'children'   => 0,
+                    'guides'     => 1,
+                    'pax'            => 3,
+                    'inventory_type_day_id' => 1,
+                    'inventory_time_slot_id' => 2,
+                    'inventory_override_id' => null,
+                    'created_at'     => now(),
+                    'updated_at'     => now(),
+                    'deleted_at'     => null,
+                    'team_id'        => 7,
+                ],
+                [
+                    'id'             => 3,
+                    'booking_item_id'     => 3,
+                    'booking_detail_id' => 3,
+                    'date'           => '2025-07-03',
+                    'adults'     => 1,
+                    'children'   => 1,
+                    'guides'     => 1,
+                    'pax'            => 2,
+                    'inventory_type_day_id' => 2,
+                    'inventory_time_slot_id' => 2,
+                    'inventory_override_id' => null,
+                    'created_at'     => now(),
+                    'updated_at'     => now(),
+                    'deleted_at'     => null,
+                    'team_id'        => 7,
+                ],
+                [
+                    'id'             => 4,
+                    'booking_item_id'     => 4,
+                    'booking_detail_id' => 4,
+                    'date'           => '2025-07-04',
+                    'adults'     => 2,
+                    'children'   => 0,
+                    'guides'     => 1,
+                    'pax'            => 2,
+                    'inventory_type_day_id' => 3,
+                    'inventory_time_slot_id' => 1,
+                    'inventory_override_id' => null,
+                    'created_at'     => now(),
+                    'updated_at'     => now(),
+                    'deleted_at'     => null,
+                    'team_id'        => 7,
+                ],
+            ];
+
+            foreach ($booking_inventories as $booking_inventory) {
+                BookingInventory::updateOrCreate(['id' => $booking_inventory['id']], $booking_inventory);
+            }
+
+            $bookingFees = [
+                [
+                    'id'             => 1,
+                    'booking_item_id'     => 1,
+                    'booking_detail_id' => 1,
+                    'tot_adults'     => 1200.00,
+                    'tot_children'   => 300.00,
+                    'tot_guides'     => 0,
+                    'is_voucher'     => 0,
+                    'voucher_code'   => '',
+                    'invoice_note'   => '',
+                    'is_email_reminder' => 0,
+                    'booking_note'   => '',
+                    'tot_amount'     => 1500.00,
+                    'tot_paid'       => 1500.00,
+                    'created_at'     => now(),
+                    'updated_at'     => now(),
+                    'deleted_at'     => null,
+                    'team_id'        => 7,
+                ],
+                [
+                    'id'             => 2,
+                    'booking_item_id'     => 2,
+                    'booking_detail_id' => 2,
+                    'tot_adults'     => 1800.00,
+                    'tot_children'   => 0,
+                    'tot_guides'     => 0,
+                    'is_voucher'     => 0,
+                    'voucher_code'   => '',
+                    'invoice_note'   => '',
+                    'is_email_reminder' => 0,
+                    'booking_note'   => '',
+                    'tot_amount'     => 1800.00,
+                    'tot_paid'       => 1800.00,
+                    'created_at'     => now(),
+                    'updated_at'     => now(),
+                    'deleted_at'     => null,
+                    'team_id'        => 7,
+                ],
+                [
+                    'id'             => 3,
+                    'booking_item_id'     => 3,
+                    'booking_detail_id' => 3,
+                    'tot_adults'     => 600.00,
+                    'tot_children'   => 300.00,
+                    'tot_guides'     => 0,
+                    'is_voucher'     => 0,
+                    'voucher_code'   => '',
+                    'invoice_note'   => '',
+                    'is_email_reminder' => 0,
+                    'booking_note'   => '',
+                    'tot_amount'     => 900.00,
+                    'tot_paid'       => 900.00,
+                    'created_at'     => now(),
+                    'updated_at'     => now(),
+                    'deleted_at'     => null,
+                    'team_id'        => 7,
+                ],
+                [
+                    'id'             => 4,
+                    'booking_item_id'     => 4,
+                    'booking_detail_id' => 4,
+                    'tot_adults'     => 1200.00,
+                    'tot_children'   => 0,
+                    'tot_guides'     => 0,
+                    'is_voucher'     => 0,
+                    'voucher_code'   => '',
+                    'invoice_note'   => '',
+                    'is_email_reminder' => 0,
+                    'booking_note'   => '',
+                    'tot_amount'     => 1200.00,
+                    'tot_paid'       => 1200.00,
+                    'created_at'     => now(),
+                    'updated_at'     => now(),
+                    'deleted_at'     => null,
+                    'team_id'        => 7,
+                ],
+            ];
+            foreach ($bookingFees as $bookingFee) {
+                BookingFee::updateOrCreate(['id' => $bookingFee['id']], $bookingFee);
+            }
+
+            $bookingInfos = [
+                [
+                    'id'             => 1,
+                    'booking_item_id'     => 1,
+                    'type_location_id' => 1,
+                    'location'         => 'pickup',
+                    'time'             => '08:00:00',
+                    'meridiem'         => 'AM',
+                    'team_id'        => 7,
+                ],
+                [
+                    'id'             => 2,
+                    'booking_item_id'     => 1,
+                    'type_location_id' => 2,
+                    'location'         => 'start',
+                    'time'             => '08:00:00',
+                    'meridiem'         => 'AM',
+                    'team_id'        => 7,
+                ],
+                [
+                    'id'             => 3,
+                    'booking_item_id'     => 1,
+                    'type_location_id' => 3,
+                    'location'         => 'dropoff',
+                    'time'             => '08:00:00',
+                    'meridiem'         => 'AM',
+                    'team_id'        => 7,
+                ],
+                [
+                    'id'             => 4,
+                    'booking_item_id'     => 2,
+                    'type_location_id' => 1,
+                    'location'         => 'pickup',
+                    'time'             => '08:00:00',
+                    'meridiem'         => 'AM',
+                    'team_id'        => 7,
+                ],
+                [
+                    'id'             => 5,
+                    'booking_item_id'     => 2,
+                    'type_location_id' => 2,
+                    'location'         => 'start',
+                    'time'             => '08:00:00',
+                    'meridiem'         => 'AM',
+                    'team_id'        => 7,
+                ],
+                [
+                    'id'             => 6,
+                    'booking_item_id'     => 2,
+                    'type_location_id' => 3,
+                    'location'         => 'dropoff',
+                    'time'             => '08:00:00',
+                    'meridiem'         => 'AM',
+                    'team_id'        => 7,
+                ],
+                [
+                    'id'             => 7,
+                    'booking_item_id'     => 3,
+                    'type_location_id' => 1,
+                    'location'         => 'pickup',
+                    'time'             => '08:00:00',
+                    'meridiem'         => 'AM',
+                    'team_id'        => 7,
+                ],
+                [
+                    'id'             => 8,
+                    'booking_item_id'     => 3,
+                    'type_location_id' => 2,
+                    'location'         => 'start',
+                    'time'             => '08:00:00',
+                    'meridiem'         => 'AM',
+                    'team_id'        => 7,
+                ],
+                [
+                    'id'             => 9,
+                    'booking_item_id'     => 3,
+                    'type_location_id' => 3,
+                    'location'         => 'dropoff',
+                    'time'             => '08:00:00',
+                    'meridiem'         => 'AM',
+                    'team_id'        => 7,
+                ],
+                [
+                    'id'             => 10,
+                    'booking_item_id'     => 4,
+                    'type_location_id' => 1,
+                    'location'         => 'pickup',
+                    'time'             => '08:00:00',
+                    'meridiem'         => 'AM',
+                    'team_id'        => 7,
+                ],
+                [
+                    'id'             => 11,
+                    'booking_item_id'     => 4,
+                    'type_location_id' => 2,
+                    'location'         => 'start',
+                    'time'             => '08:00:00',
+                    'meridiem'         => 'AM',
+                    'team_id'        => 7,
+                ],
+                [
+                    'id'             => 12,
+                    'booking_item_id'     => 4,
+                    'type_location_id' => 3,
+                    'location'         => 'dropoff',
+                    'time'             => '08:00:00',
+                    'meridiem'         => 'AM',
+                    'team_id'        => 7,
+                ],
+            ];
+
+            foreach ($bookingInfos as $info) {
+                BookingInfo::updateOrCreate(
+                    [
+                        'booking_item_id' => $info['booking_item_id'],
+                        'type_location_id' => $info['type_location_id'],
+                    ],
+                    $info
+                );
+            }
+
+
+            $bookingPayments = [
+                [
+                    'id'             => 1,
+                    'booking_id'     => 1,
+                    'type_pay_option_id'   => 1,     // or 'Pay Offline'
+                    'type_payment_id' => 1, // Cash // 5 eft
+                    'status_payment_id'         => 2,        // 'paid', 'failed', 'cancelled'
+                    'ex_vat_amount'         => 1500.00,          // full amount due or partial
+                    'lookup_item_id'         => 1,          // full amount due or partial
+                    'vat'         => 0.15,          // full amount due or partial
+                    'vat_amount'         => 1650.00,          // full amount due or partial
+                    'reference'      => $bookings[0]['reference'], //  'OFF-' . strtoupper(Str::random(6)), // can be order ref or external tx
+                    'gateway_id'        => 1,        // 'Manual'
+                    'meta'           => json_encode([
+                        'file_path' => '/assets/icons/plus.svg',
+                        'note' => '',
+                        'original_name' => '',
+                    ]),
+                    'payment_date'   =>  now(),
+                    'redeemer_name'  => '',
+                    'voucher_code' => null,
+                    'note'           => '',
+                    'updated_by_id'  => null,
+                    'deleted_at'     => null,
+                    'team_id'        => null,
+                ],
+                [
+                    'id'             => 2,
+                    'booking_id'     => 2,
+                    'type_pay_option_id'   => 1,     // or 'Pay Offline'
+                    'type_payment_id' => 1, // Cash // 5 eft
+                    'status_payment_id'         => 2,        // 'paid', 'failed', 'cancelled'
+                    'ex_vat_amount'         => 1800.00,          // full amount due or partial
+                    'lookup_item_id'         => 1,          // full amount due or partial
+                    'vat'         => 0.15,          // full amount due or partial
+                    'vat_amount'         => 2070.00,          // full amount due or partial                
+                    'reference'      => $bookings[1]['reference'], // 'OFF-' . strtoupper(Str::random(6)), // can be order ref or external tx
+                    'gateway_id'        => 1,        // 'Manual'
+                    'meta'           => json_encode([
+                        'file_path' => '/assets/icons/plus.svg',
+                        'note' => '',
+                        'original_name' => '',
+                    ]),
+                    'payment_date'   =>  now(),
+                    'redeemer_name'  => '',
+                    'voucher_code' => null,
+                    'note'           => '',
+                    'updated_by_id'  => null,
+                    'deleted_at'     => null,
+                    'team_id'        => null,
+                ],
+                [
+                    'id'             => 3,
+                    'booking_id'     => 3,
+                    'type_pay_option_id'   => 1,     // or 'Pay Offline'
+                    'type_payment_id' => 1, // Cash // 5 eft
+                    'status_payment_id'         => 2,        // 'paid', 'failed', 'cancelled'
+                    'ex_vat_amount'         => 900.00,          // full amount due or partial
+                    'lookup_item_id'         => 1,          // full amount due or partial
+                    'vat'         => 0.15,          // full amount due or partial
+                    'vat_amount'         => 1035.00,          // full amount due or partial                
+                    'reference'      => $bookings[2]['reference'], //'OFF-' . strtoupper(Str::random(6)), // can be order ref or external tx
+                    'gateway_id'        => 1,        // 'Manual'
+                    'meta'           => json_encode([
+                        'file_path' => '/assets/icons/plus.svg',
+                        'note' => '',
+                        'original_name' => '',
+                    ]),
+                    'payment_date'   =>  now(),
+                    'redeemer_name'  => '',
+                    'voucher_code' => null,
+                    'note'           => '',
+                    'updated_by_id'  => null,
+                    'deleted_at'     => null,
+                    'team_id'        => null,
+                ],
+                [
+                    'id'             => 4,
+                    'booking_id'     => 4,
+                    'type_pay_option_id'   => 1,     // or 'Pay Offline'
+                    'type_payment_id' => 1, // Cash // 5 eft
+                    'status_payment_id'         => 2,        // 'paid', 'failed', 'cancelled'
+                    'ex_vat_amount'         => 1200.00,          // full amount due or partial
+                    'lookup_item_id'         => 1,          // full amount due or partial
+                    'vat'         => 0.15,          // full amount due or partial
+                    'vat_amount'         => 1320.00,          // full amount due or partial                
+                    'reference'      => $bookings[3]['reference'], //'OFF-' . strtoupper(Str::random(6)), // can be order ref or external tx
+                    'gateway_id'        => 1,        // 'Manual'
+                    'meta'           => json_encode([
+                        'file_path' => '/assets/icons/plus.svg',
+                        'note' => '',
+                        'original_name' => '',
+                    ]),
+                    'payment_date'   =>  now(),
+                    'redeemer_name'  => '',
+                    'voucher_code' => null,
+                    'note'           => '',
+                    'updated_by_id'  => null,
+                    'deleted_at'     => null,
+                    'team_id'        => null,
+                ],
+            ];
+            foreach ($bookingPayments as $bookingPayment) {
+                $booking = Booking::findOrFail($bookingPayment['booking_id']);
+
+                // Mark as paid (in real app, you'd validate PayFast response)
+                $booking->update([
+                    // 'status_booking_id' => 2, // e.g., "paid"
+                    'tot_paid' => $bookingPayment['ex_vat_amount'],
+                ]);
+
+
+                BookingPayment::updateOrCreate(['id' => $bookingPayment['id']], $bookingPayment);
+            }
         }
 
 
-        $bookingPayments = [
-            [
-                'id'             => 1,
-                'booking_id'     => 1,
-                'type_pay_option_id'   => 1,     // or 'Pay Offline'
-                'type_payment_id' => 1, // Cash // 5 eft
-                'status_payment_id'         => 2,        // 'paid', 'failed', 'cancelled'
-                'ex_vat_amount'         => 1500.00,          // full amount due or partial
-                'lookup_item_id'         => 1,          // full amount due or partial
-                'vat'         => 0.15,          // full amount due or partial
-                'vat_amount'         => 1650.00,          // full amount due or partial
-                'reference'      => $bookings[0]['reference'], //  'OFF-' . strtoupper(Str::random(6)), // can be order ref or external tx
-                'gateway_id'        => 1,        // 'Manual'
-                'meta'           => json_encode([
-                    'file_path' => '/assets/icons/plus.svg',
-                    'note' => '',
-                    'original_name' => '',
-                ]),
-                'payment_date'   =>  now(),
-                'redeemer_name'  => '',
-                'voucher_code' => null,
-                'note'           => '',
-                'updated_by_id'  => null,
-                'deleted_at'     => null,
-                'team_id'        => null,
-            ],
-            [
-                'id'             => 2,
-                'booking_id'     => 2,
-                'type_pay_option_id'   => 1,     // or 'Pay Offline'
-                'type_payment_id' => 1, // Cash // 5 eft
-                'status_payment_id'         => 2,        // 'paid', 'failed', 'cancelled'
-                'ex_vat_amount'         => 1800.00,          // full amount due or partial
-                'lookup_item_id'         => 1,          // full amount due or partial
-                'vat'         => 0.15,          // full amount due or partial
-                'vat_amount'         => 2070.00,          // full amount due or partial                
-                'reference'      => $bookings[1]['reference'], // 'OFF-' . strtoupper(Str::random(6)), // can be order ref or external tx
-                'gateway_id'        => 1,        // 'Manual'
-                'meta'           => json_encode([
-                    'file_path' => '/assets/icons/plus.svg',
-                    'note' => '',
-                    'original_name' => '',
-                ]),
-                'payment_date'   =>  now(),
-                'redeemer_name'  => '',
-                'voucher_code' => null,
-                'note'           => '',
-                'updated_by_id'  => null,
-                'deleted_at'     => null,
-                'team_id'        => null,
-            ],
-            [
-                'id'             => 3,
-                'booking_id'     => 3,
-                'type_pay_option_id'   => 1,     // or 'Pay Offline'
-                'type_payment_id' => 1, // Cash // 5 eft
-                'status_payment_id'         => 2,        // 'paid', 'failed', 'cancelled'
-                'ex_vat_amount'         => 900.00,          // full amount due or partial
-                'lookup_item_id'         => 1,          // full amount due or partial
-                'vat'         => 0.15,          // full amount due or partial
-                'vat_amount'         => 1035.00,          // full amount due or partial                
-                'reference'      => $bookings[2]['reference'], //'OFF-' . strtoupper(Str::random(6)), // can be order ref or external tx
-                'gateway_id'        => 1,        // 'Manual'
-                'meta'           => json_encode([
-                    'file_path' => '/assets/icons/plus.svg',
-                    'note' => '',
-                    'original_name' => '',
-                ]),
-                'payment_date'   =>  now(),
-                'redeemer_name'  => '',
-                'voucher_code' => null,
-                'note'           => '',
-                'updated_by_id'  => null,
-                'deleted_at'     => null,
-                'team_id'        => null,
-            ],
-            [
-                'id'             => 4,
-                'booking_id'     => 4,
-                'type_pay_option_id'   => 1,     // or 'Pay Offline'
-                'type_payment_id' => 1, // Cash // 5 eft
-                'status_payment_id'         => 2,        // 'paid', 'failed', 'cancelled'
-                'ex_vat_amount'         => 1200.00,          // full amount due or partial
-                'lookup_item_id'         => 1,          // full amount due or partial
-                'vat'         => 0.15,          // full amount due or partial
-                'vat_amount'         => 1320.00,          // full amount due or partial                
-                'reference'      => $bookings[3]['reference'], //'OFF-' . strtoupper(Str::random(6)), // can be order ref or external tx
-                'gateway_id'        => 1,        // 'Manual'
-                'meta'           => json_encode([
-                    'file_path' => '/assets/icons/plus.svg',
-                    'note' => '',
-                    'original_name' => '',
-                ]),
-                'payment_date'   =>  now(),
-                'redeemer_name'  => '',
-                'voucher_code' => null,
-                'note'           => '',
-                'updated_by_id'  => null,
-                'deleted_at'     => null,
-                'team_id'        => null,
-            ],
-        ];
-        foreach ($bookingPayments as $bookingPayment) {
-            $booking = Booking::findOrFail($bookingPayment['booking_id']);
-
-            // Mark as paid (in real app, you'd validate PayFast response)
-            $booking->update([
-                // 'status_booking_id' => 2, // e.g., "paid"
-                'tot_paid' => $bookingPayment['ex_vat_amount'],
-            ]);
-
-
-            BookingPayment::updateOrCreate(['id' => $bookingPayment['id']], $bookingPayment);
-        }
 
         $questionnaires = [
             [

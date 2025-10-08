@@ -230,6 +230,7 @@ class BookingItem extends Model
                 'price'     => $price,
                 'paid'      => $paid,
                 'due'       => $price - $paid,
+                'files' => $this->booking->files,
                 'booking_discount_item_id'  => $discount->discount->id ?? null,
                 'discount_id'  => $discount->discount->id ?? null,
                 'discount'  => $customerDiscount->discount->name ?? null,

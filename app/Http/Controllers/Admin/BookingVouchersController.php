@@ -120,7 +120,7 @@ class BookingVouchersController extends Controller
         //$pdf->save($path);
 
         //return $pdf->stream('booking-details.pdf');
-        //return $pdf->download('booking-details.pdf');
+        return $pdf->download('booking-details.pdf');
         return response()->file($path, [
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'attachment; filename="booking-voucher.pdf"',

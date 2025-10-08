@@ -21,6 +21,7 @@ return new class extends Migration
             $table->softDeletes();
 
             $table->foreignId('wholesaler_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('team_id')->nullable();
         });
     }
 

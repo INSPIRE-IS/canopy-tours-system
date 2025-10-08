@@ -17,6 +17,7 @@ return new class extends Migration {
             $table->foreignId('wholesaler_id')->constrained('wholesalers')->onDelete('cascade');
             $table->foreignId('service_id')->constrained('services')->onDelete('cascade');
             $table->foreignId('season_id')->constrained('seasons')->onDelete('cascade');
+            $table->foreignId('team_id')->nullable();
             $table->unique(['wholesaler_id', 'service_id', 'season_id']);
         });
     }

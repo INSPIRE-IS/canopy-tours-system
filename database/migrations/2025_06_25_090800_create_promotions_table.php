@@ -24,6 +24,7 @@ return new class extends Migration {
 
             $table->foreignId('service_id')->constrained('services')->onDelete('cascade');
             $table->foreignId('season_id')->nullable()->constrained('seasons');
+            $table->foreignId('team_id')->nullable();
             $table->index(['service_id', 'season_id', 'booking_start_date', 'booking_end_date'])->name('service_season_booking_dates');
         });
     }

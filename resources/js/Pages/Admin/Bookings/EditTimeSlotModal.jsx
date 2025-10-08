@@ -44,6 +44,7 @@ const EditTimeSlotModal = ({ isOpen, onClose, mode, booking, services }) => {
                 season_id: booking.season_id,
                 booking_date: booking.booking_date,
                 inventory_time_slot_id: booking.inventory_time_slot_id,
+                start_time: booking.time,
             });
             setActivityDate(new Date(booking.booking_date));
         }

@@ -129,4 +129,40 @@ class User extends Authenticatable
     {
         return $this->belongsTo(Team::class, 'team_id');
     }
+
+    public function alerts()
+    {
+        return $this->belongsToMany(Alert::class)
+            ->withPivot(['read', 'complete'])
+            ->withTimestamps(); // optional, if your pivot had timestamps
+    }
+
+    // Topics this user created/sent
+    public function sentTopics()
+    {
+        return $this->hasMany(QaTopic::class, 'creator_id');
+    }
+
+    // Topics this user received
+    public function receivedTopics()
+    {
+        return $this->hasMany(QaTopic::class, 'receiver_id');
+    }
+
+    public function unreadTopics()
+    {
+        return QaTopic::where(function ($q) {
+            $q->where('receiver_id', $this->id)
+                ->orWhere('creator_id', $this->id);
+        })
+            ->whereHas('messages', function ($q) {
+                $q->whereNull('read_at')
+                    ->where('sender_id', '!=', $this->id);
+            });
+    }
+
+    public function getUnreadTopicCountAttribute()
+    {
+        return $this->unreadTopics()->count();
+    }
 }

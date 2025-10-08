@@ -5,7 +5,7 @@
     <title>Booking Voucher</title>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
     <style>
-        body { font-family: DejaVu Sans, sans-serif; font-size: 12px; color: #000; }
+        body { font-family: sans-serif; font-size: 12px; color: #000; }
         table { width: 100%; border-collapse: collapse; border: none; margin-bottom: 15px; margin-top: 10px; }
         th, td { border-bottom: 1px solid #ddd;; padding: 6px; text-align: left; vertical-align: top; }
         th { background: #e2e8f0; }

@@ -11,16 +11,15 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('user_alerts', function (Blueprint $table) {
+        Schema::create('alerts', function (Blueprint $table) {
             $table->id();
             $table->string('alert_text')->nullable();
             $table->string('alert_link')->nullable();
-            $table->boolean('internal')->nullable();
-            $table->boolean('complete')->nullable();
             $table->timestamps();
-
+            $table->softDeletes();
 
             $table->foreignId('type_alert_id')->constrained()->onDelete('cascade');
+            $table->foreignId('team_id')->constrained()->onDelete('cascade');
         });
     }
 
@@ -29,6 +28,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('user_alerts');
+        Schema::dropIfExists('alerts');
     }
 };

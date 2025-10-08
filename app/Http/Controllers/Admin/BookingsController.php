@@ -64,7 +64,7 @@ class BookingsController extends Controller
             'booking_payments',
         ])->get();
         $booking_items = BookingItem::with([
-            'booking',
+            'booking.files',
             'customers',
             'booking_detail',
             'booking_fee',
@@ -90,7 +90,6 @@ class BookingsController extends Controller
                 $end_time = $start_time->copy()->addHours($hours)->addMinutes($minutes)->addSeconds($seconds);
 
                 $customers = $booking_item->paxWithCustomers();
-
                 $info = [
                     'id' => $booking_item->booking->id,
                     'reference' => $booking_item->booking->reference,
@@ -124,7 +123,7 @@ class BookingsController extends Controller
 
         $lookups = LookupItem::where('is_default', true)->get();
         $activities = Service::with('seasons')->get();
-
+        //dd($formatted);
 
         return Inertia::render('Admin/Bookings/Index', [
             'bookings' => $formatted,
@@ -853,7 +852,11 @@ class BookingsController extends Controller
 
     public function destroy(Booking $booking)
     {
-        abort_if(Gate::denies('booking_delete'), Response::HTTP_FORBIDDEN, '403 Forbidden');
+        // abort_if(Gate::denies('booking_delete'), Response::HTTP_FORBIDDEN, '403 Forbidden');
+        $booking_items = $booking->booking_items;
+        foreach ($booking_items as $item) {
+            $item->delete();
+        }
 
         $booking->delete();
 

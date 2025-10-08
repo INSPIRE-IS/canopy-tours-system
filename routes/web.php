@@ -22,7 +22,7 @@ use App\Http\Controllers\Admin\RolesController;
 use App\Http\Controllers\Admin\SeasonsController;
 use App\Http\Controllers\Admin\ServicesController;
 use App\Http\Controllers\Admin\TeamController;
-use App\Http\Controllers\Admin\UserAlertsController;
+use App\Http\Controllers\Admin\AlertsController;
 use App\Http\Controllers\Admin\UsersController;
 use App\Http\Controllers\Admin\VoucherController;
 use App\Http\Controllers\Admin\WholesalerContactsController;
@@ -83,7 +83,8 @@ Route::get('/payment/simulated', [PaymentController::class, 'simulated'])->name(
 
 // Handle offline submission
 Route::post('/payment/offline', [PaymentController::class, 'offline'])->name('front.payment.offline');
-Route::get('front/invoices/download/{booking}', [PaymentController::class, 'download'])->name('front.invoices.download');
+Route::get('front/invoices/download/{booking}', [PaymentController::class, 'invoiceDownload'])->name('front.invoices.download');
+Route::get('front/details/download/{booking}', [PaymentController::class, 'detailDownload'])->name('front.details.download');
 Route::get('front/voucher', [ActivityController::class, 'voucher'])->name('front.voucher');
 
 
@@ -97,6 +98,20 @@ Route::get('/states/{country_id}', [BookingQuestionnaireController::class, 'getS
 Route::get('services/options', fn() => \App\Models\Service::select('id', 'name')->orderBy('name')->get())->name('services.options');
 Route::get('seasons/options', fn() => \App\Models\Season::select('id', 'name')->orderBy('name')->get())->name('seasons.options');
 Route::get('wholesalers/options', fn() => \App\Models\Wholesaler::select('id', 'name')->orderBy('name')->get())->name('wholesalers.options');
+// Route::get('invoices/{path}', function ($path) {
+//     $path = storage_path('app/public/' . $path);
+
+//     abort_unless(file_exists($path), 404);
+
+//     return response()->file($path);
+// })->name('invoices');
+// Route::get('vouchers/{path}', function ($path) {
+//     $path = storage_path('app/public/' . $path);
+
+//     abort_unless(file_exists($path), 404);
+
+//     return response()->file($path);
+// })->name('vouchers');
 
 // Route::get('/questionnaire-welcome', function () {
 //     return Inertia::render('Questionnaire-Welcome');
@@ -132,8 +147,8 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['auth', 'v
     Route::resource('users', UsersController::class);
 
     // User Alerts
-    Route::get('user-alerts/read', [UserAlertsController::class, 'read'])->name('user-alerts.read');
-    Route::resource('user-alerts', UserAlertsController::class); // ['except' => ['edit', 'update']]
+    Route::get('user-alerts/read', [AlertsController::class, 'read'])->name('user-alerts.read');
+    Route::resource('user-alerts', AlertsController::class); // ['except' => ['edit', 'update']]
 
     // Services
     Route::resource('services', ServicesController::class);
@@ -185,6 +200,7 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['auth', 'v
     Route::post('/bookings/calculate-price', [BookingsController::class, 'calculate'])->name('booking.calculate');
     Route::post('/bookings/send-email', [BookingsController::class, 'sendEmail'])->name('bookings.send-email');
     Route::get('bookings/add/{booking}', [BookingsController::class, 'add'])->name('bookings.add');
+    // Route::get('bookings/cancel-booking/{booking}', [BookingsController::class, 'cancelBooking'])->name('bookings.cancel-booking');
     Route::resource('bookings', BookingsController::class);
     Route::post('customer-manifests/add', [CustomerManifestController::class, 'add'])->name('customer-manifests.add');
     Route::put('customer-manifests/edit/{booking_item_id}', [CustomerManifestController::class, 'edit'])->name('customer-manifests.edit');

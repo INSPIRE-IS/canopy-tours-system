@@ -182,7 +182,7 @@ export default function ReviewPayment({ auth, booking, lookups }) {
           )}
 
           {method === 'payfast' && (
-            <div>
+            <div className="flex justify-center gap-4">
               <button
                 onClick={handlePayFast}
                 className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
@@ -193,10 +193,19 @@ export default function ReviewPayment({ auth, booking, lookups }) {
                 href={route('front.invoices.download', booking.id)}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="btn btn-primary"
+                className="px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700"
               >
-                Download Invoice PDF
+                Proforma Invoice
               </a>
+              <a
+                href={route('front.details.download', booking.id)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700"
+              >
+                Activity
+              </a>
+
               {/* <button
                 onClick={handleDownload}
                 className="mt-4 px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700"

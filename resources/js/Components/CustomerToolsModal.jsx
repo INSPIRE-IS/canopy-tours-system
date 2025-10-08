@@ -35,11 +35,11 @@ export default function CustomerToolsModal({ index, customer, position, onClose,
 
                 <div className="flex flex-col gap-2">
                     <button type='button' onClick={() => CustomerToolClick('check_in', index, customer)} className="btn-tool">{icons.check_in} Check-In</button>
-                    <button type='button' onClick={() => CustomerToolClick('send_invoice', index, customer)} className="btn-tool">{icons.send_invoice} Send Invoice</button>
+                    <button type='button' onClick={() => CustomerToolClick('customer_invoice', index, customer)} className="btn-tool">{icons.customer_invoice} Customer Invoice</button>
                     <button type='button' onClick={() => CustomerToolClick('resend_invoice', index, customer)} className="btn-tool">{icons.resend_invoice} Resend Invoice</button>
                     <button type='button' onClick={() => CustomerToolClick('manifest', index, customer)} className="btn-tool">{icons.manifest} Manifest</button>
-                    <button type='button' onClick={() => CustomerToolClick('customer_invoice', index, customer)} className="btn-tool">{icons.customer_invoice} Customer Invoice</button>
-                    {/* <button type='button' onClick={() => CustomerToolClick('print_ticket', index, customer)} className="btn-tool">{icons.print_ticket} Print Ticket</button>
+                    {/* <button type='button' onClick={() => CustomerToolClick('customer_invoice', index, customer)} className="btn-tool">{icons.customer_invoice} Customer Invoice</button>
+                     <button type='button' onClick={() => CustomerToolClick('print_ticket', index, customer)} className="btn-tool">{icons.print_ticket} Print Ticket</button>
                     <button type='button' onClick={() => CustomerToolClick('voucher', index, customer)} className="btn-tool">{icons.voucher} Voucher</button> */}
                 </div>
             </div>

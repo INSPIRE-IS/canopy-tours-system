@@ -29,8 +29,8 @@ class InvoiceTemplateController extends Controller
             ->paginate(10);
         // $users = User::select('name', 'id')->get();
 
-        // return Inertia::render('Admin/UserAlerts/Index', [
-        //     'userAlerts' => $userAlerts,
+        // return Inertia::render('Admin/Alerts/Index', [
+        //     'Alerts' => $Alerts,
         //     'users' => $users ?? [],
         //     'searchTerm' => $searchTerm,
         //     'sortColumn' => $sortColumn,

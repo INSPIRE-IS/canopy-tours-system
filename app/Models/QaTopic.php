@@ -65,6 +65,7 @@ class QaTopic extends Model
     {
         return $this->belongsTo(User::class, 'creator_id');
     }
+
     public function receiver()
     {
         return $this->belongsTo(User::class, 'receiver_id');

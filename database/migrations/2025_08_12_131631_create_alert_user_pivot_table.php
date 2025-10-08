@@ -11,11 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('user_user_alert_pivot', function (Blueprint $table) {
-            $table->foreignId('user_alert_id')->constrained('user_alerts')->onDelete('cascade');
+        Schema::create('alert_user', function (Blueprint $table) {
+            $table->foreignId('alert_id')->constrained('alerts')->onDelete('cascade');
             $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
-            $table->primary(['user_alert_id', 'user_id']);
+            $table->primary(['alert_id', 'user_id']);
             $table->boolean('read')->default(0);
+            $table->boolean('complete')->default(0);
+            $table->timestamps();
         });
     }
 
@@ -24,6 +26,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('user_user_alert_pivot');
+        Schema::dropIfExists('alert_user');
     }
 };

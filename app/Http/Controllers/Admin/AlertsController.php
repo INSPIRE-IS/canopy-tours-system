@@ -4,16 +4,16 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\MassDestroyUserAlertRequest;
-use App\Http\Requests\StoreUserAlertRequest;
-use App\Http\Requests\UpdateUserAlertRequest;
+use App\Http\Requests\StoreAlertRequest;
+use App\Http\Requests\UpdateAlertRequest;
 use App\Models\User;
-use App\Models\UserAlert;
+use App\Models\Alert;
 use Gate;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Symfony\Component\HttpFoundation\Response;
 
-class UserAlertsController extends Controller
+class AlertsController extends Controller
 {
     public function index(Request $request)
     {
@@ -23,7 +23,7 @@ class UserAlertsController extends Controller
         $sortColumn = $request->get('sort', 'alert_text'); // Default to 'name' if no sort is provided
         $sortDirection = $request->get('direction', 'asc');
 
-        $userAlerts = UserAlert::with(['users'])
+        $userAlerts = Alert::with(['users'])
             ->where('alert_text', 'like', '%' . $searchTerm . '%')
             ->orderBy($sortColumn, $sortDirection)
             ->paginate(10);
@@ -38,15 +38,15 @@ class UserAlertsController extends Controller
         ]);
     }
 
-    public function store(StoreUserAlertRequest $request)
+    public function store(StoreAlertRequest $request)
     {
-        $userAlert = UserAlert::create($request->all());
+        $userAlert = Alert::create($request->all());
         $userAlert->users()->sync($request->input('users', []));
 
         return redirect()->route('admin.user-alerts.index');
     }
 
-    public function update(UpdateUserAlertRequest $request, UserAlert $userAlert)
+    public function update(UpdateAlertRequest $request, Alert $userAlert)
     {
         dd('not implemented');
         $userAlert->update($request->all());
@@ -55,7 +55,7 @@ class UserAlertsController extends Controller
         return redirect()->route('admin.user-alerts.index');
     }
 
-    public function show(UserAlert $userAlert)
+    public function show(Alert $userAlert)
     {
         dd('not implemented');
         abort_if(Gate::denies('user_alert_show'), Response::HTTP_FORBIDDEN, '403 Forbidden');
@@ -64,7 +64,7 @@ class UserAlertsController extends Controller
         // return view('admin.userAlerts.show', compact('userAlert'));
     }
 
-    public function destroy(UserAlert $userAlert)
+    public function destroy(Alert $userAlert)
     {
         abort_if(Gate::denies('user_alert_delete'), Response::HTTP_FORBIDDEN, '403 Forbidden');
 
@@ -75,7 +75,7 @@ class UserAlertsController extends Controller
 
     public function read(Request $request)
     {
-        $alerts = \Auth::user()->userUserAlerts()->where('read', false)->get();
+        $alerts = \Auth::user()->alerts()->where('read', false)->get();
         foreach ($alerts as $alert) {
             $pivot       = $alert->pivot;
             $pivot->read = true;

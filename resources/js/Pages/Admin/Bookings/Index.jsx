@@ -9,9 +9,11 @@ import React, { useEffect, useRef, useState } from 'react';
 import ManifestsModal from './ManifestsModal';
 import ManifestModal from './ManifestModal';
 import EditTimeSlotModal from './EditTimeSlotModal';
+import ViewBookingModal from './ViewBookingModal';
 import NavSelect from '@/Components/NavSelect';
 import CustomInputText from '@/Components/CustomInputText';
 import { format } from 'date-fns';
+import ConfirmModal from '@/Components/ConfirmModal';
 // import { useRoute } from 'ziggy-js';
 // import { Ziggy } from '@/ziggy'; // the generated file
 
@@ -26,6 +28,7 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
     const [bookingToolsTarget, setBookingToolsTarget] = useState(null); // { customer, position }
     const [guestEmailTarget, setGuestEmailTarget] = useState(null); // { customer, position }
     const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
+    const [isViewBookingModalOpen, setIsViewBookingModalOpen] = useState(false);
     const [isEditTimeSlotModalOpen, setIsEditTimeSlotModalOpen] = useState(false);
     const [isManifestModalOpen, setIsManifestModalOpen] = useState(false);
     const [isManifestsModalOpen, setIsManifestsModalOpen] = useState(false);
@@ -34,6 +37,8 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
     const [selectedManifest, setSelectedManifest] = useState(null);
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [showServices, setShowServices] = useState(false);
+    const [confirmOpen, setConfirmOpen] = useState(false);
+    const [viewDocsIndex, setViewDocsIndex] = useState(null);
     const servicesRef = useRef();
     const openCustomerToolsModal = (event, index, customer) => {
         event.preventDefault();
@@ -64,6 +69,14 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
         });
     };
 
+    const handleBookingDelete = () => {
+        router.delete(route('admin.bookings.destroy', selectedBooking.id), {
+            onSuccess: () => { setSelectedBooking(null); router.visit(route('admin.bookings.index')); },
+            onError: () => { setSelectedBooking(null); router.visit(route('admin.bookings.index')); }
+        });
+    };
+
+
     function BookingToolClick(tool, booking) {
 
         console.log("-------tool clicked-------", tool);
@@ -91,15 +104,22 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
         if (tool === 'remove_resource') {
             router.get(route('admin.bookings.remove_resource'));
         }
-        if (tool === 'cancel_all_bookings') {
-            router.get(route('admin.bookings.cancel_all_bookings'));
+        if (tool === 'cancel_booking') {
+            setConfirmOpen(true);
+            setSelectedBooking(booking);
         }
+    };
+
+    const ViewBookingClick = (booking) => {
+        //router.get(route('admin.bookings.edit', booking.id));
+        setSelectedBooking(booking);
+        setIsViewBookingModalOpen(true);
     };
 
     const CustomerToolClick = (tool, index, customer) => {
         // console.log("-------tool customer clicked-------", tool);
         // console.log("-------tool customer clicked-------", index);
-        // console.log("-------tool customer clicked-------", customer);
+        console.log("-------tool customer clicked-------", customer);
         const booking = bookings[index];
         //console.log("-------tool booking clicked-------", booking);
         const customers = bookings[index].customers;
@@ -107,9 +127,9 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
         if (tool === 'check_in') {
             router.get(route('booking-questionnaire.create', { reference: booking.reference }));
         }
-        if (tool === 'send_invoice') {
-            router.get(route('admin.bookings.send_invoice'));
-        }
+        // if (tool === 'view_invoice') {
+        //     router.get(route('admin.bookings.send_invoice'));
+        // }
         if (tool === 'resend_invoice') {
             router.get(route('admin.bookings.resend_invoice'));
         }
@@ -119,7 +139,18 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
             setIsManifestModalOpen(true);
         }
         if (tool === 'customer_invoice') {
-            router.get(route('admin.bookings.customer_invoice'));
+            if (customer.files.length == 0) {
+                prompt('No invoice found');
+                return;
+            }
+
+            const file = customer.files.find(f => f.table_name == 'invoices');
+            if (!file) {
+                prompt('No invoice found');
+                return;
+            }
+            const fileUrl = `/storage/${file.path}`;
+            window.open(fileUrl, '_blank', 'noopener,noreferrer');
         }
         // if (tool === 'print_ticket') {
         //     router.get(route('admin.bookings.print_ticket'));
@@ -229,6 +260,7 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
     const handleCloseModal = () => {
         setGuestEmailTarget(null);
         setIsEditTimeSlotModalOpen(false);
+        setIsViewBookingModalOpen(false);
         setSelectedBooking(null);
         setIsEmailModalOpen(false);
         window.location.reload();
@@ -329,7 +361,7 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                                 </thead>
                                 <tbody className="divide-y divide-gray-100">
                                     {filteredBookings?.map((item, i) => {
-                                        console.log('item ', item);
+                                        console.log('----------item----- ', item);
 
 
                                         return (
@@ -362,7 +394,8 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                                                     </td>
                                                     <td className="w-[185px] p-3 flex gap-2">
                                                         {expanded === i ? (
-                                                            <button onClick={() => router.get(route('admin.bookings.edit', item?.id))} className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border border-primary-14 text-primary-14 cursor-pointer">
+                                                            // <button onClick={() => router.get(route('admin.bookings.edit', item?.id))} className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border border-primary-14 text-primary-14 cursor-pointer"></button>
+                                                            <button onClick={() => ViewBookingClick(item)} className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border border-primary-14 text-primary-14 cursor-pointer">
                                                                 {icons.eye}
                                                                 <span className="text-btn-outline-gray">View Booking</span>
                                                             </button>
@@ -402,14 +435,49 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                                                                     </span>
                                                                 </td>
                                                                 <td className="flex flex-col w-[120px] p-3  gap-2">
-                                                                    <button type='button' className="btn-tool">{icons.docs} Docs</button>
-                                                                    <button type='button' onClick={(e) => openCustomerToolsModal(e, index, customer)} className="btn-tool">{icons.tools} Tools</button>
-                                                                    {/* <button type='button'
-                                                                    onClick={(e) => openCustomerToolsModal(e, customer)}
-                                                                    className="flex items-center gap-1 text-blue-600 hover:text-blue-800"
+                                                                    <div
+                                                                        className="relative"
+                                                                        onClick={() =>
+                                                                            setViewDocsIndex(viewDocsIndex === index ? null : index)
+                                                                        }
                                                                     >
-                                                                    Tools
-                                                                    </button> */}
+                                                                        <button type='button' className="btn-tool">{icons.docs} Docs</button>
+                                                                        <div>
+                                                                            {viewDocsIndex === index && (
+                                                                                <div
+                                                                                    className="absolute right-0 mt-3 w-72 bg-white border border-gray-200 rounded-2xl shadow-lg z-50 overflow-hidden"
+                                                                                >
+                                                                                    {/* <div className="p-3 border-b font-semibold text-gray-700">Alerts</div> */}
+                                                                                    <div className="flex justify-between items-center mb-2">
+                                                                                        <h3 className="text-tool-card-title">Docs {index + 1}</h3>
+                                                                                        <button type='button'
+                                                                                            onClick={(e) => {
+                                                                                                e.stopPropagation();
+                                                                                                setViewDocsIndex(null);
+                                                                                            }}
+                                                                                            className="text-gray-400 hover:text-gray-600 text-sm">{icons.close}</button>
+                                                                                    </div>
+
+                                                                                    <div className="max-h-64 overflow-y-auto">
+                                                                                        {customer?.files?.length > 0 ? (
+                                                                                            customer.files.map((file) => (
+                                                                                                <a
+                                                                                                    key={file.id}
+                                                                                                    href={file.path}
+                                                                                                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                                                                                >
+                                                                                                    {file.file_name}
+                                                                                                </a>
+                                                                                            ))
+                                                                                        ) : (
+                                                                                            <p className="p-4 text-gray-500 text-sm">No documents uploaded.</p>
+                                                                                        )}
+                                                                                    </div>
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                    </div>
+                                                                    <button type='button' onClick={(e) => openCustomerToolsModal(e, index, customer)} className="btn-tool">{icons.tools} Tools</button>
                                                                 </td>
                                                             </tr>
                                                         ))
@@ -447,7 +515,22 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                         CustomerToolClick={CustomerToolClick}
                     />
                 )}
-
+                {confirmOpen && (
+                    <ConfirmModal
+                        title="Cancel this booking?"
+                        message="This action cannot be undone."
+                        confirmText="Yes, cancel"
+                        cancelText="Keep Booking"
+                        onConfirm={handleBookingDelete}
+                    />
+                )}
+                <ViewBookingModal
+                    isOpen={isViewBookingModalOpen}
+                    onClose={handleCloseModal}
+                    mode='edit'
+                    booking={selectedBooking}
+                    services={services}
+                />
                 <EditTimeSlotModal
                     isOpen={isEditTimeSlotModalOpen}
                     onClose={handleCloseModal}
@@ -455,7 +538,6 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                     booking={selectedBooking}
                     services={services}
                 />
-
 
                 <GuestEmailModal
                     isOpen={isEmailModalOpen}

@@ -8,6 +8,7 @@ import FlashMessage from '@/Components/FlashMessage';
 import SidebarMenuItem from '@/Components/SidebarMenuItem';
 import { icons } from '@/icons';
 import WhiteButton from '@/Components/WhiteButton';
+import HeaderIcons from '@/Components/HeaderIcons';
 export default function AppLayout({ user, children }) {
 
 
@@ -509,9 +510,25 @@ export default function AppLayout({ user, children }) {
                         )}
 
                         {/* Right-side icons */}
-                        <div className="flex items-center gap-2">
-                            {icons.messages} {icons.notifications}
-                        </div>
+                        <HeaderIcons unreadCount={auth?.unreadCount} unreadTopics={auth?.topics} user={user} />
+                        {/* <div className="flex items-center gap-4 relative">
+                            <div className="relative">
+                                {icons.messages}
+                                {auth?.unreadCount > 0 && (
+                                    <span className="absolute -top-1 -right-4 bg-primary-500 text-black text-xs font-semibold w-5 h-5 flex items-center justify-center rounded-full shadow-md">
+                                        {auth?.unreadCount}
+                                    </span>
+                                )}
+                            </div>
+                            <div className="relative">
+                                {icons.notifications}
+                                {user?.alerts?.length > 0 && (
+                                    <span className="absolute -top-1 -right-3 bg-primary-500 text-black text-xs font-semibold w-5 h-5 flex items-center justify-center rounded-full shadow-md">
+                                        {user.alerts.length}
+                                    </span>
+                                )}
+                            </div>
+                        </div> */}
                     </header>
                     {flash?.message && <FlashMessage message={flash.message} type={flash.type} />}
                     {children}

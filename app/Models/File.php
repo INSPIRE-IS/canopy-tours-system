@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class File extends Model
 {
-    use SoftDeletes, HasFactory, MultiTenantModelTrait;
+    use HasFactory, SoftDeletes, MultiTenantModelTrait;
 
     public $table = 'files';
 
@@ -27,6 +27,7 @@ class File extends Model
         'file_name',
         'file_type',
         'type_file_id',
+        'booking_id',
         'path',
         'created_at',
         'updated_at',

@@ -18,7 +18,7 @@ class WholesalerRateController extends Controller
         $sort = $request->get('sort', 'id');
         $direction = $request->get('direction', 'desc');
 
-        $rates = WholesalerRate::with(['season', 'wholesaler', 'service'])
+        $rates = WholesalerRate::with(['season', 'wholesaler.team', 'service'])
             ->when($search, function ($q) use ($search) {
                 $q->whereHas('wholesaler', function ($qq) use ($search) {
                     $qq->where('name', 'like', '%' . $search . '%');
@@ -27,7 +27,7 @@ class WholesalerRateController extends Controller
             ->orderBy($sort, $direction)
             ->paginate(10)
             ->withQueryString();
-
+        // dd($rates);
         $services = Service::with('seasons')->select('id', 'name')->get();
 
         return Inertia::render('Admin/WholesalerRates/Index', [

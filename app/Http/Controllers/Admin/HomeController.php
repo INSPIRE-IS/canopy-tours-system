@@ -94,7 +94,7 @@ class HomeController extends Controller
             'chart_title'           => 'Notifications',
             // 'chart_type'            => 'latest_entries',
             // 'report_type'           => 'group_by_date',
-            // 'model'                 => 'App\Models\UserAlert',
+            // 'model'                 => 'App\Models\Alert',
             // 'group_by_field'        => 'created_at',
             // 'group_by_period'       => 'day',
             // 'aggregate_function'    => 'count',
@@ -108,8 +108,8 @@ class HomeController extends Controller
                 'user'       => 'name',
                 'created_at' => '',
             ],
-            //'translation_key' => 'userAlert',
-            'data'           => \App\Models\UserAlert::with('users:id,name')->latest()->take(10)->get(),
+            //'translation_key' => 'Alert',
+            'data'           => \App\Models\Alert::with('users:id,name')->latest()->take(10)->get(),
         ];
         // dd($settings3);
         $booking = \App\Models\Booking::with('booking_items', 'booking_items.season:id,name', 'status_payment:id,name')->latest()->take(10)->get();

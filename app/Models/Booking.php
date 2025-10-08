@@ -133,6 +133,11 @@ class Booking extends Model
         return $this->hasMany(BookingDiscount::class, 'booking_id');
     }
 
+    public function files()
+    {
+        return $this->hasMany(File::class, 'booking_id');
+    }
+
     // public function booking_inventory()
     // {
     //     return $this->hasOne(BookingInventory::class);

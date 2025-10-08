@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Alert;
 use App\Models\Booking;
 use App\Models\Customer;
 use App\Models\GiftVoucher;
@@ -37,15 +38,21 @@ class HandleInertiaRequests extends Middleware
         logger()->info('sessionId inertia ' . $sessionId);
         $user = $request->user();
         $teams = Team::all();
+        $unreadCount = 0;
+        $topics = [];
 
         if ($user) {
-            $user->load('roles.permissions', 'team');
+            $user->load('roles.permissions', 'team', 'alerts');
             $permissions = $user?->roles->first()?->permissions
                 ->pluck('name') // assuming 'title' == 'name'
                 ->mapWithKeys(fn($name) => [$name => true])
                 ->all();
             $teams = Team::all();
+            $unreadCount = $user->unread_topic_count;
+            $topics = $user->unreadTopics()->with('messages.sender')->get();
+
             //dd($teams);
+            //dd($unreadCount);
         }
 
         if ($sessionId) {
@@ -75,6 +82,8 @@ class HandleInertiaRequests extends Middleware
                 'customer' => $customer,
                 'count' => $count ?? 0,
                 'bookingId' => $bookingId ?? null,
+                'unreadCount' => $unreadCount,
+                'topics' => $topics,
             ],
             'permissions' =>  $permissions ?? [],
             'currentRoutePath' => $request->path(),

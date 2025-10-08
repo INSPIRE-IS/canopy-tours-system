@@ -23,6 +23,7 @@ return new class extends Migration
             $table->softDeletes();
             $table->foreignId('team_id')->nullable()->constrained('teams');
             $table->foreignId('type_file_id')->nullable()->constrained('type_files');
+            $table->foreignId('booking_id')->nullable()->constrained('bookings');
         });
     }
 
