@@ -40,13 +40,15 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
     const [confirmOpen, setConfirmOpen] = useState(false);
     const [viewDocsIndex, setViewDocsIndex] = useState(null);
     const servicesRef = useRef();
-    const openCustomerToolsModal = (event, index, customer) => {
+
+    const openCustomerToolsModal = (event, index, booking, customer) => {
         event.preventDefault();
         console.log("customer----------tool-------- ", customer)
 
         const rect = event.target.getBoundingClientRect();
         setCustomerToolsTarget({
             index,
+            booking,
             customer,
             position: {
                 top: rect.top + window.scrollY + 30, // offset below the button
@@ -116,13 +118,13 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
         setIsViewBookingModalOpen(true);
     };
 
-    const CustomerToolClick = (tool, index, customer) => {
+    const CustomerToolClick = (tool, index, booking, customer) => {
         // console.log("-------tool customer clicked-------", tool);
         // console.log("-------tool customer clicked-------", index);
         console.log("-------tool customer clicked-------", customer);
-        const booking = bookings[index];
+        //const booking = bookings[index];
         //console.log("-------tool booking clicked-------", booking);
-        const customers = bookings[index].customers;
+        //const bookings = bookings[0];
         //console.log("-------tool customers clicked-------", customers);
         if (tool === 'check_in') {
             router.get(route('booking-questionnaire.create', { reference: booking.reference }));
@@ -134,7 +136,7 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
             router.get(route('admin.bookings.resend_invoice'));
         }
         if (tool === 'manifest') {
-            setSelectedManifests(customers);
+            setSelectedManifests(booking?.customers);
             setSelectedManifest(customer);
             setIsManifestModalOpen(true);
         }
@@ -477,7 +479,7 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                                                                             )}
                                                                         </div>
                                                                     </div>
-                                                                    <button type='button' onClick={(e) => openCustomerToolsModal(e, index, customer)} className="btn-tool">{icons.tools} Tools</button>
+                                                                    <button type='button' onClick={(e) => openCustomerToolsModal(e, index, item, customer)} className="btn-tool">{icons.tools} Tools</button>
                                                                 </td>
                                                             </tr>
                                                         ))
@@ -509,6 +511,7 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                 {customerToolsTarget && (
                     <CustomerToolsModal
                         index={customerToolsTarget.index}
+                        booking={customerToolsTarget.booking}
                         customer={customerToolsTarget.customer}
                         position={customerToolsTarget.position}
                         onClose={() => setCustomerToolsTarget(null)}

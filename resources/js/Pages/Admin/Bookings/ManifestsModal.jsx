@@ -26,15 +26,15 @@ const ManifestsModal = ({ isOpen, onClose, mode, customers, tot_adults, tot_chil
                     id: i,
                     customer_id: m.customer_id, // Keep existing link to customer
                     type: m.type,
-                    parent_id: m.parent_id ?? null,
+                    parent_id: m.parent_id ?? "",
                     position: m.position ?? "",
                     notes: m.notes ?? "",
                     is_indemnity: !!m.is_indemnity,
                     full_name: m?.full_name ?? "",
                     email_address: m?.email_address ?? "",
                     nationality_id: m?.nationality_id ?? "",
-                    age: m.customer?.age ?? null,
-                    contact_number: m.customer?.contact_number ?? "",
+                    age: m.age ?? null,
+                    contact_number: m.contact_number ?? "",
                     booking_item_id: m.booking_item_id ?? "",
                     discount_id: m.discount_id ?? "",
                     discount: m.discount ?? "",
@@ -58,10 +58,10 @@ const ManifestsModal = ({ isOpen, onClose, mode, customers, tot_adults, tot_chil
     useEffect(() => {
         const updatedAdults = data.customer_manifests
             .filter(p => p.type === "adult")
-            .map(p => {
+            .map((p, i) => {
                 console.log("p", p);
                 return ({
-                    id: p.customer_id || p.id,
+                    id: typeof p.customer_id == 'number' ? p.customer_id : i + 1,
                     name: p.full_name || "Unnamed Adult"
                 })
             });
@@ -113,7 +113,7 @@ const ManifestsModal = ({ isOpen, onClose, mode, customers, tot_adults, tot_chil
             ...data.customer_manifests,
             {
                 type: "adult",
-                parent_id: null,
+                parent_id: "",
                 position: "",
                 notes: "",
                 is_indemnity: false,

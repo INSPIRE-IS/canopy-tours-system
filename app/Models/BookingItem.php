@@ -27,8 +27,6 @@ class BookingItem extends Model
         'promotion_id',
         'wholesaler_id',
         'discount_id',
-
-
         'created_at',
         'updated_at',
         'deleted_at',
@@ -55,7 +53,7 @@ class BookingItem extends Model
     public function customers()
     {
         return $this->belongsToMany(Customer::class, 'booking_items_customer', 'booking_item_id', 'customer_id')
-            ->withPivot(['team_id', 'is_lead']);
+            ->withPivot(['team_id', 'is_lead'])->withTimestamps();
     }
 
     public function booking_detail()
@@ -151,6 +149,7 @@ class BookingItem extends Model
 
     public function paxWithCustomers(bool $excludeGuides = true)
     {
+
         $paxList = collect();
         $vatMultiplier = LookupItem::where('lookup_id', 1)->where('is_default', true)->first()->multiplier;
         // ensure totals are ints
@@ -190,11 +189,13 @@ class BookingItem extends Model
         // 1) Add actual customers first
         foreach ($this->customers as $customer) {
             $paxType = $this->guessPaxType($customer) ?? 'adult';
-            logger()->info('**********pax type*************** ', [$paxType]);
+            logger()->info('**********pax type****existing*********** ', [$paxType]);
             // If excluding guides, skip guide customers entirely
             if ($excludeGuides && $paxType === 'guide') {
                 continue;
             }
+
+            $manifest = $this->manifestForCustomer($customer->id);
 
             // increment linked count for this type
             $linkedCounts[$paxType]++;
@@ -219,14 +220,16 @@ class BookingItem extends Model
             $paxList->push([
                 'reference' => $this->booking->reference ?? null,
                 'booking_item_id'  => $bookingItemId,
-                'type'      => $paxType,
-                'customer_id'      => $customer->id,
-                'full_name'      => $customer->full_name,
+                'type'              => $manifest?->type ?? $paxType,
+                'customer_id'       => $customer->id,
+                'full_name'         => $customer->full_name,
                 'email_address'     => $customer->email_address,
-                'contact_number'     => $customer->contact_number,
-                'age'       => $customer->age ?? null,
-                'notes'     => optional($customer->manifest->first())->notes ?? null,
-                'is_indemnity'     => optional($customer->manifest->first())->is_indemnity ?? null,
+                'contact_number'    => $customer->contact_number,
+                'age'               => $customer->age ?? null,
+                'parent_id'         => $customer->parent_id ?? null,
+                'notes'             =>  $manifest?->notes ?? null,
+                'is_indemnity'      =>  $manifest?->is_indemnity ?? null,
+                'position'          => $manifest?->position ?? null,
                 'price'     => $price,
                 'paid'      => $paid,
                 'due'       => $price - $paid,
@@ -272,7 +275,7 @@ class BookingItem extends Model
                 $paid = $tot_paid >= $price ? $price : 0;
                 $tot_paid = $tot_paid - $price;
 
-
+                logger()->info('**********pax type****new*********** ', [$type]);
                 $paxList->push([
                     'reference' => $this->booking->reference ?? null,
                     'booking_item_id'  => $bookingItemId,
@@ -282,6 +285,7 @@ class BookingItem extends Model
                     'email_address'     => null,
                     'contact_number'     => null,
                     'age'       => null,
+                    'parent_id'     => null,
                     'notes'     => null,
                     'is_indemnity'     => null,
                     'price'     => $price,
@@ -309,6 +313,11 @@ class BookingItem extends Model
             'guide'  => $this->price_guide,
             default  => 0,
         };
+    }
+
+    public function manifestForCustomer($customerId)
+    {
+        return $this->customer_manifests()->where('customer_id', $customerId)->first();
     }
 
     protected function discountsFor($paxType)

@@ -122,7 +122,7 @@ class PaymentController extends Controller
 
                     $alert = Alert::create([
                         'alert_text' => 'Payment Confirmation',
-                        'alert_link' => "route('admin.bookings')", //route('front.payment.booking', ['booking' => $booking->id]),
+                        'alert_link' => route('admin.bookings.index'), //route('front.payment.booking', ['booking' => $booking->id]),
                         'type_alert_id' => 3, // booking confirmation
                         'team_id' => $booking->team_id,
                     ]);

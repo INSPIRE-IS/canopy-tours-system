@@ -64,4 +64,9 @@ class Team extends Model
     {
         return $this->belongsTo(Team::class, 'team_id');
     }
+
+    // public function bookingItemCustomers()
+    // {
+    //     return $this->hasMany(bookingItemCustomers::class);
+    // }
 }

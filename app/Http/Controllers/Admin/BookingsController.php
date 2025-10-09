@@ -66,6 +66,7 @@ class BookingsController extends Controller
         $booking_items = BookingItem::with([
             'booking.files',
             'customers',
+            'customer_manifests',
             'booking_detail',
             'booking_fee',
             'booking_inventory',

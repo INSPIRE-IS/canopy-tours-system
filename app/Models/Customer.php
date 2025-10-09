@@ -57,6 +57,12 @@ class Customer extends Model
         return $this->hasOne(BookingQuestionnaire::class);
     }
 
+    public function bookingItems()
+    {
+        return $this->belongsToMany(BookingItem::class, 'booking_items_customer')
+            ->withPivot(['team_id', 'is_lead'])
+            ->withTimestamps();
+    }
 
     public function booking_discount_items()
     {

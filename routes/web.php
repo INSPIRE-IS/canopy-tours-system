@@ -202,7 +202,9 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['auth', 'v
     Route::get('bookings/add/{booking}', [BookingsController::class, 'add'])->name('bookings.add');
     // Route::get('bookings/cancel-booking/{booking}', [BookingsController::class, 'cancelBooking'])->name('bookings.cancel-booking');
     Route::resource('bookings', BookingsController::class);
+
     Route::post('customer-manifests/add', [CustomerManifestController::class, 'add'])->name('customer-manifests.add');
+    Route::put('customer-manifests/edit-single/{booking_item_id}', [CustomerManifestController::class, 'editSingle'])->name('customer-manifests.edit-single');
     Route::put('customer-manifests/edit/{booking_item_id}', [CustomerManifestController::class, 'edit'])->name('customer-manifests.edit');
     Route::get('booking-payments/create/{booking}', [BookingPaymentController::class, 'create'])->name('booking-payments.create');
     Route::post('booking-payments/store', [BookingPaymentController::class, 'store'])->name('booking-payments.store');

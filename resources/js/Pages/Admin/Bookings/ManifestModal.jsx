@@ -8,7 +8,7 @@ import BlueButton from "@/Components/BlueButton";
 
 const ManifestModal = ({ isOpen, onClose, mode, customer, customers, tot_adults, tot_children }) => {
 
-    console.log("customer", customer);
+    console.log("customer single", customer);
     console.log("mode", mode);
 
     const [adults, setAdults] = useState([]);
@@ -43,18 +43,18 @@ const ManifestModal = ({ isOpen, onClose, mode, customer, customers, tot_adults,
         if (mode === "edit") {
             // Map API data into form shape
             setData({
-                id: customer?.i,
+                id: customer?.customer_id,
                 customer_id: customer?.customer_id, // Keep existing link to customer
                 type: customer?.type,
-                parent_id: customer?.parent_id ?? null,
+                parent_id: customer?.parent_id ?? "",
                 position: customer?.position ?? "",
                 notes: customer?.notes ?? "",
                 is_indemnity: !!customer?.is_indemnity,
                 full_name: customer?.full_name ?? "",
                 email_address: customer?.email_address ?? "",
                 nationality_id: customer?.nationality_id ?? "",
-                age: customer?.customer?.age ?? null,
-                contact_number: customer?.customer?.contact_number ?? "",
+                age: customer?.age ?? null,
+                contact_number: customer?.contact_number ?? "",
                 booking_item_id: customer?.booking_item_id ?? "",
                 discount_id: customer?.discount_id ?? "",
                 discount: customer?.discount ?? "",
@@ -75,12 +75,13 @@ const ManifestModal = ({ isOpen, onClose, mode, customer, customers, tot_adults,
     }, [mode, customer]);
 
     useEffect(() => {
+        console.log("customers", customers);
         const updatedAdults = customers
             ?.filter(p => p.type === "adult")
-            ?.map(p => {
-                console.log("p", p);
+            ?.map((p, i) => {
+                console.log("p", typeof p.customer_id == 'number');
                 return ({
-                    id: p.customer_id || p.id,
+                    id: typeof p.customer_id == 'number' ? p.customer_id : i + 1,
                     name: p.full_name || "Unnamed Adult"
                 })
             });
@@ -95,6 +96,8 @@ const ManifestModal = ({ isOpen, onClose, mode, customer, customers, tot_adults,
     };
 
     const handleChange = (target, value) => {
+        console.log("target", target);
+        console.log("value", value);
         setData(target, value);
         //setData("name", e.target.value);
     };
@@ -111,7 +114,7 @@ const ManifestModal = ({ isOpen, onClose, mode, customer, customers, tot_adults,
                 },
             });
         } else if (mode === "edit") {
-            put(route("admin.customer-manifests.edit", { customer_manifests: data, booking_item_id: customer.booking_item_id }), {
+            put(route("admin.customer-manifests.edit-single", { customer_manifests: data, booking_item_id: customer.booking_item_id }), {
                 onSuccess: () => onClose(),
                 onError: (err) => { console.log(err); },
             });
@@ -166,10 +169,10 @@ const ManifestModal = ({ isOpen, onClose, mode, customer, customers, tot_adults,
                         {data?.type === "child" && (
                             <CustomSelect
                                 title="Parent"
-                                field="parent_id"
+                                name="parent_id"
                                 value={data?.parent_id}
                                 options={adults} // Pass nationality options here
-                                handleChange={(e) => handleChange(e.target.name, e.target.value)}
+                                onChange={(e) => handleChange(e.target.name, e.target.value)}
                             />
                         )}
                         {/* <CustomSelect

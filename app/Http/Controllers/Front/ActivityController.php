@@ -968,7 +968,7 @@ class ActivityController extends Controller
                     'team_id'        => $season->team_id,
                     'service_id'     => $season->service_id,
                     'season_id'      => $season->id,
-                    'booking_inventory_id' => $inventory->id,
+                    'booking_inventory_id' => $bookingInventory->id,
                     'promotion_id'   => $promotion_id,
                     'wholesaler_id'  => null,
                     'discount_id'    => null,
