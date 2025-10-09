@@ -234,7 +234,7 @@ class ActivityController extends Controller
 
         $days = match ($viewMode) {
             'day'   => 1,
-            'week'  => 7,
+            'week'  => 3,
             'month' => 30,
             default => 7
         };

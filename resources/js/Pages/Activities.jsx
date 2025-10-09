@@ -248,7 +248,7 @@ export default function ActivitySchedulePage({ activity, auth, team, activityId,
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-lg font-semibold">Available Inventory</h3>
                   <div className="flex gap-2">
-                    {['day', 'week', 'month'].map((mode) => (
+                    {/* {['day', 'week', 'month'].map((mode) => (
                       <Button
                         key={mode}
                         variant="ghost"
@@ -257,7 +257,7 @@ export default function ActivitySchedulePage({ activity, auth, team, activityId,
                       >
                         {mode.charAt(0).toUpperCase() + mode.slice(1)}
                       </Button>
-                    ))}
+                    ))} */}
                   </div>
                   <div className="flex gap-2">
                     <Calendar selected={date} onSelect={handleDateChange} />
