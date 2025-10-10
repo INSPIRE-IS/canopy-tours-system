@@ -246,7 +246,28 @@ export default function ActivitySchedulePage({ activity, auth, team, activityId,
                     <div className="text-sm text-gray-600">{children} Children</div>
                     <div className="text-sm text-gray-600">{date.toLocaleDateString()} Date</div>
                     <div className="text-sm text-gray-600">{selectedTime?.slice(0, 5) ?? 'Select a Time Slot'} Time</div>
-
+                    <div className="flex w-full   sm:hidden">
+                      <GreenButton
+                        title="Book Now"
+                        icon={true}
+                        iconName={icons.credit_card}
+                        width="w-full"
+                        className="mt-2"
+                        disabled={!selectedSlot}
+                        onClick={() => {
+                          if (!adults || !date || !selectedTime) {
+                            setAlert({
+                              title: "Warning!",
+                              message: "Please select at least one adult and a date and time slot.",
+                              type: "warning",
+                            });
+                            setShow(true);
+                            return;
+                          }
+                          setBookModal(true);
+                        }}
+                      />
+                    </div>
                     <WhiteButton
                       title="Buy as a Gift"
                       icon={true}
