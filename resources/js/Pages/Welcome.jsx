@@ -77,7 +77,7 @@ export default function HomePage({ activities, auth, teams, team_id, team }) {
             <Link href="/" className="hover:text-blue-600">Home</Link>
             {/* <Link href="/services" className="hover:text-blue-600">Services</Link> */}
             {/* Services with dropdown modal */}
-            <div className="relative" ref={locationsRef}>
+            <div className="relative hidden sm:block" ref={locationsRef}>
               <button
                 onClick={() => setShowLocation(!showLocation)}
                 className="hover:text-blue-600"
@@ -86,7 +86,7 @@ export default function HomePage({ activities, auth, teams, team_id, team }) {
               </button>
 
               {showLocation && (
-                <div className="absolute top-full mt-2 w-64 bg-white border rounded shadow-lg p-4 z-50">
+                <div className="absolute top-full mt-2 w-64 bg-white border rounded shadow-lg p-4 z-50 ">
                   <h3 className="text-sm font-semibold text-gray-700 mb-2">Choose a Location</h3>
                   {/* <NavSelect name="All Locations" onChange={() => router.get('/locations')} /> */}
                   {teams.map((team) => (
@@ -102,7 +102,7 @@ export default function HomePage({ activities, auth, teams, team_id, team }) {
             </div>
 
 
-            <div className="relative" ref={servicesRef}>
+            <div className="relative hidden sm:block" ref={servicesRef}>
               <button
                 onClick={() => setShowServices(!showServices)}
                 className="hover:text-blue-600"

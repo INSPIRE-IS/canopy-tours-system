@@ -13,8 +13,10 @@ import CustomInputText from '@/Components/CustomInputText';
 import GreenButton from '@/Components/GreenButton';
 import WhiteButton from '@/Components/WhiteButton';
 import AlertModal from "@/Components/AlertModal";
+import SlotSelect from '@/Components/SlotSelect';
 
-export default function ActivitySchedulePage({ activity, auth, team, activityId, schedule, start_date, i_adults, i_children, view_mode, days, availableTimes }) {
+
+export default function ActivitySchedulePage({ activity, auth, team, activityId, schedule, start_date, i_adults, i_children, view_mode, days }) {
   console.log('activity', activity);
   console.log('activityId', activityId);
   console.log('start_date', start_date);
@@ -36,6 +38,7 @@ export default function ActivitySchedulePage({ activity, auth, team, activityId,
   const [bookModal, setBookModal] = useState(false);
   const [giftModal, setGiftModal] = useState(false);
   const [showContent, setShowContent] = useState('activityContent');
+  const [availableTimes, setAvailableTimes] = useState([]);
   const [show, setShow] = useState(false);
   const [alert, setAlert] = useState({
     title: "",
@@ -43,7 +46,18 @@ export default function ActivitySchedulePage({ activity, auth, team, activityId,
     type: "success",
   });
   useEffect(() => {
-    loadCalendar();
+    const three = async () => {
+      const threeDay = await loadCalendar(date, view_mode, adults, children);
+      setScheduleData(threeDay.data);
+    };
+    const one = async () => {
+      const oneDay = await loadCalendar(date, 'day', adults, children);
+      console.log('oneDay', oneDay.data);
+      setAvailableTimes(oneDay.data.schedule);
+    };
+    three();
+    one();
+
   }, [date, view_mode, adults, children]);
 
   useEffect(() => {
@@ -56,20 +70,19 @@ export default function ActivitySchedulePage({ activity, auth, team, activityId,
     }
   }, [adults, children, activity.rake_rate_adult, activity.rake_rate_child, selectedPromo]);
 
-  const loadCalendar = async () => {
+  const loadCalendar = async (view_date, view_mode, view_adults, view_children) => {
     setLoading(true);
     try {
       const response = await axios.get(route('front.activity.calendar'), {
         params: {
           activity_id: activityId,
           view_mode: view_mode,
-          start_date: format(date, 'yyyy-MM-dd'),
-          adults,
-          children
+          start_date: format(view_date, 'yyyy-MM-dd'),
+          adults: view_adults,
+          children: view_children,
         }
       });
-      console.log('response', response);
-      setScheduleData(response.data);
+      return response;
     } catch (error) {
       console.error('Failed to load calendar:', error);
     } finally {
@@ -189,14 +202,36 @@ export default function ActivitySchedulePage({ activity, auth, team, activityId,
 
                     }}
                   />
+                  {availableTimes.length > 0 && (
+                    <div className="w-full mb-4 sm:hidden">
 
-                  {/* {availableTimes.length > 0 && (
-                    <Select onValueChange={(value) => { setSelectedSlot({ date: date.toISOString().split('T')[0], time: value }); alert(value); setSelectedTime(value); }}>
-                      {availableTimes.map(time => (
-                        <SelectItem key={time} value={time}>{time}</SelectItem>
-                      ))}
-                    </Select>
-                  )} */}
+                      <label
+                        htmlFor="time_slot"
+                        className="text-[#161618] font-poppins text-[12px] font-normal  leading-[130%]"
+                      >
+                        Time Slot
+                      </label>
+                      <SlotSelect
+                        availableTimes={availableTimes}
+                        onSelect={(item) => {
+                          const dayKey = Object.keys(item.days)[0];
+                          const dayInfo = item.days[dayKey];
+                          setSelectedSlot({
+                            date: dayInfo.date,
+                            time: item.time,
+                            slot_id: item.slot_id,
+                          });
+                          setSelectedTime(item.time);
+                          if (dayInfo?.promo) {
+                            setPromoCode(dayInfo.promo.promo_code);
+                            setSelectedPromo(dayInfo.promo);
+                          }
+                        }}
+                      />
+
+
+                    </div>
+                  )}
                   <CustomInputText
                     title="Promo code"
                     id="promoCode"
@@ -211,26 +246,7 @@ export default function ActivitySchedulePage({ activity, auth, team, activityId,
                     <div className="text-sm text-gray-600">{children} Children</div>
                     <div className="text-sm text-gray-600">{date.toLocaleDateString()} Date</div>
                     <div className="text-sm text-gray-600">{selectedTime?.slice(0, 5) ?? 'Select a Time Slot'} Time</div>
-                    <GreenButton
-                      title="Book Now"
-                      icon={true}
-                      iconName={icons.credit_card}
-                      width="w-full"
-                      className="mt-2"
-                      disabled={!selectedSlot}
-                      onClick={() => {
-                        if (!adults || !date || !selectedTime) {
-                          setAlert({
-                            title: "Warning!",
-                            message: "Please select at least one adult and a date and time slot.",
-                            type: "warning",
-                          });
-                          setShow(true);
-                          return;
-                        }
-                        setBookModal(true);
-                      }}
-                    />
+
                     <WhiteButton
                       title="Buy as a Gift"
                       icon={true}
@@ -244,7 +260,7 @@ export default function ActivitySchedulePage({ activity, auth, team, activityId,
               </aside>
 
               {/* Inventory Calendar Table */}
-              <section className="md:col-span-3 bg-white shadow rounded-xl p-6">
+              <section className="md:col-span-3 bg-white shadow rounded-xl p-6 hidden sm:block">
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-lg font-semibold">Available Inventory</h3>
                   <div className="flex gap-2">
@@ -381,6 +397,28 @@ export default function ActivitySchedulePage({ activity, auth, team, activityId,
                     )}
                   </div>
                 )}
+                <div className="justify-end items-center mt-4 hidden sm:flex">
+                  <GreenButton
+                    title="Book Now"
+                    icon={true}
+                    iconName={icons.credit_card}
+                    width="w-[246px]"
+                    className="mt-2"
+                    disabled={!selectedSlot}
+                    onClick={() => {
+                      if (!adults || !date || !selectedTime) {
+                        setAlert({
+                          title: "Warning!",
+                          message: "Please select at least one adult and a date and time slot.",
+                          type: "warning",
+                        });
+                        setShow(true);
+                        return;
+                      }
+                      setBookModal(true);
+                    }}
+                  />
+                </div>
               </section>
             </>
           )}
