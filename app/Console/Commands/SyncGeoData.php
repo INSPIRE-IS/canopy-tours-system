@@ -32,8 +32,8 @@ class SyncGeoData extends Command
     {
         $this->info('Fetching country data...');
         ini_set('memory_limit', '512M'); // or '1G' for 1GB if needed
-        $countries = Http::get('https://raw.githubusercontent.com/dr5hn/countries-states-cities-database/master/json/countries.json')->json();
-        //$countries = json_decode(file_get_contents(public_path('assets/geo/countries.json')), true);
+        //$countries = Http::get('https://raw.githubusercontent.com/dr5hn/countries-states-cities-database/master/json/countries.json')->json();
+        $countries = json_decode(file_get_contents(public_path('assets/geo/countries.json')), true);
         // or storit at storage/app/geo/ then not publically exposed
         //$countries = json_decode(file_get_contents(storage_path('app/geo/countries.json')), true);
 
@@ -58,8 +58,8 @@ class SyncGeoData extends Command
             );
         }
         $this->info('Countries and continents synced.');
-        $states = Http::get('https://raw.githubusercontent.com/dr5hn/countries-states-cities-database/master/json/states.json')->json();
-        //$states    = json_decode(file_get_contents(public_path('assets/geo/states.json')), true);
+        //$states = Http::get('https://raw.githubusercontent.com/dr5hn/countries-states-cities-database/master/json/states.json')->json();
+        $states    = json_decode(file_get_contents(public_path('assets/geo/states.json')), true);
         //$states = json_decode(file_get_contents(storage_path('app/geo/states.json')), true);
         foreach ($states as $state) {
 
@@ -73,8 +73,8 @@ class SyncGeoData extends Command
         }
 
         $this->info('States synced.');
-        $cities = Http::get('https://raw.githubusercontent.com/dr5hn/countries-states-cities-database/master/json/cities.json')->json();
-        // $cities    = json_decode(file_get_contents(public_path('assets/geo/cities.json')), true);
+        //$cities = Http::get('https://raw.githubusercontent.com/dr5hn/countries-states-cities-database/master/json/cities.json')->json();
+        $cities    = json_decode(file_get_contents(public_path('assets/geo/cities.json')), true);
         //$cities = json_decode(file_get_contents(storage_path('app/geo/cities.json')), true);
         foreach ($cities as $city) {
 
