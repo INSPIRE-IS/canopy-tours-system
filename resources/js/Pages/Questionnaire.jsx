@@ -325,7 +325,6 @@ export default function BookingLookup({ auth, booking, bookingItem, leadGuides, 
       case 18:
         return (
           <div className="flex flex-col w-full items-center">
-            <span>18 {q.slug}</span>
             {typeConfirmation?.map((conf, i) => (
               // <CustomRadio
               //   key={medical.id}
