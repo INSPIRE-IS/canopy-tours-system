@@ -12,7 +12,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Roboto&family=Montserrat&display=swap" rel="stylesheet" />
     <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
     {{-- <script src="{{ asset('packages/tinymce/tinymce.min.js') }}" referrerpolicy="origin"></script> --}}
-    <script src="{{ asset('http://mytiny.inspireonline.co.za/tinymce/tinymce.min.js') }}" referrerpolicy="origin"></script>
+    <script src="{{ asset('https://mytiny.inspireonline.co.za/tinymce/tinymce.min.js') }}" referrerpolicy="origin"></script>
     <!-- favicon -->
     <link rel="icon" type="image/x-icon" href="{{ asset('favicon.ico') }}">
 
