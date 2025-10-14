@@ -1216,14 +1216,14 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                         errors={errors}
                                     />
                                 ))}
-                                <WhiteButton
+                                {/* <WhiteButton
                                     title="Edit Manifest"
                                     icon={true}
                                     iconName={icons.plus}
                                     width="w-[152px]"
 
                                     onClick={() => { alert('todo add manifest modal') }}
-                                />
+                                /> */}
                                 <div onClick={() => setToggleRate(!toggleRate)}>
                                     {toggleRate ? icons.cheveron_down : icons.cheveron_up}
                                 </div>
