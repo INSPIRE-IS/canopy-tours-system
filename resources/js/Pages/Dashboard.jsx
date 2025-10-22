@@ -3,44 +3,44 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head } from '@inertiajs/react';
 import { Line } from 'react-chartjs-2';
 import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend,
-  Filler
+    Chart as ChartJS,
+    CategoryScale,
+    LinearScale,
+    PointElement,
+    LineElement,
+    Title,
+    Tooltip,
+    Legend,
+    Filler
 } from 'chart.js';
 import BookingsTable from '@/Components/BookingsTable';
 
 // Register Chart.js components
 ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend,
-  Filler
+    CategoryScale,
+    LinearScale,
+    PointElement,
+    LineElement,
+    Title,
+    Tooltip,
+    Legend,
+    Filler
 );
 
-export default function Dashboard({ auth, chart1, latestBookings,statusBookings, notifications, customerManifest }) {
-console.log('chart1', chart1);
-  const data = {
-    labels: chart1.labels || [],
+export default function Dashboard({ auth, chart1, latestBookings, statusBookings, notifications, customerManifest }) {
+    console.log('chart1', chart1);
+    const data = {
+        labels: chart1.labels || [],
 
-    datasets: chart1.datasets.map(ds => ({
-      label: ds.label,
-      data: ds.data,
-      borderColor: 'rgba(75,192,192,1)',
-      backgroundColor: 'rgba(75,192,192,0.2)',
-      fill: true,
-    })),
-  };
-//console.log('data', data);
+        datasets: chart1.datasets.map(ds => ({
+            label: ds.label,
+            data: ds.data,
+            borderColor: 'rgba(75,192,192,1)',
+            backgroundColor: 'rgba(75,192,192,0.2)',
+            fill: true,
+        })),
+    };
+    //console.log('data', data);
     return (
         <AuthenticatedLayout
             user={auth.user}
@@ -68,31 +68,31 @@ console.log('chart1', chart1);
                             <div className="flex w-full h-[300px] gap-2">
                                 {/* Latest Bookings Table */}
                                 <BookingsTable
-                                chartTitle={latestBookings?.chart_title}
-                                fields={latestBookings?.fields}
-                                data={latestBookings?.data}
+                                    chartTitle={latestBookings?.chart_title}
+                                    fields={latestBookings?.fields}
+                                    data={latestBookings?.data}
                                 />
                                 {/* status Bookings Table */}
                                 <BookingsTable
-                                chartTitle={statusBookings?.chart_title}
-                                fields={statusBookings?.fields}
-                                data={statusBookings?.data}
+                                    chartTitle={statusBookings?.chart_title}
+                                    fields={statusBookings?.fields}
+                                    data={statusBookings?.data}
                                 />
                             </div>
                             <div className="flex w-full h-[300px] gap-2">
                                 {/* notifications Table */}
                                 <BookingsTable
-                                chartTitle={notifications?.chart_title}
-                                fields={notifications?.fields}
-                                data={notifications?.data}
+                                    chartTitle={notifications?.chart_title}
+                                    fields={notifications?.fields}
+                                    data={notifications?.data}
                                 />
                                 {/* customerManifest */}
                                 <BookingsTable
-                                chartTitle={customerManifest?.chart_title}
-                                fields={customerManifest?.fields}
-                                data={customerManifest?.data}
+                                    chartTitle={customerManifest?.chart_title}
+                                    fields={customerManifest?.fields}
+                                    data={customerManifest?.data}
                                 />
-                            </div>                              
+                            </div>
                         </div>
                     </div>
                 </div>

@@ -71,8 +71,8 @@ class HomeController extends Controller
             'fields'                => [
 
                 'service'        => 'name',
-                'season'         => 'name',
-                'type_booking' => 'name',
+                //'season'         => 'name',
+                //'type_booking' => 'name',
                 'lead_name'      => '',
                 'created_at'         => '',
             ],
@@ -81,8 +81,8 @@ class HomeController extends Controller
                 return $booking->booking_items->map(function ($item) use ($booking) {
                     return [
                         'service'      => $item->service ?? null,
-                        'season'       => $item->season ?? null,
-                        'type_booking' => $booking->type_booking ?? null,
+                        //'season'       => $item->season ?? null,
+                        //'type_booking' => $booking->type_booking ?? null,
                         'lead_name'    => $booking->lead_name ?? null,
                         'created_at'   => $booking->created_at->format('Y-m-d'),
                     ];
