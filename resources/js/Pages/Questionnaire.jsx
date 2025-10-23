@@ -389,7 +389,7 @@ export default function BookingLookup({ auth, booking, bookingItem, leadGuides, 
     <>
       <Head title="Find Your Booking" />
       <div className="flex flex-col  h-screen items-center justify-center bg-secondary-100">
-        <div className="flex items-center justify-center w-full sm:pb-[51px] ">
+        <div className="flex items-center justify-center w-full sm:pb-[51px]  ">
           {/* Logo Box */}
           <div className="flex items-center justify-center w-[118px] h-[106px] ">
             {team?.file_logo?.path != null ? (
@@ -416,12 +416,12 @@ export default function BookingLookup({ auth, booking, bookingItem, leadGuides, 
             />
           </div>
         </div>
-        <div className="flex flex-col bg-white h-[80%] w-full sm:w-[50%] items-center shadow-lg rounded-[20px]">
+        <div className="flex flex-col bg-white h-[80%] w-full xl:w-[50%] items-center shadow-lg rounded-[20px]">
           <span className="text-welcome-card-title text-center mt-6 mb-4">
             {currentQuestion.question}
           </span>
 
-          <div className="flex justify-center min-h-[500px] w-[90%] sm:w-full pl-7 sm:pl-0 overflow-x-auto">
+          <div className="flex justify-center xl:min-h-[500px] w-[90%] xl:w-full pl-7 sm:pl-0 overflow-x-auto">
             {renderQuestion(currentQuestion)}
           </div>
 

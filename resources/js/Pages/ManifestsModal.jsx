@@ -174,47 +174,15 @@ const ManifestsModal = ({ isOpen, onClose, mode, customers, tot_adults, tot_chil
         data.customer_manifests[index].index = 1;
         //console.log('data', data); 
         put(route('front.customer-manifests.edit', customers[0].booking_item_id), {
-            onSuccess: (page) => {
-                onClose();
-                // const { reference, id } = page.props.flash.customer;
-                // router.visit(route('front.booking-questionnaire.checkin', {
-                //     reference,
-                //     customer: id,
-                // })); // Inertia will GET the signed URL
-            },
+            onSuccess: () => onClose(),
         });
-        // try {
-        //     data.customer_manifests[index].index = index;
-
-        //     const response = await axios.put(
-        //         route("front.customer-manifests.edit", customers[0].booking_item_id),
-        //         data
-        //     );
-
-        //     const { selectedCustomer } = response.data;
-
-        //     // optional close modal
-        //     onClose();
-
-        //     // now go to check-in securely via POST
-        //     router.get(route("front.booking-questionnaire.checkin"), {
-        //         reference: data.customer_manifests[index].reference,
-        //         customer: selectedCustomer.id,
-        //     });
-
-        // } catch (error) {
-        //     console.error('Update failed:', error.response?.data || error);
-        //     if (error.response?.status === 422) {
-        //         form.setErrors(error.response.data.errors);
-        //     }
-        // }
     };
 
     if (!isOpen) return null;
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-            <div className="bg-white rounded-lg shadow-lg p-6 w-[50%] h-[98%] overflow-y-auto">
+            <div className="bg-white rounded-lg shadow-lg p-6 w-full xl:w-[50%] h-[98%] overflow-y-auto">
                 <h2 className="text-xl font-bold mb-4">
                     {mode === "create" && "Create Manifest"}
                     {mode === "edit" && "Edit Manifest"}
@@ -301,7 +269,7 @@ const ManifestsModal = ({ isOpen, onClose, mode, customers, tot_adults, tot_chil
                             /> */}
 
 
-                            <div className="flex flex-row w-full items-center justify-start gap-2 mt-2">
+                            <div className="flex flex-col xl:flex-row w-full items-start xl:items-center justify-start gap-2 mt-2">
                                 <CustomCheckbox
                                     label="Indemnity Signed?"
                                     name="is_indemnity"
