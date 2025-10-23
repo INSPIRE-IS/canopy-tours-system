@@ -59,10 +59,8 @@ export default function BookingLookup({ bookings }) {
     }
   };
   const handleCloseModal = () => {
-    setIsManifestModalOpen(false);
     setIsManifestsModalOpen(false);
     setSelectedManifests(null);
-    setSelectedManifest(null);
   };
 
   return (
