@@ -11,33 +11,64 @@ import SignaturePad from '@/Components/SignaturePad';
 export default function BookingLookup({ auth, booking, bookingItem, leadGuides, safetyGuides, typeGroup, typeReferral, typeConfirmation, questionnaire, team }) {
   // console.log("auth", auth);
   const mode = 'create';
-  // console.log("booking", booking);
-  // console.log("bookingItem", bookingItem);
+  console.log("booking", booking);
+  console.log("bookingItem", bookingItem);
   // console.log("typeGroup", typeGroup);
   // console.log("typeReferral", typeReferral);
   // console.log("typeConfirmation", typeConfirmation);
   const [step, setStep] = useState(0);
 
   const { data, setData, post, put, errors, reset, processing } = useForm({
-    booking_id: booking.id,
-    booking_item_id: bookingItem.id,
-    team_id: booking?.team_id,
-    lead_guide_id: "",
-    safety_guide_id: "",
-    type_group_id: "",
-    full_name: "",
-    age: "",
-    referral_id: "",
-    continent_id: "",
-    country_id: "",
-    province_id: "",
-    medical_id: "",
+    booking_id: null,
+    booking_item_id: null,
+    team_id: null,
+    lead_guide_id: null,
+    safety_guide_id: null,
+    type_group_id: null,
+    full_name: '',
+    age: '',
+    referral_id: null,
+    continent_id: null,
+    country_id: null,
+    province_id: null,
+    medical_id: null,
     medical_detail: "",
     is_fit: "",
     is_agree: "",
-    email_address: "",
+    email_address: '',
     signature: "",
   });
+
+  useEffect(() => {
+    console.log('bookingItem', bookingItem);
+    console.log('booking', booking);
+    if (booking && bookingItem && bookingItem.customers) {
+      setData({
+        booking_id: booking.id,
+        booking_item_id: bookingItem.id,
+        team_id: booking?.team_id,
+        lead_guide_id: "",
+        safety_guide_id: "",
+        type_group_id: "",
+        full_name: bookingItem.customers[0].full_name,
+        age: bookingItem.customers[0].age,
+        referral_id: "",
+        continent_id: "",
+        country_id: "",
+        province_id: "",
+        medical_id: "",
+        medical_detail: "",
+        is_fit: "",
+        is_agree: "",
+        email_address: bookingItem.customers[0].email_address,
+        signature: "",
+      });
+    }
+    console.log('data------', data);
+  }, [booking, bookingItem]);
+
+
+
   const [continents, setContinents] = useState([]);
   const [countries, setCountries] = useState([]);
   const [states, setStates] = useState([]);
@@ -83,8 +114,8 @@ export default function BookingLookup({ auth, booking, bookingItem, leadGuides, 
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    console.log('booking', booking);
-    console.log('data', data);
+    // console.log('booking', booking);
+    // console.log('data', data);
     // post(route('booking-questionnaire.store'))
 
     post(route("booking-questionnaire.store"), {

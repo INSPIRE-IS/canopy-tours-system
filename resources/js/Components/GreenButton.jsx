@@ -1,4 +1,5 @@
 const GreenButton = ({
+    type = "button",
     title,
     onClick,
     disabled = false,
@@ -10,6 +11,7 @@ const GreenButton = ({
 }) => {
     return (
         <button
+            type={type}
             onClick={onClick}
             disabled={disabled}
             className={`flex items-center justify-center ${width} h-[40px] gap-2 px-4 py-2 rounded-[10px] border-[1px] 

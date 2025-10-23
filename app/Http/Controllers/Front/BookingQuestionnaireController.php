@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Front;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\UpdateCustomerManifestRequest;
 use App\Models\Booking;
 use App\Models\BookingItem;
 use App\Models\BookingQuestionnaire;
@@ -24,6 +25,8 @@ use App\Models\User;
 use DB;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
+use Illuminate\Support\Facades\URL;
+use Illuminate\Routing\Exceptions\InvalidSignatureException;
 
 class BookingQuestionnaireController extends Controller
 {
@@ -32,13 +35,51 @@ class BookingQuestionnaireController extends Controller
      */
     public function index()
     {
-        return Inertia::render('Questionnaire-Welcome');
+        $booking_items = BookingItem::with([
+            'booking.files',
+            'customers',
+            'customer_manifests',
+            'booking_detail',
+            'booking_fee',
+            'booking_inventory',
+        ])->get();
+
+
+        $formatted = $booking_items->map(function ($booking_item) {
+            try {
+                $price = $booking_item->booking_fee->tot_amount;
+                $paid = $booking_item->booking_fee->tot_paid;
+                $due = $price - $paid;
+
+
+                $customers = $booking_item->paxWithCustomers();
+                $info = [
+                    'id' => $booking_item->booking->id,
+                    'reference' => $booking_item->booking->reference,
+                    'lead_name' => $booking_item->booking->lead_name,
+                    'lead_id' => $booking_item->booking->customer_id,
+                    'customers' => $customers,
+                ];
+                return $info;
+            } catch (\Throwable $e) {
+                Log::error('Booking', [
+                    'message' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString(),
+                    'input' => $booking_item,
+                ]);
+                return null;
+            }
+        });
+        //dd($formatted);
+        return Inertia::render('Questionnaire-Welcome', [
+            'bookings' => $formatted,
+        ]);
     }
 
     public function reference($reference)
     {
-        // dd($reference);
-        $booking = Booking::where('reference', $reference)->first();
+        //dd($reference);
+        $booking = Booking::with('booking_items.customers', 'booking_items.customer_manifests')->where('reference', $reference)->first();
         //dd($booking);
         if (!$booking) {
             return response()->json([
@@ -52,149 +93,241 @@ class BookingQuestionnaireController extends Controller
         ], 200);
     }
 
+    public function UpdateCustomerManifest(UpdateCustomerManifestRequest $request)
+    {
+        //dd($request->all());
+
+        $validated = $request->validate([
+            'customer_manifests' => 'required|array',
+        ]);
+        $details = $validated['customer_manifests'];
+        //dd($details);
+        $customerId = null;
+        $customerReference = null;
+        foreach ($details as $detail) {
+
+            $bookingItem  = BookingItem::with('booking')->find($detail['booking_item_id']);
+
+            if ($detail['type'] == 'child' && $detail['parent_id'] == null) {
+                $detail['parent_id'] = $bookingItem->booking->customer_id;
+            }
+
+            $customer = Customer::updateOrCreate(
+                [
+                    'id' => $detail['customer_id'],
+                ],
+                [
+                    'full_name' => $detail['full_name'],
+                    'email_address' => $detail['email_address'],
+                    'contact_number' => $detail['contact_number'],
+                    'age' => $detail['age'],
+                    'parent_id' => $detail['parent_id'],
+                    'contact_number' => $detail['contact_number'],
+                ]
+            );
+
+
+            // dd($bookingItem);
+            $pivotData = [];
+            $pivotData[$customer->id] = [
+                'team_id' => $bookingItem->booking->team_id,
+                'is_lead' => $detail['is_lead'],
+
+            ];
+
+            // Sync with pivot data
+            $bookingItem->customers()->syncWithoutDetaching($pivotData);
+
+            CustomerManifest::updateOrCreate(
+                [
+                    'customer_id' => $customer->id,
+                    'booking_item_id' => $detail['booking_item_id'],
+                ],
+                [
+                    'position' => $detail['position'],
+                    'notes' => $detail['notes'],
+                    'is_indemnity' => $detail['is_indemnity'],
+                    'type' => $detail['type'],
+                    'team_id' => $bookingItem->booking->team_id,
+                ]
+            );
+            // if ($detail['discount_id'] != null) {
+            //     CustomerDiscount::updateOrCreate(
+            //         [
+            //             'customer_id' => $customer->id,
+            //             'booking_discount_item_id' => $detail['discount_id'],
+            //         ]
+            //     );
+            // }
+            if ($detail['index'] == 1) {
+                $customerId = $customer->id;
+                $customerReference = $bookingItem->booking->reference;
+            }
+        }
+
+        $url = URL::temporarySignedRoute(
+            'front.booking-questionnaire.checkin',
+            now()->addMinutes(80),
+            [
+                'reference' => $customerReference,
+                'customer'  => $customerId,
+            ]
+        );
+
+        return Inertia::location($url);
+    }
+
+
     /**
      * Show the form for creating a new resource.
      */
-    public function create(Request $request)
+    public function checkin(Request $request)
     {
-        //dd($request->all());
-        $user = auth()->user();
-        $customerId = $request->customer ?? null; // your passed in customer ID
-        $booking = Booking::where('reference', $request->reference)->first();
-        if (!$booking) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Booking not found',
-            ], 200);
-        }
-        //$booking = Booking::findOrFail($booking->id);
-
-        $booking->load(['booking_payments', 'team']);
-        $bookingItem = BookingItem::where('booking_id', $booking->id)->first();
-        $bookingItem->load([
-            'service',
-            'season',
-            'inventory',
-            //'customers',  :id,name,email,contact_number
-            //'customer_manifests',  :id,position,notes,is_indemnity,customer_id,booking_id\
-            'booking_infos', // :id,booking_id,type_location_id,location,time,created_at,updated_at,deleted_at
-            //'customers.booking_questionnaire',  :id,booking_id,customer_id,guide_id,safety_guide_id,type_group_id,fullname,email,signature,birth_date,type_referral,country_id,province_id,is_medical,medical_detail,is_fit,is_agree
-            'booking_detail', //:id,booking_id ,start_time,end_time
-            'booking_fee', //:id,booking_id,tot_amount
-            // :id,booking_id,amount
-            'booking_inventory', // :id,booking_id,inventory_id
-            'booking_staff', // :id,booking_id,user_id
-            'booking_staff.user', // :id,name,email,contact_number
-            // Filter customers by ID
-            'customers' => function ($q) use ($customerId) {
-                $q->where('customers.id', $customerId);
-            },
-            // Filter customer manifests by customer ID
-            'customer_manifests' => function ($q) use ($customerId) {
-                $q->where('customer_id', $customerId);
-            },
-            // Filter nested relation (booking_questionnaire) from customers
-            'customers.booking_questionnaire' => function ($q) use ($customerId) {
-                $q->where('customer_id', $customerId);
-            },
-        ])
-            // ->select([
-            //     'id',
-            //     'lead_name',
-            //     'user_id',
-            //     'status_booking_id',
-            //     'due_date',
-            //     'tot_paid',
-            //     'grand_tot_due',
-            //     'service_id',
-            //     'season_id',
-            //     'inventory_id',
-            //     'created_at'
-            // ])
-            //->whereDate('due_date', '2025-01-01')
-            ->get();
-
-        $leadGuides = User::with('roles:id,name')
-            ->whereHas('roles', function ($query) {
-                $query->whereIn('id', [5]);
-            })
-            ->when($booking->team_id, function ($query, $teamId) {
-                $query->where('team_id', $teamId);
-            })
-            ->select('name', 'id')
-            ->get()
-            ->map(function ($user) {
-                $roleName = $user->roles->first()?->name ?? 'No Role';
-                return collect([
-                    'id'   => $user->id,
-                    'name' => $user->name,
-                    'role' => $roleName,
-                ]);
-            });
-        $safetyGuides = User::with('roles:id,name')
-            ->whereHas('roles', function ($query) {
-                $query->whereIn('id', [6]);
-            })
-            ->when($booking->team_id, function ($query, $teamId) {
-                $query->where('team_id', $teamId);
-            })
-            ->select('name', 'id')
-            ->get()
-            ->map(function ($user) {
-                $roleName = $user->roles->first()?->name ?? 'No Role';
-                return collect([
-                    'id'   => $user->id,
-                    'name' => $user->name,
-                    'role' => $roleName,
-                ]);
-            });
-
-        $typeGroup = TypeGroup::select('id', 'name')->get();
-        $typeConfirmation = TypeConfirmation::whereIn('id', [1, 2])->select('id', 'name')->get();
-        $typeReferral = TypeReferral::select('id', 'name')->get();
-        $team = Team::select('id', 'name', 'description', 'color')->with('file_image', 'file_logo')->find($bookingItem->team_id);
-        $questionnaire = Questionnaire::with('fields')
-            ->where('service_id', $bookingItem->service_id)
-            ->where('season_id', $bookingItem->season_id)
-            ->first();
-
-        $questionnaireFlat = $questionnaire->fields->map(function ($field) {
-            if ($field->pivot->visable == 1) {
-                // if ($field->type_input_id == 18) {
-                //     $field->options = TypeConfirmation::all()->pluck('name', 'id')->toArray();
-                // }
-                return [
-                    "id"                   => $field->id,
-                    "question"             => $field->question,
-                    "description"          => $field->description,
-                    "slug"                 => $field->slug,
-                    "options"              => $field->options,
-                    "conditional_logic"    => $field->conditional_logic,
-                    "type_input_id"        => $field->type_input_id,
-                    "type_data_id"         => $field->type_data_id,
-                    "required"             => $field->pivot->required,
-                    "visable"              => $field->pivot->visable,
-                    "sort_order"           => $field->pivot->sort_order,
-                    "questionnaire_id"     => $field->pivot->questionnaire_id,
-                    "questionnaire_field_id" => $field->pivot->questionnaire_field_id,
-                ];
+        try {
+            //dd($request->all());
+            $user = auth()->user();
+            $customerId = $request->customer ?? null; // your passed in customer ID
+            $booking = Booking::where('reference', $request->reference)->first();
+            if (!$booking) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Booking not found',
+                ], 200);
             }
-        })->filter();
-        //dd($questionnaireFlat);
+            //$booking = Booking::findOrFail($booking->id);
 
-        //$bookingId = request()->route('bookingId');
-        //dd($typeReferral);
-        return Inertia::render('Questionnaire', [
-            'booking' => $booking,
-            'bookingItem' => $bookingItem,
-            'leadGuides' => $leadGuides,
-            'safetyGuides' => $safetyGuides,
-            'typeGroup' => $typeGroup,
-            'typeReferral' => $typeReferral,
-            'typeConfirmation' => $typeConfirmation,
-            'questionnaire' => $questionnaireFlat,
-            'team' => $team,
-        ]);
+            $booking->load(['booking_payments', 'team']);
+            $bookingItem = BookingItem::where('booking_id', $booking->id)->first();
+            $bookingItem->load([
+                'service',
+                'season',
+                'inventory',
+                //'customers',  :id,name,email,contact_number
+                //'customer_manifests',  :id,position,notes,is_indemnity,customer_id,booking_id\
+                'booking_infos', // :id,booking_id,type_location_id,location,time,created_at,updated_at,deleted_at
+                //'customers.booking_questionnaire',  :id,booking_id,customer_id,guide_id,safety_guide_id,type_group_id,fullname,email,signature,birth_date,type_referral,country_id,province_id,is_medical,medical_detail,is_fit,is_agree
+                'booking_detail', //:id,booking_id ,start_time,end_time
+                'booking_fee', //:id,booking_id,tot_amount
+                // :id,booking_id,amount
+                'booking_inventory', // :id,booking_id,inventory_id
+                'booking_staff', // :id,booking_id,user_id
+                'booking_staff.user', // :id,name,email,contact_number
+                // Filter customers by ID
+                'customers' => function ($q) use ($customerId) {
+                    $q->where('customers.id', $customerId);
+                },
+                // Filter customer manifests by customer ID
+                'customer_manifests' => function ($q) use ($customerId) {
+                    $q->where('customer_id', $customerId);
+                },
+                // Filter nested relation (booking_questionnaire) from customers
+                'customers.booking_questionnaire' => function ($q) use ($customerId) {
+                    $q->where('customer_id', $customerId);
+                },
+            ])
+                // ->select([
+                //     'id',
+                //     'lead_name',
+                //     'user_id',
+                //     'status_booking_id',
+                //     'due_date',
+                //     'tot_paid',
+                //     'grand_tot_due',
+                //     'service_id',
+                //     'season_id',
+                //     'inventory_id',
+                //     'created_at'
+                // ])
+                //->whereDate('due_date', '2025-01-01')
+                ->get();
+
+            $leadGuides = User::with('roles:id,name')
+                ->whereHas('roles', function ($query) {
+                    $query->whereIn('id', [5]);
+                })
+                ->when($booking->team_id, function ($query, $teamId) {
+                    $query->where('team_id', $teamId);
+                })
+                ->select('name', 'id')
+                ->get()
+                ->map(function ($user) {
+                    $roleName = $user->roles->first()?->name ?? 'No Role';
+                    return collect([
+                        'id'   => $user->id,
+                        'name' => $user->name,
+                        'role' => $roleName,
+                    ]);
+                });
+            $safetyGuides = User::with('roles:id,name')
+                ->whereHas('roles', function ($query) {
+                    $query->whereIn('id', [6]);
+                })
+                ->when($booking->team_id, function ($query, $teamId) {
+                    $query->where('team_id', $teamId);
+                })
+                ->select('name', 'id')
+                ->get()
+                ->map(function ($user) {
+                    $roleName = $user->roles->first()?->name ?? 'No Role';
+                    return collect([
+                        'id'   => $user->id,
+                        'name' => $user->name,
+                        'role' => $roleName,
+                    ]);
+                });
+
+            $typeGroup = TypeGroup::select('id', 'name')->get();
+            $typeConfirmation = TypeConfirmation::whereIn('id', [1, 2])->select('id', 'name')->get();
+            $typeReferral = TypeReferral::select('id', 'name')->get();
+            $team = Team::select('id', 'name', 'description', 'color')->with('file_image', 'file_logo')->find($bookingItem->team_id);
+            $questionnaire = Questionnaire::with('fields')
+                ->where('service_id', $bookingItem->service_id)
+                ->where('season_id', $bookingItem->season_id)
+                ->first();
+
+            $questionnaireFlat = $questionnaire->fields->map(function ($field) {
+                if ($field->pivot->visable == 1) {
+                    // if ($field->type_input_id == 18) {
+                    //     $field->options = TypeConfirmation::all()->pluck('name', 'id')->toArray();
+                    // }
+                    return [
+                        "id"                   => $field->id,
+                        "question"             => $field->question,
+                        "description"          => $field->description,
+                        "slug"                 => $field->slug,
+                        "options"              => $field->options,
+                        "conditional_logic"    => $field->conditional_logic,
+                        "type_input_id"        => $field->type_input_id,
+                        "type_data_id"         => $field->type_data_id,
+                        "required"             => $field->pivot->required,
+                        "visable"              => $field->pivot->visable,
+                        "sort_order"           => $field->pivot->sort_order,
+                        "questionnaire_id"     => $field->pivot->questionnaire_id,
+                        "questionnaire_field_id" => $field->pivot->questionnaire_field_id,
+                    ];
+                }
+            })->filter();
+            //dd($questionnaireFlat);
+
+            //$bookingId = request()->route('bookingId');
+            //dd($typeReferral);
+            return Inertia::render('Questionnaire', [
+                'booking' => $booking,
+                'bookingItem' => $bookingItem,
+                'leadGuides' => $leadGuides,
+                'safetyGuides' => $safetyGuides,
+                'typeGroup' => $typeGroup,
+                'typeReferral' => $typeReferral,
+                'typeConfirmation' => $typeConfirmation,
+                'questionnaire' => $questionnaireFlat,
+                'team' => $team,
+            ]);
+        } catch (InvalidSignatureException $e) {
+            // return Inertia::render('Front/BookingQuestionnaire/Expired', [
+            //     'message' => 'Your check-in link has expired. Please restart the process.'
+            // ]);
+            return redirect()->route('booking-questionnaire.index');
+        }
     }
 
     /**

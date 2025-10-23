@@ -3,6 +3,8 @@
 namespace App\Exceptions;
 
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
+use Illuminate\Routing\Exceptions\InvalidSignatureException;
+use Inertia\Inertia;
 use Throwable;
 
 class Handler extends ExceptionHandler
@@ -26,5 +28,22 @@ class Handler extends ExceptionHandler
         $this->reportable(function (Throwable $e) {
             //
         });
+    }
+
+    public function render($request, Throwable $exception)
+    {
+        //dd($exception);
+        if ($exception instanceof InvalidSignatureException) {
+            // Redirect to a friendly page or Inertia route
+            // return Inertia::view('/front/welcome', [
+            //     'message' => 'Your check-in link has expired. Please restart the process.'
+            // ]);
+            return redirect()->route('booking-questionnaire.index');
+            // Or redirect to another route
+            // return redirect()->route('front.booking-questionnaire.start')
+            //     ->with('error', 'Your check-in link has expired. Please restart the process.');
+        }
+
+        return parent::render($request, $exception);
     }
 }

@@ -87,8 +87,17 @@ Route::get('front/invoices/download/{booking}', [PaymentController::class, 'invo
 Route::get('front/details/download/{booking}', [PaymentController::class, 'detailDownload'])->name('front.details.download');
 Route::get('front/voucher', [ActivityController::class, 'voucher'])->name('front.voucher');
 
-
+Route::put('front/customer-manifests/edit', [BookingQuestionnaireController::class, 'UpdateCustomerManifest'])->name('front.customer-manifests.edit');
 Route::get('/check-reference/{reference}', [BookingQuestionnaireController::class, 'reference'])->name('check-reference');
+//Route::get('front/booking-questionnaire/checkin', [BookingQuestionnaireController::class, 'checkin'])->name('front.booking-questionnaire.checkin');
+Route::get(
+    'front/booking-questionnaire/checkin',
+    [BookingQuestionnaireController::class, 'checkin']
+)
+    ->name('front.booking-questionnaire.checkin')
+    ->middleware('signed'); // Laravel will reject any URL whose signature doesn’t match
+
+
 Route::resource('booking-questionnaire', BookingQuestionnaireController::class);
 Route::get('/continents', [BookingQuestionnaireController::class, 'getContinents']);
 Route::get('/countries/{continent_id}', [BookingQuestionnaireController::class, 'getCountries']);
