@@ -6,30 +6,28 @@ import axios from "axios";
 
 const PromoModal = ({ isOpen, onClose, serviceId, bookingDate, onSelect }) => {
   const [promotions, setPromotions] = useState([]);
-        console.log('serviceIdertyeryyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy', serviceId);
-        console.log('bookingDateertyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy', bookingDate);
   useEffect(() => {
     if (isOpen && serviceId && bookingDate) {
-        axios
-      .get(route("admin.promotions.valid"), {
-        params: { service_id: serviceId, booking_date: bookingDate },
-      })
-      .then((res) => {setPromotions(res.data); console.log('promotions', res.data);})
-      .catch((err) => console.error(err));
-    //   router.get(
-    //     route("admin.promotions.valid"),
-    //     {service_id: serviceId, booking_date: bookingDate},
-    //     {
-    //       preserveState: true,
-    //       onSuccess: (page) => {
-    //         console.log('page', page);
-    //         setPromotions(page.props.promotions || []);
-    //       },
-    //       onError: (error) => {
-    //         console.error('Failed to load promotions:', error);
-    //       },
-    //     }
-    //   );
+      axios
+        .get(route("admin.promotions.valid"), {
+          params: { service_id: serviceId, booking_date: bookingDate },
+        })
+        .then((res) => { setPromotions(res.data); console.log('promotions', res.data); })
+        .catch((err) => console.error(err));
+      //   router.get(
+      //     route("admin.promotions.valid"),
+      //     {service_id: serviceId, booking_date: bookingDate},
+      //     {
+      //       preserveState: true,
+      //       onSuccess: (page) => {
+      //         console.log('page', page);
+      //         setPromotions(page.props.promotions || []);
+      //       },
+      //       onError: (error) => {
+      //         console.error('Failed to load promotions:', error);
+      //       },
+      //     }
+      //   );
     }
   }, [isOpen, serviceId, bookingDate]);
 
@@ -60,12 +58,12 @@ const PromoModal = ({ isOpen, onClose, serviceId, bookingDate, onSelect }) => {
         )} */}
         {promotions?.length === 0 ? (
           <p className="text-gray-600">No valid promotions found for this service and date.</p>
-        ) :(
+        ) : (
           <div className="mb-2">
-          <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-6space-y-3">
-            {promotions?.map((promo) => {
-              console.log('promo', promo);
-              let color = "opacity-50 bg-gray-200 cursor-not-allowed";
+            <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-6space-y-3">
+              {promotions?.map((promo) => {
+                console.log('promo', promo);
+                let color = "opacity-50 bg-gray-200 cursor-not-allowed";
 
                 if (promo.status === "active" && promo.is_valid) {
                   color = "bg-blue-200 hover:bg-blue-300 cursor-pointer";
@@ -75,33 +73,34 @@ const PromoModal = ({ isOpen, onClose, serviceId, bookingDate, onSelect }) => {
                   color = "bg-red-200 opacity-75 cursor-not-allowed";
                 }
 
-              return(
-              <li
-                key={promo.id}
-                className={`p-3 border rounded  ${color}`}
-                onClick={() => {
-                  if (promo.is_valid) {
-                    onSelect(promo.promo_code);
-                    onClose();
-                  }
-                }}
-              >
-                <div className="font-semibold">{promo.name}</div>
-                <div className="text-sm text-gray-600">
-                  Type: {promo.type} | Status: {promo.status} {promo.is_valid ? "(valid)" : "(not valid for selected activity date)"}
-                </div>
-                <div className="text-sm text-gray-500">
-                  Booking {promo.booking_start_date.split('T')[0]} → {promo.booking_end_date.split('T')[0]}
-                </div>
-                <div className="text-sm text-gray-500">
-                  Activity {promo.activity_start_date.split('T')[0]} → {promo.activity_end_date.split('T')[0]}
-                </div>
-                <div className="text-sm text-gray-600">
-                  Code: <span className="font-mono">{promo.promo_code}</span>
-                </div>
-              </li>
-            )})}
-          </ul>
+                return (
+                  <li
+                    key={promo.id}
+                    className={`p-3 border rounded  ${color}`}
+                    onClick={() => {
+                      if (promo.is_valid) {
+                        onSelect(promo.promo_code);
+                        onClose();
+                      }
+                    }}
+                  >
+                    <div className="font-semibold">{promo.name}</div>
+                    <div className="text-sm text-gray-600">
+                      Type: {promo.type} | Status: {promo.status} {promo.is_valid ? "(valid)" : "(not valid for selected activity date)"}
+                    </div>
+                    <div className="text-sm text-gray-500">
+                      Booking {promo.booking_start_date.split('T')[0]} → {promo.booking_end_date.split('T')[0]}
+                    </div>
+                    <div className="text-sm text-gray-500">
+                      Activity {promo.activity_start_date.split('T')[0]} → {promo.activity_end_date.split('T')[0]}
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      Code: <span className="font-mono">{promo.promo_code}</span>
+                    </div>
+                  </li>
+                )
+              })}
+            </ul>
           </div>
         )}
 
