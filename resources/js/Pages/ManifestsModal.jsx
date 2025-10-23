@@ -171,7 +171,8 @@ const ManifestsModal = ({ isOpen, onClose, mode, customers, tot_adults, tot_chil
     // Submit
     const handleSubmit = async (e, index) => {
         e.preventDefault();
-        data.customer_manifests[index].index = index;
+        data.customer_manifests[index].index = 1;
+        //console.log('data', data); 
         put(route('front.customer-manifests.edit', customers[0].booking_item_id), {
             onSuccess: (page) => {
                 onClose();
