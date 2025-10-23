@@ -1,19 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Head, useForm } from '@inertiajs/react';
-import { Html5QrcodeScanner } from 'html5-qrcode';
 import CustomButton from '@/Components/CustomButton';
 import CustomSelect from '@/Components/CustomSelect';
-import ManifestModal from './ManifestModal';
 import ManifestsModal from './ManifestsModal';
 
 export default function BookingLookup({ bookings }) {
   //console.log('bookings', bookings);
 
   const [BookingOptions, setBookingOptions] = useState([]);
-  const [isManifestModalOpen, setIsManifestModalOpen] = useState(false);
   const [isManifestsModalOpen, setIsManifestsModalOpen] = useState(false);
   const [selectedManifests, setSelectedManifests] = useState(null);
-  const [selectedManifest, setSelectedManifest] = useState(null);
 
   const { data, setData, get, post, put, errors, reset, processing } = useForm({
     booking_id: null,
@@ -143,16 +139,6 @@ export default function BookingLookup({ bookings }) {
         </div>
 
       </div >
-
-      <ManifestModal
-        isOpen={isManifestModalOpen}
-        onClose={handleCloseModal}
-        mode="edit"
-        customers={selectedManifests}
-        customer={selectedManifest}
-        tot_adults='0'
-        tot_children='0'
-      />
 
       <ManifestsModal
         isOpen={isManifestsModalOpen}
