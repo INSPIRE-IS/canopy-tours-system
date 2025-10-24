@@ -58,6 +58,12 @@ export default function BookingModal({ isOpen, onClose, activity, slot, adults, 
   //   setData({ ...data, [e.target.name]: e.target.value });
   // };
   const handleChange = (target, value) => {
+
+    // If the field is "phone", restrict to +, digits, and spaces only
+    if (target === "phone") {
+      value = value.replace(/[^0-9+ ]/g, ""); // remove all invalid characters
+    }
+
     setData(target, value);
     //setData("name", e.target.value);
   };
@@ -68,7 +74,10 @@ export default function BookingModal({ isOpen, onClose, activity, slot, adults, 
       showToast("Please fill in all the required fields.", "info");
       return;
     }
-
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
+      showToast("Please enter a valid email address.", "warning");
+      return;
+    }
     try {
       const response = await axios.post(route('front.booking.store'), {
         ...data,
@@ -132,7 +141,7 @@ export default function BookingModal({ isOpen, onClose, activity, slot, adults, 
             title="Phone Number*"
             field="phone"
             value={data.phone}
-            type="text"
+            type="tel"
             placeholder='+27 12 345 6789'
             width="w-full"
             height="h-[42px]"
