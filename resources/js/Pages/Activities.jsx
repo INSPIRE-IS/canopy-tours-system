@@ -14,6 +14,7 @@ import GreenButton from '@/Components/GreenButton';
 import WhiteButton from '@/Components/WhiteButton';
 import AlertModal from "@/Components/AlertModal";
 import SlotSelect from '@/Components/SlotSelect';
+import { useToast } from '@/Components/ToastContext';
 
 
 export default function ActivitySchedulePage({ activity, auth, team, activityId, schedule, start_date, i_adults, i_children, view_mode, days }) {
@@ -27,8 +28,8 @@ export default function ActivitySchedulePage({ activity, auth, team, activityId,
   console.log('formatDate', formatDate);
   const [total, setTotal] = useState(0.00);
   const [date, setDate] = useState(formatDate);
-  const [adults, setAdults] = useState(i_adults);
-  const [children, setChildren] = useState(i_children);
+  const [adults, setAdults] = useState(i_adults >= 1 ? i_adults : 1);
+  const [children, setChildren] = useState(i_children >= 1 ? i_children : null);
   const [promoCode, setPromoCode] = useState(null);
   const [selectedPromo, setSelectedPromo] = useState(null);
   const [selectedTime, setSelectedTime] = useState(null);
@@ -40,6 +41,8 @@ export default function ActivitySchedulePage({ activity, auth, team, activityId,
   const [showContent, setShowContent] = useState('activityContent');
   const [availableTimes, setAvailableTimes] = useState([]);
   const [show, setShow] = useState(false);
+  const { showToast } = useToast();
+  //showToast("Saved successfully!", "success");
   const [alert, setAlert] = useState({
     title: "",
     message: "",
@@ -168,7 +171,7 @@ export default function ActivitySchedulePage({ activity, auth, team, activityId,
                     id="adults"
                     name="adults"
                     type='number'
-                    min="0"
+                    min="1"
                     value={adults}
                     onChange={(e) => setAdults(e.target.value)}
                   />
@@ -253,15 +256,15 @@ export default function ActivitySchedulePage({ activity, auth, team, activityId,
                         iconName={icons.credit_card}
                         width="w-full"
                         className="mt-2"
-                        disabled={!selectedSlot}
                         onClick={() => {
-                          if (!adults || !date || !selectedTime) {
-                            setAlert({
-                              title: "Warning!",
-                              message: "Please select at least one adult and a date and time slot.",
-                              type: "warning",
-                            });
-                            setShow(true);
+                          if (!adults || !date || !selectedTime || !selectedSlot) {
+                            // setAlert({
+                            //   title: "Warning!",
+                            //   message: "Please select at least one adult and a date and time slot.",
+                            //   type: "warning",
+                            // });
+                            // setShow(true);
+                            showToast("Please select at least one adult and a date and time slot.", "info");
                             return;
                           }
                           setBookModal(true);
@@ -422,18 +425,22 @@ export default function ActivitySchedulePage({ activity, auth, team, activityId,
                   <GreenButton
                     title="Book Now"
                     icon={true}
+                    type="bitton"
                     iconName={icons.credit_card}
                     width="w-[246px]"
                     className="mt-2"
-                    disabled={!selectedSlot}
                     onClick={() => {
-                      if (!adults || !date || !selectedTime) {
-                        setAlert({
-                          title: "Warning!",
-                          message: "Please select at least one adult and a date and time slot.",
-                          type: "warning",
-                        });
-                        setShow(true);
+                      console.log('adults', adults);
+                      console.log('date', date);
+                      console.log('selectedTime', selectedTime);
+                      if (!adults || !date || !selectedTime || !selectedSlot) {
+                        // setAlert({
+                        //   title: "Warning!",
+                        //   message: "Please select at least one adult and a date and time slot.",
+                        //   type: "warning",
+                        // });
+                        // setShow(true);
+                        showToast("Please select at least one adult and a date and time slot.", "info");
                         return;
                       }
                       setBookModal(true);

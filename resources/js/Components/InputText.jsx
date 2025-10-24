@@ -1,4 +1,4 @@
-const InputText = ({ title, field, value,mode,type="text", width="w-full" , height="h-[42px]", handleChange, errors }) => {
+const InputText = ({ title, field, value, mode, type = "text", width = "w-full", height = "h-[42px]", handleChange, placeholder = "", errors }) => {
     return (
         <div className="mb-3 w-full">
             <label
@@ -12,6 +12,7 @@ const InputText = ({ title, field, value,mode,type="text", width="w-full" , heig
                 id={field}
                 name={field}
                 value={value || ""}
+                placeholder={placeholder}
                 onChange={(e) => handleChange(field, e.target.value)}
                 className={`mt-1 block ${width} ${height} ${errors?.name ? "border-red-500" : "border-gray-300"} shadow-sm input-text rounded-[10px]
                 hover:border-black  active:border-blue-600 

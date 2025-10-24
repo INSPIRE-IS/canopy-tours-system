@@ -3,9 +3,10 @@ import axios from 'axios';
 import { set } from 'date-fns';
 import { useForm } from '@inertiajs/react';
 import InputText from './InputText';
+import { useToast } from './ToastContext';
 
 export default function BookingModal({ isOpen, onClose, activity, slot, adults, children, promoCode, selectedPromo, pricePerAdult, pricePerChild, activityId, auth }) {
-
+  const { showToast } = useToast();
   const [total, setTotal] = useState(0.00);
   const [promo, setPromo] = useState(selectedPromo);
   const mode = 'create';
@@ -62,6 +63,12 @@ export default function BookingModal({ isOpen, onClose, activity, slot, adults, 
   };
 
   const handleConfirm = async () => {
+
+    if (!data.full_name || !data.email || !data.phone) {
+      showToast("Please fill in all the required fields.", "info");
+      return;
+    }
+
     try {
       const response = await axios.post(route('front.booking.store'), {
         ...data,
@@ -96,11 +103,12 @@ export default function BookingModal({ isOpen, onClose, activity, slot, adults, 
 
         <div className="mt-4 space-y-2">
           <InputText
-            title="Full Name"
+            title="Full Name*"
             field="full_name"
             value={data.full_name}
             type="text"
             width="w-full"
+            placeholder='John Doe'
             height="h-[42px]"
             handleChange={handleChange}
             errors={errors}
@@ -108,10 +116,11 @@ export default function BookingModal({ isOpen, onClose, activity, slot, adults, 
             required
           />
           <InputText
-            title="Email"
+            title="Email*"
             field="email"
             value={data.email}
             type="email"
+            placeholder='example@gmail.com'
             width="w-full"
             height="h-[42px]"
             handleChange={handleChange}
@@ -120,10 +129,11 @@ export default function BookingModal({ isOpen, onClose, activity, slot, adults, 
             required
           />
           <InputText
-            title="Phone Number"
+            title="Phone Number*"
             field="phone"
             value={data.phone}
             type="text"
+            placeholder='+27 12 345 6789'
             width="w-full"
             height="h-[42px]"
             handleChange={handleChange}
