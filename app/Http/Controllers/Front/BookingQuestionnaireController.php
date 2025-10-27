@@ -335,12 +335,12 @@ class BookingQuestionnaireController extends Controller
      */
     public function store(Request $request)
     {
-        //dd($request->all());
+        // dd($request->all());
 
         $validated = $request->validate([
             'booking_id' => 'required|integer', //   "booking_id" => 4
             "booking_item_id" => 'required|integer',
-            "customer_id"  => 'nullable|integer',
+            "customer_id"  => 'required|integer',
             'lead_guide_id' => 'nullable|integer', //   "lead_guide_id" => "6"
             'safety_guide_id' => 'nullable|integer', //   "safety_guide_id" => "6"
             'type_group_id' => 'nullable|integer', //  "type_group_id" => "4"
@@ -366,33 +366,24 @@ class BookingQuestionnaireController extends Controller
             'pully_number' => 'nullable|string', //   "pully_number" => "320"
         ]);
 
-
-
         try {
             $booking = DB::transaction(function () use ($validated) {
                 $booking = Booking::find($validated['booking_id']);
                 $bookingItem = BookingItem::find($validated['booking_item_id']);
 
-                $customer = Customer::updateOrCreate([
-                    'id' => $validated['customer_id'] ?? null,
-                ], [
-                    'full_name' => $validated['full_name'],
-                    'email_address' => $validated['email_address'],
-                    //'contact_number' => $validated['contact_number'],
-                    //'nationality_id' => $validated['nationality_id'],
-                    'age' => $validated['age'],
-                ]);
-                //dd('here');
-                if (true) {
-                    // Prepare pivot data
-                    $pivotData = [];
-                    $pivotData[$customer->id] = [
-                        'team_id' => $bookingItem->team_id,   // TODO: get team from the page or session
-                        'is_lead' => 0, //$customer->is_lead,     // First customer is lead, rest are not
-                    ];
-                    // Sync with pivot data
-                    $bookingItem->customers()->sync($pivotData);
+                $customer = Customer::find($validated['customer_id']);
+
+                if ($customer) {
+                    $customer->update([
+                        'full_name' => $validated['full_name'],
+                        'email_address' => $validated['email_address'],
+                        'age' => $validated['age'],
+                    ]);
+                } else {
+                    throw new \Exception("Customer not found: {$validated['customer_id']}");
                 }
+                //dd('here');
+
                 $is_minor = $validated['is_minor'] ?? null;
                 $children = $validated['children'] ?? null;
                 if ($is_minor == 1 && $children != null) {
@@ -415,58 +406,59 @@ class BookingQuestionnaireController extends Controller
                 // ]);
 
 
-                $bookingQuestionnaire = BookingQuestionnaire::create([
-                    'booking_item_id' => $bookingItem->id,
-                    'team_id' => $bookingItem->team_id,
-                    'customer_id' => $customer->id,
-                    'guide_id' => $validated['lead_guide_id'] ?? null,
-                    'safety_guide_id' => $validated['safety_guide_id'] ?? null,
-                    'type_group_id' => $validated['type_group_id'] ?? null,
-                    'signature' => $validated['full_name'] ?? null,
-                    'age' => $validated['age'] ?? null,
-                    'type_referral' => $validated['referral_id'] ?? null,
-                    'country_id' => $validated['country_id'] ?? null,
-                    'province_id' => $validated['province_id'] ?? null,
-                    'is_medical' => $validated['medical_detail'] != "" ? 1 : 0,
-                    'medical_detail' => $validated['medical_detail'] ?? null,
-                    'is_fit' => $validated['is_fit'] ?? null,
-                    'is_minor' => $validated['is_minor'] ?? null,
-                    'is_agree' => $validated['is_agree'] ?? null,
-                    'helmet_size' => $validated['helmet_size'] ?? null,
-                    'children' => $validated['children'] ?? null,
-                    'gender_id' => $validated['gender_id'] ?? null,
-                    'recieve_invite' => $validated['recieve_invite'] ?? null,
-                    'pully_number' => $validated['pully_number'] ?? null,
-                ]);
-
-                CustomerManifest::create([
-                    'position' => '0',
-                    'notes' => $validated['medical_detail'] ?? null,
-                    'is_indemnity' => 1,
-                    'customer_id' => $customer->id,
-                    'booking_item_id' => $bookingItem->id,
-                    'type'           => 'child',
-                    'team_id'        => $bookingItem->team_id,
-
-                ]);
+                $bookingQuestionnaire = BookingQuestionnaire::updateOrCreate(
+                    [
+                        'booking_item_id' => $bookingItem->id,
+                        'customer_id' => $customer->id,
+                    ],
+                    [
+                        'guide_id' => $validated['lead_guide_id'] ?? null,
+                        'safety_guide_id' => $validated['safety_guide_id'] ?? null,
+                        'type_group_id' => $validated['type_group_id'] ?? null,
+                        'signature' => null,
+                        'age' => $validated['age'] ?? null,
+                        'type_referral' => $validated['referral_id'] ?? null,
+                        'country_id' => $validated['country_id'] ?? null,
+                        'province_id' => $validated['province_id'] ?? null,
+                        'is_medical' => $validated['medical_detail'] != "" ? 1 : 0,
+                        'medical_detail' => $validated['medical_detail'] ?? null,
+                        'is_fit' => $validated['is_fit'] ?? null,
+                        'is_minor' => $validated['is_minor'] ?? null,
+                        'is_agree' => $validated['is_agree'] ?? null,
+                        'helmet_size' => $validated['helmet_size'] ?? null,
+                        'children' => $validated['children'] ?? null,
+                        'gender_id' => $validated['gender_id'] ?? null,
+                        'recieve_invite' => $validated['recieve_invite'] ?? null,
+                        'pully_number' => $validated['pully_number'] ?? null,
+                    ]
+                );
+                $customerManifest = CustomerManifest::where('customer_id', $customer->id)
+                    ->where('booking_item_id', $bookingItem->id)
+                    ->where('team_id', $bookingItem->team_id)
+                    ->update([
+                        'is_indemnity' => 1,
+                    ]);
 
 
                 // Optionally save the signature as a file
-                $image = $validated['signature'] ?? null;
-                $image = str_replace('data:image/png;base64,', '', $image);
-                $image = str_replace(' ', '+', $image);
-                $filename = 'signature_' . time() . '.png';
-                \Storage::disk('public')->put("signatures/{$filename}", base64_decode($image));
+                if (!empty($validated['signature'])) {
+                    $image = str_replace('data:image/png;base64,', '', $validated['signature']);
+                    $image = str_replace(' ', '+', $image);
+                    $filename = 'signature_' . time() . '.png';
+                    \Storage::disk('public')->put("signatures/{$filename}", base64_decode($image));
 
-                File::create([
-                    'team_id' => $bookingItem->team_id,
-                    'table_name' => 'booking_items',
-                    'table_row_id' => $bookingItem->id,
-                    'file_name' => $filename,
-                    'file_type' => 'image/png',
-                    'type_file_id' => 2, // signature
-                    'path' => "signatures/{$filename}",
-                ]);
+                    File::create([
+                        'team_id' => $bookingItem->team_id,
+                        'table_name' => 'booking_items',
+                        'table_row_id' => $bookingItem->id,
+                        'file_name' => $filename,
+                        'file_type' => 'image/png',
+                        'type_file_id' => 2, // signature
+                        'path' => "signatures/{$filename}",
+                    ]);
+
+                    $bookingQuestionnaire->update(['signature' => $filename]);
+                }
 
                 return $booking;
             });
@@ -477,12 +469,10 @@ class BookingQuestionnaireController extends Controller
             //     'booking_id' => $booking->id,
             //     'redirect_url' => route('front.payment.review', ['booking' => $booking->id]) //  route('payfast.checkout', ['booking' => $booking->id])
             // ]);
-            return redirect()->back()->with('booking_id', $booking->id);
-            // dd('here');
-            return redirect()->route('/');
+            return redirect()->route('booking-questionnaire.index');
         } catch (\Throwable $e) {
             // Log the full error for debugging
-            Log::error('Booking failed and rolled back', [
+            Log::error('Booking Questionnaire failed and rolled back', [
                 'message' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
                 'input' => $validated,
@@ -490,19 +480,7 @@ class BookingQuestionnaireController extends Controller
             return back()->with([
                 'error' => 'Something went wrong while saving your booking. Please try again.',
             ]);
-            // return response()->json([
-            //     'success' => false,
-            //     'error' => 'Something went wrong while saving your booking. Please try again.',
-            // ], 500);
         }
-
-
-        // $booking = Booking::create($request->all());
-        // $booking->customers()->sync($request->input('customers', []));
-        return back()->with([
-            'error' => 'Something went wrong while saving your booking. Please try again.',
-        ]);
-        return redirect()->route('/');
     }
 
     /**

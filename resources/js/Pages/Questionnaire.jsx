@@ -5,7 +5,7 @@ import CustomButton from '@/Components/CustomButton';
 import CustomCheckboxQ from '@/Components/CustomCheckboxQ';
 import CustomInputText from '@/Components/CustomInputText';
 import CustomSelect from '@/Components/CustomSelect';
-import CustomRadio from '@/Components/CustomRadioQ';
+import CustomRadio from '@/Components/CustomRadio';
 import SignaturePad from '@/Components/SignaturePad';
 
 export default function BookingLookup({ auth, booking, bookingItem, leadGuides, safetyGuides, typeGroup, typeReferral, typeConfirmation, questionnaire, team }) {
@@ -25,6 +25,8 @@ export default function BookingLookup({ auth, booking, bookingItem, leadGuides, 
     lead_guide_id: null,
     safety_guide_id: null,
     type_group_id: null,
+    customer_id: null,
+    reference: "",
     full_name: '',
     age: '',
     referral_id: null,
@@ -50,6 +52,8 @@ export default function BookingLookup({ auth, booking, bookingItem, leadGuides, 
         lead_guide_id: "",
         safety_guide_id: "",
         type_group_id: "",
+        customer_id: bookingItem.customers[0].id,
+        reference: booking.reference,
         full_name: bookingItem.customers[0].full_name,
         age: bookingItem.customers[0].age,
         referral_id: "",
@@ -117,9 +121,10 @@ export default function BookingLookup({ auth, booking, bookingItem, leadGuides, 
     // console.log('booking', booking);
     // console.log('data', data);
     // post(route('booking-questionnaire.store'))
+    console.log('data', data);
 
     post(route("booking-questionnaire.store"), {
-      onSuccess: (data) => { console.log(data); window.location.href = route('admin.bookings.index'); },
+      onSuccess: (data) => { console.log(data); window.location.href = route('booking-questionnaire.index'); },
       onError: (err) => { console.log(err); }
       // ,data: {
       //     booking_id: data.booking_id,
@@ -206,6 +211,7 @@ export default function BookingLookup({ auth, booking, bookingItem, leadGuides, 
             <CustomRadio
               label={q.question}
               name={q.slug}
+              outerWidth='w-full'
               value={data[q.slug]}
               onChange={(name, value) => handleChange(name, value)}
               errors={errors}
@@ -228,7 +234,7 @@ export default function BookingLookup({ auth, booking, bookingItem, leadGuides, 
         );
       case 11:
         return (
-          <div className="flex flex-col w-full items-center">
+          <div className="flex flex-col w-full items-center ">
 
             {continents?.map((continent, i) => (
               <CustomRadio
@@ -247,7 +253,7 @@ export default function BookingLookup({ auth, booking, bookingItem, leadGuides, 
         );
       case 12:
         return (
-          <div className="flex flex-col w-full items-center">
+          <div className="flex flex-col w-full items-center ">
             {countries?.map((country, i) => (
               <CustomRadio
                 key={country.id}
@@ -307,6 +313,7 @@ export default function BookingLookup({ auth, booking, bookingItem, leadGuides, 
                 key={staff.id}
                 label={staff.name}
                 name="safety_guide_id"
+                outerWidth="w-[280px]"
                 value={staff.id}
                 checked={data.safety_guide_id == staff.id.toString()}
                 onChange={handleChange}
@@ -430,7 +437,7 @@ export default function BookingLookup({ auth, booking, bookingItem, leadGuides, 
               <button
                 type="button"
                 onClick={() => setStep(step - 1)}
-                className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border border-primary-14 text-primary-14 cursor-pointer"
+                className="flex items-center justify-center w-full h-[40px] gap-2 px-4 py-2 rounded-xl border border-primary-14 text-primary-14 cursor-pointer"
               >
                 <span className="text-btn-outline-gray">Prev</span>
               </button>
@@ -439,7 +446,7 @@ export default function BookingLookup({ auth, booking, bookingItem, leadGuides, 
               <button
                 type="button"
                 onClick={() => setStep(step + 1)}
-                className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-green-gradient-overlay border-[#31B700] text-white shadow-inset-white cursor-pointer"
+                className="flex items-center justify-center w-full h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-green-gradient-overlay border-[#31B700] text-white shadow-inset-white cursor-pointer"
               >
                 <span className="text-btn-outline-gray">Next</span>
               </button>
@@ -448,7 +455,7 @@ export default function BookingLookup({ auth, booking, bookingItem, leadGuides, 
                 type="button"
                 onClick={handleSubmit}
                 disabled={processing}
-                className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-green-gradient-overlay border-[#31B700] text-white shadow-inset-white cursor-pointer"
+                className="flex items-center justify-center w-full h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-green-gradient-overlay border-[#31B700] text-white shadow-inset-white cursor-pointer"
               >
                 <span className="text-btn-outline-gray">Submit</span>
               </button>

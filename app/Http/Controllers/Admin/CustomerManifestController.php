@@ -105,7 +105,7 @@ class CustomerManifestController extends Controller
 
     public function edit(UpdateCustomerManifestRequest $request)
     {
-        //dd($request->all());
+        // dd($request->all());
         $validated = $request->validate([
             'customer_manifests' => 'required|array',
         ]);

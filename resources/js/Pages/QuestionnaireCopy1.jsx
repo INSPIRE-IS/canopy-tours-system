@@ -5,7 +5,7 @@ import CustomButton from '@/Components/CustomButton';
 import CustomCheckboxQ from '@/Components/CustomCheckboxQ';
 import CustomInputText from '@/Components/CustomInputText';
 import CustomSelect from '@/Components/CustomSelect';
-import CustomRadio from '@/Components/CustomRadioQ';
+import CustomRadio from '@/Components/CustomRadio';
 import SignaturePad from '@/Components/SignaturePad';
 
 export default function BookingLookup({ auth, booking, bookingItem, leadGuides, safetyGuides, typeGroup, typeReferral, typeConfirmation }) {
