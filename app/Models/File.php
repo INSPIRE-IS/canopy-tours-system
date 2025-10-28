@@ -50,9 +50,9 @@ class File extends Model
     }
 
 
-    public function getPathAttribute($value)
-    {
-        // Ensure public disk
-        // return asset('storage/' . $value);
-    }
+    // public function getPathAttribute($value)
+    // {
+    //     // Ensure public disk
+    //     return asset('storage/' . $value);
+    // }
 }
