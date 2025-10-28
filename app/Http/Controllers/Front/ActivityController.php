@@ -11,6 +11,7 @@ use App\Models\BookingItem;
 use App\Models\BookingPayment;
 use App\Models\Closeout;
 use App\Models\Customer;
+use App\Models\CustomerManifest;
 use App\Models\GiftVoucher;
 use App\Models\GiftVoucherItem;
 use App\Models\Inventory;
@@ -891,6 +892,17 @@ class ActivityController extends Controller
 
                 // Sync with pivot data
                 $bookingItem->customers()->sync($pivotData);
+
+
+                $customerManifest = CustomerManifest::create([
+                    'customer_id' => $customer->id,
+                    'booking_item_id' => $bookingItem->id,
+                    'team_id' => $bookingItem->team_id,
+                    'is_indemnity' => 0,
+                    'type' => 'adult',
+                    'position' => '',
+                    'notes' => '',
+                ]);
 
                 $bookingDetail = BookingDetail::create([
                     'booking_item_id'     => $bookingItem->id,

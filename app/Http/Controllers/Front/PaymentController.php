@@ -172,6 +172,7 @@ class PaymentController extends Controller
                         ],
                         'amount_ex_vat' => $booking->grand_tot_due,
                         'vat'           => $booking->grand_tot_due * 0.15,
+                        'vat_amount'    => $booking->grand_tot_due * 1.15,
                         'amount_paid'   => $booking->tot_paid,
                         'balance_due'   => ($booking->grand_tot_due * 1.15) - $booking->tot_paid,
                         'notes'         => 'Please pay within 7 days.',
@@ -196,7 +197,7 @@ class PaymentController extends Controller
                     $html = $renderer->render($template->content, $data);
                     $invoicePdf = Pdf::loadHTML($html);
                     $invoiceFilename = 'invoices/' . $data['invoice']['number'] . '.pdf';
-                    Storage::disk('local')->put($invoiceFilename, $invoicePdf->output());
+                    Storage::disk('public')->put($invoiceFilename, $invoicePdf->output());
                     Email::create([
                         'sender'         => config('mail.from.address'),
                         'receiver'       => $customer->email_address,
@@ -251,8 +252,10 @@ class PaymentController extends Controller
 
                     $random = rand(1, 100);
                     $voucherPdf = Pdf::loadView('emails.booking_voucher', compact('items'));
-                    $voucherFilename  = "vouchers/voucher-{$voucher->id}.pdf";
-                    Storage::put($voucherFilename, $voucherPdf->output());
+                    $voucherFilename  = "vouchers/voucher-{$data['invoice']['number']}.pdf";
+                    Storage::disk('public')->put($voucherFilename, $voucherPdf->output());
+
+
 
                     Email::create([
                         'sender'         => config('mail.from.address'),
@@ -346,11 +349,7 @@ class PaymentController extends Controller
                     'trace' => $e->getTraceAsString(),
                     'input' => $validated,
                 ]);
-
-                return response()->json([
-                    'success' => false,
-                    'error' => 'Something went wrong while saving your booking. Please try again.',
-                ], 500);
+                return redirect()->back()->with('error', 'Something went wrong while saving your booking. Please try again.');
             }
         } else if ($validated['type'] === 'voucher') {
             $voucher = GiftVoucher::findOrFail($validated['gift_id']);
@@ -521,6 +520,7 @@ class PaymentController extends Controller
             'file_logo' => $booking->team->file_logo->path,
             'amount_ex_vat' => $booking->grand_tot_due,
             'vat'           => $booking->grand_tot_due * 0.15,
+            'vat_amount'    => $booking->grand_tot_due * 1.15,
             'amount_paid'   => $booking->tot_paid,
             'balance_due'   => ($booking->grand_tot_due * 1.15) - $booking->tot_paid,
             'notes'         => 'Please pay within 7 days.',
@@ -560,8 +560,9 @@ class PaymentController extends Controller
             '{{booking_ref}}'         => $data['booking']['ref'] ?? '',
             '{{amount_ex_vat}}'       => $data['amount_ex_vat'] ?? '',
             '{{vat}}'                 => $data['vat'] ?? '',
+            '{{vat_amount}}'          => $data['vat_amount'] ?? '',
             '{{amount_paid}}'         => $data['amount_paid'] ?? '',
-            '{{balance_due}}'         => $data['balance_due'] ?? '',
+            '{{balance_due}}'         => $data['vat_amount'] - $data['amount_paid'],
             '{{service_name}}'        => $data['services'][0]['name'] ?? '',
             '{{service_adults}}'      => $data['services'][0]['adults'] ?? '',
             '{{service_children}}'    => $data['services'][0]['children'] ?? '',

@@ -48,4 +48,11 @@ class File extends Model
     {
         return $this->belongsTo(TypeFile::class, 'type_file_id');
     }
+
+
+    public function getPathAttribute($value)
+    {
+        // Ensure public disk
+        return asset('storage/' . $value);
+    }
 }

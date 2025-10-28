@@ -6,6 +6,7 @@ use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Log;
 
 class BookingItem extends Model
 {
@@ -111,6 +112,11 @@ class BookingItem extends Model
         return $this->hasMany(BookingInfo::class);
     }
 
+    public function booking_fees()
+    {
+        return $this->hasMany(BookingFee::class);
+    }
+
     public function booking_questionnaire()
     {
         return $this->hasOne(BookingQuestionnaire::class);
@@ -175,6 +181,13 @@ class BookingItem extends Model
                 ->values();
         }
 
+        if ($this->promotion_id != null) {
+            $booking_inventory_date = $this->booking_inventory->date;
+
+            $discount = $this->calcDiscount($this->service_id, $this->season_id,  $this->wholesaler_id, $this->promotion_id,  $booking_inventory_date, $this->booking_date, $this->pax_adults, $this->pax_children);
+            Log::info('discount ' . var_export($discount, true));
+        }
+
         $unassignedDiscounts = $discountItems->groupBy('pax_type')->map(fn($col) => $col->values());
 
         // Track how many customers are already linked per type
@@ -211,16 +224,31 @@ class BookingItem extends Model
             if (!$customerDiscount && isset($unassignedDiscounts[$paxType]) && $unassignedDiscounts[$paxType]->isNotEmpty()) {
                 $customerDiscount = $unassignedDiscounts[$paxType]->shift();
             }
+            $type = $manifest?->type ?? $paxType;
 
-            $price = $customerDiscount->final_rate ?? $this->defaultRate($paxType);
-            $paid = $tot_paid >= $price ? $price : 0;
-            $tot_paid = $tot_paid - $price;
+
+            if ($this->promotion_id != null) {
+                if ($type == 'adult') {
+                    $price = $discount['applied_rates']['adult'];
+                    $paid = $tot_paid >= $price ? $price : 0;
+                    $tot_paid = $tot_paid - $price;
+                }
+                if ($type == 'child') {
+                    $price = $discount['applied_rates']['child'];
+                    $paid = $tot_paid >= $price ? $price : 0;
+                    $tot_paid = $tot_paid - $price;
+                }
+            } else {
+                $price = $customerDiscount->final_rate ?? $this->defaultRate($paxType);
+                $paid = $tot_paid >= $price ? $price : 0;
+                $tot_paid = $tot_paid - $price;
+            }
             //$paid  = $customer->pivot->paid ?? 0;
             $bookingItemId = $customer->pivot->booking_item_id ?? null;
             $paxList->push([
                 'reference' => $this->booking->reference ?? null,
                 'booking_item_id'  => $bookingItemId,
-                'type'              => $manifest?->type ?? $paxType,
+                'type'              => $type,
                 'customer_id'       => $customer->id,
                 'full_name'         => $customer->full_name,
                 'email_address'     => $customer->email_address,
@@ -345,5 +373,201 @@ class BookingItem extends Model
     protected function guessPaxType(Customer $customer)
     {
         return $customer->parent_id == null ? 'adult' : 'child'; // $customer->age >= 18 ? 'adult' : 'child';
+    }
+
+    public function calcDiscount($service_id, $season_id, $wholesaler_id, $promotion_id, $activityDate, $pax_adults, $pax_children)
+    {
+
+        $season = Season::findOrFail($season_id);
+        $seasonAdult = $season->price_adult ?? $season->rake_rate_adult ?? 0;
+        $seasonChild = $season->price_child ?? $season->rake_rate_child ?? 0;
+        $seasonGuide = $season->price_guide ?? $season->rake_rate_guide ?? 0;
+
+        // Step 1: Base rack rates
+        $rates = [
+            'adult' => (float) $seasonAdult,
+            'child' => (float) $seasonChild,
+            'guide' => (float) $seasonGuide,
+        ];
+        logger()->info('season rates ' . var_export($rates, true));
+        // Step 2: Override with wholesaler rates (if present)
+        if (!empty($data['wholesaler_id'])) {
+            $wr = WholesalerRate::where('wholesaler_id', $wholesaler_id)
+                ->where('season_id', $season->id)
+                ->first();
+            if ($wr) {
+                $rates['adult'] = $wr->price_adult ?? $rates['adult'];
+                $rates['child'] = $wr->price_child ?? $rates['child'];
+                $rates['guide'] = $wr->price_guide ?? $rates['guide'];
+            }
+            logger()->info('wholesaler rates ' . var_export($rates, true));
+        }
+        //dd($activityDate);
+        // Keep a copy of base (post-wholesaler, pre-promo)
+        $baseRates = $rates;
+
+        $appliedPromo = null;
+        $appliedDiscounts = [];
+        $total = 0.0;
+
+        // Step 3: Check if promotion is applied (mutually exclusive with discounts)
+        if (!empty($promotion_id)) {
+
+            // $promo = $query->first();
+            $today = now()->toDateString();
+            $promo = Promotion::where('id', $promotion_id)
+                ->where('service_id', $service_id)
+                // Booking period check (today is when booking is made)
+                ->whereDate('booking_start_date', '<=', $today)
+                ->whereDate('booking_end_date', '>=', $today)
+                // Activity period check (customer’s chosen date)
+                ->whereDate('activity_start_date', '<=', $activityDate)
+                ->whereDate('activity_end_date', '>=', $activityDate)
+                ->first();
+            logger()->info('promo ' . $promo->id);
+
+            // dd($promo);
+            if ($promo) {
+                // Normalize params (supports casted array or raw JSON string)
+                $rawParams = $promo->params;
+                if (is_string($rawParams)) {
+                    $decoded = json_decode($rawParams, true);
+                    $params = is_array($decoded) ? $decoded : [];
+                } elseif (is_array($rawParams)) {
+                    $params = $rawParams;
+                } else {
+                    $params = [];
+                }
+                logger()->info('params ' . var_export($params, true));
+
+                // $totalPax  = collect($data['pax_groups'])->sum('count');
+                $totalPax  = $pax_adults + $pax_children;
+
+                // Apply promo rules
+                switch ($promo->type) {
+                    case 'percent':
+                        foreach ($rates as $k => $v) {
+                            $rates[$k] = round($v - ($v * ($promo->value / 100)), 2);
+                        }
+                        logger()->info('percent promo applied ' . var_export($rates, true));
+                        break;
+
+                    case 'fixed_value':
+                        $rates['adult'] = round(max(0, $rates['adult'] - (float) $promo->value), 2);
+                        logger()->info('promo applied ' . var_export($rates, true));
+                        break;
+
+                    case 'graduated':
+                        // Support BOTH:
+                        // (a) map:  {"lookup":{"1":"300","2":"300",...}}
+                        // (b) array:[{"pax":1,"value":300}, ...]
+                        $paxRate = null;
+                        if (!empty($params['lookup']) && is_array($params['lookup'])) {
+                            // (a) assoc map
+                            $key = (string) $totalPax;
+                            if (array_key_exists($key, $params['lookup'])) {
+                                $paxRate = (float) $params['lookup'][$key];
+                            }
+                        } elseif (!empty($params['lookup']) && is_string($params['lookup'])) {
+                            // If stored as JSON string inside params (rare), decode it.
+                            $lk = json_decode($params['lookup'], true) ?: [];
+                            $key = (string) $totalPax;
+                            if (is_array($lk) && array_key_exists($key, $lk)) {
+                                $paxRate = (float) $lk[$key];
+                            }
+                        } elseif (!empty($params['lookup']) && is_object($params['lookup'])) {
+                            $lk = (array) $params['lookup'];
+                            $key = (string) $totalPax;
+                            if (array_key_exists($key, $lk)) {
+                                $paxRate = (float) $lk[$key];
+                            }
+                        } elseif (!empty($params['lookup']) && is_iterable($params['lookup'])) {
+                            // (b) array of objects
+                            foreach ($params['lookup'] as $row) {
+                                if (isset($row['pax']) && (int)$row['pax'] === (int)$totalPax) {
+                                    $paxRate = (float) ($row['value'] ?? 0);
+                                    break;
+                                }
+                            }
+                        }
+                        logger()->info('paxRate **************** ' . $paxRate);
+
+                        if ($paxRate !== null) {
+                            $rates['adult'] = $paxRate;
+                            $rates['child'] = $paxRate;
+                            //$rates['guide'] = $promoTotal;
+
+                            return response()->json([
+                                'base_rates'         => $baseRates,
+                                'applied_rates'      => $rates, // unchanged per-pax; total is overridden
+                                'applied_promotion'  => $appliedPromo,
+                                'applied_discounts'  => [],
+                                'total_price'        => round($paxRate * $totalPax, 2),
+                            ]);
+                        }
+                        // If there’s no exact lookup, fall through to normal per-pax multiplication.
+                        break;
+
+                    case 'varied_child':
+                        // Support single rule  {min_adults, child_discount_percent}
+                        // and tiered rules     {tiers:[{min_adults, child_discount_percent}, ...]}
+                        if (!empty($params['tiers']) && is_array($params['tiers'])) {
+                            // choose best tier with min_adults <= adultCount
+                            $best = collect($params['tiers'])
+                                ->filter(fn($t) => isset($t['min_adults']) && $pax_adults >= (int)$t['min_adults'])
+                                ->sortByDesc('min_adults')
+                                ->first();
+
+                            if ($best && isset($best['child_discount_percent'])) {
+                                $pct = (float) $best['child_discount_percent'];
+                                $rates['child'] = round($rates['child'] - ($rates['child'] * ($pct / 100)), 2);
+                            }
+                        } elseif (isset($params['min_adults'], $params['child_discount_percent'])) {
+                            if ($pax_adults >= (int)$params['min_adults']) {
+                                $pct = (float) $params['child_discount_percent'];
+                                $rates['child'] = round($rates['child'] - ($rates['child'] * ($pct / 100)), 2);
+                            }
+                        }
+                        logger()->info('varied_child promo applied ' . var_export($rates, true));
+                        break;
+
+                    case 'volume_discount':
+                        // pick best tier where totalPax >= pax
+                        $best = null;
+                        if (!empty($params['tiers']) && is_array($params['tiers'])) {
+                            $best = collect($params['tiers'])
+                                ->filter(fn($t) => isset($t['pax']) && $totalPax >= (int)$t['pax'])
+                                ->sortByDesc('pax')
+                                ->first();
+                        }
+                        if ($best) {
+                            if (($best['type'] ?? '') === 'percent') {
+                                $pct = (float) ($best['value'] ?? 0);
+                                foreach ($rates as $k => $v) {
+                                    $rates[$k] = round($v - ($v * ($pct / 100)), 2);
+                                }
+                            } elseif (($best['type'] ?? '') === 'fixed_value') {
+                                $fv = (float) ($best['value'] ?? 0);
+                                $rates['adult'] = round(max(0, $rates['adult'] - $fv), 2);
+                            }
+                        }
+                        logger()->info('volume_discount promo applied ' . var_export($rates, true));
+                        break;
+
+                    case 'time_slot':
+                        $rates['adult'] = round(max(0, $rates['adult'] - ($rates['adult'] * ($promo->value / 100))), 2);
+                        $rates['child'] = round(max(0, $rates['child'] - ($rates['child'] * ($promo->value / 100))), 2);
+                        logger()->info('time_slot promo applied ' . var_export($rates, true));
+                        break;
+                }
+            }
+        }
+
+        $result = [
+            'base_rates'         => $baseRates,         // post-wholesaler, pre-promo
+            'applied_rates'      => $rates,             // post-promo (or == base if no promo)
+        ];
+        // dd($result);
+        return $result;
     }
 }

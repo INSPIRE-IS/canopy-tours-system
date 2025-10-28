@@ -88,6 +88,10 @@ class HandleInertiaRequests extends Middleware
             'permissions' =>  $permissions ?? [],
             'currentRoutePath' => $request->path(),
             'translations' => __('sidebar'), // this comes from the lang folder in resources
+            'flash' => [
+                'success' => fn() => $request->session()->get('success'),
+                'error' => fn() => $request->session()->get('error'),
+            ],
         ];
     }
 }

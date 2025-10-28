@@ -1,15 +1,19 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { icons } from '../../../icons';
 import CustomInputText from '@/Components/CustomInputText';
 import BlueButton from '@/Components/BlueButton';
 import CustomCheckbox from '@/Components/CustomCheckbox';
+import { useToast } from "@/Components/ToastContext";
 // import { useRoute } from 'ziggy-js';
 // import { Ziggy } from '@/ziggy'; // the generated file
 
 export default function Dashboard({ auth, booking, lookups, mode, gateways, status_payments, type_pay_options, type_payments, updated_bies, users }) {
     console.log("auth", auth);
+    const { props } = usePage();
+    const { flash } = props;
+    const { showToast } = useToast();
     // console.log("type_pay_options", type_pay_options);
     // console.log("type_payments", type_payments);
     const { data, setData, post, put, processing, errors, isDirty } = useForm({
@@ -32,7 +36,14 @@ export default function Dashboard({ auth, booking, lookups, mode, gateways, stat
         meta: '',
         team_id: booking.team_id,
     });
-
+    useEffect(() => {
+        if (flash?.success) {
+            showToast(flash.success, "success");
+        }
+        if (flash?.error) {
+            showToast(flash.error, "error");
+        }
+    }, [flash, showToast]);
     const handleChange = (target, value) => {
         setData(target, value);
         console.log('target----- ', target);
@@ -80,11 +91,11 @@ export default function Dashboard({ auth, booking, lookups, mode, gateways, stat
         console.log('data', data);
         if (mode === "create") {
             post(route("admin.booking-payments.store"), {
-                onSuccess: () => onClose(),
+                onSuccess: () => console.log('success'),
             });
         } else if (mode === "edit") {
             put(route("admin.booking-payments.update", booking.id), {
-                onSuccess: () => onClose(),
+                onSuccess: () => console.log('success'),
             });
         }
     };

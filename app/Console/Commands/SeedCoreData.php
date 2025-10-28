@@ -1194,7 +1194,7 @@ class SeedCoreData extends Command
                             <td colspan="2" style="border-bottom: 1px solid white;"></td>
                             <td style="border: 1px solid black;">Sub-total</td>
                             <td style="border: 1px solid black;">(Excl VAT)</td>
-                            <td style="border: 1px solid black;">{{amount_ex_vat}}</td>
+                            <td style="border: 1px solid black;">{{vat_amount}}</td>
                         </tr>
                         <tr style="height: 21px;">
                             <td colspan="3"></td>
@@ -1204,7 +1204,7 @@ class SeedCoreData extends Command
                         <tr style="height: 21px;">
                             <td colspan="3"></td>
                             <td style="border: 1px solid black;">Total:</td>
-                            <td style="border: 1px solid black;">{{balance_due}}</td>
+                            <td style="border: 1px solid black;">{{vat_amount}}</td>
                         </tr>
                         <tr style="height: 21px;">
                             <td colspan="3"></td>

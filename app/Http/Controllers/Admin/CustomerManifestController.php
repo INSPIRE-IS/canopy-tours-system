@@ -13,6 +13,8 @@ use App\Models\CustomerDiscount;
 use App\Models\CustomerManifest;
 use Gate;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\Response;
 
 class CustomerManifestController extends Controller
@@ -109,70 +111,78 @@ class CustomerManifestController extends Controller
         $validated = $request->validate([
             'customer_manifests' => 'required|array',
         ]);
-        $details = $validated['customer_manifests'];
 
+        try {
+            $details = DB::transaction(function () use ($validated) {
+                $details = $validated['customer_manifests'];
+                //dd($details);
+                foreach ($details as $detail) {
 
-        //dd($details);
-        foreach ($details as $detail) {
+                    $bookingItem  = BookingItem::with('booking')->find($detail['booking_item_id']);
+                    if ($detail['type'] == 'child' && $detail['parent_id'] != null) {
+                        $parentDetails = $details;
+                        foreach ($parentDetails as $parentDetail) {
+                            if ($parentDetail['id'] ==  $detail['parent_id']) {
+                                $parentEmail = $parentDetail['email_address'];
+                            }
+                        }
+                        $parent = Customer::where('email_address', $parentEmail)->first();
+                        $detail['parent_id'] = $parent->id;
+                    } else if ($detail['type'] == 'child' && $detail['parent_id'] == null) {
+                        $detail['parent_id'] = $bookingItem->booking->customer_id;
+                    }
 
-            $bookingItem  = BookingItem::with('booking')->find($detail['booking_item_id']);
+                    $customer = Customer::updateOrCreate(
+                        [
+                            'id' => $detail['customer_id'],
+                        ],
+                        [
+                            'full_name' => $detail['full_name'],
+                            'email_address' => $detail['email_address'],
+                            'contact_number' => $detail['contact_number'],
+                            'age' => $detail['age'],
+                            'parent_id' => $detail['parent_id'],
+                            'contact_number' => $detail['contact_number'],
+                        ]
+                    );
+                    $pivotData = [];
+                    $pivotData[$customer->id] = [
+                        'team_id' => $bookingItem->booking->team_id,
+                        'is_lead' => $detail['is_lead'],
 
-            if ($detail['type'] == 'child' && $detail['parent_id'] == null) {
-                $detail['parent_id'] = $bookingItem->booking->customer_id;
-            }
+                    ];
 
-            $customer = Customer::updateOrCreate(
-                [
-                    'id' => $detail['customer_id'],
-                ],
-                [
-                    'full_name' => $detail['full_name'],
-                    'email_address' => $detail['email_address'],
-                    'contact_number' => $detail['contact_number'],
-                    'age' => $detail['age'],
-                    'parent_id' => $detail['parent_id'],
-                    'contact_number' => $detail['contact_number'],
-                ]
-            );
+                    // Sync with pivot data
+                    $bookingItem->customers()->syncWithoutDetaching($pivotData);
 
-
-            // dd($bookingItem);
-            $pivotData = [];
-            $pivotData[$customer->id] = [
-                'team_id' => $bookingItem->booking->team_id,
-                'is_lead' => $detail['is_lead'],
-
-            ];
-
-            // Sync with pivot data
-            $bookingItem->customers()->syncWithoutDetaching($pivotData);
-
-            CustomerManifest::updateOrCreate(
-                [
-                    'customer_id' => $customer->id,
-                    'booking_item_id' => $detail['booking_item_id'],
-                ],
-                [
-                    'position' => $detail['position'],
-                    'notes' => $detail['notes'],
-                    'is_indemnity' => $detail['is_indemnity'],
-                    'type' => $detail['type'],
-                    'team_id' => $bookingItem->booking->team_id,
-                ]
-            );
-            // if ($detail['discount_id'] != null) {
-            //     CustomerDiscount::updateOrCreate(
-            //         [
-            //             'customer_id' => $customer->id,
-            //             'booking_discount_item_id' => $detail['discount_id'],
-            //         ]
-            //     );
-            // }
+                    CustomerManifest::updateOrCreate(
+                        [
+                            'customer_id' => $customer->id,
+                            'booking_item_id' => $detail['booking_item_id'],
+                        ],
+                        [
+                            'position' => $detail['position'],
+                            'notes' => $detail['notes'],
+                            'is_indemnity' => $detail['is_indemnity'],
+                            'type' => $detail['type'],
+                            'team_id' => $bookingItem->booking->team_id,
+                        ]
+                    );
+                }
+                return $details;
+            });
+            return redirect()->back()->with('success', 'Customer manifests updated successfully.');
+        } catch (\Throwable $e) {
+            // Log the full error for debugging
+            Log::error('Booking failed and rolled back', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'input' => $validated,
+            ]);
+            return back()->with([
+                'error' => 'Something went wrong while saving your booking. Please try again.',
+            ]);
         }
-
-        //$customerManifest->update($request->all());
-
-        return redirect()->back()->with('success', 'Customer manifests updated successfully.');
     }
 
     public function editSingle(UpdateCustomerManifestRequest $request)

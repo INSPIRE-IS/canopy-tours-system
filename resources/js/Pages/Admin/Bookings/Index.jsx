@@ -466,6 +466,8 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                                                                                                 <a
                                                                                                     key={file.id}
                                                                                                     href={file.path}
+                                                                                                    target="_blank"
+                                                                                                    rel="noopener noreferrer"
                                                                                                     className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                                                                                                 >
                                                                                                     {file.file_name}

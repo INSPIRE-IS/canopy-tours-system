@@ -9,18 +9,28 @@ use App\Http\Requests\UpdateBookingPaymentRequest;
 use App\Models\Booking;
 use App\Models\BookingItem;
 use App\Models\BookingPayment;
+use App\Models\BookingVoucher;
+use App\Models\Customer;
+use App\Models\Email;
 use App\Models\Gateway;
+use App\Models\Invoice;
+use App\Models\InvoiceTemplate;
 use App\Models\LookupItem;
 use App\Models\StatusPayment;
+use App\Models\Team;
 use App\Models\TypePayment;
 use App\Models\TypePayOption;
 use App\Models\User;
+use Barryvdh\DomPDF\Facade\Pdf;
+use File;
 use Gate;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
+use Storage;
 use Symfony\Component\HttpFoundation\Response;
+use App\Services\DocumentService;
 
 class BookingPaymentController extends Controller
 {
@@ -71,6 +81,7 @@ class BookingPaymentController extends Controller
 
     public function store(StoreBookingPaymentRequest $request)
     {
+        $service = app(DocumentService::class);
         // dd($request->all());
         $validated = $request->validate([
             'booking_id' => 'required|exists:bookings,id',
@@ -94,32 +105,201 @@ class BookingPaymentController extends Controller
 
 
         try {
-            //$booking = DB::transaction(function () use ($validated) {
-            //$payment = $request->all();
-            $validated['status_payment_id'] = 2; // paid
-            $validated['gateway_id'] = 2; // manual
-            logger()->info($validated);
-            $bookingPayment = BookingPayment::create($validated);
-            $booking = $bookingPayment->booking;
-            logger()->info($booking);
-            $booking->update([
-                'status_payment_id' => 2, // paid
-                'tot_paid' => $bookingPayment->ex_vat_amount,
-            ]);
-            //TODO update booking item with payment amount if this is a multiple booking activity
-            $booking->booking_items->each(function ($item) use ($bookingPayment) {
-                $item->update([
+            $booking = DB::transaction(function () use ($service, $validated) {
+                //$payment = $request->all();
+                $validated['status_payment_id'] = 2; // paid
+                $validated['gateway_id'] = 2; // manual
+                logger()->info($validated);
+                $bookingPayment = BookingPayment::create($validated);
+                $booking = $bookingPayment->booking;
+                logger()->info($booking);
+                $booking->update([
+                    'status_payment_id' => 2, // paid
                     'tot_paid' => $bookingPayment->ex_vat_amount,
                 ]);
-            });
+                //TODO update booking item with payment amount if this is a multiple booking activity
+                $balance = $bookingPayment->ex_vat_amount;
+                //dd($booking->booking_items);
+                $booking->booking_items->each(function ($item) use ($validated, $balance) {
 
+                    $item->booking_fees->each(function ($fee) use ($validated, $balance) {
+                        $balance = $balance - $fee->tot_amount;
+                        $fee->update([
+                            'tot_paid' => $balance >= 0 ? $fee->tot_amount : 0,
+                            'note' => $validated['note'],
+                        ]);
+                    });
+                });
+                $customer = Customer::findOrFail($booking->customer_id);
+                $invoice = Invoice::where('booking_id', $booking->id)->first();
+                $customer = Customer::where('id', $booking->customer_id)->first();
+                $site = Team::findorFail($invoice->team_id);
+                $items = $booking?->booking_items->first();
+
+                $subject = 'Payment Confirmation';
+                $recipient = $customer->email_address;
+
+                $invoiceData = [
+                    'site' => [
+                        'name' => $site->full_name,
+                        'reg_no' => $site->reg_no,
+                        'address' => $site->address,
+                        'address_code' => $site->address_code,
+                    ],
+                    'client' => [
+                        'name' => $customer->full_name,
+                        'phone' => $customer->contact_number,
+                        'email' => $customer->email_address,
+                    ],
+                    'invoice' => [
+                        'number' => $invoice->invoice_number,
+                        'date'   => $invoice->invoice_date,
+                    ],
+                    'booking' => [
+                        'ref' => $booking->reference,
+                    ],
+                    'service' => [
+                        'name' => $items->service->name,
+                        'adults' => $items->pax_adults,
+                        'children' => $items->pax_children,
+                        'guides' => $items->pax_guides,
+                    ],
+                    'amount_ex_vat' => $booking->grand_tot_due,
+                    'vat'           => $booking->grand_tot_due * 0.15,
+                    'vat_amount'    => $booking->grand_tot_due * 1.15,
+                    'amount_paid'   => $booking->tot_paid,
+                    'balance_due'   => ($booking->grand_tot_due * 1.15) - $booking->tot_paid,
+                    'notes'         => 'Please pay within 7 days.',
+                    'logo'          => '<img src="logo.png" alt="Logo" style="max-height:50px;">',
+                    'bank' => [
+                        'account_owner' => $site->account_owner,
+                        'account_no' => $site->account_number,
+                        'account_type'   => $site->account_type,
+                        'name'   => $site->bank_name,
+                        'branch_code' => $site->branch_code,
+                    ],
+                    //     'items' => [
+                    //         ['description' => 'Adult Ticket', 'qty' => 4, 'price' => 'R600.00', 'subtotal' => 'R2400.00'],
+                    //     ],                    
+                ];
+
+                $template = InvoiceTemplate::where('is_default', true)->where('type_invoice_id', 1)->first();
+                $renderer = app(\App\Services\TemplateRenderer::class);
+                $html = $renderer->render($template->content, $invoiceData);
+                $invoiceFilename = "invoices/{$invoiceData['invoice']['number']}.pdf";
+                $invoicePdf = $service->generateAndStorePdf(
+                    $html,
+                    $invoiceData,
+                    $invoiceFilename,
+                    [
+                        'team_id' => $invoice->team_id,
+                        'table_name' => 'invoices',
+                        'table_row_id' => $invoice->id,
+                        'file_name' => "{$invoiceData['invoice']['number']}.pdf",
+                        'type_file_id' => 4,
+                        'booking_id' => $booking->id,
+                    ],
+                    false // means raw HTML
+                );
+                $voucher  = BookingVoucher::with('items')
+                    ->where('service_id', 1)
+                    ->where('season_id', 1)
+                    ->first();
+                //dd($voucher);
+                $items = $voucher->items;
+
+                // Build replacements for placeholders
+                $replacements = [
+                    '{{reference}}' => $booking->reference ?? 'REF-000000',
+                    '{{provider}}' => $bookingVoucher->provider_name ?? 'Canopy Tours',
+                    '{{service}}' => $bookingVoucher->service_name ?? 'Service Test',
+                    '{{start_time_and_date}}' => $bookingVoucher->start_time_and_date ?? '12:00 12 Jan 2025',
+                    '{{start_location}}' => $bookingVoucher->start_location ?? 'Start Location',
+                    '{{end_location}}' => $bookingVoucher->end_location ?? 'End Location',
+                    '{{lead_name}}' => $booking->lead_name ?? 'Test Lead',
+                    '{{lead_email}}' => $booking->lead_email ?? 'test@email.com',
+                    '{{number_in_party}}' => $booking->number_in_party ?? '8',
+                    '{{supplier_email}}' => $bookingVoucher->supplier_email ?? 'test@email.com',
+                    '{{supplier_landline}}' => $bookingVoucher->supplier_landline ?? '123456789',
+                    '{{supplier_mobile}}' => $bookingVoucher->supplier_mobile ?? '123456789',
+                ];
+
+                // Perform replacements in the descriptions before sending to view
+                $items->transform(function ($item) use ($replacements) {
+                    $item->description = strtr($item->description, $replacements);
+                    return $item;
+                });
+                // --- Voucher ---
+                $voucherData = ['items' => $items];
+                $voucherFilename = "vouchers/voucher-{$invoiceData['invoice']['number']}.pdf";
+                $voucherPdf = $service->generateAndStorePdf(
+                    'emails.booking_voucher',
+                    $voucherData,
+                    $voucherFilename,
+                    [
+                        'team_id' => $voucher->team_id,
+                        'table_name' => 'BookingVoucher',
+                        'table_row_id' => $voucher->id,
+                        'file_name' => "voucher-{$voucher->id}.pdf",
+                        'type_file_id' => 6,
+                        'booking_id' => $booking->id,
+                    ]
+                );
+
+                // TODO : check if we should send email
+                if (false) {
+                    // --- Optional Email ---
+                    $attachments = $service->prepareAttachments(
+                        ['pdf' => $invoicePdf, 'name' => "invoice-{$invoiceData['invoice']['number']}.pdf"],
+                        ['pdf' => $voucherPdf, 'name' => "voucher-{$voucher->id}.pdf"]
+                    );
+                    // TODO : update to use template invoice
+                    // $content = "
+                    //     <p>Hello {$customer->full_name},</p>
+                    //     <p>Your booking has been paid.</p>
+                    //     <p>Thank you for choosing Canopy Tours.</p>
+                    //     <p>Your booking reference is {$booking->reference}.</p>
+                    //     <p>Please Contact us if you have any questions.</p>";
+                    Email::create([
+                        'sender'         => config('mail.from.address'),
+                        'receiver'       => $customer->email_address,
+                        'subject'        => 'Invoice ' . $invoice->number,
+                        'body'           => strip_tags($html), // or a summary
+                        'attachment_path' => $invoiceFilename,
+                        'sent'           => true,
+                        'sent_at'        => now(),
+                        'user_id'        => null,
+                        'auditable_type' => 'App\Models\Invoice',
+                        'auditable_id'   => $invoice->id,
+                        'team_id'        => $invoice->team_id,
+                    ]);
+
+                    Email::create([
+                        'sender'         => config('mail.from.address'),
+                        'receiver'       => $customer->email_address,
+                        'subject'        => 'Booking Detail for invoice' . $invoice->number,
+                        'body'           => strip_tags($html), // or a summary
+                        'attachment_path' => $voucherFilename,
+                        'sent'           => true,
+                        'sent_at'        => now(),
+                        'user_id'        => null,
+                        'auditable_type' => 'App\Models\BookingVoucher',
+                        'auditable_id'   => $voucher->id,
+                        'team_id'        => $voucher->team_id,
+                    ]);
+
+                    // Uncomment if you want to send mail
+                    $service->sendEmail($customer->email_address, 'Booking Confirmation', $invoiceData, $attachments);
+                }
+
+
+
+                return $booking;
+            });
             Log::info('booking updated', [
                 'booking' => $booking,
             ]);
             return redirect()->route('admin.bookings.index');
-
-            //     return $booking;
-            // });
         } catch (\Throwable $e) {
             // Log the full error for debugging
             Log::error('Booking failed and rolled back', [
@@ -130,10 +310,6 @@ class BookingPaymentController extends Controller
             return back()->with([
                 'error' => 'Something went wrong while saving your booking. Please try again.',
             ]);
-            // return response()->json([
-            //     'success' => false,
-            //     'error' => 'Something went wrong while saving your booking. Please try again.',
-            // ], 500);
         }
     }
 
