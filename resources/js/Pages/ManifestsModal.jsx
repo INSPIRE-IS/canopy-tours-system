@@ -7,10 +7,10 @@ import OutlineButton from "@/Components/OutlineButton";
 import BlueButton from "@/Components/BlueButton";
 import GreenButton from "@/Components/GreenButton";
 
-const ManifestsModal = ({ isOpen, onClose, mode, customers, tot_adults, tot_children }) => {
+const ManifestsModal = ({ isOpen, onClose, mode, booking, tot_adults, tot_children }) => {
 
-    console.log("customers", customers);
-    console.log("mode", mode);
+    // console.log("customers", booking?.customers);
+    // console.log("mode", mode);
 
     const [adults, setAdults] = useState([]);
 
@@ -19,9 +19,9 @@ const ManifestsModal = ({ isOpen, onClose, mode, customers, tot_adults, tot_chil
     });
 
     useEffect(() => {
-        if (mode === "edit" && customers?.length) {
+        if (mode === "edit" && booking?.customers?.length) {
             // Map API data into form shape
-            const mapped = customers.map((m, i) => {
+            const mapped = booking?.customers.map((m, i) => {
                 console.log("m-------", m);
                 return ({
                     id: i,
@@ -56,7 +56,8 @@ const ManifestsModal = ({ isOpen, onClose, mode, customers, tot_adults, tot_chil
         } else if (mode === "create") {
             reset(); // Clear form
         }
-    }, [mode, customers]);
+    }, [mode, booking?.customers]);
+
     useEffect(() => {
         const updatedAdults = data.customer_manifests
             .filter(p => p.type === "adult")

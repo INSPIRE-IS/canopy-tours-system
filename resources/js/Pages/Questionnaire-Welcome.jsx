@@ -5,22 +5,23 @@ import CustomSelect from '@/Components/CustomSelect';
 import ManifestsModal from './ManifestsModal';
 
 export default function BookingLookup({ bookings }) {
-  //console.log('bookings', bookings);
+  console.log('bookings', bookings);
 
   const [BookingOptions, setBookingOptions] = useState([]);
   const [isManifestsModalOpen, setIsManifestsModalOpen] = useState(false);
   const [selectedManifests, setSelectedManifests] = useState(null);
 
   const { data, setData, get, post, put, errors, reset, processing } = useForm({
-    booking_id: null,
+    booking_item_id: null,
   });
 
   useEffect(() => {
     if (bookings) {
       const bookingOptions = bookings.map(booking => {
+        console.log('booking', booking);
         return {
-          id: booking.id,
-          name: booking.lead_name + ' - ' + booking.reference,
+          id: booking.booking_item_id,
+          name: booking.lead_name + ' - ' + booking.reference, // + ' - ' + booking.service_name,
         };
       });
       //console.log('bookingOptions', bookingOptions);
@@ -30,8 +31,8 @@ export default function BookingLookup({ bookings }) {
 
 
   const handleChange = (target, value) => {
-    // console.log('target', target);
-    // console.log('value', value);
+    console.log('target', target);
+    console.log('value', value);
     setData(target, value);
     //setData("name", e.target.value);
   };
@@ -42,18 +43,18 @@ export default function BookingLookup({ bookings }) {
     e.preventDefault();
     console.log('data', data);
     console.log('bookings', bookings);
-    if (!data.booking_id) {
+    if (!data.booking_item_id) {
       alert('Please select a booking');
       return;
     }
-    const booking = bookings.find(b => b.id.toString() === data.booking_id);
-    console.log('booking', booking);
+    const booking = bookings.find(b => b.booking_item_id.toString() === data.booking_item_id);
+    console.log('booking-------------', booking);
     if (!booking) {
       alert('Booking not found');
       return;
     }
     if (booking.lead_name) {
-      setSelectedManifests(booking.customers);
+      setSelectedManifests(booking);
       setIsManifestsModalOpen(true);
       return;
     }
@@ -61,6 +62,7 @@ export default function BookingLookup({ bookings }) {
   const handleCloseModal = () => {
     setIsManifestsModalOpen(false);
     setSelectedManifests(null);
+    // window.location.reload();
   };
 
   return (
@@ -87,9 +89,9 @@ export default function BookingLookup({ bookings }) {
           </div>
         </div>
 
-        <div className="flex flex-col md:flex-row overflow-hidden w-[90%] xl:w-full gap-[22px] mb-[47px]">
+        <div className="flex flex-col xl:flex-row overflow-hidden w-[90%] xl:w-full items-center justify-center gap-[22px] mb-[47px]">
           {/* Image Column */}
-          <div className="md:w-[448px] hidden md:block">
+          <div className="xl:w-[642px] xl:h-[560px]  hidden md:block">
             <img
               src="/images/questionnaire.jpg" // Put your actual image here
               alt="Zipline adventure"
@@ -107,10 +109,10 @@ export default function BookingLookup({ bookings }) {
             <div className="flex flex-col w-full items-center justify-center p-3">
               <CustomSelect
                 title="Select your Booking"
-                name="booking_id"
+                name="booking_item_id"
                 width="w-[98%]"
                 height="h-[52px]"
-                value={data.booking_id}
+                value={data.booking_item_id}
                 options={BookingOptions}
                 onChange={(e) => handleChange(e.target.name, e.target.value)}
                 type="text"
@@ -142,7 +144,7 @@ export default function BookingLookup({ bookings }) {
         isOpen={isManifestsModalOpen}
         onClose={handleCloseModal}
         mode="edit"
-        customers={selectedManifests}
+        booking={selectedManifests}
         tot_adults='0'
         tot_children='0'
       />

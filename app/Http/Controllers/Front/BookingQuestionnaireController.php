@@ -36,6 +36,7 @@ class BookingQuestionnaireController extends Controller
     public function index()
     {
         $booking_items = BookingItem::with([
+            'service',
             'booking.files',
             'customers',
             'customer_manifests',
@@ -55,6 +56,9 @@ class BookingQuestionnaireController extends Controller
                 $customers = $booking_item->paxWithCustomers();
                 $info = [
                     'id' => $booking_item->booking->id,
+                    'booking_item_id' => $booking_item->id,
+                    'service_id' => $booking_item->service_id,
+                    'service_name' => $booking_item->service->name,
                     'reference' => $booking_item->booking->reference,
                     'lead_name' => $booking_item->booking->lead_name,
                     'lead_id' => $booking_item->booking->customer_id,
@@ -70,7 +74,7 @@ class BookingQuestionnaireController extends Controller
                 return null;
             }
         });
-        //dd($formatted);
+        // dd($formatted);
         return Inertia::render('Questionnaire-Welcome', [
             'bookings' => $formatted,
         ]);
