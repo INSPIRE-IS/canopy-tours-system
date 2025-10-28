@@ -125,7 +125,7 @@ export default function ActivitySchedulePage({ activity, auth, team, activityId,
         <div className="relative rounded-xl overflow-hidden shadow-lg h-[400px]">
           {team?.file_logo?.path != null ? (
             <img
-              src={`/storage/${team?.file_image?.path}`}
+              src={`${team?.file_image?.path}`}
               alt="Canopy Tours"
               className="w-full h-full object-cover"
             />

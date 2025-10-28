@@ -9,7 +9,7 @@ export default function TopNav({ auth, team }) {
           {/* <img src="/images/logo.png" alt="Stormriver Adventures" className="h-10" /> */}
           {team?.file_logo?.path != null ? (
             <img
-              src={`/storage/${team?.file_logo?.path}`}
+              src={`${team?.file_logo?.path}`}
               alt="Canopy Tours"
               className="h-10"
             />
