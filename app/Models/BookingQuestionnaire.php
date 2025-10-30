@@ -12,6 +12,20 @@ class BookingQuestionnaire extends Model
 
     public $table = 'booking_questionnaires';
 
+    protected $dates = [
+        'created_at',
+        'updated_at',
+        'deleted_at',
+    ];
+
+    protected $casts = [
+        'is_medical' => 'boolean',
+        'is_fit' => 'boolean',
+        'is_minor' => 'boolean',
+        'recieve_invite' => 'boolean',
+        'is_agree' => 'boolean',
+    ];
+
     protected $fillable = [
         'booking_item_id',
         'customer_id',
@@ -37,7 +51,7 @@ class BookingQuestionnaire extends Model
         'deleted_at',
     ];
 
-    public function booking_items()
+    public function booking_item()
     {
         return $this->belongsTo(BookingItem::class, 'booking_item_id');
     }
@@ -60,5 +74,30 @@ class BookingQuestionnaire extends Model
     public function type_group()
     {
         return $this->belongsTo(TypeGroup::class, 'type_group_id');
+    }
+
+    public function gender()
+    {
+        return $this->belongsTo(TypeGender::class, 'gender_id');
+    }
+
+    public function continent()
+    {
+        return $this->belongsTo(Continent::class, 'continent_id');
+    }
+
+    public function country()
+    {
+        return $this->belongsTo(Country::class, 'country_id');
+    }
+
+    public function province()
+    {
+        return $this->belongsTo(State::class, 'province_id');
+    }
+
+    public function is_medical()
+    {
+        return $this->where('medical_id', 1)->exists();
     }
 }

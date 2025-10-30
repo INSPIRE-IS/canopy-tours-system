@@ -23,6 +23,7 @@ use Inertia\Inertia;
 use Barryvdh\DomPDF\Facade\Pdf;
 use App\Models\File;
 use App\Models\User;
+use App\Services\RendererService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Str;
@@ -82,7 +83,7 @@ class PaymentController extends Controller
 
             try {
                 $booking = DB::transaction(function () use ($validated, $vatRate) {
-
+                    $renderService = app(RendererService::class);
                     $booking = Booking::findOrFail($validated['booking']);
                     // Mark as paid (in real app, you'd validate PayFast response)
                     $booking->update([
@@ -189,20 +190,31 @@ class PaymentController extends Controller
                         //     ],                    
                     ];
 
-                    $template = InvoiceTemplate::where('is_default', true)
-                        ->where('type_invoice_id', 1)
-                        ->first();
+                    //$template = InvoiceTemplate::where('is_default', true)->where('type_invoice_id', 1)->first();
 
-                    $renderer = app(\App\Services\TemplateRenderer::class);
-                    $html = $renderer->render($template->content, $data);
-                    $invoicePdf = Pdf::loadHTML($html);
+                    //$renderer = app(\App\Services\TemplateRenderer::class);
+                    //$html = $renderer->render($template->content, $data);
+                    //$invoicePdf = Pdf::loadHTML($html);
+                    // 🔹 Load Blade view with data
+                    $data = $renderService->invoice($booking, $customer);
+                    $invoicePdf = Pdf::loadView('invoices.invoice', $data);
+                    // Optional: tweak DOMPDF options
+                    $invoicePdf->setPaper('A4', 'portrait');
+
+
                     $invoiceFilename = 'invoices/' . $data['invoice']['number'] . '.pdf';
                     Storage::disk('public')->put($invoiceFilename, $invoicePdf->output());
+                    $content = "
+                            <p>Hello {$customer->full_name},</p>
+                            <p>Your booking has been paid.</p>
+                            <p>Thank you for choosing Canopy Tours.</p>
+                            <p>Your booking reference is {$booking->reference}.</p>
+                            <p>Please Contact us if you have any questions.</p>";
                     Email::create([
                         'sender'         => config('mail.from.address'),
                         'receiver'       => $customer->email_address,
                         'subject'        => 'Invoice ' . $data['invoice']['number'],
-                        'body'           => strip_tags($html), // or a summary
+                        'body'           => strip_tags($content), // strip_tags($html)or a summary
                         'attachment_path' => $invoiceFilename,
                         'sent'           => true,
                         'sent_at'        => now(),
@@ -221,6 +233,7 @@ class PaymentController extends Controller
                         'path'         => $invoiceFilename,
                         'booking_id'   => $booking->id,
                     ]);
+
                     $voucher  = BookingVoucher::with('items')
                         ->where('service_id', 1)
                         ->where('season_id', 1)
@@ -255,13 +268,11 @@ class PaymentController extends Controller
                     $voucherFilename  = "vouchers/voucher-{$data['invoice']['number']}.pdf";
                     Storage::disk('public')->put($voucherFilename, $voucherPdf->output());
 
-
-
                     Email::create([
                         'sender'         => config('mail.from.address'),
                         'receiver'       => $customer->email_address,
                         'subject'        => 'Booking Detail for invoice' . $data['invoice']['number'],
-                        'body'           => strip_tags($html), // or a summary
+                        'body'           => strip_tags($content), // or a summary
                         'attachment_path' => $voucherFilename,
                         'sent'           => true,
                         'sent_at'        => now(),
@@ -294,31 +305,6 @@ class PaymentController extends Controller
                     ];
                     // //send mail
                     Mail::to($customer->email_address)->send(new BookingMail($data, $attachments));
-                    //TODO : update to use template invoice
-                    // $content = "
-                    //     <p>Hello {$customer->full_name},</p>
-                    //     <p>Your booking has been paid.</p>
-                    //     <p>Thank you for choosing Canopy Tours.</p>
-                    //     <p>Your booking reference is {$booking->reference}.</p>
-                    //     <p>Please Contact us if you have any questions.</p>";
-
-                    // Email::create([
-                    //     'sender'         => config('mail.from.address'),
-                    //     'receiver'       => $recipient,
-                    //     'subject'        => $subject,
-                    //     'body'           => strip_tags($content), // or a summary
-                    //     'attachment_path' => null,
-                    //     'sent'           => true,
-                    //     'sent_at'        => now(),
-                    //     'user_id'        => null,
-                    //     'auditable_type' => 'App\Models\Booking',
-                    //     'auditable_id'   => $booking->id,
-                    //     'team_id'        => $booking->team_id,
-                    // ]);
-
-                    // Mail::to($recipient)->send(new MessageGuestMail($subject, $content));
-
-
 
                     Log::info('Payment confirmation email sent', [
                         'booking_id' => $booking->id,
@@ -342,6 +328,7 @@ class PaymentController extends Controller
                 //     'redirect_url' => route('front.payment.booking', ['booking' => $booking->id]) //  route('payfast.checkout', ['booking' => $booking->id])
                 // ]);
                 //return redirect()->back()->with('booking_id', $booking->id);
+
             } catch (\Throwable $e) {
                 // Log the full error for debugging
                 Log::error('Booking failed and rolled back', [
@@ -445,8 +432,61 @@ class PaymentController extends Controller
         }
     }
 
-
     public function invoiceDownload(Booking $booking)
+    {
+        $renderService = app(RendererService::class);
+        //dd($booking);
+        $sessionId = session()->getId() ?? null;
+        //logger()->info('sessionId inertia ' . $sessionId);
+        if ($sessionId != $booking->session_id || $booking->status_payment_id != 1) {
+            return redirect()->route('front.welcome');
+        }
+
+        $booking = Booking::with('team.file_logo', 'booking_items', 'booking_items.customers', 'booking_items.booking_fee')->find($booking->id);
+        $teamId = $booking->team_id;
+
+        $template = InvoiceTemplate::where('is_default', true)
+            ->where('type_invoice_id', 1) // invoice
+            ->where('team_id', $teamId)
+            ->first();
+
+        if (!$booking) {
+            $voucher = GiftVoucher::where('session_id', $sessionId)->where('status_payment_id', 1)->first();
+            $customer = collect([
+                'full_name'     => $voucher?->full_name,
+                'email_address' => $voucher?->email_address,
+                'contact_number' => $voucher?->contact_number,
+            ]);
+            $count = $voucher?->gift_voucher_items?->count();
+            $items = $voucher?->gift_voucher_items->first();
+            $teamId = $voucher?->booking_id;
+        } else {
+            $customer = Customer::find($booking?->customer_id);
+            $items = $booking?->booking_items->first();
+            $count = $booking?->booking_items?->count();
+        }
+
+
+        // 🔹 Load Blade view with data
+        $data = $renderService->invoice($booking, $customer);
+        $invoicePdf = Pdf::loadView('invoices.invoice', $data);
+
+        // Optional: tweak DOMPDF options
+        $invoicePdf->setPaper('A4', 'portrait');
+
+        // 🔹 Download or stream PDF
+        //return $pdf->download('invoice-' . $data['invoice']['number'] . '.pdf');
+        return $invoicePdf->stream(); // to preview in browser
+
+        // $html = $this->renderTemplate($template->content, $data);
+
+        // $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadHTML($html);
+
+        // return $pdf->stream("invoice-{$booking->id}.pdf");
+        // or ->download("invoice-{$invoice->id}.pdf");
+    }
+
+    public function invoiceDownload1(Booking $booking)
     {
         //dd($booking);
         $sessionId = session()->getId() ?? null;
@@ -630,8 +670,9 @@ class PaymentController extends Controller
 
         ];
 
-        $items->transform(function ($item) use ($replacements) {
+        $items->transform(function ($item) use ($replacements, $booking) {
             $item->description = strtr($item->description, $replacements);
+            $item->team_logo = $booking->team->file_logo ?? null;
             return $item;
         });
 

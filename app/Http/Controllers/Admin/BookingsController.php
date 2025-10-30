@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\MassDestroyBookingRequest;
 use App\Http\Requests\StoreBookingRequest;
 use App\Http\Requests\UpdateBookingRequest;
+use App\Mail\BookingMail;
 use App\Models\Booking;
 use App\Models\BookingDetail;
 use App\Models\BookingFee;
@@ -43,6 +44,7 @@ use App\Mail\InvoiceMail;
 use App\Mail\MessageGuestMail;
 use App\Models\BookingDiscount;
 use App\Models\BookingPricing;
+use App\Models\BookingVoucher;
 use App\Models\Email;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
@@ -50,8 +52,9 @@ use App\Models\InvoiceTemplate;
 use App\Models\Team;
 use App\Models\TypeBooking;
 use App\Models\LookupItem;
-use App\Services\TemplateRenderer;
+use App\Services\RendererService;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 
@@ -251,7 +254,7 @@ class BookingsController extends Controller
         ]);
         try {
             $booking = DB::transaction(function () use ($validated) {
-                logger()->info($validated);
+                $renderService = app(RendererService::class);
                 $season_id = $validated['season_id'];
                 $selected_slot = $validated['selected_slot'];
                 //dd($selected_slot['date']);
@@ -409,7 +412,7 @@ class BookingsController extends Controller
                 }
 
                 // TODO add modal to capture and update inventory overrides then remove the commented code below
-                BookingInventory::create([
+                $bookingInventory = BookingInventory::create([
                     'booking_item_id'     => $booking_item->id,
                     'booking_detail_id' => $bookingDetail->id,
                     'adults'     => (int) ($validated['adults'] ?? 0),
@@ -464,7 +467,7 @@ class BookingsController extends Controller
                     'team_id'        => auth()->user()->team_id,
                     'service_id'     => $season->service_id,
                     'season_id'      => $season->id,
-                    'booking_inventory_id' => $inventory->id,
+                    'booking_inventory_id' => $bookingInventory->id,
                     'promotion_id'   => $promotion ? $promotion->id : null,
                     'wholesaler_id'  => $validated['wholesaler_id'],
                     'discount_id'    => $booking_price ? $booking_price->id : null,
@@ -473,65 +476,28 @@ class BookingsController extends Controller
                 $site = Team::select('full_name', 'reg_no', 'address', 'address_code', 'account_owner', 'account_number', 'account_type', 'bank_name', 'branch_code')
                     ->find(auth()->user()->team_id);
                 $items = $booking?->booking_items->first();
-                $data = [
-                    'site' => [
-                        'name' => $site->full_name,
-                        'reg_no' => $site->reg_no,
-                        'address' => $site->address,
-                        'address_code' => $site->address_code,
-                    ],
-                    'client' => [
-                        'name' => $customer->full_name,
-                        'phone' => $customer->contact_number,
-                        'email' => $customer->email_address,
-                    ],
-                    'invoice' => [
-                        'number' => $invoice->invoice_number,
-                        'date'   => $invoice->invoice_date,
-                    ],
-                    'booking' => [
-                        'ref' => $booking->reference,
-                    ],
-                    'service' => [
-                        'name' => $items->service->name,
-                        'adults' => $items->pax_adults,
-                        'children' => $items->pax_children,
-                        'guides' => $items->pax_guides,
-                    ],
-                    'amount_ex_vat' => $booking->grand_tot_due,
-                    'vat'           => $booking->grand_tot_due * 0.15,
-                    'amount_paid'   => $booking->tot_paid,
-                    'balance_due'   => ($booking->grand_tot_due * 1.15) - $booking->tot_paid,
-                    'notes'         => 'Please pay within 7 days.',
-                    'logo'          => '<img src="logo.png" alt="Logo" style="max-height:50px;">',
-                    'bank' => [
-                        'account_owner' => $site->account_owner,
-                        'account_no' => $site->account_number,
-                        'account_type'   => $site->account_type,
-                        'name'   => $site->bank_name,
-                        'branch_code' => $site->branch_code,
-                    ],
-                    //     'items' => [
-                    //         ['description' => 'Adult Ticket', 'qty' => 4, 'price' => 'R600.00', 'subtotal' => 'R2400.00'],
-                    //     ],                    
-                ];
+                $data = $renderService->invoice($booking, $customer);
+                $invoicePdf = Pdf::loadView('invoices.invoice', $data);
+                // Optional: tweak DOMPDF options
+                $invoicePdf->setPaper('A4', 'portrait');
 
-                $renderer = app(\App\Services\TemplateRenderer::class);
-                $html = $renderer->render($template->content, $data);
 
-                // // generate PDF
-                $pdf = Pdf::loadHTML($html);
-                // 🔹 save PDF locally
-                $filename = 'invoices/' . $data['invoice']['number'] . '.pdf';
-                Storage::disk('local')->put($filename, $pdf->output());
+                $invoiceFilename = 'invoices/' . $data['invoice']['number'] . '.pdf';
+                Storage::disk('public')->put($invoiceFilename, $invoicePdf->output());
+                $content = "
+                        <p>Hello {$customer->full_name},</p>
+                        <p>Your booking has been paid.</p>
+                        <p>Thank you for choosing Canopy Tours.</p>
+                        <p>Your booking reference is {$booking->reference}.</p>
+                        <p>Please Contact us if you have any questions.</p>";
                 // send mail
                 // 🔹 log in emails table
                 Email::create([
                     'sender'         => config('mail.from.address'),
                     'receiver'       => $validated['lead_email'],
-                    'subject'        => 'Test Invoice ' . $data['invoice']['number'],
-                    'body'           => strip_tags($html), // or a summary
-                    'attachment_path' => $filename,
+                    'subject'        => 'Invoice ' . $data['invoice']['number'],
+                    'body'           => strip_tags($content), // or a summary
+                    'attachment_path' => $invoiceFilename,
                     'sent'           => true,
                     'sent_at'        => now(),
                     'user_id'        => auth()->user()->id,
@@ -539,13 +505,95 @@ class BookingsController extends Controller
                     'auditable_id'   => $booking->id,
                     'team_id'        => auth()->user()->team_id,
                 ]);
+                File::create([
+                    'team_id'      => $invoice->team_id,
+                    'table_name'   => 'invoices',
+                    'table_row_id' => $invoice->id,
+                    'file_name'    => $data['invoice']['number'] . '.pdf',
+                    'file_type'    => "application/pdf",
+                    'type_file_id' => 4, // invoice
+                    'path'         => $invoiceFilename,
+                    'booking_id'   => $booking->id,
+                ]);
+                $voucher  = BookingVoucher::with('items')
+                    ->where('service_id', 1)
+                    ->where('season_id', 1)
+                    ->first();
+                //dd($voucher);
+                $items = $voucher->items;
+
+                // Build replacements for placeholders
+                $replacements = [
+                    '{{reference}}' => $booking->reference ?? 'REF-000000',
+                    '{{provider}}' => $bookingVoucher->provider_name ?? 'Canopy Tours',
+                    '{{service}}' => $bookingVoucher->service_name ?? 'Service Test',
+                    '{{start_time_and_date}}' => $bookingVoucher->start_time_and_date ?? '12:00 12 Jan 2025',
+                    '{{start_location}}' => $bookingVoucher->start_location ?? 'Start Location',
+                    '{{end_location}}' => $bookingVoucher->end_location ?? 'End Location',
+                    '{{lead_name}}' => $booking->lead_name ?? 'Test Lead',
+                    '{{lead_email}}' => $booking->lead_email ?? 'test@email.com',
+                    '{{number_in_party}}' => $booking->number_in_party ?? '8',
+                    '{{supplier_email}}' => $bookingVoucher->supplier_email ?? 'test@email.com',
+                    '{{supplier_landline}}' => $bookingVoucher->supplier_landline ?? '123456789',
+                    '{{supplier_mobile}}' => $bookingVoucher->supplier_mobile ?? '123456789',
+                ];
+
+                // Perform replacements in the descriptions before sending to view
+                $items->transform(function ($item) use ($replacements) {
+                    $item->description = strtr($item->description, $replacements);
+                    return $item;
+                });
+
+                $random = rand(1, 100);
+                $voucherPdf = Pdf::loadView('emails.booking_voucher', compact('items'));
+                $voucherFilename  = "vouchers/voucher-{$data['invoice']['number']}.pdf";
+                Storage::disk('public')->put($voucherFilename, $voucherPdf->output());
+
+                Email::create([
+                    'sender'         => config('mail.from.address'),
+                    'receiver'       => $customer->email_address,
+                    'subject'        => 'Booking Detail for invoice' . $data['invoice']['number'],
+                    'body'           => strip_tags($content), // or a summary
+                    'attachment_path' => $voucherFilename,
+                    'sent'           => true,
+                    'sent_at'        => now(),
+                    'user_id'        => null,
+                    'auditable_type' => 'App\Models\BookingVoucher',
+                    'auditable_id'   => $voucher->id,
+                    'team_id'        => $voucher->team_id,
+                ]);
+                File::create([
+                    'team_id'      => $voucher->team_id,
+                    'table_name'   => 'BookingVoucher',
+                    'table_row_id' => $voucher->id,
+                    'file_name'    =>  "voucher-{$voucher->id}.pdf",
+                    'file_type'    => "application/pdf",
+                    'type_file_id' => 6, // optional enum/type
+                    'path'         => $voucherFilename,
+                    'booking_id'   => $booking->id,
+                ]);
+                $attachments = [
+                    [
+                        'data' => $invoicePdf->output(),
+                        'name' => "invoice-{$data['invoice']['number']}.pdf",
+                        'mime' => 'application/pdf',
+                    ],
+                    [
+                        'data' => $voucherPdf->output(),
+                        'name' => "voucher-{$voucher->id}.pdf",
+                        'mime' => 'application/pdf',
+                    ],
+                ];
+                // //send mail
+                Mail::to($customer->email_address)->send(new BookingMail($data, $attachments));
+
 
                 // //send mail
-                $sent = Mail::to($validated['lead_email'])->send(new InvoiceMail($data, $pdf));
+                //$sent = Mail::to($validated['lead_email'])->send(new InvoiceMail($data, $pdf));
 
-                Log::info('invoice email sent', [
-                    'sent' => $sent,
-                ]);
+                // Log::info('invoice email sent', [
+                //     'sent' => $sent,
+                // ]);
 
 
                 return $booking;

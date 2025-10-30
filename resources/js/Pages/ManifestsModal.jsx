@@ -174,7 +174,7 @@ const ManifestsModal = ({ isOpen, onClose, mode, booking, tot_adults, tot_childr
         e.preventDefault();
         data.customer_manifests[index].index = 1;
         //console.log('data', data); 
-        put(route('front.customer-manifests.edit', customers[0].booking_item_id), {
+        put(route('front.customer-manifests.edit', booking?.customers[0].booking_item_id), {
             onSuccess: () => onClose(),
         });
     };

@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Front;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\UpdateCustomerManifestRequest;
+use App\Mail\CheckInMail;
+use App\Models\Alert;
 use App\Models\Booking;
 use App\Models\BookingItem;
 use App\Models\BookingQuestionnaire;
@@ -13,20 +15,25 @@ use App\Models\Continent;
 use App\Models\Country;
 use App\Models\Customer;
 use App\Models\CustomerManifest;
+use App\Models\Email;
 use App\Models\File;
 use App\Models\Quesionnaire;
 use App\Models\Questionnaire;
 use App\Models\QuestionnaireAnswer;
+use App\Models\Service;
 use App\Models\State;
 use App\Models\TypeConfirmation;
 use App\Models\TypeGroup;
 use App\Models\TypeReferral;
 use App\Models\User;
+use Barryvdh\DomPDF\Facade\Pdf;
 use DB;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Routing\Exceptions\InvalidSignatureException;
+use Illuminate\Support\Facades\Mail;
+use Storage;
 
 class BookingQuestionnaireController extends Controller
 {
@@ -188,11 +195,27 @@ class BookingQuestionnaireController extends Controller
     public function checkin(Request $request)
     {
         try {
-            //dd($request->all());
+            $bookingItem = BookingItem::with([
+                'booking',
+                'service',
+                'customers' => function ($q) use ($request) {
+                    $q->where('customers.id', $request->customer);
+                },
+                'customer_manifests',
+            ])
+                ->whereHas('booking', function ($q) use ($request) {
+                    $q->where('reference', $request->reference);
+                })
+                ->whereHas('customers', function ($q) use ($request) {
+                    $q->where('customers.id', $request->customer);
+                })
+                ->first();
+            // dd($booking_items);
+            // dd($request->all());
             $user = auth()->user();
             $customerId = $request->customer ?? null; // your passed in customer ID
-            $booking = Booking::where('reference', $request->reference)->first();
-            if (!$booking) {
+
+            if (!$bookingItem) {
                 return response()->json([
                     'success' => false,
                     'error' => 'Booking not found',
@@ -200,56 +223,56 @@ class BookingQuestionnaireController extends Controller
             }
             //$booking = Booking::findOrFail($booking->id);
 
-            $booking->load(['booking_payments', 'team']);
-            $bookingItem = BookingItem::where('booking_id', $booking->id)->first();
-            $bookingItem->load([
-                'service',
-                'season',
-                'inventory',
-                //'customers',  :id,name,email,contact_number
-                //'customer_manifests',  :id,position,notes,is_indemnity,customer_id,booking_id\
-                'booking_infos', // :id,booking_id,type_location_id,location,time,created_at,updated_at,deleted_at
-                //'customers.booking_questionnaire',  :id,booking_id,customer_id,guide_id,safety_guide_id,type_group_id,fullname,email,signature,birth_date,type_referral,country_id,province_id,is_medical,medical_detail,is_fit,is_agree
-                'booking_detail', //:id,booking_id ,start_time,end_time
-                'booking_fee', //:id,booking_id,tot_amount
-                // :id,booking_id,amount
-                'booking_inventory', // :id,booking_id,inventory_id
-                'booking_staff', // :id,booking_id,user_id
-                'booking_staff.user', // :id,name,email,contact_number
-                // Filter customers by ID
-                'customers' => function ($q) use ($customerId) {
-                    $q->where('customers.id', $customerId);
-                },
-                // Filter customer manifests by customer ID
-                'customer_manifests' => function ($q) use ($customerId) {
-                    $q->where('customer_id', $customerId);
-                },
-                // Filter nested relation (booking_questionnaire) from customers
-                'customers.booking_questionnaire' => function ($q) use ($customerId) {
-                    $q->where('customer_id', $customerId);
-                },
-            ])
-                // ->select([
-                //     'id',
-                //     'lead_name',
-                //     'user_id',
-                //     'status_booking_id',
-                //     'due_date',
-                //     'tot_paid',
-                //     'grand_tot_due',
-                //     'service_id',
-                //     'season_id',
-                //     'inventory_id',
-                //     'created_at'
-                // ])
-                //->whereDate('due_date', '2025-01-01')
-                ->get();
+
+            // $bookingItem = BookingItem::where('booking_id', $booking->id)->first();
+            // $bookingItem->load([
+            //     'service',
+            //     'season',
+            //     'inventory',
+            //     //'customers',  :id,name,email,contact_number
+            //     //'customer_manifests',  :id,position,notes,is_indemnity,customer_id,booking_id\
+            //     'booking_infos', // :id,booking_id,type_location_id,location,time,created_at,updated_at,deleted_at
+            //     //'customers.booking_questionnaire',  :id,booking_id,customer_id,guide_id,safety_guide_id,type_group_id,fullname,email,signature,birth_date,type_referral,country_id,province_id,is_medical,medical_detail,is_fit,is_agree
+            //     'booking_detail', //:id,booking_id ,start_time,end_time
+            //     'booking_fee', //:id,booking_id,tot_amount
+            //     // :id,booking_id,amount
+            //     'booking_inventory', // :id,booking_id,inventory_id
+            //     'booking_staff', // :id,booking_id,user_id
+            //     'booking_staff.user', // :id,name,email,contact_number
+            //     // Filter customers by ID
+            //     'customers' => function ($q) use ($customerId) {
+            //         $q->where('customers.id', $customerId);
+            //     },
+            //     // Filter customer manifests by customer ID
+            //     'customer_manifests' => function ($q) use ($customerId) {
+            //         $q->where('customer_id', $customerId);
+            //     },
+            //     // Filter nested relation (booking_questionnaire) from customers
+            //     'customers.booking_questionnaire' => function ($q) use ($customerId) {
+            //         $q->where('customer_id', $customerId);
+            //     },
+            // ])
+            // ->select([
+            //     'id',
+            //     'lead_name',
+            //     'user_id',
+            //     'status_booking_id',
+            //     'due_date',
+            //     'tot_paid',
+            //     'grand_tot_due',
+            //     'service_id',
+            //     'season_id',
+            //     'inventory_id',
+            //     'created_at'
+            // ])
+            //->whereDate('due_date', '2025-01-01')
+            // ->get();
 
             $leadGuides = User::with('roles:id,name')
                 ->whereHas('roles', function ($query) {
                     $query->whereIn('id', [5]);
                 })
-                ->when($booking->team_id, function ($query, $teamId) {
+                ->when($bookingItem->booking->team_id, function ($query, $teamId) {
                     $query->where('team_id', $teamId);
                 })
                 ->select('name', 'id')
@@ -266,7 +289,7 @@ class BookingQuestionnaireController extends Controller
                 ->whereHas('roles', function ($query) {
                     $query->whereIn('id', [6]);
                 })
-                ->when($booking->team_id, function ($query, $teamId) {
+                ->when($bookingItem->booking->team_id, function ($query, $teamId) {
                     $query->where('team_id', $teamId);
                 })
                 ->select('name', 'id')
@@ -316,7 +339,7 @@ class BookingQuestionnaireController extends Controller
             //$bookingId = request()->route('bookingId');
             //dd($typeReferral);
             return Inertia::render('Questionnaire', [
-                'booking' => $booking,
+                'booking' => $bookingItem->booking,
                 'bookingItem' => $bookingItem,
                 'leadGuides' => $leadGuides,
                 'safetyGuides' => $safetyGuides,
@@ -457,22 +480,167 @@ class BookingQuestionnaireController extends Controller
                         'table_row_id' => $bookingItem->id,
                         'file_name' => $filename,
                         'file_type' => 'image/png',
-                        'type_file_id' => 2, // signature
+                        'type_file_id' => 7, // signature
                         'path' => "signatures/{$filename}",
                     ]);
 
                     $bookingQuestionnaire->update(['signature' => $filename]);
                 }
+                if ($validated['medical_id'] == 1) {
+                    $alert = Alert::create([
+                        'alert_text' => 'Medical Condition',
+                        'alert_link' => route('admin.bookings.index'), //route('front.payment.booking', ['booking' => $booking->id]),
+                        'type_alert_id' => 5,
+                        'team_id' => $booking->team_id,
+                    ]);
+                    $users = User::where('team_id', $booking->team_id)
+                        ->whereHas('roles', function ($query) {
+                            $query->whereIn('name', ['Manager', 'Consultant']);
+                        })
+                        ->with('roles')
+                        ->get();
+                    foreach ($users as $user) {
+                        $user->alerts()->attach($alert->id); // ✅ attach by ID
+                    }
+                }
+                if ($validated['is_fit'] == 2) {
+                    $alert = Alert::create([
+                        'alert_text' => 'Not Fit',
+                        'alert_link' => route('admin.bookings.index'), //route('front.payment.booking', ['booking' => $booking->id]),
+                        'type_alert_id' => 7,
+                        'team_id' => $booking->team_id,
+                    ]);
+                    $users = User::where('team_id', $booking->team_id)
+                        ->whereHas('roles', function ($query) {
+                            $query->whereIn('name', ['Manager', 'Consultant']);
+                        })
+                        ->with('roles')
+                        ->get();
+                    foreach ($users as $user) {
+                        $user->alerts()->attach($alert->id); // ✅ attach by ID
+                    }
+                }
+                if ($validated['is_agree'] == 2) {
+                    $alert = Alert::create([
+                        'alert_text' => 'Did Not agree to terms and conditions',
+                        'alert_link' => route('admin.bookings.index'), //route('front.payment.booking', ['booking' => $booking->id]),
+                        'type_alert_id' => 8,
+                        'team_id' => $booking->team_id,
+                    ]);
+                    $users = User::where('team_id', $booking->team_id)
+                        ->whereHas('roles', function ($query) {
+                            $query->whereIn('name', ['Manager', 'Consultant']);
+                        })
+                        ->with('roles')
+                        ->get();
+                    foreach ($users as $user) {
+                        $user->alerts()->attach($alert->id); // ✅ attach by ID
+                    }
+                }
+                // always show complete indemnity
+                $alert = Alert::create([
+                    'alert_text' => 'Check-in Complete',
+                    'alert_link' => route('admin.bookings.index'), //route('front.payment.booking', ['booking' => $booking->id]),
+                    'type_alert_id' => 9,
+                    'team_id' => $booking->team_id,
+                ]);
+                $users = User::where('team_id', $booking->team_id)
+                    ->whereHas('roles', function ($query) {
+                        $query->whereIn('name', ['Manager', 'Consultant']);
+                    })
+                    ->with('roles')
+                    ->get();
+                foreach ($users as $user) {
+                    $user->alerts()->attach($alert->id); // ✅ attach by ID
+                }
 
+
+                $bookingQuestionnaire->load('booking_item', 'booking_item.booking', 'customer', 'gender', 'province', 'country', 'continent');
+                $guide = User::find($validated['lead_guide_id']);
+                $safetyGuide = User::find($validated['safety_guide_id']);
+                $customer = Customer::find($validated['customer_id']);
+                $service = Service::with('team')->find($bookingItem?->service_id);
+
+                $clients = collect([
+                    [
+                        'sign_date'      => $bookingQuestionnaire->created_at ?? '',
+                        'id_number'      => $bookingQuestionnaire->id_number ?? '',
+                        'full_name'      => $bookingQuestionnaire->customer?->full_name ?? '',
+                        'age'            => $bookingQuestionnaire->customer?->age ?? '',
+                        'phone'          => $bookingQuestionnaire->customer?->contact_number ?? '',
+                        'email'          => $bookingQuestionnaire->customer?->email_address ?? '',
+                        'gender'         => $bookingQuestionnaire->gender?->name ?? '',
+                        'country'        => $bookingQuestionnaire->country?->name ?? '',
+                        'province'       => $bookingQuestionnaire->province?->name ?? '',
+                        'is_medical'     => $bookingQuestionnaire->is_medical ? 'Yes' : 'No',
+                        'medical_detail' => $bookingQuestionnaire->medical_detail ?? '',
+                        'is_fit'         => $bookingQuestionnaire->is_fit ? 'Yes' : 'No',
+                        'is_minor'       => $bookingQuestionnaire->is_minor ? 'Yes' : 'No',
+                        'signature'      => $bookingQuestionnaire->signature
+                            ? public_path("storage/signatures/{$bookingQuestionnaire->signature}")
+                            : null,
+                    ],
+                ]);
+
+                $year = now()->format('Y');
+
+                $pdf = Pdf::loadView(
+                    count($clients) > 1 ? 'pdfs.indemnity-multi' : 'pdfs.indemnity-single',
+                    compact('booking', 'clients', 'service', 'year')
+                );
+
+                $filename = 'indemnities/indemnity-' . $booking->reference . '.pdf';
+                Storage::disk('public')->put($filename, $pdf->output());
+                File::create([
+                    'team_id'      => $booking->team_id,
+                    'table_name'   => 'booking_questionnaires',
+                    'table_row_id' => $bookingQuestionnaire->id,
+                    'file_name'    => $booking->reference . '.pdf',
+                    'file_type'    => "application/pdf",
+                    'type_file_id' => 5,
+                    'path'         => $filename,
+                    'booking_id'   => $booking->id,
+                ]);
+
+                $subject = "Indemnity Form - {$booking->reference}";
+                $recipient = $customer->email_address;
+
+
+                $content = "
+                    <p>Hello {$customer->full_name},</p>
+                    <p>Your indemnity form is attached.</p>
+                    <p>Thank you for choosing Canopy Tours.</p>
+                    <p>Your booking reference is {$booking->reference}.</p>
+                    <p>Please Contact us if you have any questions.</p>";
+                $attachments = [
+                    [
+                        'data' => $pdf->output(),
+                        'name' => "indemnity-{$booking->reference}.pdf",
+                        'mime' => 'application/pdf',
+                    ],
+                ];
+
+                Email::create([
+                    'sender'         => config('mail.from.address'),
+                    'receiver'       => $recipient,
+                    'subject'        => $subject,
+                    'body'           => strip_tags($content), // or a summary
+                    'attachment_path' => $filename,
+                    'sent'           => true,
+                    'sent_at'        => now(),
+                    'user_id'        => null,
+                    'auditable_type' => 'App\Models\BookingQuestionnaire',
+                    'auditable_id'   => $bookingQuestionnaire->id,
+                    'team_id'        => $service->team->id,
+                ]);
+
+                Mail::to($recipient)->send(new CheckInMail([
+                    'subject' => $subject,
+                    'content' => $content,
+                ], $attachments));
                 return $booking;
             });
 
-            // 4. Save to booking_inventories or other linked tables
-            // return response()->json([
-            //     'success' => true,
-            //     'booking_id' => $booking->id,
-            //     'redirect_url' => route('front.payment.review', ['booking' => $booking->id]) //  route('payfast.checkout', ['booking' => $booking->id])
-            // ]);
             return redirect()->route('booking-questionnaire.index');
         } catch (\Throwable $e) {
             // Log the full error for debugging

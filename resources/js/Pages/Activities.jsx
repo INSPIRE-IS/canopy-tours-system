@@ -14,7 +14,7 @@ import GreenButton from '@/Components/GreenButton';
 import WhiteButton from '@/Components/WhiteButton';
 import AlertModal from "@/Components/AlertModal";
 import SlotSelect from '@/Components/SlotSelect';
-import { useToast } from '@/Components/ToastContext';
+import { useToast } from '@/Context/ToastContext';
 
 
 export default function ActivitySchedulePage({ activity, auth, team, activityId, schedule, start_date, i_adults, i_children, view_mode, days }) {

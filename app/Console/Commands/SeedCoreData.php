@@ -611,7 +611,10 @@ class SeedCoreData extends Command
             ['id' => 3, 'name' => 'Booking Confirmation', 'slug' => 'booking_confirmation'],
             ['id' => 4, 'name' => 'Booking Arrival', 'slug' => 'booking_arrival'],
             ['id' => 5, 'name' => 'has Medical', 'slug' => 'has_medical'],
-            ['id' => 5, 'name' => 'Manifest Completed', 'slug' => 'manifest_completed'],
+            ['id' => 6, 'name' => 'Manifest Completed', 'slug' => 'manifest_completed'],
+            ['id' => 7, 'name' => 'Not Fit', 'slug' => 'not_fit'],
+            ['id' => 8, 'name' => 'Not Agree', 'slug' => 'not_agree'],
+            ['id' => 9, 'name' => 'Check-in Completed', 'slug' => 'check_in_completed'],
         ];
         foreach ($type_alerts as $type_alert) {
             TypeAlert::updateOrCreate(['id' => $type_alert['id']], $type_alert);

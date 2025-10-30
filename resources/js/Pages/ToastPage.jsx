@@ -1,4 +1,4 @@
-import { useToast } from "@/Components/ToastContext";
+import { useToast } from "@/Context/ToastContext";
 
 export default function ExamplePage() {
     const { showToast } = useToast();

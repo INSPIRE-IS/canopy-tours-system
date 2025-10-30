@@ -17,12 +17,16 @@ import BlueButton from '@/Components/BlueButton';
 import CustomTextarea from '@/Components/CustomTextarea';
 import OutlineButton from '@/Components/OutlineButton';
 import PromoModal from './PromoModal';
+import { useToast } from '@/Context/ToastContext';
 
 
 export default function Dashboard({ auth, wholesalers = [], services = [], schedule, start_date, view_mode, days, type_affiliates, vouchers, discounts, wholesaler_rates, promos, lookups }) {
     //seasons = [],, adults, children, guides
     console.log('---------------auth----create------------ ', auth);
     const page = usePage();
+    const { props } = usePage();
+    const { flash } = props;
+    const { showToast } = useToast();
     const mode = 'create';
     //const currentRoutePath = page.props.currentRoutePath;
 
@@ -124,7 +128,14 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
         bill_back: false,
         team_id: auth.user.team_id,
     });
-
+    useEffect(() => {
+        if (flash?.success) {
+            showToast(flash.success, "success");
+        }
+        if (flash?.error) {
+            showToast(flash.error, "error");
+        }
+    }, [flash, showToast]);
     useEffect(() => {
         // console.log('activityId', activityId);
         // console.log('activityDate', activityDate);

@@ -5,7 +5,7 @@ import { icons } from '../../../icons';
 import CustomInputText from '@/Components/CustomInputText';
 import BlueButton from '@/Components/BlueButton';
 import CustomCheckbox from '@/Components/CustomCheckbox';
-import { useToast } from "@/Components/ToastContext";
+import { useToast } from "@/Context/ToastContext";
 // import { useRoute } from 'ziggy-js';
 // import { Ziggy } from '@/ziggy'; // the generated file
 

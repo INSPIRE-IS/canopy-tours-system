@@ -865,6 +865,8 @@ class ActivityController extends Controller
                         'grand_tot_due' => $booking->grand_tot_due + $amount,
                         'updated_at' => now(),
                     ]);
+
+                    $customer = Customer::findOrFail($booking->customer_id);
                 }
 
                 $bookingItem = BookingItem::updateOrCreate([
@@ -897,9 +899,9 @@ class ActivityController extends Controller
                 $customerManifest = CustomerManifest::create([
                     'customer_id' => $customer->id,
                     'booking_item_id' => $bookingItem->id,
-                    'team_id' => $bookingItem->team_id,
+                    'team_id' => $season->team_id,
                     'is_indemnity' => 0,
-                    'type' => 'adult',
+                    'type' => 'adult', // hard code as adult a child would not make a booking
                     'position' => '',
                     'notes' => '',
                 ]);

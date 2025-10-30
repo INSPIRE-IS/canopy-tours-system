@@ -1,12 +1,14 @@
-import React, { useEffect, useState } from 'react';
+import React, { use, useEffect, useState } from 'react';
 import axios from 'axios';
 import { set } from 'date-fns';
-import { useForm } from '@inertiajs/react';
+import { useForm, usePage } from '@inertiajs/react';
 import InputText from './InputText';
-import { useToast } from './ToastContext';
+import { useToast } from '../Context/ToastContext';
 
 export default function BookingModal({ isOpen, onClose, activity, slot, adults, children, promoCode, selectedPromo, pricePerAdult, pricePerChild, activityId, auth }) {
   const { showToast } = useToast();
+  const { props } = usePage();
+  const { flash } = props;
   const [total, setTotal] = useState(0.00);
   const [promo, setPromo] = useState(selectedPromo);
   const mode = 'create';
@@ -19,6 +21,15 @@ export default function BookingModal({ isOpen, onClose, activity, slot, adults, 
     phone: '',
     activity_id: activityId,
   });
+
+  useEffect(() => {
+    if (flash?.success) {
+      showToast(flash.success, "success");
+    }
+    if (flash?.error) {
+      showToast(flash.error, "error");
+    }
+  }, [flash, showToast]);
 
   useEffect(() => {
 
@@ -94,6 +105,7 @@ export default function BookingModal({ isOpen, onClose, activity, slot, adults, 
 
     } catch (err) {
       console.error('Booking failed:', err.response?.data || err);
+      showToast("Something went wrong while saving your booking. Please try again.", "error");
     }
   };
 
