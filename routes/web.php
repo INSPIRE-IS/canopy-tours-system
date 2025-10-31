@@ -222,6 +222,7 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['auth', 'v
     // Route::resource('booking_payments', BookingPaymentController::class);
 
     Route::resource('invoice-templates', \App\Http\Controllers\Admin\InvoiceTemplateController::class);
+    Route::get('/invoices/resend-invoice{booking_id}', [InvoiceController::class, 'resend_invoice'])->name('invoices.resend-invoice');
     Route::post('/bookings/preview-invoice', [InvoiceController::class, 'preview'])->name('bookings.preview-invoice');
     Route::get('/invoices/{invoice}/preview', [InvoiceController::class, 'previewSaved'])->name('invoices.preview');
     Route::get('/invoices/download/{invoice}', [InvoiceController::class, 'download'])->name('invoices.download');

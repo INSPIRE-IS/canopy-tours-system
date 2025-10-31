@@ -146,49 +146,49 @@ class PaymentController extends Controller
                     $subject = 'Payment Confirmation';
                     $recipient = $customer->email_address;
 
-                    $data = [
-                        'site' => [
-                            'name' => $site->full_name,
-                            'reg_no' => $site->reg_no,
-                            'address' => $site->address,
-                            'address_code' => $site->address_code,
-                        ],
-                        'client' => [
-                            'name' => $customer->full_name,
-                            'phone' => $customer->contact_number,
-                            'email' => $customer->email_address,
-                        ],
-                        'invoice' => [
-                            'number' => $invoice->invoice_number,
-                            'date'   => $invoice->invoice_date,
-                        ],
-                        'booking' => [
-                            'ref' => $booking->reference,
-                        ],
-                        'service' => [
-                            'name' => $items->service->name,
-                            'adults' => $items->pax_adults,
-                            'children' => $items->pax_children,
-                            'guides' => $items->pax_guides,
-                        ],
-                        'amount_ex_vat' => $booking->grand_tot_due,
-                        'vat'           => $booking->grand_tot_due * 0.15,
-                        'vat_amount'    => $booking->grand_tot_due * 1.15,
-                        'amount_paid'   => $booking->tot_paid,
-                        'balance_due'   => ($booking->grand_tot_due * 1.15) - $booking->tot_paid,
-                        'notes'         => 'Please pay within 7 days.',
-                        'logo'          => '<img src="logo.png" alt="Logo" style="max-height:50px;">',
-                        'bank' => [
-                            'account_owner' => $site->account_owner,
-                            'account_no' => $site->account_number,
-                            'account_type'   => $site->account_type,
-                            'name'   => $site->bank_name,
-                            'branch_code' => $site->branch_code,
-                        ],
-                        //     'items' => [
-                        //         ['description' => 'Adult Ticket', 'qty' => 4, 'price' => 'R600.00', 'subtotal' => 'R2400.00'],
-                        //     ],                    
-                    ];
+                    // $data = [
+                    //     'site' => [
+                    //         'name' => $site->full_name,
+                    //         'reg_no' => $site->reg_no,
+                    //         'address' => $site->address,
+                    //         'address_code' => $site->address_code,
+                    //     ],
+                    //     'client' => [
+                    //         'name' => $customer->full_name,
+                    //         'phone' => $customer->contact_number,
+                    //         'email' => $customer->email_address,
+                    //     ],
+                    //     'invoice' => [
+                    //         'number' => $invoice->invoice_number,
+                    //         'date'   => $invoice->invoice_date,
+                    //     ],
+                    //     'booking' => [
+                    //         'ref' => $booking->reference,
+                    //     ],
+                    //     'service' => [
+                    //         'name' => $items->service->name,
+                    //         'adults' => $items->pax_adults,
+                    //         'children' => $items->pax_children,
+                    //         'guides' => $items->pax_guides,
+                    //     ],
+                    //     'amount_ex_vat' => $booking->grand_tot_due,
+                    //     'vat'           => $booking->grand_tot_due * 0.15,
+                    //     'vat_amount'    => $booking->grand_tot_due * 1.15,
+                    //     'amount_paid'   => $booking->tot_paid,
+                    //     'balance_due'   => ($booking->grand_tot_due * 1.15) - $booking->tot_paid,
+                    //     'notes'         => 'Please pay within 7 days.',
+                    //     'logo'          => '<img src="logo.png" alt="Logo" style="max-height:50px;">',
+                    //     'bank' => [
+                    //         'account_owner' => $site->account_owner,
+                    //         'account_no' => $site->account_number,
+                    //         'account_type'   => $site->account_type,
+                    //         'name'   => $site->bank_name,
+                    //         'branch_code' => $site->branch_code,
+                    //     ],
+                    //     //     'items' => [
+                    //     //         ['description' => 'Adult Ticket', 'qty' => 4, 'price' => 'R600.00', 'subtotal' => 'R2400.00'],
+                    //     //     ],                    
+                    // ];
 
                     //$template = InvoiceTemplate::where('is_default', true)->where('type_invoice_id', 1)->first();
 
@@ -233,36 +233,13 @@ class PaymentController extends Controller
                         'path'         => $invoiceFilename,
                         'booking_id'   => $booking->id,
                     ]);
-
-                    $voucher  = BookingVoucher::with('items')
+                    //TODO : update to use the actual booking voucher
+                    $bookingVoucher  = BookingVoucher::with('items')
                         ->where('service_id', 1)
                         ->where('season_id', 1)
                         ->first();
-                    //dd($voucher);
-                    $items = $voucher->items;
 
-                    // Build replacements for placeholders
-                    $replacements = [
-                        '{{reference}}' => $booking->reference ?? 'REF-000000',
-                        '{{provider}}' => $bookingVoucher->provider_name ?? 'Canopy Tours',
-                        '{{service}}' => $bookingVoucher->service_name ?? 'Service Test',
-                        '{{start_time_and_date}}' => $bookingVoucher->start_time_and_date ?? '12:00 12 Jan 2025',
-                        '{{start_location}}' => $bookingVoucher->start_location ?? 'Start Location',
-                        '{{end_location}}' => $bookingVoucher->end_location ?? 'End Location',
-                        '{{lead_name}}' => $booking->lead_name ?? 'Test Lead',
-                        '{{lead_email}}' => $booking->lead_email ?? 'test@email.com',
-                        '{{number_in_party}}' => $booking->number_in_party ?? '8',
-                        '{{supplier_email}}' => $bookingVoucher->supplier_email ?? 'test@email.com',
-                        '{{supplier_landline}}' => $bookingVoucher->supplier_landline ?? '123456789',
-                        '{{supplier_mobile}}' => $bookingVoucher->supplier_mobile ?? '123456789',
-                    ];
-
-                    // Perform replacements in the descriptions before sending to view
-                    $items->transform(function ($item) use ($replacements) {
-                        $item->description = strtr($item->description, $replacements);
-                        return $item;
-                    });
-
+                    $items = $renderService->voucher($booking, $bookingVoucher);
                     $random = rand(1, 100);
                     $voucherPdf = Pdf::loadView('emails.booking_voucher', compact('items'));
                     $voucherFilename  = "vouchers/voucher-{$data['invoice']['number']}.pdf";
@@ -278,14 +255,14 @@ class PaymentController extends Controller
                         'sent_at'        => now(),
                         'user_id'        => null,
                         'auditable_type' => 'App\Models\BookingVoucher',
-                        'auditable_id'   => $voucher->id,
-                        'team_id'        => $voucher->team_id,
+                        'auditable_id'   => $bookingVoucher->id,
+                        'team_id'        => $bookingVoucher->team_id,
                     ]);
                     File::create([
-                        'team_id'      => $voucher->team_id,
+                        'team_id'      => $bookingVoucher->team_id,
                         'table_name'   => 'BookingVoucher',
-                        'table_row_id' => $voucher->id,
-                        'file_name'    =>  "voucher-{$voucher->id}.pdf",
+                        'table_row_id' => $bookingVoucher->id,
+                        'file_name'    =>  "voucher-{$bookingVoucher->id}.pdf",
                         'file_type'    => "application/pdf",
                         'type_file_id' => 6, // optional enum/type
                         'path'         => $voucherFilename,
@@ -299,7 +276,7 @@ class PaymentController extends Controller
                         ],
                         [
                             'data' => $voucherPdf->output(),
-                            'name' => "voucher-{$voucher->id}.pdf",
+                            'name' => "voucher-{$bookingVoucher->id}.pdf",
                             'mime' => 'application/pdf',
                         ],
                     ];
@@ -637,6 +614,7 @@ class PaymentController extends Controller
     public function detailDownload(Booking $booking)
     {
         $sessionId = session()->getId() ?? null;
+        $renderService = app(RendererService::class);
         if ($sessionId != $booking->session_id || $booking->status_payment_id != 1) {
             return redirect()->route('front.welcome');
         }
@@ -650,31 +628,7 @@ class PaymentController extends Controller
             ->where('team_id', $teamId)
             ->first();
 
-        $items = $bookingVoucher->items;
-
-        $items = $bookingVoucher->items;
-
-        $replacements = [
-            '{{reference}}' => $booking->reference ?? 'REF-000000',
-            '{{provider}}' => $bookingVoucher->provider_name ?? 'Canopy Tours',
-            '{{service}}' => $bookingVoucher->service_name ?? 'Service Test',
-            '{{start_time_and_date}}' => $bookingVoucher->start_time_and_date ?? '12:00 12 Jan 2025',
-            '{{start_location}}' => $bookingVoucher->start_location ?? 'Start Location',
-            '{{end_location}}' => $bookingVoucher->end_location ?? 'End Location',
-            '{{lead_name}}' => $booking->lead_name ?? 'Test Lead',
-            '{{lead_email}}' => $booking->lead_email ?? 'test@email.com',
-            '{{number_in_party}}' => $booking->number_in_party ?? '8',
-            '{{supplier_email}}' => $bookingVoucher->supplier_email ?? 'test@email.com',
-            '{{supplier_landline}}' => $bookingVoucher->supplier_landline ?? '123456789',
-            '{{supplier_mobile}}' => $bookingVoucher->supplier_mobile ?? '123456789',
-
-        ];
-
-        $items->transform(function ($item) use ($replacements, $booking) {
-            $item->description = strtr($item->description, $replacements);
-            $item->team_logo = $booking->team->file_logo ?? null;
-            return $item;
-        });
+        $items = $renderService->voucher($booking, $bookingVoucher);
 
         $random = rand(1, 100);
         $pdf = Pdf::loadView('emails.booking_voucher', compact('items'));

@@ -3,10 +3,19 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Mail\BookingMail;
+use App\Models\Booking;
+use App\Models\BookingVoucher;
+use App\Models\Customer;
+use App\Models\Email;
 use App\Models\Invoice;
 use App\Models\InvoiceTemplate;
+use App\Services\RendererService;
 use Barryvdh\DomPDF\Facade\Pdf;
+use App\Models\File;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 
 class InvoiceController extends Controller
 {
@@ -119,7 +128,6 @@ class InvoiceController extends Controller
         // or ->download("invoice-{$invoice->id}.pdf");
     }
 
-
     public function previewSaved(Invoice $invoice)
     {
         $template = $invoice->template ?? InvoiceTemplate::where('is_default', true)->first();
@@ -177,5 +185,147 @@ class InvoiceController extends Controller
         }
 
         return $html;
+    }
+
+    public function resend_invoice($booking_id)
+    {
+        $invoice = Invoice::where('booking_id', $booking_id)->first();
+        $booking = Booking::findOrFail($booking_id);
+        $customer = Customer::findOrFail($booking->customer_id);
+        $renderService = app(RendererService::class);
+
+        $data = $renderService->invoice($booking, $customer);
+        $invoicePdf = Pdf::loadView('invoices.invoice', $data);
+        $invoicePdf->setPaper('A4', 'portrait');
+        $invoiceEmail = Email::Where('auditable_type', 'App\Models\Invoice')
+            ->Where('auditable_id', $invoice->id)
+            ->first();
+        if (!$invoiceEmail) {
+            $invoiceFilename = 'invoices/' . $data['invoice']['number'] . '.pdf';
+            Storage::disk('public')->put($invoiceFilename, $invoicePdf->output());
+            $content = "
+                        <p>Hello {$customer->full_name},</p>
+                        <p>Your booking has been paid.</p>
+                        <p>Thank you for choosing Canopy Tours.</p>
+                        <p>Your booking reference is {$booking->reference}.</p>
+                        <p>Please Contact us if you have any questions.</p>";
+            Email::create([
+                'sender'         => config('mail.from.address'),
+                'receiver'       => $customer->email_address,
+                'subject'        => 'Invoice ' . $data['invoice']['number'],
+                'body'           => strip_tags($content), // strip_tags($html)or a summary
+                'attachment_path' => $invoiceFilename,
+                'sent'           => true,
+                'sent_at'        => now(),
+                'user_id'        => null,
+                'auditable_type' => 'App\Models\Invoice',
+                'auditable_id'   => $invoice->id,
+                'team_id'        => $invoice->team_id,
+            ]);
+            File::create([
+                'team_id'      => $invoice->team_id,
+                'table_name'   => 'invoices',
+                'table_row_id' => $invoice->id,
+                'file_name'    => $data['invoice']['number'] . '.pdf',
+                'file_type'    => "application/pdf",
+                'type_file_id' => 4, // invoice
+                'path'         => $invoiceFilename,
+                'booking_id'   => $booking->id,
+            ]);
+        } else {
+            $invoiceEmail->touch();
+            // Email::create([
+            //     'sender'         => $invoiceEmail->sender,
+            //     'receiver'       => $invoiceEmail->receiver,
+            //     'subject'        => $invoiceEmail->subject,
+            //     'body'           => $invoiceEmail->body,
+            //     'attachment_path' => $invoiceEmail->attachment_path,
+            //     'sent'           => true,
+            //     'sent_at'        => now(),
+            //     'user_id'        => null,
+            //     'auditable_type' => 'App\Models\Email',
+            //     'auditable_id'   => $invoiceEmail->id,
+            //     'team_id'        => $invoiceEmail->team_id,
+            // ]);
+            // $invoiceEmail->delete();
+        }
+
+        //TODO : update to use the actual booking voucher
+        $bookingVoucher  = BookingVoucher::with('items')
+            ->where('service_id', 1)
+            ->where('season_id', 1)
+            ->first();
+
+        $items = $renderService->voucher($booking, $bookingVoucher);
+        $random = rand(1, 100);
+        $voucherPdf = Pdf::loadView('emails.booking_voucher', compact('items'));
+
+        $voucherEmail = Email::Where('auditable_type', 'App\Models\BookingVoucher')
+            ->Where('auditable_id', $bookingVoucher->id)
+            ->first();
+        if (!$voucherEmail) {
+            $voucherFilename = 'vouchers/voucher-' . $bookingVoucher->id . '.pdf';
+            Storage::disk('public')->put($voucherFilename, $voucherPdf->output());
+            $content = "
+                    <p>Hello {$customer->full_name},</p>
+                    <p>Your booking has been paid.</p>
+                    <p>Thank you for choosing Canopy Tours.</p>
+                    <p>Your booking reference is {$booking->reference}.</p>
+                    <p>Please Contact us if you have any questions.</p>";
+            Email::create([
+                'sender'         => config('mail.from.address'),
+                'receiver'       => $customer->email_address,
+                'subject'        => 'Booking Detail for invoice' . $data['invoice']['number'],
+                'body'           => strip_tags($content), // or a summary
+                'attachment_path' => $voucherFilename,
+                'sent'           => true,
+                'sent_at'        => now(),
+                'user_id'        => null,
+                'auditable_type' => 'App\Models\BookingVoucher',
+                'auditable_id'   => $bookingVoucher->id,
+                'team_id'        => $bookingVoucher->team_id,
+            ]);
+            File::create([
+                'team_id'      => $bookingVoucher->team_id,
+                'table_name'   => 'BookingVoucher',
+                'table_row_id' => $bookingVoucher->id,
+                'file_name'    =>  "voucher-{$bookingVoucher->id}.pdf",
+                'file_type'    => "application/pdf",
+                'type_file_id' => 6, // optional enum/type
+                'path'         => $voucherFilename,
+                'booking_id'   => $booking->id,
+            ]);
+        } else {
+            $voucherEmail->touch();
+            // Email::create([
+            //     'sender'         => $voucherEmail->sender,
+            //     'receiver'       => $voucherEmail->receiver,
+            //     'subject'        => $voucherEmail->subject,
+            //     'body'           => $voucherEmail->body,
+            //     'attachment_path' => $voucherEmail->attachment_path,
+            //     'sent'           => true,
+            //     'sent_at'        => now(),
+            //     'user_id'        => null,
+            //     'auditable_type' => 'App\Models\Email',
+            //     'auditable_id'   => $voucherEmail->id,
+            //     'team_id'        => $voucherEmail->team_id,
+            // ]);
+            // $voucherEmail->delete();
+        }
+
+        $attachments = [
+            [
+                'data' => $invoicePdf->output(),
+                'name' => "invoice-{$data['invoice']['number']}.pdf",
+                'mime' => 'application/pdf',
+            ],
+            [
+                'data' => $voucherPdf->output(),
+                'name' => "voucher-{$bookingVoucher->id}.pdf",
+                'mime' => 'application/pdf',
+            ],
+        ];
+        Mail::to($customer->email_address)->send(new BookingMail($data, $attachments));
+        return redirect()->back()->with('success', 'Invoice resent');
     }
 }

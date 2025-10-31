@@ -820,6 +820,7 @@ class BookingsController extends Controller
         // $item = $booking->booking_items->get(0);
         $booking->load([
             'booking_payments',
+            'files',
         ]);
 
         $bookingItem = BookingItem::with([

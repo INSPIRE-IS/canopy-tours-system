@@ -14,12 +14,14 @@ import NavSelect from '@/Components/NavSelect';
 import CustomInputText from '@/Components/CustomInputText';
 import { format } from 'date-fns';
 import ConfirmModal from '@/Components/ConfirmModal';
+import { useToast } from '@/Context/ToastContext';
 // import { useRoute } from 'ziggy-js';
 // import { Ziggy } from '@/ziggy'; // the generated file
 
 export default function Dashboard({ auth, bookings, activities, lookups, services }) {
-
-
+    const { props } = usePage();
+    const { flash } = props;
+    const { showToast } = useToast();
     console.log("bookings", bookings)
     const [filteredBookings, setFilteredBookings] = useState(bookings);
     const [expanded, setExpanded] = useState(null); // track which booking is expanded
@@ -40,7 +42,14 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
     const [confirmOpen, setConfirmOpen] = useState(false);
     const [viewDocsIndex, setViewDocsIndex] = useState(null);
     const servicesRef = useRef();
-
+    useEffect(() => {
+        if (flash?.success) {
+            showToast(flash.success, "success");
+        }
+        if (flash?.error) {
+            showToast(flash.error, "error");
+        }
+    }, [flash, showToast]);
     const openCustomerToolsModal = (event, index, booking, customer) => {
         event.preventDefault();
         console.log("customer----------tool-------- ", customer)
@@ -133,7 +142,7 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
         //     router.get(route('admin.bookings.send_invoice'));
         // }
         if (tool === 'resend_invoice') {
-            router.get(route('admin.bookings.resend_invoice'));
+            router.get(route('admin.invoices.resend-invoice', { booking_id: booking.id }));
         }
         if (tool === 'manifest') {
             setSelectedManifests(booking?.customers);
@@ -151,7 +160,7 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                 prompt('No invoice found');
                 return;
             }
-            const fileUrl = `/storage/${file.path}`;
+            const fileUrl = `${file.path}`;
             window.open(fileUrl, '_blank', 'noopener,noreferrer');
         }
         // if (tool === 'print_ticket') {

@@ -2,7 +2,7 @@ import CustomerToolsModal from '@/Components/CustomerToolsModal';
 import Header from '@/Components/Header';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { icons } from '../../../icons';
 import CustomInputText from '@/Components/CustomInputText';
 import BlueButton from '@/Components/BlueButton';
@@ -11,16 +11,24 @@ import CustomSelect from '@/Components/CustomSelect';
 import ManifestCount from '@/Components/ManifestCount';
 import CustomTimePicker from '@/Components/CustomTimePicker';
 import ManifestModal from './ManifestsModal';
+import { useToast } from '@/Context/ToastContext';
+import ManifestsModal from './ManifestsModal';
 // import { useRoute } from 'ziggy-js';
 // import { Ziggy } from '@/ziggy'; // the generated file
 
-export default function Dashboard({ auth, booking, bookingItem, staff, lookups }) {
-    console.log("auth", auth);
-    console.log("booking", booking);
-    console.log("bookingItem", bookingItem);
-    console.log("staff", staff);
+export default function Dashboard({ auth, booking, manifest, bookingItem, staff, lookups }) {
+    // console.log("auth", auth);
+    // console.log("booking", booking);
+    // console.log("bookingItem", bookingItem);
+    // console.log("staff", staff);
+    const { props } = usePage();
+    const { flash } = props;
+    const { showToast } = useToast();
     const [toggleCustomer, setToggleCustomer] = useState(true);
     const [toggleManifest, setToggleManifest] = useState(true);
+
+    const [isManifestsModalOpen, setIsManifestsModalOpen] = useState(false);
+    const [selectedManifests, setSelectedManifests] = useState(null);
     const [toggleInformation, setToggleInformation] = useState(true);
     const [toggleStaff, setToggleStaff] = useState(true);
     const [toggleComments, setToggleComments] = useState(true);
@@ -29,14 +37,14 @@ export default function Dashboard({ auth, booking, bookingItem, staff, lookups }
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalMode, setModalMode] = useState("create");
     const [total, setTotal] = useState(null);
-
-    //    const page = usePage();
-    //     const currentRoutePath = page.props.currentRoutePath;
-
-    //     console.log('=======================currentRoutePath============== ',currentRoutePath); // outputs: "services"
-    // const route = useRoute(Ziggy);
-    // console.log('=======================route============== ',route().current());
-
+    useEffect(() => {
+        if (flash?.success) {
+            showToast(flash.success, "success");
+        }
+        if (flash?.error) {
+            showToast(flash.error, "error");
+        }
+    }, [flash, showToast]);
 
     const { data, setData, put, isDirty, reset, processing, errors } = useForm(() => {
         console.log("booking", booking);
@@ -80,6 +88,22 @@ export default function Dashboard({ auth, booking, bookingItem, staff, lookups }
         //setSelectedUser(user);
         setIsModalOpen(true);
     };
+    const handleOpenManifestsModal = () => {
+        console.log('manifest', manifest);
+
+        setSelectedManifests(manifest);
+        setIsManifestsModalOpen(true);
+    };
+
+    const handleIndividualCheckin = async (e, index) => {
+        e.preventDefault();
+        data.customer_manifests[index].index = 1;
+        //console.log('data', data); 
+        put(route('front.customer-manifests.edit', booking?.customers[0].booking_item_id), {
+            onSuccess: () => onClose(),
+        });
+    };
+
 
     const handleCloseModal = () => {
         window.location.reload();
@@ -123,10 +147,16 @@ export default function Dashboard({ auth, booking, bookingItem, staff, lookups }
                         {isDirty && (<p className="text-yellow-600 text-sm mt-1">You have unsaved changes</p>)}
                     </span>
                     <span className="flex gap-2">
-                        <button onClick={() => router.get(route('admin.checkins.index', { 'booking_id': booking?.id, 'customer_id': booking?.customer_id }))} className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-red-gradient-overlay border-[#C65468] text-white shadow-inset-white cursor-pointer">
+                        {/*  <button onClick={() => router.get(route('admin.checkins.index', { 'booking_id': booking?.id, 'customer_id': booking?.customer_id }))} className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-red-gradient-overlay border-[#C65468] text-white shadow-inset-white cursor-pointer">
+                            <img src="/assets/icons/plus.svg" alt="bookings" className="w-5 h-5" />
+                            <span className="text-btn-outline-gray">Check in</span>
+                        </button>*/}
+                        <button onClick={() => router.get(route('booking-questionnaire.index'))} className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-red-gradient-overlay border-[#C65468] text-white shadow-inset-white cursor-pointer">
                             <img src="/assets/icons/plus.svg" alt="bookings" className="w-5 h-5" />
                             <span className="text-btn-outline-gray">Check in</span>
                         </button>
+
+
                     </span>
                 </div>
                 {/* bottom */}
@@ -141,9 +171,10 @@ export default function Dashboard({ auth, booking, bookingItem, staff, lookups }
                             width="w-[158.8px]"
                             height="h-[31px]"
                             className="mt-4"
-                            onClick={() => router.get(route('admin.checkins.index', { 'booking_id': booking?.id, 'customer_id': booking?.customer_id }))}
+                        // onClick={() => router.get(route('admin.checkins.index', { 'booking_id': booking?.id, 'customer_id': booking?.customer_id }))}
+                        // onClick={() => router.get(route('booking-questionnaire.index'))}
                         />
-                        <WhiteButton
+                        {/* <WhiteButton
                             title="Send Invoice"
                             icon={true}
                             iconName={icons.send_invoice}
@@ -152,7 +183,7 @@ export default function Dashboard({ auth, booking, bookingItem, staff, lookups }
                             height="h-[31px]"
                             className="mt-4"
                             onClick={() => handleSubmit(e)}
-                        />
+                        /> */}
                         <WhiteButton
                             title="Resend Invoice"
                             icon={true}
@@ -161,7 +192,7 @@ export default function Dashboard({ auth, booking, bookingItem, staff, lookups }
                             width="w-[158.8px]"
                             height="h-[31px]"
                             className="mt-4"
-                            onClick={() => handleSubmit(e)}
+                            onClick={() => router.get(route('admin.invoices.resend-invoice', { booking_id: booking?.id }))}
                         />
                         <WhiteButton
                             title="Manifest"
@@ -171,7 +202,7 @@ export default function Dashboard({ auth, booking, bookingItem, staff, lookups }
                             width="w-[158.8px]"
                             height="h-[31px]"
                             className="mt-4"
-                            onClick={() => handleOpenModal("create")}
+                            onClick={handleOpenManifestsModal}
                         />
                         <WhiteButton
                             title="Customer Invoice"
@@ -181,7 +212,21 @@ export default function Dashboard({ auth, booking, bookingItem, staff, lookups }
                             width="w-[158.8px]"
                             height="h-[31px]"
                             className="mt-4"
-                            onClick={() => router.get(route('admin.invoices.download', { 'booking': booking?.id }))}
+                            onClick={() => {
+                                // router.get(route('admin.invoices.download', { 'booking': booking?.id }))
+                                if (booking?.files?.length == 0) {
+                                    prompt('No invoice found');
+                                    return;
+                                }
+
+                                const file = booking?.files?.find(f => f.table_name == 'invoices');
+                                if (!file) {
+                                    prompt('No invoice found');
+                                    return;
+                                }
+                                const fileUrl = `${file.path}`;
+                                window.open(fileUrl, '_blank', 'noopener,noreferrer');
+                            }}
                         />
                         {/* <a
   href={route('admin.invoices.download', item.id)}
@@ -328,14 +373,14 @@ export default function Dashboard({ auth, booking, bookingItem, staff, lookups }
                                                                 </div>
                                                                 <div className='basis-[20%] items-center pt-2 ' >
                                                                     <WhiteButton
-                                                                        title="Check-In ii"
+                                                                        title="Check-In"
                                                                         icon={true}
                                                                         iconName={icons.check_in}
                                                                         textColor='text-[#4D81E7]'
                                                                         width="w-[132.8px]"
                                                                         height="h-[31px]"
                                                                         className="mt-4"
-                                                                        onClick={() => router.get(route('admin.checkins.index', { 'booking_id': booking?.id, 'customer_id': manifest?.customer_id }))}
+                                                                        onClick={() => router.get(route('booking-questionnaire.index'))}
                                                                     />
                                                                 </div>
                                                             </div>
@@ -778,16 +823,16 @@ export default function Dashboard({ auth, booking, bookingItem, staff, lookups }
                         </div>
                     </div>
                 </div>
-                <ManifestModal
-                    isOpen={isModalOpen}
+
+                <ManifestsModal
+                    isOpen={isManifestsModalOpen}
                     onClose={handleCloseModal}
-                    mode={modalMode}
-                    customer_manifests={bookingItem?.customer_manifests}
-                    pax={bookingItem?.booking_inventory.pax}
-                    tot_adults={bookingItem?.booking_inventory.tot_adults}
-                    tot_children={bookingItem?.booking_inventory.tot_children}
-                    tot_guides={bookingItem?.booking_inventory.tot_guides}
+                    mode="edit"
+                    customers={selectedManifests}
+                    tot_adults='0'
+                    tot_children='0'
                 />
+
             </div>
         </AuthenticatedLayout>
     );
