@@ -18,9 +18,9 @@ class Kernel extends ConsoleKernel
     protected function schedule(Schedule $schedule): void
     {
         // $schedule->command('inspire')->hourly();
+        //$schedule->command('app:send-feedback-email')->dailyAt('06:00');
 
-
-        $schedule->command('geo:sync')->monthly();
+        //$schedule->command('geo:sync')->monthly();
     }
 
     /**

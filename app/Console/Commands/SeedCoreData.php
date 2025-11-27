@@ -618,6 +618,7 @@ class SeedCoreData extends Command
             ['id' => 7, 'name' => 'Not Fit', 'slug' => 'not_fit'],
             ['id' => 8, 'name' => 'Not Agree', 'slug' => 'not_agree'],
             ['id' => 9, 'name' => 'Check-in Completed', 'slug' => 'check_in_completed'],
+            ['id' => 10, 'name' => 'feedback Completed', 'slug' => 'feedback_completed'],
         ];
         foreach ($type_alerts as $type_alert) {
             TypeAlert::updateOrCreate(['id' => $type_alert['id']], $type_alert);
@@ -3455,7 +3456,7 @@ class SeedCoreData extends Command
         $this->info('Core data seeded successfully.');
 
         $questions = [
-            [
+            [ // lead_guide_id"
                 'id' => 1,
                 'name' => "Select your Lead Guide",
                 'description' => null,
@@ -3464,7 +3465,7 @@ class SeedCoreData extends Command
                 'conditional_logic' => null,
                 'type' => 'indemnity',
             ],
-            [
+            [ // safety_guide_id"
                 'id' => 2,
                 'name' => 'Select your Safety Guide',
                 'description' => null,
@@ -3473,7 +3474,7 @@ class SeedCoreData extends Command
                 'conditional_logic' => null,
                 'type' => 'indemnity',
             ],
-            [
+            [ // type_group_id"
                 'id' => 3,
                 'name' => 'Select group',
                 'description' => null,
@@ -3482,7 +3483,7 @@ class SeedCoreData extends Command
                 'conditional_logic' => null,
                 'type' => 'indemnity',
             ],
-            [
+            [ // full_name"
                 'id' => 4,
                 'name' => 'First + last name',
                 'description' => null,
@@ -3491,7 +3492,7 @@ class SeedCoreData extends Command
                 'conditional_logic' => null,
                 'type' => 'indemnity',
             ],
-            [
+            [ // age_id"
                 'id' => 5,
                 'name' => 'Age group',
                 'description' => null,
@@ -3500,7 +3501,7 @@ class SeedCoreData extends Command
                 'conditional_logic' => null,
                 'type' => 'indemnity',
             ],
-            [
+            [ // referral_id"
                 'id' => 6,
                 'name' => 'Referral',
                 'description' => null,
@@ -3509,7 +3510,7 @@ class SeedCoreData extends Command
                 'conditional_logic' => null,
                 'type' => 'indemnity',
             ],
-            [
+            [ // continent_id"
                 'id' => 7,
                 'name' => 'Continent',
                 'description' => null,
@@ -3518,7 +3519,7 @@ class SeedCoreData extends Command
                 'conditional_logic' => null,
                 'type' => 'indemnity',
             ],
-            [
+            [ // country_id"
                 'id' => 8,
                 'name' => 'Country',
                 'description' => null,
@@ -3527,7 +3528,7 @@ class SeedCoreData extends Command
                 'conditional_logic' => null,
                 'type' => 'indemnity',
             ],
-            [
+            [ // province_id"
                 'id' => 9,
                 'name' => 'Province (if SA)',
                 'description' => null,
@@ -3536,7 +3537,7 @@ class SeedCoreData extends Command
                 'conditional_logic' => null,
                 'type' => 'indemnity',
             ],
-            [
+            [ // medical_id"
                 'id' => 10,
                 'name' => 'Medical',
                 'description' => null,
@@ -3545,7 +3546,7 @@ class SeedCoreData extends Command
                 'conditional_logic' => null,
                 'type' => 'indemnity',
             ],
-            [
+            [ // medical_detail"
                 'id' => 11,
                 'name' => 'Medical conditions',
                 'description' => null,
@@ -3554,7 +3555,7 @@ class SeedCoreData extends Command
                 'conditional_logic' => null,
                 'type' => 'indemnity',
             ],
-            [
+            [ // is_fit"
                 'id' => 12,
                 'name' => 'Fitness',
                 'description' => null,
@@ -3563,7 +3564,7 @@ class SeedCoreData extends Command
                 'conditional_logic' => null,
                 'type' => 'indemnity',
             ],
-            [
+            [ // is_agree"
                 'id' => 13,
                 'name' => 'Indemnity terms',
                 'description' => null,
@@ -3572,7 +3573,7 @@ class SeedCoreData extends Command
                 'conditional_logic' => null,
                 'type' => 'indemnity',
             ],
-            [
+            [ // email_address"
                 'id' => 14,
                 'name' => 'Email',
                 'description' => null,
@@ -3581,7 +3582,7 @@ class SeedCoreData extends Command
                 'conditional_logic' => null,
                 'type' => 'indemnity',
             ],
-            [
+            [ // signature"
                 'id' => 15,
                 'name' => 'Signature',
                 'description' => null,
@@ -3590,7 +3591,7 @@ class SeedCoreData extends Command
                 'conditional_logic' => null,
                 'type' => 'indemnity',
             ],
-            [
+            [ // gender"
                 'id' => 16,
                 'name' => 'Gender',
                 'description' => null,
@@ -3599,7 +3600,7 @@ class SeedCoreData extends Command
                 'conditional_logic' => null,
                 'type' => 'indemnity',
             ],
-            [
+            [ // visitor_type"
                 'id' => 17,
                 'name' => 'Visitor type (individual, couple, etc.)',
                 'description' => null,
@@ -3608,7 +3609,7 @@ class SeedCoreData extends Command
                 'conditional_logic' => null,
                 'type' => 'indemnity',
             ],
-            [
+            [ // marketing_opt_in"
                 'id' => 18,
                 'name' => 'Marketing source',
                 'description' => null,
@@ -3617,7 +3618,7 @@ class SeedCoreData extends Command
                 'conditional_logic' => null,
                 'type' => 'indemnity',
             ],
-            [
+            [ // birthday_month"
                 'id' => 19,
                 'name' => 'Birthday month',
                 'description' => null,
@@ -3626,7 +3627,7 @@ class SeedCoreData extends Command
                 'conditional_logic' => null,
                 'type' => 'indemnity',
             ],
-            [
+            [ // birthday_day"
                 'id' => 20,
                 'name' => 'Birthday day',
                 'description' => null,
@@ -3635,7 +3636,7 @@ class SeedCoreData extends Command
                 'conditional_logic' => null,
                 'type' => 'indemnity',
             ],
-            [
+            [ // pregnant"
                 'id' => 21,
                 'name' => 'Pregnancy',
                 'description' => null,
@@ -3644,16 +3645,16 @@ class SeedCoreData extends Command
                 'conditional_logic' => ["rule" => "female only"],
                 'type' => 'indemnity',
             ],
-            [
+            [ // guardian_name"
                 'id' => 22,
                 'name' => 'Guardian name',
                 'description' => null,
-                'slug' => 'guardian_name',
+                'slug' => 'parent_id',
                 'options' => [],
                 'conditional_logic' => ["rule" => 'if age 5–17'],
                 'type' => 'indemnity',
             ],
-            [
+            [ // lunch_option"
                 'id' => 23,
                 'name' => 'Lunch option',
                 'description' => null,
@@ -3662,17 +3663,8 @@ class SeedCoreData extends Command
                 'conditional_logic' => null,
                 'type' => 'indemnity',
             ],
-            [
+            [ // customer_id"
                 'id' => 24,
-                'name' => 'Guide ID',
-                'description' => null,
-                'slug' => 'guide_id',
-                'options' => [],
-                'conditional_logic' => null,
-                'type' => 'feedback',
-            ],
-            [
-                'id' => 25,
                 'name' => 'Customer ID',
                 'description' => null,
                 'slug' => 'customer_id',
@@ -3680,7 +3672,16 @@ class SeedCoreData extends Command
                 'conditional_logic' => null,
                 'type' => 'feedback',
             ],
-            [
+            [ // guide_id"
+                'id' => 25,
+                'name' => 'Guide ID',
+                'description' => null,
+                'slug' => 'guide_id',
+                'options' => [],
+                'conditional_logic' => null,
+                'type' => 'feedback',
+            ],
+            [ // reception_id"
                 'id' => 26,
                 'name' => 'Reception rating',
                 'description' => null,
@@ -3689,7 +3690,7 @@ class SeedCoreData extends Command
                 'conditional_logic' => null,
                 'type' => 'feedback',
             ],
-            [
+            [ // briefing_id"
                 'id' => 27,
                 'name' => 'Safety briefing rating',
                 'description' => null,
@@ -3698,7 +3699,7 @@ class SeedCoreData extends Command
                 'conditional_logic' => null,
                 'type' => 'feedback',
             ],
-            [
+            [ // experience_id"
                 'id' => 28,
                 'name' => '4x4 experience rating',
                 'description' => null,
@@ -3707,7 +3708,7 @@ class SeedCoreData extends Command
                 'conditional_logic' => null,
                 'type' => 'feedback',
             ],
-            [
+            [ // knowledge_id"
                 'id' => 29,
                 'name' => 'Guide knowledge rating',
                 'description' => null,
@@ -3716,7 +3717,7 @@ class SeedCoreData extends Command
                 'conditional_logic' => null,
                 'type' => 'feedback',
             ],
-            [
+            [ // comfort_id"
                 'id' => 30,
                 'name' => 'Safety comfort rating',
                 'description' => null,
@@ -3725,7 +3726,7 @@ class SeedCoreData extends Command
                 'conditional_logic' => null,
                 'type' => 'feedback',
             ],
-            [
+            [ // comment"
                 'id' => 31,
                 'name' => 'Comments',
                 'description' => null,
@@ -3741,217 +3742,217 @@ class SeedCoreData extends Command
         }
 
         $questionSites = [
-            [
+            [ // lead_guide_id"
                 'id' => 1,
                 'enabled' => 0,
                 'sort_order' => 1,
                 'question_id' => 1,
                 'service_id' => null,
             ],
-            [
+            [ // safety_guide_id"
                 'id' => 2,
                 'enabled' => 0,
                 'sort_order' => 2,
-                'question_id' => 2, // type_group_id"
+                'question_id' => 2,
                 'service_id' => null,
             ],
-            [
+            [ // type_group_id"
                 'id' => 3,
                 'enabled' => 1,
                 'sort_order' => 1,
-                'question_id' => 3, // full_name"
+                'question_id' => 3,
                 'service_id' => null,
             ],
-            [
+            [ // full_name"
                 'id' => 4,
                 'enabled' => 1,
                 'sort_order' => 2,
-                'question_id' => 4, // age_id"
+                'question_id' => 4,
                 'service_id' => null,
             ],
-            [
+            [ // age_id"
                 'id' => 5,
                 'enabled' => 1,
                 'sort_order' => 5,
                 'question_id' => 5, // "referral_id"
                 'service_id' => null,
             ],
-            [
+            [ // referral_id"
                 'id' => 6,
                 'enabled' => 1,
                 'sort_order' => 3,
                 'question_id' => 6, // "continent_id"
                 'service_id' => null,
             ],
-            [
+            [ // continent_id"
                 'id' => 7,
                 'enabled' => 1,
                 'sort_order' => 4,
                 'question_id' => 7, // "country_id"
                 'service_id' => null,
             ],
-            [
+            [ // country_id"
                 'id' => 8,
                 'enabled' => 1,
                 'sort_order' => 5,
                 'question_id' => 8, // "province_id"
                 'service_id' => null,
             ],
-            [
+            [ // province_id"
                 'id' => 9,
                 'enabled' => 1,
                 'sort_order' => 9,
                 'question_id' => 9, // "medical_id"
                 'service_id' => null,
             ],
-            [
+            [ // medical_id"
                 'id' => 10,
                 'enabled' => 1,
                 'sort_order' => 10,
                 'question_id' => 10, // "medical_detail"
                 'service_id' => null,
             ],
-            [
+            [ // medical_detail"
                 'id' => 11,
                 'enabled' => 1,
                 'sort_order' => 11,
-                'question_id' => 11, // "is_fit"
+                'question_id' => 11,
                 'service_id' => null,
             ],
-            [
+            [ // is_fit"
                 'id' => 12,
                 'enabled' => 1,
                 'sort_order' => 12,
-                'question_id' => 12, // "is_agree"
+                'question_id' => 12,
                 'service_id' => null,
             ],
-            [
+            [ // is_agree"
                 'id' => 13,
                 'enabled' => 1,
                 'sort_order' => 13,
-                'question_id' => 13, // "email_address"
+                'question_id' => 13,
                 'service_id' => null,
             ],
-            [
+            [ // "email_address"
                 'id' => 14,
                 'enabled' => 1,
                 'sort_order' => 14,
-                'question_id' => 14, // "signature"
+                'question_id' => 14,
                 'service_id' => null,
             ],
-            [
+            [ // "signature"
                 'id' => 15,
                 'enabled' => 1,
                 'sort_order' => 15,
-                'question_id' => 15, // "gender"
+                'question_id' => 15,
                 'service_id' => null,
             ],
-            [
+            [ // "gender"
                 'id' => 16,
                 'enabled' => 1,
                 'sort_order' => 16,
-                'question_id' => 16, // "visitor_type"
+                'question_id' => 16,
                 'service_id' => null,
             ],
-            [
+            [ // "visitor_type"
                 'id' => 17,
                 'enabled' => 1,
                 'sort_order' => 17,
-                'question_id' => 17, // "marketing_opt_in"
+                'question_id' => 17,
                 'service_id' => null,
             ],
-            [
+            [ // "marketing_opt_in"
                 'id' => 18,
                 'enabled' => 1,
                 'sort_order' => 18,
-                'question_id' => 18, // "birthday_month"
+                'question_id' => 18,
                 'service_id' => null,
             ],
-            [
+            [ // "birthday_month"
                 'id' => 19,
                 'enabled' => 1,
                 'sort_order' => 19,
-                'question_id' => 19, // "birthday_day"
+                'question_id' => 19,
                 'service_id' => null,
             ],
-            [
+            [ // "birthday_day"
                 'id' => 20,
                 'enabled' => 1,
                 'sort_order' => 20,
-                'question_id' => 20, // "pregnant"
+                'question_id' => 20,
                 'service_id' => null,
             ],
-            [
+            [ // "pregnant"
                 'id' => 21,
                 'enabled' => 1,
                 'sort_order' => 21,
-                'question_id' => 21, // "guardian_name"
+                'question_id' => 21,
                 'service_id' => null,
             ],
-            [
+            [ // "guardian_name"
                 'id' => 22,
                 'enabled' => 1,
                 'sort_order' => 22,
-                'question_id' => 22, // "lunch_option"
+                'question_id' => 22,
                 'service_id' => null,
             ],
-            [
+            [ // lunch_option
                 'id' => 23,
                 'enabled' => 1,
                 'sort_order' => 23,
                 'question_id' => 23,
                 'service_id' => null,
             ],
-            [
+            [ // customer_id
                 'id' => 24,
                 'enabled' => 1,
                 'sort_order' => 24,
                 'question_id' => 24,
                 'service_id' => null,
             ],
-            [
+            [ // guide_id
                 'id' => 25,
                 'enabled' => 1,
                 'sort_order' => 25,
                 'question_id' => 25,
                 'service_id' => null,
             ],
-            [
+            [ // reception_id
                 'id' => 26,
                 'enabled' => 1,
                 'sort_order' => 26,
                 'question_id' => 26,
                 'service_id' => null,
             ],
-            [
+            [ // briefing_id
                 'id' => 27,
                 'enabled' => 1,
                 'sort_order' => 27,
                 'question_id' => 27,
                 'service_id' => null,
             ],
-            [
+            [ // experience_id
                 'id' => 28,
                 'enabled' => 1,
                 'sort_order' => 28,
                 'question_id' => 28,
                 'service_id' => null,
             ],
-            [
+            [ // knowledge_id
                 'id' => 29,
                 'enabled' => 1,
                 'sort_order' => 29,
                 'question_id' => 29,
                 'service_id' => null,
             ],
-            [
+            [ // comfort_id
                 'id' => 30,
                 'enabled' => 1,
                 'sort_order' => 30,
                 'question_id' => 30,
                 'service_id' => null,
             ],
-            [
+            [ // comment
                 'id' => 31,
                 'enabled' => 1,
                 'sort_order' => 31,

@@ -21,10 +21,16 @@ class CustomerManifest extends Model
         'deleted_at',
     ];
 
+    protected $casts = [
+        'is_feedback' => 'boolean',
+        'is_indemnity' => 'boolean',
+    ];
+
     protected $fillable = [
         'position',
         'notes',
         'is_indemnity',
+        'is_feedback',
         'customer_id',
         'booking_item_id',
         'created_at',

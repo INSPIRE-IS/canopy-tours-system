@@ -3,10 +3,21 @@
 namespace App\Traits;
 
 use App\Mail\TestEmailWithAttachment;
+use App\Mail\FeedbackRequestMail;
 use Illuminate\Support\Facades\Mail;
 
 trait EmailTrait
 {
+
+    public function sendFeedbackEmail($to, $customerName, $tourName, $tourDate, $feedbackLink)
+    {
+        Mail::to($to)->send(
+            new FeedbackRequestMail($customerName, $tourName, $tourDate, $feedbackLink)
+        );
+
+        return "Feedback email sent to $to";
+    }
+
     public function sendTestEmail($to)
     {
         Mail::raw('This is a test email from EmailTrait.', function ($message) use ($to) {

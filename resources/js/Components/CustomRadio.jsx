@@ -1,4 +1,5 @@
-const CustomRadio = ({ label, name, value, outerWidth = 'w-full', checked, onChange, errors }) => {
+const CustomRadio = ({ label, name, value, mode = false, outerWidth = 'w-full', checked, onChange, errors }) => {
+
     return (
         <div className={`flex w-full items-center justify-center`}>
             <div className={`flex rounded-[10px] ${outerWidth} border border-[#F1F1F5] sm:w-[672px] h-[60px] `}>
@@ -8,9 +9,13 @@ const CustomRadio = ({ label, name, value, outerWidth = 'w-full', checked, onCha
                         id={`${name}-${value}`}
                         name={name}
                         checked={checked}
+                        disabled={mode}
                         value={value}
                         onChange={(e) => onChange(name, e.target.value)}
-                        className={`h-9 w-9 text-blue-600 ${errors?.[name] ? "border-red-500" : "border-gray-300"} focus:ring-blue-500 rounded-[10px]`}
+                        className={`h-9 w-9 text-blue-600 ${errors?.[name] ? "border-red-500" : "border-gray-300"} 
+                        ${mode ? "cursor-not-allowed" : ""}
+                        focus:ring-blue-500 rounded-[10px]`}
+                        title={mode ? "Completed" : ""}
                     />
                     <label htmlFor={`${name}-${value}`} className="text-gray-700">{label}</label>
                 </div>

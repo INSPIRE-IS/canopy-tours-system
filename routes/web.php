@@ -30,6 +30,7 @@ use App\Http\Controllers\Admin\WholesalerController;
 use App\Http\Controllers\Admin\WholesalerRateController;
 use App\Http\Controllers\Front\ActivityController;
 use App\Http\Controllers\Front\BookingQuestionnaireController;
+use App\Http\Controllers\Front\FeedbackQuestionnaireController;
 use App\Http\Controllers\Front\PaymentController;
 use App\Http\Controllers\ProfileController;
 use App\Models\Service;
@@ -91,15 +92,17 @@ Route::put('front/customer-manifests/edit', [BookingQuestionnaireController::cla
 Route::get('/check-reference/{reference}', [BookingQuestionnaireController::class, 'reference'])->name('check-reference');
 //Route::get('front/booking-questionnaire/checkin', [BookingQuestionnaireController::class, 'checkin'])->name('front.booking-questionnaire.checkin');
 Route::get('front/booking-questionnaire/signed', [BookingQuestionnaireController::class, 'signed'])->name('front.booking-questionnaire.signed');
-Route::get(
-    'front/booking-questionnaire/checkin',
-    [BookingQuestionnaireController::class, 'checkin']
-)
+
+Route::get('front/booking-questionnaire/checkin', [BookingQuestionnaireController::class, 'checkin'])
     ->name('front.booking-questionnaire.checkin')
     ->middleware('signed'); // Laravel will reject any URL whose signature doesn’t match
 
+Route::get('front/feedback-questionnaire/feedback', [FeedbackQuestionnaireController::class, 'feedback'])
+    ->name('front.feedback-questionnaire.feedback')
+    ->middleware('signed'); // Laravel will reject any URL whose signature doesn’t match
 
 Route::resource('booking-questionnaire', BookingQuestionnaireController::class);
+Route::post('front/feedback-questionnaire', [FeedbackQuestionnaireController::class, 'store'])->name('front.feedback-questionnaire.store');
 Route::get('/continents', [BookingQuestionnaireController::class, 'getContinents']);
 Route::get('/countries/{continent_id}', [BookingQuestionnaireController::class, 'getCountries']);
 Route::get('/states/{country_id}', [BookingQuestionnaireController::class, 'getStates']);

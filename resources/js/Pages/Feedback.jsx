@@ -1,0 +1,509 @@
+// resources/js/Pages/BookingLookup.jsx
+import React, { useState, useEffect } from 'react';
+import { Head, router, useForm } from '@inertiajs/react';
+import CustomButton from '@/Components/CustomButton';
+import CustomCheckboxQ from '@/Components/CustomCheckboxQ';
+import CustomInputText from '@/Components/CustomInputText';
+import CustomSelect from '@/Components/CustomSelect';
+import CustomRadio from '@/Components/CustomRadio';
+import SignaturePad from '@/Components/SignaturePad';
+import InputText from '@/Components/InputText';
+import CustomCheckbox from '@/Components/CustomCheckbox';
+import GreenButton from '@/Components/GreenButton';
+import axios from 'axios';
+
+export default function BookingLookup({ auth, booking, bookings, bookingItem, questions, leadGuides, arrivals, safetyBrifings, drive, areaKnowledge, comfortSafety }) {
+  // console.log("auth", auth);
+  const mode = 'edit';
+  // console.log("booking", booking);
+  console.log("bookings", bookings);
+  console.log("leadGuides", leadGuides);
+  // console.log("questions", questions);
+  // console.log("arrivals", arrivals);
+  // console.log("safetyBrifings", safetyBrifings);
+  // console.log("drive", drive);
+  // console.log("areaKnowledge", areaKnowledge);
+  // console.log("comfortSafety", comfortSafety);
+
+  const [prevNext, setPrevNext] = useState(1);
+  const [adults, setAdults] = useState([]);
+  const [selected, setSelected] = useState(null);
+
+
+  const activeSteps = questions
+    .filter(q => q.enabled == 1)
+    .sort((a, b) => a.sort_order - b.sort_order)
+    .map(q => q.slug);
+  activeSteps.push('submit');
+  console.log('activeSteps', activeSteps);
+
+  const [currentSlug, setCurrentSlug] = useState(activeSteps[0]);
+
+  const { data, setData, post, put, errors, reset, processing } = useForm({
+    feedback: [],
+  });
+
+  useEffect(() => {
+    if (bookings?.customers?.length) {
+      // Map API data into form shape
+      const mapped = bookings.customers.map((item, i) => {
+        const { customer, manifest, questionnaire } = item;
+
+        // Convert questionnaire array → { slug: value }
+        const qAnswers = questionnaire.reduce((acc, q) => {
+          acc[q.slug] = q.answer ?? "";
+          return acc;
+        }, {});
+
+        return {
+          id: i,
+
+          // 1️⃣ Base customer DB fields
+          ...customer,
+
+          // 2️⃣ Merge manifest (position, notes, etc.)
+          ...manifest,
+
+          // 3️⃣ Inject questionnaire answers dynamically
+          ...qAnswers,
+        };
+      });
+      console.log("mapped", mapped);
+      // const adults = mapped?.filter(p => p.type === "adult");
+      // setAdults(adults);
+      setData('feedback', mapped);
+      // setSelected(1);
+      console.log('--------------init data-------------', mapped);
+    } else {
+      alert('Please select a booking');
+    }
+  }, [mode, bookings?.customers]);
+
+  useEffect(() => {
+    if (data.feedback && data.feedback.length > 0) {
+      console.log('updated Adults', data.feedback);
+      const updatedAdults = data.feedback
+        .filter(p => p.type === "adult" && p.full_name != "")
+        .map((p, i) => {
+          console.log("p", p);
+          return ({
+            id: typeof p.customer_id == 'number' ? p.customer_id : 0,// i + 1,
+            name: p.full_name || "Unnamed Adult",
+            is_feedback: p.is_feedback,
+            is_indemnity: p.is_indemnity,
+          })
+        });
+      console.log("updatedAdults", updatedAdults);
+      setAdults(updatedAdults);
+    }
+
+  }, [data.feedback]);
+
+  const isEnabled = (slug) => {
+    if (!questions || !questions.length) return false;
+
+    const q = questions.find(q => q.slug === slug);
+    return q ? q.enabled == 1 : false;
+  };
+  const nextStep = (index) => {
+    const idx = activeSteps.indexOf(currentSlug);
+    if (idx < activeSteps.length - 1) {
+      setCurrentSlug(activeSteps[idx + 1]);
+    }
+  };
+  const prevStep = (index) => {
+    const idx = activeSteps.indexOf(currentSlug);
+    if (idx > 0) {
+      setCurrentSlug(activeSteps[idx - 1]);
+    }
+  };
+
+  const handleIndemnityChange = (field, value) => {
+    const updated = [...data.feedback];
+    if (field == "customer_id") {
+      console.log('customer_id-----------------------------', value);
+      setSelected(value);
+      updated.forEach((p, i) => {
+        if (i == value) {
+          updated[i][field] = p.customer_id;//value.toString();
+          updated[i]['index'] = 1;
+          setSelected(i);
+        } else {
+          updated[i]['index'] = 0;
+        }
+      });
+      setData("feedback", updated);
+    }
+    else if (selected != null) {
+      updated[selected][field] = value;
+      setData("feedback", updated);
+    }
+    console.log('-------handle Indemnity Change--------', updated);
+  };
+
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    console.log('booking', booking);
+    console.log('handle Submit', data.feedback);
+    post(route('front.feedback-questionnaire.store'));
+    //put(route('admin.checkins.store',{booking}));
+  };
+
+  return (
+    <>
+      <Head title="Find Your Booking" />
+      <div className="flex flex-col  h-screen items-center justify-center bg-secondary-100">
+        <div className="flex items-center justify-center w-full sm:pb-[51px] ">
+          {/* Logo Box */}
+          <div className="flex items-center justify-center w-[118px] h-[106px] ">
+            <img
+              src="/images/logo.png"
+              alt="Canopy Tours"
+              className="w-full h-full object-contain min-w-[100px] min-h-[90px]"
+            />
+          </div>
+
+          {/* Text Logo */}
+          <div className="flex items-center pl-2 gap-2">
+            <img
+              src="/images/text.png"
+              alt="Canopy Tours Text"
+              className="w-24 h-24 md:w-[118px] md:h-[106px] object-contain"
+            />
+            <button onClick={() => window.location.reload()} className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-red-gradient-overlay border-[#C65468] text-white shadow-inset-white cursor-pointer">
+              Clear
+            </button>
+          </div>
+
+
+        </div>
+        <div className="flex flex-col bg-white h-[80%] w-full sm:w-[50%] items-center shadow-lg rounded-[20px]">
+
+          {currentSlug === "customer_id" && (
+            <div className="flex w-[90%] flex-col h-full mb-[26px]">
+              <div className="flex flex-col w-full h-[90%] gap-2" >
+                <span className="text-welcome-card-title text-center min-w-[90%] sm:w-full mt-[42px] mb-[26px] px-6 sm:px-[39px]">
+                  Select your Name
+                </span>
+                <div className="h-auto w-[90%] sm:w-full pl-7 sm:pl-0 overflow-x-auto">
+                  {adults?.map((person, i) => {
+                    console.log('person', person);
+                    console.log('selected', data?.feedback[selected]?.customer_id);
+                    return (
+                      // <span>{person.full_name}</span>
+                      <CustomRadio
+                        key={i}
+                        label={person.name}
+                        name="customer_id"
+                        value={i}
+                        mode={person.is_feedback}
+                        checked={data?.feedback[selected]?.customer_id == person.id.toString()}
+                        onChange={handleIndemnityChange}
+                        errors={errors}
+                      />
+                    )
+                  })}
+                </div>
+                <div className="flex items-center justify-center gap-6">
+                  <div className="flex items-center justify-center gap-6">
+                    <button
+                      type='button'
+                      onClick={() => nextStep(selected)}
+                      disabled={selected == null}
+                      className={`flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-green-gradient-overlay border-[#31B700] text-white shadow-inset-white ${selected == null ? "cursor-not-allowed" : "cursor-pointer"} `}>
+                      <span className="text-btn-outline-gray">Next</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          {/* select lead guide */}
+          {currentSlug === "guide_id" && (
+            <div className="flex flex-col h-full mb-[26px]">
+              <div className="flex flex-col w-full h-[90%] gap-2" >
+                <span className="text-welcome-card-title text-center min-w-[90%] sm:w-full mt-[42px] mb-[26px] px-6 sm:px-[39px]">
+                  Select your Lead Guide
+                </span>
+                {leadGuides?.map((guide, i) => (
+                  <CustomRadio
+                    key={guide.id}
+                    label={guide.name}
+                    name="guide_id"
+                    value={guide.id}
+                    checked={data.feedback[selected].guide_id == guide.id.toString()}
+                    onChange={handleIndemnityChange}
+                    errors={errors}
+                  />
+                ))}
+              </div>
+              <div className="flex items-center justify-center gap-6">
+                <div className="flex items-center justify-center gap-6">
+                  <button type='button' onClick={() => prevStep(selected)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border border-primary-14 text-primary-14 cursor-pointer">
+                    <span className="text-btn-outline-gray">Prev</span>
+
+                  </button>
+                  <button type='button' onClick={() => nextStep(selected)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-green-gradient-overlay border-[#31B700] text-white shadow-inset-white cursor-pointer">
+                    <span className="text-btn-outline-gray">Next</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+          {/* received upon arrival */}
+          {currentSlug === "reception_id" && (
+            <div className="flex flex-col w-[70%] sm:w-full h-full mb-[26px]">
+              <div className="flex flex-col w-[70%] sm:w-full h-[90%] gap-2">
+                <span className="text-welcome-card-title text-center min-w-[90%] sm:w-full mt-[42px] mb-[26px] px-6 sm:px-[39px]">
+                  Were you well received upon arrival?
+                </span>
+                <div className="h-auto w-[70%] sm:w-full pl-7 sm:pl-0 overflow-x-auto">
+                  {arrivals?.map((reception, i) => (
+                    <CustomRadio
+                      key={reception.id}
+                      label={reception.name}
+                      name="reception_id"
+                      value={reception.id}
+                      checked={data.feedback[selected].reception_id == reception.id.toString()}
+                      onChange={handleIndemnityChange}
+                      errors={errors}
+                    />
+                  ))}
+                </div>
+              </div>
+              <div className="flex items-center justify-center gap-6">
+                <div className="flex items-center justify-center gap-6">
+                  <button type='button' onClick={() => prevStep(selected)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border border-primary-14 text-primary-14 cursor-pointer">
+                    <span className="text-btn-outline-gray">Prev</span>
+
+                  </button>
+                  <button type='button' onClick={() => nextStep(selected)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-green-gradient-overlay border-[#31B700] text-white shadow-inset-white cursor-pointer">
+                    <span className="text-btn-outline-gray">Next</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+          {/* safety briefing*/}
+          {currentSlug === "briefing_id" && (
+            <div className="flex flex-col w-[70%] sm:w-full h-full mb-[26px]">
+              <div className="flex flex-col w-[70%] sm:w-full h-[90%] gap-2">
+                <div className="flex flex-col w-[90%] sm:w-full h-[90%] gap-2 " >
+                  <span className="text-welcome-card-title text-center min-w-[90%] sm:w-full mt-[42px] mb-[26px] px-6 sm:px-[39px]">
+                    How was the safety briefing?
+                  </span>
+                  <div className="h-auto w-[70%] sm:w-full pl-7 sm:pl-0 overflow-x-auto">
+                    {safetyBrifings?.map((briefing, i) => (
+                      <CustomRadio
+                        key={briefing.id}
+                        label={briefing.name}
+                        name="briefing_id"
+                        value={briefing.id}
+                        checked={data.feedback[selected].briefing_id == briefing.id.toString()}
+                        onChange={handleIndemnityChange}
+                        errors={errors}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center justify-center gap-6">
+                <div className="flex items-center justify-center gap-6">
+                  <button type='button' onClick={() => prevStep(selected)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border border-primary-14 text-primary-14 cursor-pointer">
+                    <span className="text-btn-outline-gray">Prev</span>
+
+                  </button>
+                  <button type='button' onClick={() => nextStep(selected)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-green-gradient-overlay border-[#31B700] text-white shadow-inset-white cursor-pointer">
+                    <span className="text-btn-outline-gray">Next</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* drive */}
+          {currentSlug === "experience_id" && (
+            <div className="flex flex-col w-[70%] sm:w-full h-full mb-[26px]">
+              <div className="flex flex-col w-[70%] sm:w-full h-[90%] gap-2 " >
+                <span className="text-welcome-card-title text-center min-w-[90%] sm:w-full mt-[42px] mb-[26px] px-6 sm:px-[39px]">
+                  So how about that 4x4 drive?
+                </span>
+                <div className="h-auto w-[70%] sm:w-full pl-7 sm:pl-0 overflow-x-auto">
+                  {drive?.map((experience, i) => (
+                    <CustomRadio
+                      key={experience.id}
+                      label={experience.name}
+                      name="experience_id"
+                      value={experience.id}
+                      checked={data.feedback[selected].experience_id == experience.id.toString()}
+                      onChange={handleIndemnityChange}
+                      errors={errors}
+                    />
+                  ))}
+                </div>
+              </div>
+              <div className="flex items-center justify-center gap-6">
+                <div className="flex items-center justify-center gap-6">
+                  <button type='button' onClick={() => prevStep(selected)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border border-primary-14 text-primary-14 cursor-pointer">
+                    <span className="text-btn-outline-gray">Prev</span>
+
+                  </button>
+                  <button type='button' onClick={() => nextStep(selected)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-green-gradient-overlay border-[#31B700] text-white shadow-inset-white cursor-pointer">
+                    <span className="text-btn-outline-gray">Next</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+          {/* guide's knowledge */}
+          {currentSlug === "knowledge_id" && (
+            <div className="flex flex-col w-[70%] sm:w-full h-full mb-[26px]">
+              <div className="flex flex-col w-[70%] sm:w-full h-[90%] gap-2" >
+                <span className="text-welcome-card-title text-center min-w-[90%] sm:w-full mt-[42px] mb-[26px] px-6 sm:px-[39px]">
+                  How would you rate your guide's knowledge of the area?
+                </span>
+                <div className="h-autow-[70%] sm:w-full pl-7 sm:pl-0 overflow-x-auto">
+                  {areaKnowledge?.map((knowledge, i) => (
+                    <CustomRadio
+                      key={knowledge.id}
+                      label={knowledge.name}
+                      name="knowledge_id"
+                      value={knowledge.id}
+                      checked={data.feedback[selected].knowledge_id == knowledge.id.toString()}
+                      onChange={handleIndemnityChange}
+                      errors={errors}
+                    />
+                  ))}
+                </div>
+              </div>
+              <div className="flex items-center justify-center gap-6">
+                <div className="flex items-center justify-center gap-6">
+                  <button type='button' onClick={() => prevStep(selected)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border border-primary-14 text-primary-14 cursor-pointer">
+                    <span className="text-btn-outline-gray">Prev</span>
+
+                  </button>
+                  <button type='button' onClick={() => nextStep(selected)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-green-gradient-overlay border-[#31B700] text-white shadow-inset-white cursor-pointer">
+                    <span className="text-btn-outline-gray">Next</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+          {/* comfortable and safe */}
+          {currentSlug === "comfort_id" && (
+            <div className="flex flex-col w-[70%] sm:w-full h-full mb-[26px]">
+
+              <div className="flex flex-col w-[70%] sm:w-full h-[90%] gap-2  ">
+                <span className="text-welcome-card-title text-center sm:w-full px-7 sm:px-[39px] mt-[42px] mb-[26px]">
+                  Did you feel comfortable and safe with your guides?
+                </span>
+
+                <div className="h-auto w-[70%] sm:w-full pl-7 sm:pl-0 overflow-x-auto ">
+                  {comfortSafety?.map((comfort, i) => (
+                    <CustomRadio
+                      key={comfort.id}
+                      label={comfort.name}
+                      name="comfort_id"
+                      value={comfort.id}
+                      checked={data.feedback[selected].comfort_id == comfort.id.toString()}
+                      onChange={handleIndemnityChange}
+                      errors={errors}
+                    />
+                  ))}
+                </div>
+              </div>
+              <div className="flex items-center justify-center gap-6">
+                <div className="flex items-center justify-center gap-6">
+                  <button type='button' onClick={() => prevStep(selected)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border border-primary-14 text-primary-14 cursor-pointer">
+                    <span className="text-btn-outline-gray">Prev</span>
+
+                  </button>
+                  <button type='button' onClick={() => nextStep(selected)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-green-gradient-overlay border-[#31B700] text-white shadow-inset-white cursor-pointer">
+                    <span className="text-btn-outline-gray">Next</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+          {/* comments */}
+          {currentSlug === "comment" && (
+            <div className="flex flex-col w-[70%] sm:w-full h-full mb-[26px]">
+
+              <div className="flex flex-col w-[70%] sm:w-full h-[90%] gap-2  ">
+                <span className="text-welcome-card-title text-center sm:w-full px-7 sm:px-[39px] mt-[42px] mb-[26px]">
+                  Comments or Suggestions
+                </span>
+                <div className="h-auto w-[70%] sm:w-full pl-7 sm:px-[39px] overflow-x-auto">
+                  <CustomInputText
+                    title="Any comments, suggestions or cool quotes?"
+                    name="comment"
+                    value={data.feedback[selected].comment}
+                    height="h-[52px]"
+                    type="text"
+                    mode={mode}
+                    onChange={(e) => handleIndemnityChange(e.target.name, e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="flex items-center justify-center gap-6">
+                <div className="flex items-center justify-center gap-6">
+                  <button type='button' onClick={() => prevStep(selected)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border border-primary-14 text-primary-14 cursor-pointer">
+                    <span className="text-btn-outline-gray">Prev</span>
+
+                  </button>
+                  <button type='button' onClick={() => nextStep(selected)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-green-gradient-overlay border-[#31B700] text-white shadow-inset-white cursor-pointer">
+                    <span className="text-btn-outline-gray">Next</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+          {/* submit */}
+          {currentSlug === "submit" && (
+            <div className="flex flex-col w-[70%] sm:w-full h-full mb-[26px]">
+              <div className="flex flex-col w-[70%] sm:w-full h-[90%] gap-2 " >
+                <span className="text-welcome-card-title text-center min-w-[90%] sm:w-full mt-[42px] px-6 sm:px-[39px]">
+                  Your Indemnity is ready to submit
+                </span>
+                <span className=" text-center min-w-[90%] mb-[26px]">
+                  <span className='block' ><span className='text-booking-heading capitalize'>booking reference</span> {booking?.reference}</span>
+                  <span className='block'><span className='text-booking-subheading capitalize'>Service</span> {bookingItem?.service?.name}</span>
+                </span>
+                <div className="flex items-center justify-center h-[90%] overflow-x-auto mb-2" >
+                  <div className="grid grid-cols-1 sm:grid-cols-1 gap-4 h-full pl-7 sm:px-[12px] ">
+                    <span className='flex flex-col items-start gap-2'><span className='text-booking-subheading capitalize'>full name</span> {data.feedback[selected]?.full_name}</span>
+                    <span className='flex flex-col items-start gap-2'><span className='text-booking-subheading capitalize'>lead guide</span> {leadGuides?.find(g => g.id == data.feedback[selected]?.guide_id)?.name}</span>
+                    <span className='flex flex-col items-start gap-2'><span className='text-booking-subheading capitalize'>Were you well received upon arrival?</span> {arrivals?.find(g => g.id == data.feedback[selected]?.reception_id)?.name}</span>
+                    <span className='flex flex-col items-start gap-2'><span className='text-booking-subheading capitalize'>How was the safety briefing?</span> {safetyBrifings?.find(g => g.id == data.feedback[selected]?.briefing_id)?.name}</span>
+                    <span className='flex flex-col items-start gap-2'><span className='text-booking-subheading capitalize'>So how about that 4x4 drive?</span> {drive?.find(r => r.id == data.feedback[selected]?.experience_id)?.name}</span>
+                    <span className='flex flex-col items-start gap-2'><span className='text-booking-subheading capitalize'>How would you rate your guide's knowledge of the area?</span> {areaKnowledge?.find(c => c.id == data.feedback[selected]?.knowledge_id)?.name}</span>
+                    <span className='flex flex-col items-start gap-2'><span className='text-booking-subheading capitalize'>Did you feel comfortable and safe with your guides?</span> {comfortSafety?.find(c => c.id == data.feedback[selected]?.comfort_id)?.name}</span>
+                    <span className='flex flex-col items-start gap-2'><span className='text-booking-subheading capitalize'>Any comments, suggestions or cool quotes?</span> {data.feedback[selected]?.comment}</span>
+                    <span className='flex flex-col items-start gap-2'><span className='text-booking-subheading capitalize'>Thanks! We look forward to hanging out with you soon!</span></span>
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center justify-center gap-6">
+                <button type='button' onClick={() => prevStep(selected)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border border-primary-14 text-primary-14 cursor-pointer">
+                  <span className="text-btn-outline-gray">Prev</span>
+
+                </button>
+                <button
+                  type='button'
+                  onClick={(e) => handleSubmit(e)}
+                  disabled={processing}
+
+                  className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-green-gradient-overlay border-[#31B700] text-white shadow-inset-white cursor-pointer">
+                  <span className="text-btn-outline-gray">Submit</span>
+                </button>
+              </div>
+            </div>
+          )}
+          <div>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
