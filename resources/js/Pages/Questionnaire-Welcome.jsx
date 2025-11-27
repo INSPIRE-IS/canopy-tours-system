@@ -1,15 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Head, useForm } from '@inertiajs/react';
+import { Head, router, useForm } from '@inertiajs/react';
 import CustomButton from '@/Components/CustomButton';
 import CustomSelect from '@/Components/CustomSelect';
 import ManifestsModal from './ManifestsModal';
 
 export default function BookingLookup({ bookings }) {
-  console.log('bookings', bookings);
+  //console.log('bookings', bookings);
 
   const [BookingOptions, setBookingOptions] = useState([]);
-  const [isManifestsModalOpen, setIsManifestsModalOpen] = useState(false);
-  const [selectedManifests, setSelectedManifests] = useState(null);
+  // const [isManifestsModalOpen, setIsManifestsModalOpen] = useState(false);
+  // const [selectedManifests, setSelectedManifests] = useState(null);
 
   const { data, setData, get, post, put, errors, reset, processing } = useForm({
     booking_item_id: null,
@@ -19,11 +19,13 @@ export default function BookingLookup({ bookings }) {
     if (bookings) {
       const bookingOptions = bookings.map(booking => {
         console.log('booking', booking);
-        return {
-          id: booking.booking_item_id,
-          name: booking.lead_name + ' - ' + booking.reference, // + ' - ' + booking.service_name,
+        if (booking && booking.booking_item_id) {
+          return {
+            id: booking.booking_item_id,
+            name: booking.lead_name ?? '' + ' - ' + booking.reference ?? '', // + ' - ' + booking.service_name,
+          };
         };
-      });
+      }).filter(booking => booking !== undefined);
       //console.log('bookingOptions', bookingOptions);
       setBookingOptions(bookingOptions);
     }
@@ -47,15 +49,18 @@ export default function BookingLookup({ bookings }) {
       alert('Please select a booking');
       return;
     }
-    const booking = bookings.find(b => b.booking_item_id.toString() === data.booking_item_id);
-    console.log('booking-------------', booking);
+    const booking = bookings.find(b => b && b.booking_item_id.toString() === data.booking_item_id);
+    //console.log('booking-------------', booking);
     if (!booking) {
       alert('Booking not found');
       return;
     }
-    if (booking.lead_name) {
-      setSelectedManifests(booking);
-      setIsManifestsModalOpen(true);
+    if (booking.booking_item_id) {
+      router.get(route('front.booking-questionnaire.signed', { booking_item_id: booking.booking_item_id, reference: booking.reference }));
+
+
+      // setSelectedManifests(booking);
+      // setIsManifestsModalOpen(true);
       return;
     }
   };
@@ -140,14 +145,14 @@ export default function BookingLookup({ bookings }) {
         </div>
 
       </div>
-      <ManifestsModal
+      {/* <ManifestsModal
         isOpen={isManifestsModalOpen}
         onClose={handleCloseModal}
         mode="edit"
         booking={selectedManifests}
         tot_adults='0'
         tot_children='0'
-      />
+      /> */}
 
     </>
   );

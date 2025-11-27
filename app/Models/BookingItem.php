@@ -375,9 +375,9 @@ class BookingItem extends Model
         return $customer->parent_id == null ? 'adult' : 'child'; // $customer->age >= 18 ? 'adult' : 'child';
     }
 
-    public function calcDiscount($service_id, $season_id, $wholesaler_id, $promotion_id, $activityDate, $pax_adults, $pax_children)
+    public function calcDiscount($service_id, $season_id, $wholesaler_id, $promotion_id, $activityDate, $booking_date, $pax_adults, $pax_children)
     {
-
+        //logger()->info([$service_id, $season_id, $wholesaler_id, $promotion_id, $activityDate, $booking_date, $pax_adults, $pax_children]);
         $season = Season::findOrFail($season_id);
         $seasonAdult = $season->price_adult ?? $season->rake_rate_adult ?? 0;
         $seasonChild = $season->price_child ?? $season->rake_rate_child ?? 0;
@@ -424,10 +424,11 @@ class BookingItem extends Model
                 ->whereDate('activity_start_date', '<=', $activityDate)
                 ->whereDate('activity_end_date', '>=', $activityDate)
                 ->first();
-            logger()->info('promo ' . $promo->id);
 
-            // dd($promo);
+
+            //dd($promo);
             if ($promo) {
+                logger()->info('promo ' . $promo->id);
                 // Normalize params (supports casted array or raw JSON string)
                 $rawParams = $promo->params;
                 if (is_string($rawParams)) {

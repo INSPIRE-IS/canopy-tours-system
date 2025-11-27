@@ -38,6 +38,10 @@ class ServiceCalendarBuilder
         // Apply Promotions
         $calendar = ServicePromoCalendarBuilder::apply($calendar, $serviceId);
 
+        // 3) Funnel slots LAST
+        $calendar = self::applySlotFunneling($calendar, 2); // 2 = number of open slots allowed
+
+
         return $calendar;
     }
 
@@ -58,6 +62,9 @@ class ServiceCalendarBuilder
                 $dayOfWeek = $date->dayOfWeekIso;
                 $dateStr = $date->toDateString();
 
+                $now = now();
+                $cutoff = now()->addDay(); // 24-hour lockout                
+                // Not an allowed weekday
                 if (!in_array($dayOfWeek, $allowedDays)) {
                     $row['days'][$label] = [
                         'date' => $dateStr,
@@ -67,6 +74,29 @@ class ServiceCalendarBuilder
                     ];
                     continue;
                 }
+                // Rule: Past date
+                if ($date->isPast()) {
+                    $row['days'][$label] = [
+                        'date'   => $dateStr,
+                        'slots'  => 0,
+                        'status' => 'unavailable',
+                        'note'   => 'Past date',
+                    ];
+                    continue;
+                }
+                // Rule: Online booking closes 24h before start time
+                $slotDateTime = $date->copy()->setTimeFromTimeString($timeSlot->start_time);
+
+                if ($slotDateTime->lt($cutoff)) {
+                    $row['days'][$label] = [
+                        'date'   => $dateStr,
+                        'slots'  => 0,
+                        'status' => 'unavailable', // closed
+                        'note'   => 'Online booking closes 24h before tour',
+                    ];
+                    continue;
+                }
+
                 // once we have the booking data, we can calculate the remaining slots
                 if (true) {
                     $dateTimeStr = $dateStr . '_' . $timeSlot;
@@ -93,5 +123,67 @@ class ServiceCalendarBuilder
             $calendar[] = $row;
         }
         return $calendar;
+    }
+
+    protected static function applySlotFunneling($calendar, $maxOpen = 2)
+    {
+        // calendar is an array of rows (each row = a timeslot)
+        // we need to reorganize it per day first
+        $days = [];
+
+        foreach ($calendar as $row) {
+            foreach ($row['days'] as $label => $info) {
+                $days[$label][] = [
+                    'slot_id'  => $row['slot_id'],
+                    'time'     => $row['time'],
+                    'info'     => $info,
+                ];
+            }
+        }
+
+        // Apply funnel logic per day
+        foreach ($days as $label => &$daySlots) {
+            $openCount = 0;
+
+            // Sort by chronological order (just in case)
+            usort(
+                $daySlots,
+                fn($a, $b) =>
+                strtotime($a['time']) <=> strtotime($b['time'])
+            );
+
+            foreach ($daySlots as &$slot) {
+                // If the slot is full, it's always "allowed"
+                if ($slot['info']['status'] === 'full') {
+                    continue;
+                }
+
+                // If we already opened enough slots, close this one
+                if ($openCount >= $maxOpen) {
+                    $slot['info']['status'] = 'unavailable';
+                    $slot['info']['note'] = 'Later slots locked until earlier slots fill';
+                    continue;
+                }
+
+                // This slot is open
+                $openCount++;
+            }
+        }
+
+        // Rebuild calendar back into original shape
+        $newCalendar = [];
+        foreach ($calendar as $row) {
+            $newRow = $row;
+            foreach ($newRow['days'] as $label => &$info) {
+                foreach ($days[$label] as $slotData) {
+                    if ($slotData['slot_id'] == $newRow['slot_id']) {
+                        $info = $slotData['info'];
+                    }
+                }
+            }
+            $newCalendar[] = $newRow;
+        }
+
+        return $newCalendar;
     }
 }

@@ -8,12 +8,12 @@ import CustomSelect from '@/Components/CustomSelect';
 import CustomRadio from '@/Components/CustomRadio';
 import SignaturePad from '@/Components/SignaturePad';
 
-export default function BookingLookup({ auth, booking, bookingItem, leadGuides, safetyGuides, typeGroup, typeReferral, typeConfirmation }) {
+export default function BookingLookup({ auth, booking, bookingItem, leadGuides, safetyGuides, typeGroups, ageGroups, typeReferral, typeConfirmation }) {
   console.log("auth", auth);
   const mode = 'create';
   console.log("booking", booking);
   console.log("bookingItem", bookingItem);
-  console.log("typeGroup", typeGroup);
+  console.log("typeGroups", typeGroups);
   console.log("typeReferral", typeReferral);
   console.log("typeConfirmation", typeConfirmation);
   const [prevNext, setPrevNext] = useState(1);
@@ -25,17 +25,27 @@ export default function BookingLookup({ auth, booking, bookingItem, leadGuides, 
     safety_guide_id: "",
     type_group_id: "",
     full_name: "",
-    age: "",
+    age_id: "",
     referral_id: "",
     continent_id: "",
     country_id: "",
     province_id: "",
     medical_id: "",
     medical_detail: "",
-    is_fit: "",
-    is_agree: "",
+    is_fit: false,
+    is_agree: false,
     email_address: "",
     signature: "",
+    gender: "",
+    visitor_type: "",
+    marketing_opt_in: null,
+    birthday_month: "",
+    birthday_day: "",
+    pregnant: null,
+    guardian_name: "",
+    lunch_option: "",
+
+
   });
   const [continents, setContinents] = useState([]);
   const [countries, setCountries] = useState([]);
@@ -181,7 +191,7 @@ export default function BookingLookup({ auth, booking, bookingItem, leadGuides, 
                   What kind of a group are you with?
                 </span>
                 <div className="h-auto w-[90%] sm:w-full pl-7 sm:pl-0 overflow-x-auto">
-                  {typeGroup?.map((group, i) => (
+                  {typeGroups?.map((group, i) => (
                     <CustomRadio
                       key={group.id}
                       label={group.name}
@@ -234,22 +244,25 @@ export default function BookingLookup({ auth, booking, bookingItem, leadGuides, 
               </div>
             </div>
           )}
-          {/* enter date of birth */}
+          {/* select age group */}
           {prevNext == 5 && (
             <div className="flex flex-col h-full mb-[26px]">
               <div className="flex flex-col w-full h-[90%] gap-2" >
                 <span className="text-welcome-card-title text-center min-w-[90%] sm:w-full mt-[42px] mb-[26px] px-6 sm:px-[39px]">
-                  Please enter your Age
+                  Please select your Age Group
                 </span>
                 <div className="h-auto w-[90%] sm:w-full pl-7 sm:pl-0 overflow-x-auto">
-                  <CustomInputText
-                    name="age"
-                    value={data.age}
-                    type="text"
-                    mode={mode}
-                    onChange={(e) => setData(e.target.name, e.target.value)}
-                    errors={errors}
-                  />
+                  {ageGroups?.map((age, i) => (
+                    <CustomRadio
+                      key={age.id}
+                      label={age.name}
+                      name="age_id"
+                      value={age.id}
+                      checked={data.age_id == age.id.toString()}
+                      onChange={handleChange}
+                      errors={errors}
+                    />
+                  ))}
                 </div>
               </div>
               <div className="flex items-center justify-center gap-6">
@@ -258,38 +271,6 @@ export default function BookingLookup({ auth, booking, bookingItem, leadGuides, 
 
                 </button>
                 <button type='button' onClick={() => handlePrevNext(6)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-green-gradient-overlay border-[#31B700] text-white shadow-inset-white cursor-pointer">
-                  <span className="text-btn-outline-gray">Next</span>
-                </button>
-              </div>
-            </div>
-          )}
-          {/* referral */}
-          {prevNext == 6 && (
-            <div className="flex flex-col h-full mb-[26px]">
-              <div className="flex flex-col w-full h-[90%] gap-2 " >
-                <span className="text-welcome-card-title text-center min-w-[90%] sm:w-full mt-[42px] mb-[26px] px-6 sm:px-[39px]">
-                  Where did you hear about us
-                </span>
-                <div className="h-auto w-[90%] sm:w-full pl-7 sm:pl-0 overflow-x-auto">
-                  {typeReferral?.map((referral, i) => (
-                    <CustomRadio
-                      key={referral.id}
-                      label={referral.name}
-                      name="referral_id"
-                      value={referral.id}
-                      checked={data.referral_id == referral.id.toString()}
-                      onChange={handleChange}
-                      errors={errors}
-                    />
-                  ))}
-                </div>
-              </div>
-              <div className="flex items-center justify-center gap-6">
-                <button type='button' onClick={() => handlePrevNext(5)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border border-primary-14 text-primary-14 cursor-pointer">
-                  <span className="text-btn-outline-gray">Prev</span>
-
-                </button>
-                <button type='button' onClick={() => handlePrevNext(7)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-green-gradient-overlay border-[#31B700] text-white shadow-inset-white cursor-pointer">
                   <span className="text-btn-outline-gray">Next</span>
                 </button>
               </div>
@@ -357,7 +338,7 @@ export default function BookingLookup({ auth, booking, bookingItem, leadGuides, 
               </div>
             </div>
           )}
-          {/* Province */}
+          {/* Province shows only if country == South Africa */}
           {prevNext == 9 && (
             <div className="flex flex-col w-full sm:w-auto h-full mb-[26px]">
               <div className="flex flex-col w-full h-[90%] gap-2  " >
@@ -388,7 +369,103 @@ export default function BookingLookup({ auth, booking, bookingItem, leadGuides, 
               </div>
             </div>
           )}
-          {/* Medical */}
+          {/* group type */}
+          {prevNext == 6 && (
+            <div className="flex flex-col h-full mb-[26px]">
+              <div className="flex flex-col w-full h-[90%] gap-2 " >
+                <span className="text-welcome-card-title text-center min-w-[90%] sm:w-full mt-[42px] mb-[26px] px-6 sm:px-[39px]">
+                  Where did you hear about us
+                </span>
+                <div className="h-auto w-[90%] sm:w-full pl-7 sm:pl-0 overflow-x-auto">
+                  {typeReferral?.map((referral, i) => (
+                    <CustomRadio
+                      key={referral.id}
+                      label={referral.name}
+                      name="referral_id"
+                      value={referral.id}
+                      checked={data.referral_id == referral.id.toString()}
+                      onChange={handleChange}
+                      errors={errors}
+                    />
+                  ))}
+                </div>
+              </div>
+              <div className="flex items-center justify-center gap-6">
+                <button type='button' onClick={() => handlePrevNext(5)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border border-primary-14 text-primary-14 cursor-pointer">
+                  <span className="text-btn-outline-gray">Prev</span>
+
+                </button>
+                <button type='button' onClick={() => handlePrevNext(7)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-green-gradient-overlay border-[#31B700] text-white shadow-inset-white cursor-pointer">
+                  <span className="text-btn-outline-gray">Next</span>
+                </button>
+              </div>
+            </div>
+          )}
+          {/* marketing opt-in */}
+          {/* Email only required if marketing opt-in is YES */}
+          {prevNext == 13 && (
+            <div className="flex flex-col h-full mb-[26px]">
+              <div className="flex flex-col w-full h-[90%] gap-2" >
+                <span className="text-welcome-card-title text-center min-w-[90%] sm:w-full mt-[42px] mb-[26px] px-6 sm:px-[39px]">
+                  Please enter your email address
+                </span>
+                <div className="h-auto w-[90%] sm:w-full pl-7 sm:pl-0 overflow-x-auto">
+                  <CustomInputText
+                    name="email_address"
+                    value={data.email_address}
+                    type="text"
+                    mode={mode}
+                    onChange={(e) => setData(e.target.name, e.target.value)}
+                    errors={errors}
+                  />
+                </div>
+              </div>
+              <div className="flex items-center justify-center gap-6">
+                <button type='button' onClick={() => handlePrevNext(12)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border border-primary-14 text-primary-14 cursor-pointer">
+                  <span className="text-btn-outline-gray">Prev</span>
+
+                </button>
+                <button type='button' onClick={() => handlePrevNext(14)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-green-gradient-overlay border-[#31B700] text-white shadow-inset-white cursor-pointer">
+                  <span className="text-btn-outline-gray">Next</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Birthday (month + day) */}
+          {/* referral */}
+          {prevNext == 6 && (
+            <div className="flex flex-col h-full mb-[26px]">
+              <div className="flex flex-col w-full h-[90%] gap-2 " >
+                <span className="text-welcome-card-title text-center min-w-[90%] sm:w-full mt-[42px] mb-[26px] px-6 sm:px-[39px]">
+                  Where did you hear about us
+                </span>
+                <div className="h-auto w-[90%] sm:w-full pl-7 sm:pl-0 overflow-x-auto">
+                  {typeReferral?.map((referral, i) => (
+                    <CustomRadio
+                      key={referral.id}
+                      label={referral.name}
+                      name="referral_id"
+                      value={referral.id}
+                      checked={data.referral_id == referral.id.toString()}
+                      onChange={handleChange}
+                      errors={errors}
+                    />
+                  ))}
+                </div>
+              </div>
+              <div className="flex items-center justify-center gap-6">
+                <button type='button' onClick={() => handlePrevNext(5)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border border-primary-14 text-primary-14 cursor-pointer">
+                  <span className="text-btn-outline-gray">Prev</span>
+
+                </button>
+                <button type='button' onClick={() => handlePrevNext(7)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-green-gradient-overlay border-[#31B700] text-white shadow-inset-white cursor-pointer">
+                  <span className="text-btn-outline-gray">Next</span>
+                </button>
+              </div>
+            </div>
+          )}
+          {/* Medical detail text only when YES */}
           {prevNext == 10 && (
             <div className="flex flex-col w-full sm:w-auto h-full mb-[26px]">
 
@@ -413,7 +490,7 @@ export default function BookingLookup({ auth, booking, bookingItem, leadGuides, 
                 <div className="h-auto w-[90%] sm:w-[672px] pl-7 sm:pl-0 overflow-x-auto">
                   <CustomInputText
                     title="Please let us know what medical conditions you have and confirm that your doctor 
-                        has agreed that you may partake in this activity?"
+  has agreed that you may partake in this activity?"
                     name="medical_detail"
                     value={data.medical_detail}
                     height="h-[52px]"
@@ -433,6 +510,8 @@ export default function BookingLookup({ auth, booking, bookingItem, leadGuides, 
               </div>
             </div>
           )}
+          {/* Gender */}
+          {/* Pregnancy shows only if female */}
           {/* Fit */}
           {prevNext == 11 && (
             <div className="flex flex-col w-full sm:w-auto h-full mb-[26px]">
@@ -500,35 +579,10 @@ export default function BookingLookup({ auth, booking, bookingItem, leadGuides, 
 
             </div>
           )}
-          {/* Email */}
-          {prevNext == 13 && (
-            <div className="flex flex-col h-full mb-[26px]">
-              <div className="flex flex-col w-full h-[90%] gap-2" >
-                <span className="text-welcome-card-title text-center min-w-[90%] sm:w-full mt-[42px] mb-[26px] px-6 sm:px-[39px]">
-                  Please enter your email address
-                </span>
-                <div className="h-auto w-[90%] sm:w-full pl-7 sm:pl-0 overflow-x-auto">
-                  <CustomInputText
-                    name="email_address"
-                    value={data.email_address}
-                    type="text"
-                    mode={mode}
-                    onChange={(e) => setData(e.target.name, e.target.value)}
-                    errors={errors}
-                  />
-                </div>
-              </div>
-              <div className="flex items-center justify-center gap-6">
-                <button type='button' onClick={() => handlePrevNext(12)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border border-primary-14 text-primary-14 cursor-pointer">
-                  <span className="text-btn-outline-gray">Prev</span>
+          {/* Lunch order (optional) */}
+          {/* Full indemnity legal text from CTSA */}
+          {/* Guardian shows only if age < 18 */}
 
-                </button>
-                <button type='button' onClick={() => handlePrevNext(14)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-green-gradient-overlay border-[#31B700] text-white shadow-inset-white cursor-pointer">
-                  <span className="text-btn-outline-gray">Next</span>
-                </button>
-              </div>
-            </div>
-          )}
           {/* signature */}
           {prevNext == 14 && (
             <div className="flex flex-col h-full mb-[26px]">
@@ -572,7 +626,7 @@ export default function BookingLookup({ auth, booking, bookingItem, leadGuides, 
                   <span className='flex items-center gap-2'><span className='text-booking-subheading capitalize'>safety guide</span> {safetyGuides?.find(g => g.id == data?.safety_guide_id)?.name}</span>
                   <span className='flex items-center gap-2'><span className='text-booking-subheading capitalize'>type group</span> {typeGroup?.find(g => g.id == data?.type_group_id)?.name}</span>
                   <span className='flex items-center gap-2'><span className='text-booking-subheading capitalize'>full name</span> {data?.full_name}</span>
-                  <span className='flex items-center gap-2'><span className='text-booking-subheading capitalize'>age</span> {data?.age}</span>
+                  <span className='flex items-center gap-2'><span className='text-booking-subheading capitalize'>age</span> {typeAge?.find(g => g.id == data?.age_id)?.name}</span>
                   <span className='flex items-center gap-2'><span className='text-booking-subheading capitalize'>referral</span> {typeReferral?.find(r => r.id == data?.referral_id)?.name}</span>
                   <span className='flex items-center gap-2'><span className='text-booking-subheading capitalize'>continent</span> {continents?.find(c => c.id == data?.continent_id)?.name}</span>
                   <span className='flex items-center gap-2'><span className='text-booking-subheading capitalize'>country</span> {countries?.find(c => c.id == data?.country_id)?.name}</span>

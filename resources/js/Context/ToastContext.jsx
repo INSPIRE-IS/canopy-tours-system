@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useCallback } from "react";
 
 const ToastContext = createContext();
 export const useToast = () => useContext(ToastContext);
-console.log('useToast', useToast);
+// console.log('useToast', useToast);
 const toastColors = {
     success: "bg-green-100 border-green-500 text-green-800",
     error: "bg-red-100 border-red-500 text-red-800",

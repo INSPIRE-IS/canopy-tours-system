@@ -32,6 +32,23 @@ class Questionnaire extends Model
         'updated_by_id',
     ];
 
+    const AGES = [
+        ['id' => 1, 'name' => '5-17'],
+        ['id' => 2, 'name' => '18-30'],
+        ['id' => 3, 'name' => '31-50'],
+        ['id' => 4, 'name' => '51-103'],
+    ];
+
+    const GENDERS = [
+        ['id' => 1, 'name' => 'MALE'],
+        ['id' => 2, 'name' => 'FEMALE'],
+    ];
+
+    const DOCUMENTS = [
+        ['id' => 'final_confirmation', 'name' => 'Have a lekker adventure'],
+        ['id' => 'indemnity_text', 'name' => 'indemnity text'],
+    ];
+
     public function fields()
     {
         return $this->belongsToMany(QuestionnaireField::class)

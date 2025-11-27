@@ -1,6 +1,6 @@
 const CustomRadio = ({ label, name, value, outerWidth = 'w-full', checked, onChange, errors }) => {
     return (
-        <div className={`flex w-full`}>
+        <div className={`flex w-full items-center justify-center`}>
             <div className={`flex rounded-[10px] ${outerWidth} border border-[#F1F1F5] sm:w-[672px] h-[60px] `}>
                 <div className="flex items-center gap-[18px] p-3">
                     <input

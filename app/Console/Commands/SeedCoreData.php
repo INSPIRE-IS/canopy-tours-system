@@ -45,8 +45,10 @@ use App\Models\InvoiceTemplate;
 use App\Models\Lookup;
 use App\Models\LookupItem;
 use App\Models\Promotion;
+use App\Models\Question;
 use App\Models\Questionnaire;
 use App\Models\QuestionnaireField;
+use App\Models\QuestionSite;
 use App\Models\StatusPayment;
 use App\Models\TypeAlert;
 use App\Models\TypeConfirmation;
@@ -558,6 +560,7 @@ class SeedCoreData extends Command
             ['id' => 16, 'name' => 'group type'],   // <input type="checkbox">
             ['id' => 17, 'name' => 'referral type'],   // <input type="checkbox">
             ['id' => 18, 'name' => 'confirmation type'],   // <input type="checkbox">
+            ['id' => 19, 'name' => 'age type'],   // <input type="checkbox">
         ]; //'text', 'textarea', 'number', 'select', 'radio', 'checkbox', 'date' 
         foreach ($type_inputs as $type_input) {
             TypeInput::updateOrCreate(['id' => $type_input['id']], $type_input);
@@ -3205,7 +3208,7 @@ class SeedCoreData extends Command
                 'id' => 5,
                 'question' => 'Age',
                 'slug' => 'age',
-                'type_input_id' => 3,
+                'type_input_id' => 19,
                 'type_data_id' => 3,
                 'required' => true,
                 'hidden' => false,
@@ -3450,6 +3453,535 @@ class SeedCoreData extends Command
         }
 
         $this->info('Core data seeded successfully.');
+
+        $questions = [
+            [
+                'id' => 1,
+                'name' => "Select your Lead Guide",
+                'description' => null,
+                'slug' => 'lead_guide_id',
+                'options' => [],
+                'conditional_logic' => null,
+                'type' => 'indemnity',
+            ],
+            [
+                'id' => 2,
+                'name' => 'Select your Safety Guide',
+                'description' => null,
+                'slug' => 'safety_guide_id',
+                'options' => [],
+                'conditional_logic' => null,
+                'type' => 'indemnity',
+            ],
+            [
+                'id' => 3,
+                'name' => 'Select group',
+                'description' => null,
+                'slug' => 'type_group_id',
+                'options' => [],
+                'conditional_logic' => null,
+                'type' => 'indemnity',
+            ],
+            [
+                'id' => 4,
+                'name' => 'First + last name',
+                'description' => null,
+                'slug' => 'full_name',
+                'options' => [],
+                'conditional_logic' => null,
+                'type' => 'indemnity',
+            ],
+            [
+                'id' => 5,
+                'name' => 'Age group',
+                'description' => null,
+                'slug' => 'age_id',
+                'options' => [],
+                'conditional_logic' => null,
+                'type' => 'indemnity',
+            ],
+            [
+                'id' => 6,
+                'name' => 'Referral',
+                'description' => null,
+                'slug' => 'referral_id',
+                'options' => [],
+                'conditional_logic' => null,
+                'type' => 'indemnity',
+            ],
+            [
+                'id' => 7,
+                'name' => 'Continent',
+                'description' => null,
+                'slug' => 'continent_id',
+                'options' => [],
+                'conditional_logic' => null,
+                'type' => 'indemnity',
+            ],
+            [
+                'id' => 8,
+                'name' => 'Country',
+                'description' => null,
+                'slug' => 'country_id',
+                'options' => [],
+                'conditional_logic' => null,
+                'type' => 'indemnity',
+            ],
+            [
+                'id' => 9,
+                'name' => 'Province (if SA)',
+                'description' => null,
+                'slug' => 'province_id',
+                'options' => [],
+                'conditional_logic' => null,
+                'type' => 'indemnity',
+            ],
+            [
+                'id' => 10,
+                'name' => 'Medical',
+                'description' => null,
+                'slug' => 'medical_id',
+                'options' => [],
+                'conditional_logic' => null,
+                'type' => 'indemnity',
+            ],
+            [
+                'id' => 11,
+                'name' => 'Medical conditions',
+                'description' => null,
+                'slug' => 'medical_detail',
+                'options' => [],
+                'conditional_logic' => null,
+                'type' => 'indemnity',
+            ],
+            [
+                'id' => 12,
+                'name' => 'Fitness',
+                'description' => null,
+                'slug' => 'is_fit',
+                'options' => [],
+                'conditional_logic' => null,
+                'type' => 'indemnity',
+            ],
+            [
+                'id' => 13,
+                'name' => 'Indemnity terms',
+                'description' => null,
+                'slug' => 'is_agree',
+                'options' => [],
+                'conditional_logic' => null,
+                'type' => 'indemnity',
+            ],
+            [
+                'id' => 14,
+                'name' => 'Email',
+                'description' => null,
+                'slug' => 'email_address',
+                'options' => [],
+                'conditional_logic' => null,
+                'type' => 'indemnity',
+            ],
+            [
+                'id' => 15,
+                'name' => 'Signature',
+                'description' => null,
+                'slug' => 'signature',
+                'options' => [],
+                'conditional_logic' => null,
+                'type' => 'indemnity',
+            ],
+            [
+                'id' => 16,
+                'name' => 'Gender',
+                'description' => null,
+                'slug' => 'gender',
+                'options' => [],
+                'conditional_logic' => null,
+                'type' => 'indemnity',
+            ],
+            [
+                'id' => 17,
+                'name' => 'Visitor type (individual, couple, etc.)',
+                'description' => null,
+                'slug' => 'visitor_type',
+                'options' => [],
+                'conditional_logic' => null,
+                'type' => 'indemnity',
+            ],
+            [
+                'id' => 18,
+                'name' => 'Marketing source',
+                'description' => null,
+                'slug' => 'marketing_opt_in',
+                'options' => [],
+                'conditional_logic' => null,
+                'type' => 'indemnity',
+            ],
+            [
+                'id' => 19,
+                'name' => 'Birthday month',
+                'description' => null,
+                'slug' => 'birthday_month',
+                'options' => [],
+                'conditional_logic' => null,
+                'type' => 'indemnity',
+            ],
+            [
+                'id' => 20,
+                'name' => 'Birthday day',
+                'description' => null,
+                'slug' => 'birthday_day',
+                'options' => [],
+                'conditional_logic' => null,
+                'type' => 'indemnity',
+            ],
+            [
+                'id' => 21,
+                'name' => 'Pregnancy',
+                'description' => null,
+                'slug' => 'pregnant',
+                'options' => [],
+                'conditional_logic' => ["rule" => "female only"],
+                'type' => 'indemnity',
+            ],
+            [
+                'id' => 22,
+                'name' => 'Guardian name',
+                'description' => null,
+                'slug' => 'guardian_name',
+                'options' => [],
+                'conditional_logic' => ["rule" => 'if age 5–17'],
+                'type' => 'indemnity',
+            ],
+            [
+                'id' => 23,
+                'name' => 'Lunch option',
+                'description' => null,
+                'slug' => 'lunch_option',
+                'options' => [],
+                'conditional_logic' => null,
+                'type' => 'indemnity',
+            ],
+            [
+                'id' => 24,
+                'name' => 'Guide ID',
+                'description' => null,
+                'slug' => 'guide_id',
+                'options' => [],
+                'conditional_logic' => null,
+                'type' => 'feedback',
+            ],
+            [
+                'id' => 25,
+                'name' => 'Customer ID',
+                'description' => null,
+                'slug' => 'customer_id',
+                'options' => [],
+                'conditional_logic' => null,
+                'type' => 'feedback',
+            ],
+            [
+                'id' => 26,
+                'name' => 'Reception rating',
+                'description' => null,
+                'slug' => 'reception_id',
+                'options' => [],
+                'conditional_logic' => null,
+                'type' => 'feedback',
+            ],
+            [
+                'id' => 27,
+                'name' => 'Safety briefing rating',
+                'description' => null,
+                'slug' => 'briefing_id',
+                'options' => [],
+                'conditional_logic' => null,
+                'type' => 'feedback',
+            ],
+            [
+                'id' => 28,
+                'name' => '4x4 experience rating',
+                'description' => null,
+                'slug' => 'experience_id',
+                'options' => [],
+                'conditional_logic' => null,
+                'type' => 'feedback',
+            ],
+            [
+                'id' => 29,
+                'name' => 'Guide knowledge rating',
+                'description' => null,
+                'slug' => 'knowledge_id',
+                'options' => [],
+                'conditional_logic' => null,
+                'type' => 'feedback',
+            ],
+            [
+                'id' => 30,
+                'name' => 'Safety comfort rating',
+                'description' => null,
+                'slug' => 'comfort_id',
+                'options' => [],
+                'conditional_logic' => null,
+                'type' => 'feedback',
+            ],
+            [
+                'id' => 31,
+                'name' => 'Comments',
+                'description' => null,
+                'slug' => 'comment',
+                'options' => [],
+                'conditional_logic' => null,
+                'type' => 'feedback',
+            ],
+        ];
+
+        foreach ($questions as $question) {
+            Question::updateOrCreate(['id' => $question['id']], $question);
+        }
+
+        $questionSites = [
+            [
+                'id' => 1,
+                'enabled' => 0,
+                'sort_order' => 1,
+                'question_id' => 1,
+                'service_id' => null,
+            ],
+            [
+                'id' => 2,
+                'enabled' => 0,
+                'sort_order' => 2,
+                'question_id' => 2, // type_group_id"
+                'service_id' => null,
+            ],
+            [
+                'id' => 3,
+                'enabled' => 1,
+                'sort_order' => 1,
+                'question_id' => 3, // full_name"
+                'service_id' => null,
+            ],
+            [
+                'id' => 4,
+                'enabled' => 1,
+                'sort_order' => 2,
+                'question_id' => 4, // age_id"
+                'service_id' => null,
+            ],
+            [
+                'id' => 5,
+                'enabled' => 1,
+                'sort_order' => 5,
+                'question_id' => 5, // "referral_id"
+                'service_id' => null,
+            ],
+            [
+                'id' => 6,
+                'enabled' => 1,
+                'sort_order' => 3,
+                'question_id' => 6, // "continent_id"
+                'service_id' => null,
+            ],
+            [
+                'id' => 7,
+                'enabled' => 1,
+                'sort_order' => 4,
+                'question_id' => 7, // "country_id"
+                'service_id' => null,
+            ],
+            [
+                'id' => 8,
+                'enabled' => 1,
+                'sort_order' => 5,
+                'question_id' => 8, // "province_id"
+                'service_id' => null,
+            ],
+            [
+                'id' => 9,
+                'enabled' => 1,
+                'sort_order' => 9,
+                'question_id' => 9, // "medical_id"
+                'service_id' => null,
+            ],
+            [
+                'id' => 10,
+                'enabled' => 1,
+                'sort_order' => 10,
+                'question_id' => 10, // "medical_detail"
+                'service_id' => null,
+            ],
+            [
+                'id' => 11,
+                'enabled' => 1,
+                'sort_order' => 11,
+                'question_id' => 11, // "is_fit"
+                'service_id' => null,
+            ],
+            [
+                'id' => 12,
+                'enabled' => 1,
+                'sort_order' => 12,
+                'question_id' => 12, // "is_agree"
+                'service_id' => null,
+            ],
+            [
+                'id' => 13,
+                'enabled' => 1,
+                'sort_order' => 13,
+                'question_id' => 13, // "email_address"
+                'service_id' => null,
+            ],
+            [
+                'id' => 14,
+                'enabled' => 1,
+                'sort_order' => 14,
+                'question_id' => 14, // "signature"
+                'service_id' => null,
+            ],
+            [
+                'id' => 15,
+                'enabled' => 1,
+                'sort_order' => 15,
+                'question_id' => 15, // "gender"
+                'service_id' => null,
+            ],
+            [
+                'id' => 16,
+                'enabled' => 1,
+                'sort_order' => 16,
+                'question_id' => 16, // "visitor_type"
+                'service_id' => null,
+            ],
+            [
+                'id' => 17,
+                'enabled' => 1,
+                'sort_order' => 17,
+                'question_id' => 17, // "marketing_opt_in"
+                'service_id' => null,
+            ],
+            [
+                'id' => 18,
+                'enabled' => 1,
+                'sort_order' => 18,
+                'question_id' => 18, // "birthday_month"
+                'service_id' => null,
+            ],
+            [
+                'id' => 19,
+                'enabled' => 1,
+                'sort_order' => 19,
+                'question_id' => 19, // "birthday_day"
+                'service_id' => null,
+            ],
+            [
+                'id' => 20,
+                'enabled' => 1,
+                'sort_order' => 20,
+                'question_id' => 20, // "pregnant"
+                'service_id' => null,
+            ],
+            [
+                'id' => 21,
+                'enabled' => 1,
+                'sort_order' => 21,
+                'question_id' => 21, // "guardian_name"
+                'service_id' => null,
+            ],
+            [
+                'id' => 22,
+                'enabled' => 1,
+                'sort_order' => 22,
+                'question_id' => 22, // "lunch_option"
+                'service_id' => null,
+            ],
+            [
+                'id' => 23,
+                'enabled' => 1,
+                'sort_order' => 23,
+                'question_id' => 23,
+                'service_id' => null,
+            ],
+            [
+                'id' => 24,
+                'enabled' => 1,
+                'sort_order' => 24,
+                'question_id' => 24,
+                'service_id' => null,
+            ],
+            [
+                'id' => 25,
+                'enabled' => 1,
+                'sort_order' => 25,
+                'question_id' => 25,
+                'service_id' => null,
+            ],
+            [
+                'id' => 26,
+                'enabled' => 1,
+                'sort_order' => 26,
+                'question_id' => 26,
+                'service_id' => null,
+            ],
+            [
+                'id' => 27,
+                'enabled' => 1,
+                'sort_order' => 27,
+                'question_id' => 27,
+                'service_id' => null,
+            ],
+            [
+                'id' => 28,
+                'enabled' => 1,
+                'sort_order' => 28,
+                'question_id' => 28,
+                'service_id' => null,
+            ],
+            [
+                'id' => 29,
+                'enabled' => 1,
+                'sort_order' => 29,
+                'question_id' => 29,
+                'service_id' => null,
+            ],
+            [
+                'id' => 30,
+                'enabled' => 1,
+                'sort_order' => 30,
+                'question_id' => 30,
+                'service_id' => null,
+            ],
+            [
+                'id' => 31,
+                'enabled' => 1,
+                'sort_order' => 31,
+                'question_id' => 31,
+                'service_id' => null,
+            ],
+        ];
+
+
+        foreach ($services as $service) {
+            foreach ($questionSites as $questionSite) {
+                $questionSite['service_id'] = $service['id'];
+                QuestionSite::updateOrCreate(
+                    [
+                        'id' => $questionSite['id'],
+                        'service_id' => $service['id'],
+                    ],
+                    $questionSite
+                );
+            }
+        }
+
+
+
+        //    booking_id: booking.id,
+        //     booking_item_id: bookingItem.id,
+        //     team_id: booking?.team_id,
+
+
+
 
         // php artisan seed:core-data
     }

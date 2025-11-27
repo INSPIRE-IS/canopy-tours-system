@@ -90,6 +90,7 @@ Route::get('front/voucher', [ActivityController::class, 'voucher'])->name('front
 Route::put('front/customer-manifests/edit', [BookingQuestionnaireController::class, 'UpdateCustomerManifest'])->name('front.customer-manifests.edit');
 Route::get('/check-reference/{reference}', [BookingQuestionnaireController::class, 'reference'])->name('check-reference');
 //Route::get('front/booking-questionnaire/checkin', [BookingQuestionnaireController::class, 'checkin'])->name('front.booking-questionnaire.checkin');
+Route::get('front/booking-questionnaire/signed', [BookingQuestionnaireController::class, 'signed'])->name('front.booking-questionnaire.signed');
 Route::get(
     'front/booking-questionnaire/checkin',
     [BookingQuestionnaireController::class, 'checkin']

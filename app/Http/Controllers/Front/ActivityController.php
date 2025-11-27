@@ -239,7 +239,12 @@ class ActivityController extends Controller
             'month' => 30,
             default => 7
         };
-
+        Log::info('viewMode ' . $viewMode);
+        Log::info('days ' . $days);
+        // RULE 1 — Remove today and any past date
+        if ($startDate->lte(now()->startOfDay())) {
+            $startDate = now()->addDay()->startOfDay(); // start at tomorrow
+        }
         $endDate = (clone $startDate)->addDays($days - 1);
 
         $season  = Season::findOrFail($activityId);

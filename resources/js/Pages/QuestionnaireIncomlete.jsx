@@ -506,19 +506,10 @@ export default function BookingLookup({ auth, bookingId, leadGuides, safetyGuide
 
             </div>
           )}
-
-
-
           <div>
-
-
           </div>
-
-
         </div>
       </div>
-
-
     </>
   );
 }
