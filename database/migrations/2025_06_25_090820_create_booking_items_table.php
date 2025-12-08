@@ -35,6 +35,8 @@ return new class extends Migration
 
             $table->timestamps();
             $table->softDeletes();
+
+            $table->foreignId('team_id')->nullable()->constrained('teams');
         });
     }
 

@@ -310,6 +310,11 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                             <img src="/assets/icons/plus.svg" alt="bookings" className="w-5 h-5" />
                             <span className="text-btn-outline-gray">Check in</span>
                         </button>
+                        <button onClick={() => router.get(route('front.feedback-questionnaire.index'))} className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-red-gradient-overlay border-[#C65468] text-white shadow-inset-white cursor-pointer">
+                            <img src="/assets/icons/plus.svg" alt="bookings" className="w-5 h-5" />
+                            <span className="text-btn-outline-gray">Feedback</span>
+                        </button>
+
                     </span>
                 </div>
                 {/* bottom */}

@@ -43,6 +43,68 @@ use Storage;
 class FeedbackQuestionnaireController extends Controller
 {
 
+    public function index()
+    {
+        $booking_items = BookingItem::with([
+            'service',
+            'booking.files',
+            'customers',
+            'customer_manifests',
+            'booking_detail',
+            'booking_fee',
+            'booking_inventory',
+        ])->get();
+        // dd($booking_items);
+
+        $formatted = $booking_items->map(function ($booking_item) {
+
+            //
+
+            try {
+                // Skip if manifests missing or incomplete
+                $manifests = $booking_item->customer_manifests;
+                //dd($manifests->isEmpty());
+                if ($manifests->isEmpty()) return null;
+                if ($manifests->contains(fn($m) => !$m->is_indemnity)) return null;
+
+                $price = $booking_item->booking_fee->tot_amount;
+                $paid = $booking_item->booking_fee->tot_paid;
+                $due = $price - $paid;
+
+
+                $customers = $booking_item->paxWithCustomers();
+                //dd($booking_item);
+                $info = [
+                    'id' => $booking_item->booking->id,
+                    'booking_item_id' => $booking_item->id,
+                    'service_id' => $booking_item->service_id,
+                    'service_name' => $booking_item->service->name,
+                    'reference' => $booking_item->booking->reference,
+                    'lead_name' => $booking_item->booking->lead_name . ' - ' . $booking_item->service->name,
+                    'lead_id' => $booking_item->booking->customer_id,
+                    'customers' => $customers,
+                ];
+                //dd($info);
+                return $info;
+            } catch (\Throwable $e) {
+                Log::error('Booking', [
+                    'message' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString(),
+                    'input' => $booking_item,
+                ]);
+                //dd($booking_item);
+                return null;
+            }
+        })
+            ->filter()   // remove nulls
+            ->values();
+        //dd($formatted);
+        return Inertia::render('Feedback-Welcome', [
+            'bookings' => $formatted,
+        ]);
+    }
+
+
     public function signed(Request $request)
     {
         $validated = $request->validate([
@@ -278,10 +340,10 @@ class FeedbackQuestionnaireController extends Controller
                 'bookings' => $formatted,
             ]);
         } catch (InvalidSignatureException $e) {
-            // return Inertia::render('Front/BookingQuestionnaire/Expired', [
-            //     'message' => 'Your check-in link has expired. Please restart the process.'
-            // ]);
-            return redirect()->route('booking-questionnaire.index');
+            return Inertia::render('Front/BookingQuestionnaire/Expired', [
+                'message' => 'Your check-in link has expired. Please restart the process.'
+            ]);
+            return redirect()->route('feedback-questionnaire.index');
         }
     }
 

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Traits\Auditable;
+use App\Traits\MultiTenantModelTrait;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -10,7 +11,7 @@ use Illuminate\Support\Facades\Log;
 
 class BookingItem extends Model
 {
-    use HasFactory, SoftDeletes, Auditable;
+    use HasFactory, MultiTenantModelTrait, SoftDeletes, Auditable;
 
     public $table = 'booking_items';
 
@@ -31,7 +32,7 @@ class BookingItem extends Model
         'created_at',
         'updated_at',
         'deleted_at',
-        // 'team_id',
+        'team_id',
     ];
 
     // protected function serializeDate(DateTimeInterface $date)
@@ -59,12 +60,12 @@ class BookingItem extends Model
 
     public function booking_detail()
     {
-        return $this->hasOne(BookingDetail::class);
+        return $this->hasOne(BookingDetail::class, 'booking_item_id', 'id');
     }
 
     public function booking_fee()
     {
-        return $this->hasOne(BookingFee::class);
+        return $this->hasOne(BookingFee::class, 'booking_item_id', 'id');
     }
 
     // public function booking_payments()

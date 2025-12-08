@@ -18,7 +18,7 @@ return new class extends Migration
             $table->string('slug');
             $table->json('options')->nullable();
             $table->text('conditional_logic')->nullable(); //  e.g. show this only if Age < 18
-            $table->json('type', ['indemnity', 'feedback'])->nullable();
+            $table->enum('type', ['indemnity', 'feedback'])->nullable();
             $table->timestamps();
             $table->softDeletes();
         });

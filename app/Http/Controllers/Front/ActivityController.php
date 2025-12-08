@@ -33,6 +33,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use PHPUnit\Framework\Constraint\IsFalse;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Route;
 use Str;
 
@@ -215,7 +216,7 @@ class ActivityController extends Controller
             'start_date' => $startDate->toDateString(),
             'view_mode' => $viewMode,
             'days' => collect(CarbonPeriod::create($startDate, $endDate))
-                ->map(fn($d) => $d->format('D d'))
+                ->map(fn(\Carbon\Carbon $d) => $d->format('D d'))
                 ->values(),
             'i_adults' => $request->input('adults', 0),
             'i_children' => $request->input('children', 0),
@@ -259,7 +260,7 @@ class ActivityController extends Controller
             return response()->json([
                 'schedule' => [],
                 'days'     => collect(CarbonPeriod::create($startDate, $endDate))
-                    ->map(fn($d) => $d->format('D d'))
+                    ->map(fn(\Carbon\Carbon $d) => $d->format('D d'))
                     ->values(),
                 'message'  => 'Selected date is outside the inventory availability period.',
             ], 200);
@@ -295,7 +296,7 @@ class ActivityController extends Controller
         return response()->json([
             'schedule' => $schedule,
             'days'     => collect(CarbonPeriod::create($startDate, $endDate))
-                ->map(fn($d) => $d->format('D d'))
+                ->map(fn(\Carbon\Carbon $d) => $d->format('D d'))
                 ->values(),
             'message'  => '',
             'i_adults' => $request->input('adults', 0),
@@ -365,378 +366,6 @@ class ActivityController extends Controller
 
         return response()->json(['status' => true, 'promo' => $promo]);
     }
-
-    public function calendar1(Request $request)
-    {
-
-        $activityId = $request->input('activity_id');
-        $viewMode = $request->input('view_mode', 'week');
-        $startDate = Carbon::parse($request->input('start_date', now()));
-        $totalRequested = (int) $request->input('adults', 0) + (int) $request->input('children', 0);
-        $days = match ($viewMode) {
-            'day' => 1,
-            'week' => 7,
-            'month' => 30,
-            default => 7
-        };
-        $endDate = (clone $startDate)->addDays($days - 1);
-        //dd($endDate);
-        $season = Season::findOrFail($activityId);
-        $service = Service::findOrFail($season->service_id);
-
-        $inventory = Inventory::with(['inventory_type_days', 'inventory_time_slots'])->where('season_id', $season->id)->first();
-        //dd($inventory);
-        if ($startDate->lt(Carbon::parse($season->start_date)) || $endDate->gt(Carbon::parse($season->end_date))) {
-            return response()->json([
-                'schedule' => [],
-                'days' => [],
-                'message' => 'Selected date is outside the inventory availability period.',
-            ], 200); // Or 200 with flag
-        }
-
-        if (true) {
-            $bookingData = DB::table('bookings as b')
-                ->leftJoin('booking_inventories as bi', 'bi.booking_id', '=', 'b.id')
-                ->leftJoin('inventory_type_days as itd', 'itd.id', '=', 'bi.inventory_type_day_id')
-                ->leftJoin('type_days as td', 'td.id', '=', 'itd.type_day_id')
-                ->leftJoin('inventory_time_slots as its', 'its.id', '=', 'bi.inventory_time_slot_id')
-                ->leftJoin('inventory_overrides as io', 'io.id', '=', 'bi.inventory_override_id')
-                ->where('b.inventory_id', $activityId)
-                ->whereBetween('bi.date', [$startDate->toDateString(), $endDate->toDateString()])
-                ->select([
-                    'bi.date',
-                    'td.name as day',
-                    'its.start_time as time',
-                    DB::raw('SUM(bi.pax) as total')
-                ])
-                ->groupBy('bi.date', 'td.name', 'its.start_time')
-                ->get()
-                ->keyBy(fn($row) => $row->date . '_' . $row->time);
-        }
-        // dd($bookingData);
-
-        //dd($inventory);
-        $allowedDays = $inventory->inventory_type_days->pluck('type_day_id')->toArray();
-
-        $closeouts = Closeout::with('closeout_day_time_slots')->where('service_id', $inventory->service_id)
-            ->where('season_id', $inventory->season_id)
-            ->get();
-        logger()->info("$closeouts");
-        // Build a map of blocked time slots keyed by date
-        $blockedSlots = [];
-
-        foreach ($closeouts as $c) {
-            $start = Carbon::parse($c->start_date);
-            $end   = Carbon::parse($c->end_date);
-
-            foreach (CarbonPeriod::create($start, $end) as $date) {
-                $dateStr = $date->format('Y-m-d');
-                $dayOfWeek = $date->dayOfWeekIso; // 1 (Mon) - 7 (Sun)
-
-                // If no slots defined → whole day blocked
-                if ($c->closeout_day_time_slots->isEmpty()) {
-                    $blockedSlots[$dateStr] = 'ALL';
-                } else {
-                    foreach ($c->closeout_day_time_slots as $slot) {
-                        if ((int)$slot->day_id === $dayOfWeek) {
-                            $blockedSlots[$dateStr][$slot->time_slot_id] = true;
-                        }
-                    }
-                }
-            }
-        }
-
-        $timeSlots = $inventory->inventory_time_slots->pluck('start_time')->unique()->sort();
-        $schedule = [];
-
-        foreach ($timeSlots as $timeSlot) {
-            $row = [
-                'time' => $timeSlot,
-                'days' => []
-            ];
-
-            foreach (CarbonPeriod::create($startDate, $endDate) as $date) {
-                $label = $date->format('D d');
-                $dayOfWeek = $date->dayOfWeekIso;
-                $dateStr = $date->toDateString();
-
-                if (!in_array($dayOfWeek, $allowedDays)) {
-                    $row['days'][$label] = [
-                        'date' => $dateStr,
-                        'slots' => 0,
-                        'status' => 'unavailable',
-                        'note' => 'Not an allowed day',
-                    ];
-                    continue;
-                }
-
-                if (isset($blockedSlots[$dateStr])) {
-                    if ($blockedSlots[$dateStr] === 'ALL') {
-                        // Full-day closeout
-                        $row['days'][$label] = [
-                            'date' => $dateStr,
-                            'slots' => 0,
-                            'status' => 'blocked_day',
-                            'note' => 'Blocked whole day',
-                        ];
-                        continue;
-                    }
-                    // Slot-level closeout
-                    $slotModel = $inventory->inventory_time_slots->firstWhere('start_time', $timeSlot);
-                    if ($slotModel && isset($blockedSlots[$dateStr][$slotModel->id])) {
-                        $row['days'][$label] = [
-                            'date' => $dateStr,
-                            'slots' => 0,
-                            'status' => 'blocked_slot',
-                            'note' => 'Blocked slot',
-                        ];
-                        continue;
-                    }
-                }
-                // once we have the booking data, we can calculate the remaining slots
-                if (true) {
-                    $dateTimeStr = $dateStr . '_' . $timeSlot;
-                    $booked = $bookingData[$dateTimeStr]->total ?? 0;
-                    $remaining = $service->capacity - $booked;
-                    if ($remaining < $totalRequested) {
-                        $row['days'][$label] = [
-                            'date' => $dateStr,
-                            'slots' => $remaining,
-                            'status' => 'full',
-                            'note' => 'Fully booked',
-                        ];
-                    } else {
-                        $row['days'][$label] = [
-                            'date' => $dateStr,
-                            'slots' => $remaining,
-                            'status' => 'available',
-                            'rake_rate_adult' => $season->rake_rate_adult,
-                        ];
-                    }
-                }
-                // if we don't have the booking data, we can't calculate the remaining slots
-                if (false) {
-                    $row['days'][$label] = [
-                        'date' => $dateStr,
-                        'slots' => $service->capacity,
-                        'status' => 'available',
-                        'rake_rate_adult' => $season->rake_rate_adult,
-                    ];
-                }
-            }
-
-            $schedule[] = $row;
-        }
-        //dd($schedule);
-        return response()->json([
-            'schedule' => $schedule,
-            'days' => collect(CarbonPeriod::create($startDate, $endDate))
-                ->map(fn($d) => $d->format('D d'))
-                ->values(),
-            'message' => '',
-        ]);
-    }
-
-    public function activity1(Request $request)
-    {
-        // dd($request->all());
-        $activity_id = $request->activity_id;
-        $viewMode = $request->input('view_mode', 'week'); // 'day', 'week', 'month'
-        $startDate = Carbon::parse($request->input('start_date', now()));
-
-        $season = Season::with([
-            'service',
-            'file',
-            'seasonFieldValues.field',
-            'inventory'
-        ])->findOrFail($activity_id);
-
-        $inventory = $season->inventory;
-
-        if (!$inventory) {
-            abort(404, 'This season has no inventory.');
-        }
-
-        $fieldValues = $season->seasonFieldValues->mapWithKeys(function ($fv) {
-            return [$fv->field->name => $fv->value];
-        });
-        //dd($fieldValues);
-        $activity = [
-            'id'         => $inventory->id,
-            'service'    => $season->service?->name,
-            'season'     => $season->name,
-            'image'      => $season->file ? '/storage/' . $season->file->path : null,
-            'badge'      => $fieldValues['badge'] ?? null,
-            'gift'       => filter_var($fieldValues['gift'] ?? false, FILTER_VALIDATE_BOOLEAN),
-            'minPeople'  => (int) ($fieldValues['min_people'] ?? 1),
-            'price'      => $inventory->rake_rate_adult ?? null,
-            'start_date' => $inventory->start_date,
-            'end_date'   => $inventory->end_date,
-            'capacity'   => $inventory->capacity,
-            'description' => $fieldValues['Description'] ?? null,
-            'condition_text' => $fieldValues['Condition Text'] ?? null,
-            'activity' => $fieldValues['Activity Description'] ?? null,
-            'arrangements' => $fieldValues['Arrangements'] ?? null,
-            'requirements' => $fieldValues['Requirements'] ?? null,
-            'inclusions' => $fieldValues['Inclusions'] ?? null,
-            'exclusions' => $fieldValues['Exclusions'] ?? null,
-            'notes' => $fieldValues['Notes'] ?? null,
-        ];
-
-        // dd($activity);
-        // Step 1: Load inventory with relationships
-        $inventory = Inventory::with(['timeSlots', 'typeDays'])->findOrFail($activity_id);
-
-        $allowedDays = $inventory->typeDays->pluck('type_day_id')->toArray();
-
-        // Step 2: Determine date range based on view mode
-        $days = match ($viewMode) {
-            'day' => 1,
-            'week' => 5,
-            'month' => 30,
-            default => 5
-        };
-
-        $endDate = (clone $startDate)->addDays($days - 1);
-        //dd($inventory);
-        // Step 3: Get blocked (closeout) dates
-        $closeouts = Closeout::where('service_id', $inventory->service_id)
-            ->where('season_id', $inventory->season_id)
-            ->get();
-        //dd($closeouts);
-        $blockedDates = $closeouts->flatMap(function ($c) {
-            // logger("Closeout: {$c->start_date} to {$c->end_date}");
-            $start = Carbon::parse($c->start_date);
-            $end = Carbon::parse($c->end_date);
-
-            $dates = CarbonPeriod::create($start, $end)->toArray();
-            // logger("Generated dates: ", $dates);
-
-            return collect($dates)->map(fn($d) => $d->format('Y-m-d'));
-        })->unique()->values()->toArray();
-        //dd($blockedDates);
-        // Pull bookings for this period
-        if (false) {
-            $bookingData = DB::table('bookings')
-                ->where('inventory_id', $activity_id)
-                ->whereBetween('date', [$startDate, $endDate])
-                ->select('date', 'time', DB::raw('SUM(quantity) as total'))
-                ->groupBy('date', 'time')
-                ->get()
-                ->keyBy(fn($row) => $row->date . '_' . $row->time);
-        }
-        // (Optional) staff schedule unavailability maybe from guide set to 0
-        if (false) {
-            $staffUnavailable = DB::table('staff_schedules')
-                ->where('service_id', $inventory->service_id)
-                ->whereBetween('date', [$startDate, $endDate])
-                ->where('status', 'unavailable')
-                ->get()
-                ->map(fn($row) => $row->date . '_' . $row->time)
-                ->toArray();
-        }
-
-
-        // Step 4: Build schedule
-        $timeSlots = $inventory->timeSlots->pluck('start_time')->unique()->sort();
-
-        $schedule = [];
-
-        foreach ($timeSlots as $time) {
-            $row = [
-                'time' => $time,
-                'days' => []
-            ];
-
-            foreach (CarbonPeriod::create($startDate, $endDate) as $date) {
-                $label = $date->format('D d'); // e.g., Mon 24
-                $dayOfWeek = $date->dayOfWeekIso; // 1=Mon, 7=Sun
-                $dateStr = $date->toDateString();
-                $key = $dateStr . '_' . $time;
-
-                // Skip if not allowed day or closed out
-                if (!in_array($dayOfWeek, $allowedDays)) {
-                    $row['days'][$label] = [
-                        'slots' => 0,
-                        'status' => 'unavailable',
-                        'note' => 'Not an allowed day',
-                    ];
-                    continue;
-                }
-
-                if (in_array($date->toDateString(), $blockedDates)) {
-                    $row['days'][$label] = [
-                        'slots' => 0,
-                        'status' => 'blocked',
-                        'note' => 'Blocked due to closeout',
-                    ];
-                    continue;
-                }
-                // possibly need this if we allow for staff on guide set to 0
-                if (false) {
-                    // Skip if staff is unavailable
-                    if (in_array($key, $staffUnavailable)) {
-                        $row['days'][$label] = [
-                            'slots' => 0,
-                            'status' => 'unavailable',
-                            'note' => 'Staff unavailable',
-                        ];
-                        continue;
-                    }
-                }
-
-
-                // once we have the booking data, we can calculate the remaining slots
-                if (false) {
-                    $booked = $bookingData[$key]->total ?? 0;
-                    $remaining = $inventory->capacity - $booked;
-                    if ($remaining <= 0) {
-                        $row['days'][$label] = [
-                            'slots' => 0,
-                            'status' => 'full',
-                            'note' => 'Fully booked',
-                        ];
-                    } else {
-                        $row['days'][$label] = [
-                            'slots' => $remaining,
-                            'status' => 'available',
-                            'price' => $inventory->rake_rate_adult,
-                        ];
-                    }
-                }
-                // if we don't have the booking data, we can't calculate the remaining slots
-                if (true) {
-                    $row['days'][$label] = [
-                        'slots' => $inventory->capacity,
-                        'status' => 'available',
-                        'price' => $inventory->rake_rate_adult,
-                    ];
-                }
-            }
-
-            $schedule[] = $row;
-        }
-
-
-
-
-        return Inertia::render('Activities', [
-            'canLogin' => Route::has('login'),
-            'canRegister' => Route::has('register'),
-            'laravelVersion' => Application::VERSION,
-            'phpVersion' => PHP_VERSION,
-            'activities' => $activity,
-            'activityId' => $activity_id,
-            'schedule' => $schedule,
-            'start_date' => $startDate->toDateString(),
-            'view_mode' => $viewMode,
-            'days' => collect(CarbonPeriod::create($startDate, $endDate))
-                ->map(fn($d) => $d->format('D d'))
-                ->values(),
-            'availableTimes' => [], //$availableTimes,
-        ]);
-    }
-
     public function store(Request $request)
     {
         // TODO: validate the inventory is still available
@@ -1111,6 +740,259 @@ class ActivityController extends Controller
         return Inertia::render('GiftVoucher', ['activityId' => $activityId]);
     }
 
+    public function testBoardingPass(Request $request)
+    {
+        $data = [
+            'flightName' => 'Flight 1234',
+            'location' => 'Cape Canopy Tour',
+            'address' => 'Address Placeholder',
+            'passenger' => 'John Doe',
+            'date' => '2025-01-14',
+            'time' => '2025-01-14',
+            'seat' => '14A',
+            'boarding_time' => '08:45',
+            'booking_no' => 'CCT-90344',
+            'flight' => 'FLIGHT-1234',
+            'passenger_name' => 'John Doe',
+
+            'sections' => [
+
+                [
+                    'title' => 'Tour Includes',
+                    'icon' => '/images/icons/tour.png',
+                    'items' => [
+                        'All equipment and training.',
+                        'A return 4x4 experience from through the nature reserve.',
+                        'A 4–5 hour fully guided mountain top zipline adventure along 13 elevated platforms.',
+                        'Small exclusive groups of 8–9 people.',
+                        '2x fully trained Cape Canopy Tour facilitators will join you on each tour.',
+                        'A personalized video (this is available to purchase as an optional extra).'
+                    ]
+                ],
+
+                [
+                    'title' => 'Arrival',
+                    'icon' => '/images/icons/location.png',
+                    'items' => [
+                        'Please arrive at least 10–15min BEFORE your tour time.',
+                        'Allow sufficient travel time — the tour will start promptly and late guests cannot be accommodated.',
+                        'If coming from Cape Town, please factor in an extra 30–45min for irregular traffic delays.',
+                        'Once the safety briefing begins, late guests cannot join and the tour will be considered missed.'
+                    ]
+                ],
+
+                [
+                    'title' => 'What to Bring',
+                    'icon' => '/images/icons/tshirt.png',
+                    'items' => [
+                        'Warm clothes — mountain weather is unpredictable.',
+                        'Sunblock & Hat; rain jacket on rainy days.',
+                        'A small light backpack (optional).',
+                        'You may bring your phone or camera (at own risk).'
+                    ]
+                ],
+
+                [
+                    'title' => 'CBD Transfers',
+                    'icon' => '/images/icons/car.png',
+                    'items' => [
+                        'If booked, be ready at your transfer departure time.',
+                        'Transfers are operated by an external supplier.',
+                        'Contact us if you have not been contacted by the transfer driver.'
+                    ]
+                ],
+
+                [
+                    'title' => 'Weather',
+                    'icon' => '/images/icons/cloud.png',
+                    'items' => [
+                        'Tours are mildly weather-dependent but operate in most conditions.',
+                        'The weather is monitored closely — tours may be cancelled, refunded, or rescheduled.',
+                        'Weather changes quickly; contact the team if uncertain.',
+                        'Notify the team 24 hours in advance if you want to move or cancel your tour.'
+                    ]
+                ],
+
+                [
+                    'title' => 'Restrictions',
+                    'icon' => '/images/icons/restrictions.png',
+                    'items' => [
+                        'This is an adventure activity requiring moderate fitness.',
+                        'Recommended weight limit: 100–110 kg per person.',
+                        'Limit is based on harness size and strap circumference.',
+                        'If over 100–110 kg but fit, your body shape may still allow safe harness fit.',
+                        'Minimum age: 5 years old.'
+                    ]
+                ],
+
+                [
+                    'title' => 'Tandems / Children',
+                    'icon' => '/images/icons/family.png',
+                    'items' => [
+                        'We can offer 2 tandems per tour.',
+                        'Tandems for guests under 50 kg only.',
+                        'Email: zipline@capecanopytour.co.za for children under 9 years.',
+                        'Minimum age: 5 years old.',
+                        'Children under 5 may need to ride tandem with a guide.'
+                    ]
+                ],
+
+                [
+                    'title' => 'Further Info',
+                    'icon' => '/images/icons/info.png',
+                    'items' => [
+                        'Tips aren’t required but appreciated.',
+                        'Extra snacks and drinks available before and after your tour.',
+                        'Wi-Fi available at the base.',
+                        'Bring a card — no cash accepted.'
+                    ]
+                ],
+
+                [
+                    'title' => 'Cancellation / Refunds',
+                    'icon' => '/images/icons/refund.png',
+                    'items' => [
+                        '100% refund for cancellations 24+ hours before the tour.',
+                        'No refund for late arrivals or missed tours.',
+                        'If the company cancels, you receive a full refund.',
+                        'Third-party refunds handled through the agent.'
+                    ]
+                ],
+            ]
+        ];
+
+        //$data = require base_path('sample-boarding-pass.php'); // OR build array here
+        return view('pdfs.boarding-pass', ['data' => $data]);
+    }
+
+    public function testBoardingPassPdf(Request $request)
+    {
+        $data = [
+            'flightName' => 'Flight 1234',
+            'location' => 'Cape Canopy Tour',
+            'address' => 'Address Placeholder',
+            'passenger' => 'John Doe',
+            'date' => '2025-01-14',
+            'time' => '2025-01-14',
+            'seat' => '14A',
+            'boarding_time' => '08:45',
+            'booking_no' => 'CCT-90344',
+            'flight' => 'FLIGHT-1234',
+            'passenger_name' => 'John Doe',
+
+            'sections' => [
+
+                [
+                    'title' => 'Tour Includes',
+                    'icon' => '/images/icons/tour.png',
+                    'items' => [
+                        'All equipment and training.',
+                        'A return 4x4 experience from through the nature reserve.',
+                        'A 4–5 hour fully guided mountain top zipline adventure along 13 elevated platforms.',
+                        'Small exclusive groups of 8–9 people.',
+                        '2x fully trained Cape Canopy Tour facilitators will join you on each tour.',
+                        'A personalized video (this is available to purchase as an optional extra).'
+                    ]
+                ],
+
+                [
+                    'title' => 'Arrival',
+                    'icon' => '/images/icons/location.png',
+                    'items' => [
+                        'Please arrive at least 10–15min BEFORE your tour time.',
+                        'Allow sufficient travel time — the tour will start promptly and late guests cannot be accommodated.',
+                        'If coming from Cape Town, please factor in an extra 30–45min for irregular traffic delays.',
+                        'Once the safety briefing begins, late guests cannot join and the tour will be considered missed.'
+                    ]
+                ],
+
+                [
+                    'title' => 'What to Bring',
+                    'icon' => '/images/icons/tshirt.png',
+                    'items' => [
+                        'Warm clothes — mountain weather is unpredictable.',
+                        'Sunblock & Hat; rain jacket on rainy days.',
+                        'A small light backpack (optional).',
+                        'You may bring your phone or camera (at own risk).'
+                    ]
+                ],
+
+                [
+                    'title' => 'CBD Transfers',
+                    'icon' => '/images/icons/car.png',
+                    'items' => [
+                        'If booked, be ready at your transfer departure time.',
+                        'Transfers are operated by an external supplier.',
+                        'Contact us if you have not been contacted by the transfer driver.'
+                    ]
+                ],
+
+                [
+                    'title' => 'Weather',
+                    'icon' => '/images/icons/cloud.png',
+                    'items' => [
+                        'Tours are mildly weather-dependent but operate in most conditions.',
+                        'The weather is monitored closely — tours may be cancelled, refunded, or rescheduled.',
+                        'Weather changes quickly; contact the team if uncertain.',
+                        'Notify the team 24 hours in advance if you want to move or cancel your tour.'
+                    ]
+                ],
+
+                [
+                    'title' => 'Restrictions',
+                    'icon' => '/images/icons/restrictions.png',
+                    'items' => [
+                        'This is an adventure activity requiring moderate fitness.',
+                        'Recommended weight limit: 100–110 kg per person.',
+                        'Limit is based on harness size and strap circumference.',
+                        'If over 100–110 kg but fit, your body shape may still allow safe harness fit.',
+                        'Minimum age: 5 years old.'
+                    ]
+                ],
+
+                [
+                    'title' => 'Tandems / Children',
+                    'icon' => '/images/icons/family.png',
+                    'items' => [
+                        'We can offer 2 tandems per tour.',
+                        'Tandems for guests under 50 kg only.',
+                        'Email: zipline@capecanopytour.co.za for children under 9 years.',
+                        'Minimum age: 5 years old.',
+                        'Children under 5 may need to ride tandem with a guide.'
+                    ]
+                ],
+
+                [
+                    'title' => 'Further Info',
+                    'icon' => '/images/icons/info.png',
+                    'items' => [
+                        'Tips aren’t required but appreciated.',
+                        'Extra snacks and drinks available before and after your tour.',
+                        'Wi-Fi available at the base.',
+                        'Bring a card — no cash accepted.'
+                    ]
+                ],
+
+                [
+                    'title' => 'Cancellation / Refunds',
+                    'icon' => '/images/icons/refund.png',
+                    'items' => [
+                        '100% refund for cancellations 24+ hours before the tour.',
+                        'No refund for late arrivals or missed tours.',
+                        'If the company cancels, you receive a full refund.',
+                        'Third-party refunds handled through the agent.'
+                    ]
+                ],
+            ]
+        ];
+
+        $pdf = Pdf::loadView('pdfs.boarding-pass', compact('data'))
+            ->setPaper('a4', 'portrait');
+
+        return $pdf->download('boarding-pass.pdf');
+    }
+
+
     public function showTestOrder()
     {
         // Sample data for testing
@@ -1159,5 +1041,376 @@ class ActivityController extends Controller
         $totalPriceFormatted = "R " . number_format($totalPrice, 2, ".", "");
 
         return view('order', compact('order_no', 'po_no', 'customer_code', 'customer', 'orderItems', 'totalPrice'));
+    }
+
+    public function calendar1(Request $request)
+    {
+
+        $activityId = $request->input('activity_id');
+        $viewMode = $request->input('view_mode', 'week');
+        $startDate = Carbon::parse($request->input('start_date', now()));
+        $totalRequested = (int) $request->input('adults', 0) + (int) $request->input('children', 0);
+        $days = match ($viewMode) {
+            'day' => 1,
+            'week' => 7,
+            'month' => 30,
+            default => 7
+        };
+        $endDate = (clone $startDate)->addDays($days - 1);
+        //dd($endDate);
+        $season = Season::findOrFail($activityId);
+        $service = Service::findOrFail($season->service_id);
+
+        $inventory = Inventory::with(['inventory_type_days', 'inventory_time_slots'])->where('season_id', $season->id)->first();
+        //dd($inventory);
+        if ($startDate->lt(Carbon::parse($season->start_date)) || $endDate->gt(Carbon::parse($season->end_date))) {
+            return response()->json([
+                'schedule' => [],
+                'days' => [],
+                'message' => 'Selected date is outside the inventory availability period.',
+            ], 200); // Or 200 with flag
+        }
+
+        if (true) {
+            $bookingData = DB::table('bookings as b')
+                ->leftJoin('booking_inventories as bi', 'bi.booking_id', '=', 'b.id')
+                ->leftJoin('inventory_type_days as itd', 'itd.id', '=', 'bi.inventory_type_day_id')
+                ->leftJoin('type_days as td', 'td.id', '=', 'itd.type_day_id')
+                ->leftJoin('inventory_time_slots as its', 'its.id', '=', 'bi.inventory_time_slot_id')
+                ->leftJoin('inventory_overrides as io', 'io.id', '=', 'bi.inventory_override_id')
+                ->where('b.inventory_id', $activityId)
+                ->whereBetween('bi.date', [$startDate->toDateString(), $endDate->toDateString()])
+                ->select([
+                    'bi.date',
+                    'td.name as day',
+                    'its.start_time as time',
+                    DB::raw('SUM(bi.pax) as total')
+                ])
+                ->groupBy('bi.date', 'td.name', 'its.start_time')
+                ->get()
+                ->keyBy(fn($row) => $row->date . '_' . $row->time);
+        }
+        // dd($bookingData);
+
+        //dd($inventory);
+        $allowedDays = $inventory->inventory_type_days->pluck('type_day_id')->toArray();
+
+        $closeouts = Closeout::with('closeout_day_time_slots')->where('service_id', $inventory->service_id)
+            ->where('season_id', $inventory->season_id)
+            ->get();
+        logger()->info("$closeouts");
+        // Build a map of blocked time slots keyed by date
+        $blockedSlots = [];
+
+        foreach ($closeouts as $c) {
+            $start = Carbon::parse($c->start_date);
+            $end   = Carbon::parse($c->end_date);
+
+            foreach (CarbonPeriod::create($start, $end) as $date) {
+                $dateStr = $date->format('Y-m-d');
+                $dayOfWeek = $date->dayOfWeekIso; // 1 (Mon) - 7 (Sun)
+
+                // If no slots defined → whole day blocked
+                if ($c->closeout_day_time_slots->isEmpty()) {
+                    $blockedSlots[$dateStr] = 'ALL';
+                } else {
+                    foreach ($c->closeout_day_time_slots as $slot) {
+                        if ((int)$slot->day_id === $dayOfWeek) {
+                            $blockedSlots[$dateStr][$slot->time_slot_id] = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        $timeSlots = $inventory->inventory_time_slots->pluck('start_time')->unique()->sort();
+        $schedule = [];
+
+        foreach ($timeSlots as $timeSlot) {
+            $row = [
+                'time' => $timeSlot,
+                'days' => []
+            ];
+
+            foreach (CarbonPeriod::create($startDate, $endDate) as $date) {
+                $label = $date->format('D d');
+                $dayOfWeek = $date->dayOfWeekIso;
+                $dateStr = $date->toDateString();
+
+                if (!in_array($dayOfWeek, $allowedDays)) {
+                    $row['days'][$label] = [
+                        'date' => $dateStr,
+                        'slots' => 0,
+                        'status' => 'unavailable',
+                        'note' => 'Not an allowed day',
+                    ];
+                    continue;
+                }
+
+                if (isset($blockedSlots[$dateStr])) {
+                    if ($blockedSlots[$dateStr] === 'ALL') {
+                        // Full-day closeout
+                        $row['days'][$label] = [
+                            'date' => $dateStr,
+                            'slots' => 0,
+                            'status' => 'blocked_day',
+                            'note' => 'Blocked whole day',
+                        ];
+                        continue;
+                    }
+                    // Slot-level closeout
+                    $slotModel = $inventory->inventory_time_slots->firstWhere('start_time', $timeSlot);
+                    if ($slotModel && isset($blockedSlots[$dateStr][$slotModel->id])) {
+                        $row['days'][$label] = [
+                            'date' => $dateStr,
+                            'slots' => 0,
+                            'status' => 'blocked_slot',
+                            'note' => 'Blocked slot',
+                        ];
+                        continue;
+                    }
+                }
+                // once we have the booking data, we can calculate the remaining slots
+                if (true) {
+                    $dateTimeStr = $dateStr . '_' . $timeSlot;
+                    $booked = $bookingData[$dateTimeStr]->total ?? 0;
+                    $remaining = $service->capacity - $booked;
+                    if ($remaining < $totalRequested) {
+                        $row['days'][$label] = [
+                            'date' => $dateStr,
+                            'slots' => $remaining,
+                            'status' => 'full',
+                            'note' => 'Fully booked',
+                        ];
+                    } else {
+                        $row['days'][$label] = [
+                            'date' => $dateStr,
+                            'slots' => $remaining,
+                            'status' => 'available',
+                            'rake_rate_adult' => $season->rake_rate_adult,
+                        ];
+                    }
+                }
+                // if we don't have the booking data, we can't calculate the remaining slots
+                if (false) {
+                    $row['days'][$label] = [
+                        'date' => $dateStr,
+                        'slots' => $service->capacity,
+                        'status' => 'available',
+                        'rake_rate_adult' => $season->rake_rate_adult,
+                    ];
+                }
+            }
+
+            $schedule[] = $row;
+        }
+        //dd($schedule);
+        return response()->json([
+            'schedule' => $schedule,
+            'days' => collect(CarbonPeriod::create($startDate, $endDate))
+                ->map(fn(\Carbon\Carbon $d) => $d->format('D d'))
+                ->values(),
+            'message' => '',
+        ]);
+    }
+
+    public function activity1(Request $request)
+    {
+        // dd($request->all());
+        $activity_id = $request->activity_id;
+        $viewMode = $request->input('view_mode', 'week'); // 'day', 'week', 'month'
+        $startDate = Carbon::parse($request->input('start_date', now()));
+
+        $season = Season::with([
+            'service',
+            'file',
+            'seasonFieldValues.field',
+            'inventory'
+        ])->findOrFail($activity_id);
+
+        $inventory = $season->inventory;
+
+        if (!$inventory) {
+            abort(404, 'This season has no inventory.');
+        }
+
+        $fieldValues = $season->seasonFieldValues->mapWithKeys(function ($fv) {
+            return [$fv->field->name => $fv->value];
+        });
+        //dd($fieldValues);
+        $activity = [
+            'id'         => $inventory->id,
+            'service'    => $season->service?->name,
+            'season'     => $season->name,
+            'image'      => $season->file ? '/storage/' . $season->file->path : null,
+            'badge'      => $fieldValues['badge'] ?? null,
+            'gift'       => filter_var($fieldValues['gift'] ?? false, FILTER_VALIDATE_BOOLEAN),
+            'minPeople'  => (int) ($fieldValues['min_people'] ?? 1),
+            'price'      => $inventory->rake_rate_adult ?? null,
+            'start_date' => $inventory->start_date,
+            'end_date'   => $inventory->end_date,
+            'capacity'   => $inventory->capacity,
+            'description' => $fieldValues['Description'] ?? null,
+            'condition_text' => $fieldValues['Condition Text'] ?? null,
+            'activity' => $fieldValues['Activity Description'] ?? null,
+            'arrangements' => $fieldValues['Arrangements'] ?? null,
+            'requirements' => $fieldValues['Requirements'] ?? null,
+            'inclusions' => $fieldValues['Inclusions'] ?? null,
+            'exclusions' => $fieldValues['Exclusions'] ?? null,
+            'notes' => $fieldValues['Notes'] ?? null,
+        ];
+
+        // dd($activity);
+        // Step 1: Load inventory with relationships
+        $inventory = Inventory::with(['timeSlots', 'typeDays'])->findOrFail($activity_id);
+
+        $allowedDays = $inventory->typeDays->pluck('type_day_id')->toArray();
+
+        // Step 2: Determine date range based on view mode
+        $days = match ($viewMode) {
+            'day' => 1,
+            'week' => 5,
+            'month' => 30,
+            default => 5
+        };
+
+        $endDate = (clone $startDate)->addDays($days - 1);
+        //dd($inventory);
+        // Step 3: Get blocked (closeout) dates
+        $closeouts = Closeout::where('service_id', $inventory->service_id)
+            ->where('season_id', $inventory->season_id)
+            ->get();
+        //dd($closeouts);
+        $blockedDates = $closeouts->flatMap(function ($c) {
+            // logger("Closeout: {$c->start_date} to {$c->end_date}");
+            $start = Carbon::parse($c->start_date);
+            $end = Carbon::parse($c->end_date);
+
+            $dates = CarbonPeriod::create($start, $end)->toArray();
+            // logger("Generated dates: ", $dates);
+
+            return collect($dates)->map(fn(\Carbon\Carbon $d) => $d->format('D d'));
+        })->unique()->values()->toArray();
+        //dd($blockedDates);
+        // Pull bookings for this period
+        if (false) {
+            $bookingData = DB::table('bookings')
+                ->where('inventory_id', $activity_id)
+                ->whereBetween('date', [$startDate, $endDate])
+                ->select('date', 'time', DB::raw('SUM(quantity) as total'))
+                ->groupBy('date', 'time')
+                ->get()
+                ->keyBy(fn($row) => $row->date . '_' . $row->time);
+        }
+        // (Optional) staff schedule unavailability maybe from guide set to 0
+        if (false) {
+            $staffUnavailable = DB::table('staff_schedules')
+                ->where('service_id', $inventory->service_id)
+                ->whereBetween('date', [$startDate, $endDate])
+                ->where('status', 'unavailable')
+                ->get()
+                ->map(fn($row) => $row->date . '_' . $row->time)
+                ->toArray();
+        }
+
+
+        // Step 4: Build schedule
+        $timeSlots = $inventory->timeSlots->pluck('start_time')->unique()->sort();
+
+        $schedule = [];
+
+        foreach ($timeSlots as $time) {
+            $row = [
+                'time' => $time,
+                'days' => []
+            ];
+
+            foreach (CarbonPeriod::create($startDate, $endDate) as $date) {
+                $label = $date->format('D d'); // e.g., Mon 24
+                $dayOfWeek = $date->dayOfWeekIso; // 1=Mon, 7=Sun
+                $dateStr = $date->toDateString();
+                $key = $dateStr . '_' . $time;
+
+                // Skip if not allowed day or closed out
+                if (!in_array($dayOfWeek, $allowedDays)) {
+                    $row['days'][$label] = [
+                        'slots' => 0,
+                        'status' => 'unavailable',
+                        'note' => 'Not an allowed day',
+                    ];
+                    continue;
+                }
+
+                if (in_array($date->toDateString(), $blockedDates)) {
+                    $row['days'][$label] = [
+                        'slots' => 0,
+                        'status' => 'blocked',
+                        'note' => 'Blocked due to closeout',
+                    ];
+                    continue;
+                }
+                // possibly need this if we allow for staff on guide set to 0
+                if (false) {
+                    // Skip if staff is unavailable
+                    if (in_array($key, $staffUnavailable)) {
+                        $row['days'][$label] = [
+                            'slots' => 0,
+                            'status' => 'unavailable',
+                            'note' => 'Staff unavailable',
+                        ];
+                        continue;
+                    }
+                }
+
+
+                // once we have the booking data, we can calculate the remaining slots
+                if (false) {
+                    $booked = $bookingData[$key]->total ?? 0;
+                    $remaining = $inventory->capacity - $booked;
+                    if ($remaining <= 0) {
+                        $row['days'][$label] = [
+                            'slots' => 0,
+                            'status' => 'full',
+                            'note' => 'Fully booked',
+                        ];
+                    } else {
+                        $row['days'][$label] = [
+                            'slots' => $remaining,
+                            'status' => 'available',
+                            'price' => $inventory->rake_rate_adult,
+                        ];
+                    }
+                }
+                // if we don't have the booking data, we can't calculate the remaining slots
+                if (true) {
+                    $row['days'][$label] = [
+                        'slots' => $inventory->capacity,
+                        'status' => 'available',
+                        'price' => $inventory->rake_rate_adult,
+                    ];
+                }
+            }
+
+            $schedule[] = $row;
+        }
+
+
+
+
+        return Inertia::render('Activities', [
+            'canLogin' => Route::has('login'),
+            'canRegister' => Route::has('register'),
+            'laravelVersion' => Application::VERSION,
+            'phpVersion' => PHP_VERSION,
+            'activities' => $activity,
+            'activityId' => $activity_id,
+            'schedule' => $schedule,
+            'start_date' => $startDate->toDateString(),
+            'view_mode' => $viewMode,
+            'days' => collect(CarbonPeriod::create($startDate, $endDate))
+                ->map(fn(\Carbon\Carbon $d) => $d->format('D d'))
+                ->values(),
+            'availableTimes' => [], //$availableTimes,
+        ]);
     }
 }

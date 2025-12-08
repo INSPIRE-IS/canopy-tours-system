@@ -88,6 +88,10 @@ Route::get('front/invoices/download/{booking}', [PaymentController::class, 'invo
 Route::get('front/details/download/{booking}', [PaymentController::class, 'detailDownload'])->name('front.details.download');
 Route::get('front/voucher', [ActivityController::class, 'voucher'])->name('front.voucher');
 
+
+Route::get('front/test-boarding-pass', [ActivityController::class, 'testBoardingPass'])->name('front.test-boarding-pass');
+Route::get('front/test-boarding-pass/pdf', [ActivityController::class, 'testBoardingPassPdf'])->name('front.test-boarding-pass.pdf');
+
 Route::put('front/customer-manifests/edit', [BookingQuestionnaireController::class, 'UpdateCustomerManifest'])->name('front.customer-manifests.edit');
 Route::get('/check-reference/{reference}', [BookingQuestionnaireController::class, 'reference'])->name('check-reference');
 //Route::get('front/booking-questionnaire/checkin', [BookingQuestionnaireController::class, 'checkin'])->name('front.booking-questionnaire.checkin');
@@ -97,12 +101,18 @@ Route::get('front/booking-questionnaire/checkin', [BookingQuestionnaireControlle
     ->name('front.booking-questionnaire.checkin')
     ->middleware('signed'); // Laravel will reject any URL whose signature doesn’t match
 
+Route::resource('booking-questionnaire', BookingQuestionnaireController::class);
+
+
+Route::get('front/feedback-questionnaire', [FeedbackQuestionnaireController::class, 'index'])->name('front.feedback-questionnaire.index');
+Route::get('front/feedback-questionnaire/signed', [FeedbackQuestionnaireController::class, 'signed'])->name('front.feedback-questionnaire.signed');
 Route::get('front/feedback-questionnaire/feedback', [FeedbackQuestionnaireController::class, 'feedback'])
     ->name('front.feedback-questionnaire.feedback')
     ->middleware('signed'); // Laravel will reject any URL whose signature doesn’t match
 
-Route::resource('booking-questionnaire', BookingQuestionnaireController::class);
+// Route::resource('feedback-questionnaire', FeedbackQuestionnaireController::class);
 Route::post('front/feedback-questionnaire', [FeedbackQuestionnaireController::class, 'store'])->name('front.feedback-questionnaire.store');
+
 Route::get('/continents', [BookingQuestionnaireController::class, 'getContinents']);
 Route::get('/countries/{continent_id}', [BookingQuestionnaireController::class, 'getCountries']);
 Route::get('/states/{country_id}', [BookingQuestionnaireController::class, 'getStates']);

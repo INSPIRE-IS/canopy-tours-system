@@ -62,10 +62,19 @@ class BookingsController extends Controller
 {
     public function index()
     {
+
         abort_if(Gate::denies('bookings_access'), Response::HTTP_FORBIDDEN, '403 Forbidden');
+        $bookings = Booking::all();
+        // dd(auth()->user()->team_id);
+
+        $bookings->load("booking_payments");
+        //echo $bookings;
         $bookings = Booking::with([
             'booking_payments',
-        ])->get();
+        ])
+            ->where('team_id', auth()->user()->team_id)
+            ->get();
+
         $booking_items = BookingItem::with([
             'booking.files',
             'customers',
@@ -74,14 +83,16 @@ class BookingsController extends Controller
             'booking_fee',
             'booking_inventory',
         ])->get();
+
         $services = Service::with('seasons', 'seasons.inventory.inventory_time_slots')->get();
 
         $vatMultiplier = LookupItem::where('lookup_id', 1)->where('is_default', true)->first()->multiplier;
 
         $formatted = $booking_items->map(function ($booking_item) use ($vatMultiplier) {
             try {
-                $price = $booking_item->booking_fee->tot_amount;
-                $paid = $booking_item->booking_fee->tot_paid;
+                //dd($booking_item);
+                $price = $booking_item?->booking_fee->tot_amount;
+                $paid = $booking_item?->booking_fee->tot_paid;
                 $due = $price - $paid;
                 $service = Service::find($booking_item->service_id);
                 $season = Season::find($booking_item->season_id);
@@ -191,7 +202,7 @@ class BookingsController extends Controller
             'start_date' => $startDate->toDateString(),
             'view_mode' => $viewMode,
             'days' => collect(CarbonPeriod::create($startDate, $endDate))
-                ->map(fn($d) => $d->format('D d'))
+                ->map(fn(\Carbon\Carbon $d) => $d->format('D d'))
                 ->values(),
             'adults' => 0,
             'children' => 0,
@@ -714,7 +725,7 @@ class BookingsController extends Controller
             'start_date' => $startDate->toDateString(),
             'view_mode' => $viewMode,
             'days' => collect(CarbonPeriod::create($startDate, $endDate))
-                ->map(fn($d) => $d->format('D d'))
+                ->map(fn(\Carbon\Carbon $d) => $d->format('D d'))
                 ->values(),
             'adults' => 0,
             'children' => 0,
@@ -979,7 +990,7 @@ class BookingsController extends Controller
             return response()->json([
                 'schedule' => [],
                 'days'     => collect(CarbonPeriod::create($startDate, $endDate))
-                    ->map(fn($d) => $d->format('D d'))
+                    ->map(fn(\Carbon\Carbon $d) => $d->format('D d'))
                     ->values(),
                 'message'  => 'Selected date is outside the inventory availability period.',
             ], 200);
@@ -1015,7 +1026,7 @@ class BookingsController extends Controller
         return response()->json([
             'schedule' => $schedule,
             'days'     => collect(CarbonPeriod::create($startDate, $endDate))
-                ->map(fn($d) => $d->format('D d'))
+                ->map(fn(\Carbon\Carbon $d) => $d->format('D d'))
                 ->values(),
             'message'  => '',
         ]);
@@ -1181,7 +1192,7 @@ class BookingsController extends Controller
         return response()->json([
             'schedule' => $schedule,
             'days' => collect(CarbonPeriod::create($startDate, $endDate))
-                ->map(fn($d) => $d->format('D d'))
+                ->map(fn(\Carbon\Carbon $d) => $d->format('D d'))
                 ->values(),
             'message' => '',
         ]);
