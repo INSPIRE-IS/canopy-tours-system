@@ -65,7 +65,7 @@ class FeedbackQuestionnaireController extends Controller
                 $manifests = $booking_item->customer_manifests;
                 //dd($manifests->isEmpty());
                 if ($manifests->isEmpty()) return null;
-                if ($manifests->contains(fn($m) => !$m->is_indemnity)) return null;
+                // if ($manifests->contains(fn($m) => !$m->is_indemnity)) return null;
 
                 $price = $booking_item->booking_fee->tot_amount;
                 $paid = $booking_item->booking_fee->tot_paid;

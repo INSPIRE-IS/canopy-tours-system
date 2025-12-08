@@ -2,14 +2,14 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Head, router, useForm } from '@inertiajs/react';
 import CustomButton from '@/Components/CustomButton';
 import CustomSelect from '@/Components/CustomSelect';
-import ManifestsModal from './ManifestsModal';
+import FeedbackModal from './FeedbackModal';
 
 export default function BookingLookup({ bookings }) {
   //console.log('bookings', bookings);
 
   const [BookingOptions, setBookingOptions] = useState([]);
-  // const [isManifestsModalOpen, setIsManifestsModalOpen] = useState(false);
-  // const [selectedManifests, setSelectedManifests] = useState(null);
+  const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
+  const [selectedFeedbacks, setSelectedFeedbacks] = useState(null);
 
   const { data, setData, get, post, put, errors, reset, processing } = useForm({
     booking_item_id: null,
@@ -55,18 +55,35 @@ export default function BookingLookup({ bookings }) {
       alert('Booking not found');
       return;
     }
+    console.log("booking", booking);
+
     if (booking.booking_item_id) {
-      router.get(route('front.feedback-questionnaire.signed', { booking_item_id: booking.booking_item_id, reference: booking.reference }));
+      let customer_id = null;
+      booking?.customers?.forEach((customer, index) => {
+        if (customer.is_indemnity) {
+          customer_id = customer.customer_id;
+          return;
+        }
+      });
+      if (!customer_id) {
+        alert("Please complete the indemnity checkbox");
+        return;
+      }
+      //return;
+      router.get(route('front.feedback-questionnaire.signed',
+        {
+          booking_item_id: booking.booking_item_id,
+          customer_id: customer_id
+        }));
 
-
-      // setSelectedManifests(booking);
-      // setIsManifestsModalOpen(true);
+      // setSelectedFeedbacks(booking);
+      // setIsFeedbackModalOpen(true);
       return;
     }
   };
   const handleCloseModal = () => {
-    setIsManifestsModalOpen(false);
-    setSelectedManifests(null);
+    setIsFeedbackModalOpen(false);
+    setSelectedFeedbacks(null);
     // window.location.reload();
   };
 
@@ -145,14 +162,14 @@ export default function BookingLookup({ bookings }) {
         </div>
 
       </div>
-      {/* <ManifestsModal
-        isOpen={isManifestsModalOpen}
+      <FeedbackModal
+        isOpen={isFeedbackModalOpen}
         onClose={handleCloseModal}
         mode="edit"
-        booking={selectedManifests}
+        booking={selectedFeedbacks}
         tot_adults='0'
         tot_children='0'
-      /> */}
+      />
 
     </>
   );

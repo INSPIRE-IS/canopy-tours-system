@@ -190,6 +190,7 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
                   {adults?.map((person, i) => {
                     console.log('person', person);
                     console.log('selected', data?.feedback[selected]?.customer_id);
+                    if (person.is_feedback == null) return null;
                     return (
                       // <span>{person.full_name}</span>
                       <CustomRadio
