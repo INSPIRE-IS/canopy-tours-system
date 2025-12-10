@@ -35,6 +35,7 @@ use Inertia\Inertia;
 use PHPUnit\Framework\Constraint\IsFalse;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Route;
+use Spatie\Browsershot\Browsershot;
 use Str;
 
 class ActivityController extends Controller
@@ -986,10 +987,24 @@ class ActivityController extends Controller
             ]
         ];
 
-        $pdf = Pdf::loadView('pdfs.boarding-pass', compact('data'))
-            ->setPaper('a4', 'portrait');
+        $html = view('pdfs.boarding-pass', ['data' => $data])->render();
+        // dd(file_exists('C:\Program Files\Google\Chrome\Application\chrome.exe'));
+        Browsershot::html($html)
+            ->setChromePath(config('browsershot.chrome_path'))
+            ->format('A4')
+            ->showBackground()
+            ->margins(0, 0, 0, 0)
+            ->showBackground()
+            ->scale(1.0)   // auto-fit beautifully
+            ->timeout(60000)
+            ->save(storage_path('app/boarding-pass.pdf'));
 
-        return $pdf->download('boarding-pass.pdf');
+        return response()->download(storage_path('app/boarding-pass.pdf'));
+
+        // $pdf = Pdf::loadView('pdfs.boarding-pass', compact('data'))
+        //     ->setPaper('a4', 'portrait');
+
+        // return $pdf->download('boarding-pass.pdf');
     }
 
 
