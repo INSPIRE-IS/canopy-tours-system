@@ -57,7 +57,6 @@
         /* Wrapper */
         .page {
             width: 100%;
-            min-height: 100%;
             background: #ffffff;
         }
 
@@ -99,7 +98,11 @@
             font-weight: 400;
              font-family: 'Gotham';
         }
-
+        .ticket-wrapper,
+        .main {
+            page-break-inside: avoid;
+            break-inside: avoid;
+        }
         .ticket-wrapper {
             width: 100%;
             height: auto;
@@ -107,7 +110,9 @@
             background-size: cover;
             position: relative;
             z-index: 0;
-            padding-bottom: 18px;
+            padding-bottom: 10px;
+            page-break-after: avoid;
+            break-after: avoid;
         }
 
         /* green overlay */
@@ -148,6 +153,7 @@
             border-radius: 12px;
             position: relative;
             margin-top: 40px;
+            z-index: 1;
         }
 
         .left-card {
@@ -157,6 +163,40 @@
 
         .right-card {
             height: 260px;
+        }
+        .left-card::after{
+            content: "";
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 260px;
+
+            background: url('{{ asset('/images/boarding_pass_assets/tree_transparent.png') }}')
+                center bottom no-repeat;
+            background-size: contain;
+
+            opacity: 0.35;
+
+            z-index: 0;           /* behind content */
+            pointer-events: none;
+        }
+        .right-card::after {
+            content: "";
+            position: absolute;
+            bottom: -5px;              /* pull it down */
+            left: -20px;                /* allow bleed */
+            right: -20px;
+            height: 320px;              /* THIS controls visible size */
+
+            background: url('{{ asset('/images/boarding_pass_assets/tree_transparent.png') }}')
+                center bottom no-repeat;
+
+            background-size: 300%;      /* THIS scales the image */
+
+            opacity: 0.35;
+            z-index: 0;
+            pointer-events: none;
         }
 
         .header-text {
@@ -245,6 +285,39 @@
             font-family: 'Gotham';
         }
 
+        .term-section-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: flex-start;
+            gap: 4px;
+        }
+
+        .term-section-icon {
+            width: 16px;
+            height: 16px;
+            object-fit: contain;
+        }
+
+        .condition-section-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: flex-start; /* ← THIS is key */
+            gap: 8px;
+        }
+
+        .condition-section-icon {
+            width: 32px;
+            height: 32px;
+            object-fit: contain;
+            flex-shrink: 0;              /* prevents shrinking */
+            margin-top: 2px;             /* optical alignment */
+        }
+
+        .condition-section-text {
+            text-align: left;
+            line-height: 1.4;
+        }
+
         /* Main Body */
         .main {
             position: relative;
@@ -264,6 +337,8 @@
             opacity: 0.7;          /* <- watermark effect */
             z-index: -1;            /* stays behind text */
         }
+
+
 
         .grid {
             display: grid;
@@ -313,6 +388,21 @@
             line-height: 1.4;
         }
 
+        .section-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .section-icon {
+            width: 32px;
+            height: 32px;
+            object-fit: contain;
+        }
+
+
         /* Footer */
         .footer {
             width: 100%;
@@ -355,7 +445,17 @@
                             <div class="value">12H30</div>
                         </div>
                     </div>
-                    <h5 class="text-10">PLEASE CHECK IN 15 MINUTES BEFORE THE FLIGHT DEPARTS.</h5>
+
+                        
+
+                    <span class="text-10 term-section-header">
+                        <img
+                            src="{{ asset('/images/boarding_pass_assets/11.png') }}"
+                            class="term-section-icon"
+                        >
+                        <span>PLEASE CHECK IN 15 MINUTES BEFORE THE FLIGHT DEPARTS.</span>
+                    </span>
+
                     <img src="{{ asset('/images/boarding_pass_assets/qr.png') }}" class="qr-left">
                 </div>
 
@@ -394,7 +494,14 @@
             <div class="grid">
                 @foreach($data['sections'] as $section)
                     <div class="cell">
-                        <h3>{{ strtoupper($section['title']) }}</h3>
+                        <div class="section-header">
+                            <h3>{{ strtoupper($section['title']) }}</h3>                            
+                            <img
+                                src="{{ asset('/images/boarding_pass_assets/' . $loop->iteration . '.png') }}"
+                                class="section-icon"
+                            >
+
+                        </div>
                         <ul>
                             @foreach($section['items'] as $item)
                                 <li>{{ $item }}</li>
@@ -404,12 +511,19 @@
                 @endforeach
             </div>
             <div class="footer">
-                <h5>
-                    All visitors and participants and participating in any activities and/or transport offered or arranged by Canopy Tours or 
-                    third parties engaged by<br>
-                    Canopy Tours by their signature of this document acknowledge that they have read & understand this indemnity, disclaimer and waiver (‘the<br>
-                    Indemnity’) and agree to be bound by it, failing which he/she can choose not to board the transport and/or not to participate in the activities.
-                </h5>
+                <span class="text-8 condition-section-header">
+                    <img
+                        src="{{ asset('/images/boarding_pass_assets/12.png') }}"
+                        class="condition-section-icon"
+                        alt=""
+                    >
+                    <span class="condition-section-text">
+                        All visitors and participants and participating in any activities and/or transport offered or arranged by Canopy Tours or third parties engaged by
+                        Canopy Tours by their signature of this document acknowledge that they have read & understand this indemnity, disclaimer and waiver (‘the
+                        Indemnity’) and agree to be bound by it, failing which he/she can choose not to board the transport and/or not to participate in the activities.
+                    </span>
+                </span>
+
             </div>            
         </div>
         <!-- FOOTER -->
