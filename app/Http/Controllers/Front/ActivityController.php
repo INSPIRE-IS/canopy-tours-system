@@ -34,6 +34,7 @@ use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use PHPUnit\Framework\Constraint\IsFalse;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Facades\Storage;
 use Route;
 use Spatie\Browsershot\Browsershot;
 use Str;
@@ -743,269 +744,558 @@ class ActivityController extends Controller
 
     public function testBoardingPass(Request $request)
     {
-        $data = [
-            'flightName' => 'Flight 1234',
-            'location' => 'Cape Canopy Tour',
-            'address' => 'Address Placeholder',
-            'passenger' => 'John Doe',
-            'date' => '2025-01-14',
-            'time' => '2025-01-14',
-            'seat' => '14A',
-            'boarding_time' => '08:45',
-            'booking_no' => 'CCT-90344',
-            'flight' => 'FLIGHT-1234',
-            'passenger_name' => 'John Doe',
-
-            'sections' => [
-
-                [
-                    'title' => 'Tour Includes',
-                    'icon' => '/images/icons/tour.png',
-                    'items' => [
-                        'All equipment and training.',
-                        'A return 4x4 experience from through the nature reserve.',
-                        'A 4–5 hour fully guided mountain top zipline adventure along 13 elevated platforms.',
-                        'Small exclusive groups of 8–9 people.',
-                        '2x fully trained Cape Canopy Tour facilitators will join you on each tour.',
-                        'A personalized video (this is available to purchase as an optional extra).'
-                    ]
-                ],
-
-                [
-                    'title' => 'Arrival',
-                    'icon' => '/images/icons/location.png',
-                    'items' => [
-                        'Please arrive at least 10–15min BEFORE your tour time.',
-                        'Allow sufficient travel time — the tour will start promptly and late guests cannot be accommodated.',
-                        'If coming from Cape Town, please factor in an extra 30–45min for irregular traffic delays.',
-                        'Once the safety briefing begins, late guests cannot join and the tour will be considered missed.'
-                    ]
-                ],
-
-                [
-                    'title' => 'What to Bring',
-                    'icon' => '/images/icons/tshirt.png',
-                    'items' => [
-                        'Warm clothes — mountain weather is unpredictable.',
-                        'Sunblock & Hat; rain jacket on rainy days.',
-                        'A small light backpack (optional).',
-                        'You may bring your phone or camera (at own risk).'
-                    ]
-                ],
-
-                [
-                    'title' => 'CBD Transfers',
-                    'icon' => '/images/icons/car.png',
-                    'items' => [
-                        'If booked, be ready at your transfer departure time.',
-                        'Transfers are operated by an external supplier.',
-                        'Contact us if you have not been contacted by the transfer driver.'
-                    ]
-                ],
-
-                [
-                    'title' => 'Weather',
-                    'icon' => '/images/icons/cloud.png',
-                    'items' => [
-                        'Tours are mildly weather-dependent but operate in most conditions.',
-                        'The weather is monitored closely — tours may be cancelled, refunded, or rescheduled.',
-                        'Weather changes quickly; contact the team if uncertain.',
-                        'Notify the team 24 hours in advance if you want to move or cancel your tour.'
-                    ]
-                ],
-
-                [
-                    'title' => 'Restrictions',
-                    'icon' => '/images/icons/restrictions.png',
-                    'items' => [
-                        'This is an adventure activity requiring moderate fitness.',
-                        'Recommended weight limit: 100–110 kg per person.',
-                        'Limit is based on harness size and strap circumference.',
-                        'If over 100–110 kg but fit, your body shape may still allow safe harness fit.',
-                        'Minimum age: 5 years old.'
-                    ]
-                ],
-
-                [
-                    'title' => 'Tandems / Children',
-                    'icon' => '/images/icons/family.png',
-                    'items' => [
-                        'We can offer 2 tandems per tour.',
-                        'Tandems for guests under 50 kg only.',
-                        'Email: zipline@capecanopytour.co.za for children under 9 years.',
-                        'Minimum age: 5 years old.',
-                        'Children under 5 may need to ride tandem with a guide.'
-                    ]
-                ],
-
-                [
-                    'title' => 'Further Info',
-                    'icon' => '/images/icons/info.png',
-                    'items' => [
-                        'Tips aren’t required but appreciated.',
-                        'Extra snacks and drinks available before and after your tour.',
-                        'Wi-Fi available at the base.',
-                        'Bring a card — no cash accepted.'
-                    ]
-                ],
-
-                [
-                    'title' => 'Cancellation / Refunds',
-                    'icon' => '/images/icons/refund.png',
-                    'items' => [
-                        '100% refund for cancellations 24+ hours before the tour.',
-                        'No refund for late arrivals or missed tours.',
-                        'If the company cancels, you receive a full refund.',
-                        'Third-party refunds handled through the agent.'
-                    ]
-                ],
-            ]
-        ];
-
+        $data = $this->getPassDetails('Karkloof');
         //$data = require base_path('sample-boarding-pass.php'); // OR build array here
         return view('pdfs.boarding-pass', ['data' => $data]);
     }
 
     public function testBoardingPassPdf(Request $request)
     {
-        $data = [
-            'flightName' => 'Flight 1234',
-            'location' => 'Cape Canopy Tour',
-            'address' => 'Address Placeholder',
-            'passenger' => 'John Doe',
-            'date' => '2025-01-14',
-            'time' => '2025-01-14',
-            'seat' => '14A',
-            'boarding_time' => '08:45',
-            'booking_no' => 'CCT-90344',
-            'flight' => 'FLIGHT-1234',
-            'passenger_name' => 'John Doe',
 
-            'sections' => [
-
-                [
-                    'title' => 'Tour Includes',
-                    'icon' => '/images/icons/tour.png',
-                    'items' => [
-                        'All equipment and training.',
-                        'A return 4x4 experience from through the nature reserve.',
-                        'A 4–5 hour fully guided mountain top zipline adventure along 13 elevated platforms.',
-                        'Small exclusive groups of 8–9 people.',
-                        '2x fully trained Cape Canopy Tour facilitators will join you on each tour.',
-                        'A personalized video (this is available to purchase as an optional extra).'
-                    ]
-                ],
-
-                [
-                    'title' => 'Arrival',
-                    'icon' => '/images/icons/location.png',
-                    'items' => [
-                        'Please arrive at least 10–15min BEFORE your tour time.',
-                        'Allow sufficient travel time — the tour will start promptly and late guests cannot be accommodated.',
-                        'If coming from Cape Town, please factor in an extra 30–45min for irregular traffic delays.',
-                        'Once the safety briefing begins, late guests cannot join and the tour will be considered missed.'
-                    ]
-                ],
-
-                [
-                    'title' => 'What to Bring',
-                    'icon' => '/images/icons/tshirt.png',
-                    'items' => [
-                        'Warm clothes — mountain weather is unpredictable.',
-                        'Sunblock & Hat; rain jacket on rainy days.',
-                        'A small light backpack (optional).',
-                        'You may bring your phone or camera (at own risk).'
-                    ]
-                ],
-
-                [
-                    'title' => 'CBD Transfers',
-                    'icon' => '/images/icons/car.png',
-                    'items' => [
-                        'If booked, be ready at your transfer departure time.',
-                        'Transfers are operated by an external supplier.',
-                        'Contact us if you have not been contacted by the transfer driver.'
-                    ]
-                ],
-
-                [
-                    'title' => 'Weather',
-                    'icon' => '/images/icons/cloud.png',
-                    'items' => [
-                        'Tours are mildly weather-dependent but operate in most conditions.',
-                        'The weather is monitored closely — tours may be cancelled, refunded, or rescheduled.',
-                        'Weather changes quickly; contact the team if uncertain.',
-                        'Notify the team 24 hours in advance if you want to move or cancel your tour.'
-                    ]
-                ],
-
-                [
-                    'title' => 'Restrictions',
-                    'icon' => '/images/icons/restrictions.png',
-                    'items' => [
-                        'This is an adventure activity requiring moderate fitness.',
-                        'Recommended weight limit: 100–110 kg per person.',
-                        'Limit is based on harness size and strap circumference.',
-                        'If over 100–110 kg but fit, your body shape may still allow safe harness fit.',
-                        'Minimum age: 5 years old.'
-                    ]
-                ],
-
-                [
-                    'title' => 'Tandems / Children',
-                    'icon' => '/images/icons/family.png',
-                    'items' => [
-                        'We can offer 2 tandems per tour.',
-                        'Tandems for guests under 50 kg only.',
-                        'Email: zipline@capecanopytour.co.za for children under 9 years.',
-                        'Minimum age: 5 years old.',
-                        'Children under 5 may need to ride tandem with a guide.'
-                    ]
-                ],
-
-                [
-                    'title' => 'Further Info',
-                    'icon' => '/images/icons/info.png',
-                    'items' => [
-                        'Tips aren’t required but appreciated.',
-                        'Extra snacks and drinks available before and after your tour.',
-                        'Wi-Fi available at the base.',
-                        'Bring a card — no cash accepted.'
-                    ]
-                ],
-
-                [
-                    'title' => 'Cancellation / Refunds',
-                    'icon' => '/images/icons/refund.png',
-                    'items' => [
-                        '100% refund for cancellations 24+ hours before the tour.',
-                        'No refund for late arrivals or missed tours.',
-                        'If the company cancels, you receive a full refund.',
-                        'Third-party refunds handled through the agent.'
-                    ]
-                ],
-            ]
-        ];
-
+        $data = $this->getPassDetails('Karkloof');
         $html = view('pdfs.boarding-pass', ['data' => $data])->render();
-        // dd(file_exists('C:\Program Files\Google\Chrome\Application\chrome.exe'));
-        Browsershot::html($html)
-            ->setChromePath(config('browsershot.chrome_path'))
-            ->format('A4')
-            ->showBackground()
-            ->margins(0, 0, 0, 0)
-            ->showBackground()
-            ->scale(1.0)   // auto-fit beautifully
-            ->timeout(60000)
-            ->save(storage_path('app/boarding-pass.pdf'));
+        $random = rand(1, 100);
+        $dir = "tests/{$random}";
+        $file = "{$dir}/boarding_pass_________________{$random}.pdf";
+        $fullPath = storage_path("app/{$file}");
+        Log::info('boarding pass ' . var_export($fullPath, true));
+        Log::info('boarding pass ' . var_export($file, true));
+        Log::info('boarding pass ' . var_export($dir, true));
+        if (!Storage::disk('local')->exists($file)) {
+            Storage::disk('local')->makeDirectory($dir);
 
-        return response()->download(storage_path('app/boarding-pass.pdf'));
+            Browsershot::html($html)
+                ->setChromePath(config('browsershot.chrome_path'))
+                ->format('A4')
+                ->showBackground()
+                ->margins(0, 0, 0, 0)
+                ->scale(1.0)
+                ->timeout(60000)
+                ->save($fullPath);
+        }
+
+        return response()->download($fullPath);
+
+        // Browsershot::html($html)
+        //     ->setChromePath(config('browsershot.chrome_path'))
+        //     ->format('A4')
+        //     ->showBackground()
+        //     ->margins(0, 0, 0, 0)
+        //     ->showBackground()
+        //     ->scale(1.0)   // auto-fit beautifully
+        //     ->timeout(60000)
+        //     ->save(storage_path('app/boarding-pass.pdf'));
+
+        // return response()->download(storage_path('app/boarding-pass.pdf'));
 
         // $pdf = Pdf::loadView('pdfs.boarding-pass', compact('data'))
         //     ->setPaper('a4', 'portrait');
 
         // return $pdf->download('boarding-pass.pdf');
     }
+
+    public function getPassDetails($value)
+    {
+        // 'flightName' => 'Magoebaskloof',
+        // 'location' => 'Cape Canopy Tour',
+        // 'address' => 'GEORGES VALLEY R528 0730',
+        // 'passenger' => 'John Doe',
+        // 'date' => '30 OCT 2025',
+        // 'time' => '12H30',
+        // 'seat' => '14A',
+        // 'boarding_time' => '12H30',
+        // 'booking_no' => '923-251',
+        // 'flight' => 'FLIGHT-1234',
+        // 'passenger_name' => 'John Doe',
+
+        switch ($value) {
+            case 'Karkloof':
+                return [
+                    'flightName' => 'Karkloof',
+                    'location' => 'Cape Canopy Tour',
+                    'address' => 'Address Placeholder',
+                    'passenger' => 'John Doe',
+                    'date' => '2025-01-14',
+                    'time' => '2025-01-14',
+                    'seat' => '14A',
+                    'boarding_time' => '08:45',
+                    'booking_no' => 'CCT-90344',
+                    'flight' => 'Karkloof',
+                    'passenger_name' => 'John Doe',
+
+                    'sections' => [
+
+                        [
+                            'title' => 'Tour Includes',
+                            'icon' => '/images/icons/tour.png',
+                            'items' => [
+                                'All equipment and training.',
+                                'A return 4x4 experience from through the nature reserve.',
+                                'A 4–5 hour fully guided mountain top zipline adventure along 13 elevated platforms.',
+                                'Small exclusive groups of 8–9 people.',
+                                '2x fully trained Cape Canopy Tour facilitators will join you on each tour.',
+                                'A personalized video (this is available to purchase as an optional extra).'
+                            ]
+                        ],
+
+                        [
+                            'title' => 'Arrival',
+                            'icon' => '/images/icons/location.png',
+                            'items' => [
+                                'Please arrive at least 10–15min BEFORE your tour time.',
+                                'Allow sufficient travel time — the tour will start promptly and late guests cannot be accommodated.',
+                                'If coming from Cape Town, please factor in an extra 30–45min for irregular traffic delays.',
+                                'Once the safety briefing begins, late guests cannot join and the tour will be considered missed.'
+                            ]
+                        ],
+
+                        [
+                            'title' => 'What to Bring',
+                            'icon' => '/images/icons/tshirt.png',
+                            'items' => [
+                                'Warm clothes — mountain weather is unpredictable.',
+                                'Sunblock & Hat; rain jacket on rainy days.',
+                                'A small light backpack (optional).',
+                                'You may bring your phone or camera (at own risk).'
+                            ]
+                        ],
+
+                        [
+                            'title' => 'CBD Transfers',
+                            'icon' => '/images/icons/car.png',
+                            'items' => [
+                                'If booked, be ready at your transfer departure time.',
+                                'Transfers are operated by an external supplier.',
+                                'Contact us if you have not been contacted by the transfer driver.'
+                            ]
+                        ],
+
+                        [
+                            'title' => 'Weather',
+                            'icon' => '/images/icons/cloud.png',
+                            'items' => [
+                                'Tours are mildly weather-dependent but operate in most conditions.',
+                                'The weather is monitored closely — tours may be cancelled, refunded, or rescheduled.',
+                                'Weather changes quickly; contact the team if uncertain.',
+                                'Notify the team 24 hours in advance if you want to move or cancel your tour.'
+                            ]
+                        ],
+
+                        [
+                            'title' => 'Restrictions',
+                            'icon' => '/images/icons/restrictions.png',
+                            'items' => [
+                                'This is an adventure activity requiring moderate fitness.',
+                                'Recommended weight limit: 100–110 kg per person.',
+                                'Limit is based on harness size and strap circumference.',
+                                'If over 100–110 kg but fit, your body shape may still allow safe harness fit.',
+                                'Minimum age: 5 years old.'
+                            ]
+                        ],
+
+                        [
+                            'title' => 'Tandems / Children',
+                            'icon' => '/images/icons/family.png',
+                            'items' => [
+                                'We can offer 2 tandems per tour.',
+                                'Tandems for guests under 50 kg only.',
+                                'Email: zipline@capecanopytour.co.za for children under 9 years.',
+                                'Minimum age: 5 years old.',
+                                'Children under 5 may need to ride tandem with a guide.'
+                            ]
+                        ],
+
+                        [
+                            'title' => 'Further Info',
+                            'icon' => '/images/icons/info.png',
+                            'items' => [
+                                'Tips aren’t required but appreciated.',
+                                'Extra snacks and drinks available before and after your tour.',
+                                'Wi-Fi available at the base.',
+                                'Bring a card — no cash accepted.'
+                            ]
+                        ],
+
+                        [
+                            'title' => 'Cancellation / Refunds',
+                            'icon' => '/images/icons/refund.png',
+                            'items' => [
+                                '100% refund for cancellations 24+ hours before the tour.',
+                                'No refund for late arrivals or missed tours.',
+                                'If the company cancels, you receive a full refund.',
+                                'Third-party refunds handled through the agent.'
+                            ]
+                        ],
+                    ]
+                ];
+                break;
+
+            case 'Tsitsikamma':
+                return [
+                    'flightName' => '',
+                    'location' => 'Cape Canopy Tour',
+                    'address' => '101 DARNELL STREET, STORMS RIVER VILLAGE, 6308',
+                    'passenger' => '',
+                    'date' => '',
+                    'time' => '',
+                    'seat' => '',
+                    'boarding_time' => '',
+                    'booking_no' => '',
+                    'flight' => '',
+                    'passenger_name' => '',
+
+                    'sections' => [
+
+                        [
+                            'title' => 'Tour Includes',
+                            'icon' => '/images/icons/tour.png',
+                            'items' => [
+                                'All equipment and training.',
+                                'A return 4x4 experience from through the nature reserve.',
+                                'A 4–5 hour fully guided mountain top zipline adventure along 13 elevated platforms.',
+                                'Small exclusive groups of 8–9 people.',
+                                '2x fully trained Cape Canopy Tour facilitators will join you on each tour.',
+                                'A personalized video (this is available to purchase as an optional extra).'
+                            ]
+                        ],
+
+                        [
+                            'title' => 'Arrival',
+                            'icon' => '/images/icons/location.png',
+                            'items' => [
+                                'Please arrive at least 10–15min BEFORE your tour time.',
+                                'Allow sufficient travel time — the tour will start promptly and late guests cannot be accommodated.',
+                                'If coming from Cape Town, please factor in an extra 30–45min for irregular traffic delays.',
+                                'Once the safety briefing begins, late guests cannot join and the tour will be considered missed.'
+                            ]
+                        ],
+
+                        [
+                            'title' => 'What to Bring',
+                            'icon' => '/images/icons/tshirt.png',
+                            'items' => [
+                                'Warm clothes — mountain weather is unpredictable.',
+                                'Sunblock & Hat; rain jacket on rainy days.',
+                                'A small light backpack (optional).',
+                                'You may bring your phone or camera (at own risk).'
+                            ]
+                        ],
+
+                        [
+                            'title' => 'CBD Transfers',
+                            'icon' => '/images/icons/car.png',
+                            'items' => [
+                                'If booked, be ready at your transfer departure time.',
+                                'Transfers are operated by an external supplier.',
+                                'Contact us if you have not been contacted by the transfer driver.'
+                            ]
+                        ],
+
+                        [
+                            'title' => 'Weather',
+                            'icon' => '/images/icons/cloud.png',
+                            'items' => [
+                                'Tours are mildly weather-dependent but operate in most conditions.',
+                                'The weather is monitored closely — tours may be cancelled, refunded, or rescheduled.',
+                                'Weather changes quickly; contact the team if uncertain.',
+                                'Notify the team 24 hours in advance if you want to move or cancel your tour.'
+                            ]
+                        ],
+
+                        [
+                            'title' => 'Restrictions',
+                            'icon' => '/images/icons/restrictions.png',
+                            'items' => [
+                                'This is an adventure activity requiring moderate fitness.',
+                                'Recommended weight limit: 100–110 kg per person.',
+                                'Limit is based on harness size and strap circumference.',
+                                'If over 100–110 kg but fit, your body shape may still allow safe harness fit.',
+                                'Minimum age: 5 years old.'
+                            ]
+                        ],
+
+                        [
+                            'title' => 'Tandems / Children',
+                            'icon' => '/images/icons/family.png',
+                            'items' => [
+                                'We can offer 2 tandems per tour.',
+                                'Tandems for guests under 50 kg only.',
+                                'Email: zipline@capecanopytour.co.za for children under 9 years.',
+                                'Minimum age: 5 years old.',
+                                'Children under 5 may need to ride tandem with a guide.'
+                            ]
+                        ],
+
+                        [
+                            'title' => 'Further Info',
+                            'icon' => '/images/icons/info.png',
+                            'items' => [
+                                'Tips aren’t required but appreciated.',
+                                'Extra snacks and drinks available before and after your tour.',
+                                'Wi-Fi available at the base.',
+                                'Bring a card — no cash accepted.'
+                            ]
+                        ],
+
+                        [
+                            'title' => 'Cancellation / Refunds',
+                            'icon' => '/images/icons/refund.png',
+                            'items' => [
+                                '100% refund for cancellations 24+ hours before the tour.',
+                                'No refund for late arrivals or missed tours.',
+                                'If the company cancels, you receive a full refund.',
+                                'Third-party refunds handled through the agent.'
+                            ]
+                        ],
+                    ]
+                ];
+                break;
+
+            case 'Magoebaskloof':
+                return [
+                    'flightName' => 'Magoebaskloof',
+                    'location' => 'Cape Canopy Tour',
+                    'address' => 'GEORGES VALLEY, R528, 0730',
+                    'passenger' => 'John Doe',
+                    'date' => '2025-01-14',
+                    'time' => '2025-01-14',
+                    'seat' => '923-251',
+                    'boarding_time' => '08:45',
+                    'booking_no' => '923-251',
+                    'flight' => 'Magoebaskloof',
+                    'passenger_name' => 'John Doe',
+                    'sections' => [
+                        [
+                            'title' => 'Tour Includes',
+                            'icon' => '/images/icons/tour.png',
+                            'items' => [
+                                'All equipment and training.',
+                                'A return 4x4 experience from through the nature reserve.',
+                                'A 4–5 hour fully guided mountain top zipline adventure along 13 elevated platforms.',
+                                'Small exclusive groups of 8–9 people.',
+                                '2x fully trained Cape Canopy Tour facilitators will join you on each tour.',
+                                'A personalized video (this is available to purchase as an optional extra).'
+                            ]
+                        ],
+                        [
+                            'title' => 'Arrival',
+                            'icon' => '/images/icons/location.png',
+                            'items' => [
+                                'Please arrive at least 10–15min BEFORE your tour time.',
+                                'Allow sufficient travel time — the tour will start promptly and late guests cannot be accommodated.',
+                                'If coming from Cape Town, please factor in an extra 30–45min for irregular traffic delays.',
+                                'Once the safety briefing begins, late guests cannot join and the tour will be considered missed.'
+                            ]
+                        ],
+                        [
+                            'title' => 'What to Bring',
+                            'icon' => '/images/icons/tshirt.png',
+                            'items' => [
+                                'Warm clothes — mountain weather is unpredictable.',
+                                'Sunblock & Hat; rain jacket on rainy days.',
+                                'A small light backpack (optional).',
+                                'You may bring your phone or camera (at own risk).'
+                            ]
+                        ],
+                        [
+                            'title' => 'CBD Transfers',
+                            'icon' => '/images/icons/car.png',
+                            'items' => [
+                                'If booked, be ready at your transfer departure time.',
+                                'Transfers are operated by an external supplier.',
+                                'Contact us if you have not been contacted by the transfer driver.'
+                            ]
+                        ],
+                        [
+                            'title' => 'Weather',
+                            'icon' => '/images/icons/cloud.png',
+                            'items' => [
+                                'Tours are mildly weather-dependent but operate in most conditions.',
+                                'The weather is monitored closely — tours may be cancelled, refunded, or rescheduled.',
+                                'Weather changes quickly; contact the team if uncertain.',
+                                'Notify the team 24 hours in advance if you want to move or cancel your tour.'
+                            ]
+                        ],
+                        [
+                            'title' => 'Restrictions',
+                            'icon' => '/images/icons/restrictions.png',
+                            'items' => [
+                                'This is an adventure activity requiring moderate fitness.',
+                                'Recommended weight limit: 100–110 kg per person.',
+                                'Limit is based on harness size and strap circumference.',
+                                'If over 100–110 kg but fit, your body shape may still allow safe harness fit.',
+                                'Minimum age: 5 years old.'
+                            ]
+                        ],
+                        [
+                            'title' => 'Tandems / Children',
+                            'icon' => '/images/icons/family.png',
+                            'items' => [
+                                'We can offer 2 tandems per tour.',
+                                'Tandems for guests under 50 kg only.',
+                                'Email: zipline@capecanopytour.co.za for children under 9 years.',
+                                'Minimum age: 5 years old.',
+                                'Children under 5 may need to ride tandem with a guide.'
+                            ]
+                        ],
+                        [
+                            'title' => 'Further Info',
+                            'icon' => '/images/icons/info.png',
+                            'items' => [
+                                'Tips aren’t required but appreciated.',
+                                'Extra snacks and drinks available before and after your tour.',
+                                'Wi-Fi available at the base.',
+                                'Bring a card — no cash accepted.'
+                            ]
+                        ],
+                        [
+                            'title' => 'Cancellation / Refunds',
+                            'icon' => '/images/icons/refund.png',
+                            'items' => [
+                                '100% refund for cancellations 24+ hours before the tour.',
+                                'No refund for late arrivals or missed tours.',
+                                'If the company cancels, you receive a full refund.',
+                                'Third-party refunds handled through the agent.'
+                            ]
+                        ],
+                    ]
+                ];
+                break;
+
+            default:
+                return [
+                    'flightName' => 'Flight 1234',
+                    'location' => 'Cape Canopy Tour',
+                    'address' => 'Address Placeholder',
+                    'passenger' => 'John Doe',
+                    'date' => '2025-01-14',
+                    'time' => '2025-01-14',
+                    'seat' => '14A',
+                    'boarding_time' => '08:45',
+                    'booking_no' => 'CCT-90344',
+                    'flight' => 'FLIGHT-1234',
+                    'passenger_name' => 'John Doe',
+                    'sections' => [
+                        [
+                            'title' => 'Tour Includes',
+                            'icon' => '/images/icons/tour.png',
+                            'items' => [
+                                'All equipment and training.',
+                                'A return 4x4 experience from through the nature reserve.',
+                                'A 4–5 hour fully guided mountain top zipline adventure along 13 elevated platforms.',
+                                'Small exclusive groups of 8–9 people.',
+                                '2x fully trained Cape Canopy Tour facilitators will join you on each tour.',
+                                'A personalized video (this is available to purchase as an optional extra).'
+                            ]
+                        ],
+                        [
+                            'title' => 'Arrival',
+                            'icon' => '/images/icons/location.png',
+                            'items' => [
+                                'Please arrive at least 10–15min BEFORE your tour time.',
+                                'Allow sufficient travel time — the tour will start promptly and late guests cannot be accommodated.',
+                                'If coming from Cape Town, please factor in an extra 30–45min for irregular traffic delays.',
+                                'Once the safety briefing begins, late guests cannot join and the tour will be considered missed.'
+                            ]
+                        ],
+                        [
+                            'title' => 'What to Bring',
+                            'icon' => '/images/icons/tshirt.png',
+                            'items' => [
+                                'Warm clothes — mountain weather is unpredictable.',
+                                'Sunblock & Hat; rain jacket on rainy days.',
+                                'A small light backpack (optional).',
+                                'You may bring your phone or camera (at own risk).'
+                            ]
+                        ],
+                        [
+                            'title' => 'CBD Transfers',
+                            'icon' => '/images/icons/car.png',
+                            'items' => [
+                                'If booked, be ready at your transfer departure time.',
+                                'Transfers are operated by an external supplier.',
+                                'Contact us if you have not been contacted by the transfer driver.'
+                            ]
+                        ],
+                        [
+                            'title' => 'Weather',
+                            'icon' => '/images/icons/cloud.png',
+                            'items' => [
+                                'Tours are mildly weather-dependent but operate in most conditions.',
+                                'The weather is monitored closely — tours may be cancelled, refunded, or rescheduled.',
+                                'Weather changes quickly; contact the team if uncertain.',
+                                'Notify the team 24 hours in advance if you want to move or cancel your tour.'
+                            ]
+                        ],
+                        [
+                            'title' => 'Restrictions',
+                            'icon' => '/images/icons/restrictions.png',
+                            'items' => [
+                                'This is an adventure activity requiring moderate fitness.',
+                                'Recommended weight limit: 100–110 kg per person.',
+                                'Limit is based on harness size and strap circumference.',
+                                'If over 100–110 kg but fit, your body shape may still allow safe harness fit.',
+                                'Minimum age: 5 years old.'
+                            ]
+                        ],
+                        [
+                            'title' => 'Tandems / Children',
+                            'icon' => '/images/icons/family.png',
+                            'items' => [
+                                'We can offer 2 tandems per tour.',
+                                'Tandems for guests under 50 kg only.',
+                                'Email: zipline@capecanopytour.co.za for children under 9 years.',
+                                'Minimum age: 5 years old.',
+                                'Children under 5 may need to ride tandem with a guide.'
+                            ]
+                        ],
+                        [
+                            'title' => 'Further Info',
+                            'icon' => '/images/icons/info.png',
+                            'items' => [
+                                'Tips aren’t required but appreciated.',
+                                'Extra snacks and drinks available before and after your tour.',
+                                'Wi-Fi available at the base.',
+                                'Bring a card — no cash accepted.'
+                            ]
+                        ],
+                        [
+                            'title' => 'Cancellation / Refunds',
+                            'icon' => '/images/icons/refund.png',
+                            'items' => [
+                                '100% refund for cancellations 24+ hours before the tour.',
+                                'No refund for late arrivals or missed tours.',
+                                'If the company cancels, you receive a full refund.',
+                                'Third-party refunds handled through the agent.'
+                            ]
+                        ],
+                    ]
+                ];
+                break;
+        }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        return $data;
+    }
+
 
 
     public function showTestOrder()

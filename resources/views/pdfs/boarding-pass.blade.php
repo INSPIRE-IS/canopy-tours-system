@@ -35,6 +35,9 @@
         }
 
         @page { margin: 0; size: A4; }
+/* * {
+    outline: 1px solid rgba(255,0,0,.1);
+} */
 
         html, body { height: 100%; }
 
@@ -66,12 +69,11 @@
         }
 
         .text-24 {
-            font-size: 34px;
+            font-size: 24px;
             font-weight: 900;
             font-family: 'Gotham';
             line-height: 1.4;
             letter-spacing: 1.6px;
-            text
         }
         .text-16 {
             font-size: 18px;
@@ -122,11 +124,12 @@
 
         .ticket-content {
             position: relative;
-            padding: 25px;
             display: grid;
-            grid-template-columns: 3fr 1fr;
-            gap: 25px;
+            grid-template-columns: 8fr 1fr;
+            padding: 25px;
             z-index: 5;
+            gap: 40px;
+            margin-bottom: 10px;
         }
 
         /* .ticket-content::after {
@@ -146,7 +149,14 @@
             margin-top: 10px;
         }        
 
-        .left-card,
+        .left-card{
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            position: relative;
+            margin-top: 40px;
+            z-index: 1;
+        }
         .right-card {
             background: white;
             padding: 20px;
@@ -156,14 +166,6 @@
             z-index: 1;
         }
 
-        .left-card {
-            height: 260px;
-            
-        }
-
-        .right-card {
-            height: 260px;
-        }
         .left-card::after{
             content: "";
             position: absolute;
@@ -172,7 +174,7 @@
             right: 0;
             height: 260px;
 
-            background: url('{{ asset('/images/boarding_pass_assets/tree_transparent.png') }}')
+            background: url('{{ pdf_asset('/images/boarding_pass_assets/tree_transparent.png') }}')
                 center bottom no-repeat;
             background-size: contain;
 
@@ -189,7 +191,7 @@
             right: -20px;
             height: 320px;              /* THIS controls visible size */
 
-            background: url('{{ asset('/images/boarding_pass_assets/tree_transparent.png') }}')
+            background: url('{{ pdf_asset('/images/boarding_pass_assets/tree_transparent.png') }}')
                 center bottom no-repeat;
 
             background-size: 300%;      /* THIS scales the image */
@@ -237,16 +239,16 @@
             position: absolute;
             bottom: 20px;
             right: 20px;
-            width: 120px;
+            width: 100px;
             height: auto;
             z-index: 5;
             background-size: contain;
         }
         .qr-right {
             position: absolute;
-            bottom: -25px;
+            bottom: -10px;
             left: 20px;
-            width: 60px;
+            width: 40px;
             height: auto;
             z-index: 5;
             background-size: contain;
@@ -283,6 +285,10 @@
             font-size: 14px;
             font-weight: bold;
             font-family: 'Gotham';
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 160px;
         }
 
         .term-section-header {
@@ -293,8 +299,8 @@
         }
 
         .term-section-icon {
-            width: 16px;
-            height: 16px;
+            width: 14px;
+            height: 14px;
             object-fit: contain;
         }
 
@@ -332,13 +338,17 @@
             position: absolute;
             margin-top: 70px;
             inset: 0;
-            background: url('{{ asset('/images/boarding_pass_assets/body-bg.png') }}') center top no-repeat;
+            background: url('{{ pdf_asset('/images/boarding_pass_assets/body-bg.png') }}') center top no-repeat;
             background-size: cover;
             opacity: 0.7;          /* <- watermark effect */
             z-index: -1;            /* stays behind text */
         }
 
-
+        .info-grid {
+            display: grid;
+            grid-template-columns: 160px 160px;
+            gap: 10px;
+        }
 
         .grid {
             display: grid;
@@ -401,7 +411,12 @@
             height: 32px;
             object-fit: contain;
         }
-
+        .wrap-text {
+            white-space: normal;        /* allow wrapping */
+            overflow-wrap: break-word;  /* modern */
+            word-break: break-word;     /* Chrome PDF fallback */
+            hyphens: auto;
+        }
 
         /* Footer */
         .footer {
@@ -423,40 +438,40 @@
             <div class="ticket-content">
 
                 <!-- LEFT SECTION -->
-                <div class="left-card" style="width:98%">
+                <div class="left-card" >
 
                     <img src="{{ asset('/images/boarding_pass_assets/wings.png') }}" class="wings" >
 
                     <h2 class="header-text text-24">Boarding Pass</h2>
                     <h2 class="text-10">FLIGHT:</h2>
-                    <h1 class="text-24">MAGOEBASKLOOF</h1>
-                    <h3 class="text-10">GEORGES VALLEY, R528, 0730</h3>
-                    <div style="display: grid; grid-template-columns: repeat(2, 1fr);padding:8px 0px">
+                    <h1 class="text-24">{{ strtoupper($data['flight']) }}</h1>
+                    <h3 class="text-10">{{ strtoupper($data['address']) }}</h3>
+                    <div class="info-grid">
                         <div style="padding: 16px 20px; border-right: 2px solid #000" >
                             <div class="label">PASSENGER:</div>
-                            <div class="value">JOHN DOE</div>
+                            <div class="value">{{ strtoupper($data['passenger_name']) }}</div>
                             <div class="label">SEAT NO:</div>
-                            <div class="value">923-251</div>
+                            <div class="value">{{ $data['seat'] }}</div>
                         </div>
                         <div style="padding: 16px 20px" >
                             <div class="label">DATE:</div>
-                            <div class="value">30 OCT 2025</div>
+                            <div class="value">{{ \Carbon\Carbon::parse($data['date'])->format('d M Y') }}</div>
                             <div class="label">BOARDING TIME:</div>
-                            <div class="value">12H30</div>
+                            <div class="value">{{ \Carbon\Carbon::parse($data['boarding_time'])->format('H\Hi') }}</div>
                         </div>
                     </div>
 
                         
 
-                    <span class="text-10 term-section-header">
+                    <span class="term-section-header">
                         <img
-                            src="{{ asset('/images/boarding_pass_assets/11.png') }}"
+                            src="{{ pdf_asset('/images/boarding_pass_assets/11.png') }}"
                             class="term-section-icon"
                         >
-                        <span>PLEASE CHECK IN 15 MINUTES BEFORE THE FLIGHT DEPARTS.</span>
+                        <span class="text-8" style="margin-top: 2px">PLEASE CHECK IN 15 MINUTES BEFORE THE FLIGHT DEPARTS.</span>
                     </span>
 
-                    <img src="{{ asset('/images/boarding_pass_assets/qr.png') }}" class="qr-left">
+                    <img src="{{ pdf_asset('/images/boarding_pass_assets/qr.png') }}" class="qr-left">
                 </div>
 
                 <!-- RIGHT SECTION -->
@@ -464,21 +479,21 @@
                     <img src="{{ asset('/images/boarding_pass_assets/logo.png') }}" class="logo" >
                     <div style="margin-top: 30px">
                         <div class="label">PASSENGER:</div>
-                        <div class="value">JOHN DOE</div>
+                        <div class="value">{{ strtoupper($data['passenger_name']) }}</div>
 
                         <div class="label">FLIGHT:</div>
-                        <div class="value">MAGOEBASKLOOF</div>
+                        <div class="value">{{ strtoupper($data['flight']) }}</div>
 
                         <div class="label">DATE:</div>
-                        <div class="value">30 OCT 2025</div>
+                        <div class="value">{{ \Carbon\Carbon::parse($data['date'])->format('d M Y') }}</div>
                         <div style="display: grid; grid-template-columns: repeat(2, 1fr);">
-                            <div style="padding: 16px 20px" >
+                            <div style="padding: 14px 10px" >
                                 <div class="label">TIME:</div>
-                                <div class="value">12H30</div>
+                                <div class="value">{{ \Carbon\Carbon::parse($data['boarding_time'])->format('H\Hi') }}</div>
                             </div>
-                            <div style="padding: 16px 20px" >
+                            <div style="padding: 14px 10px" >
                                 <div class="label">SEAT NO:</div>
-                                <div class="value">923-251</div>
+                                <div class="value wrap-text" style="width: 70px;">{{ $data['seat'] }}</div>
                             </div>
                         </div>
                     </div>
