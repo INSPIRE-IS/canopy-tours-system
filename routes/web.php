@@ -89,8 +89,8 @@ Route::get('front/details/download/{booking}', [PaymentController::class, 'detai
 Route::get('front/voucher', [ActivityController::class, 'voucher'])->name('front.voucher');
 
 
-Route::get('front/test-boarding-pass', [ActivityController::class, 'testBoardingPass'])->name('front.test-boarding-pass');
-Route::get('front/test-boarding-pass/pdf', [ActivityController::class, 'testBoardingPassPdf'])->name('front.test-boarding-pass.pdf');
+Route::get('front/test-boarding-pass/{site?}', [ActivityController::class, 'testBoardingPass'])->name('front.test-boarding-pass');
+Route::get('front/test-boarding-pass/pdf/{site?}', [ActivityController::class, 'testBoardingPassPdf'])->name('front.test-boarding-pass.pdf');
 
 Route::put('front/customer-manifests/edit', [BookingQuestionnaireController::class, 'UpdateCustomerManifest'])->name('front.customer-manifests.edit');
 Route::get('/check-reference/{reference}', [BookingQuestionnaireController::class, 'reference'])->name('check-reference');

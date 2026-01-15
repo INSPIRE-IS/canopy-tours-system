@@ -532,11 +532,7 @@
                         class="condition-section-icon"
                         alt=""
                     >
-                    <span class="condition-section-text">
-                        All visitors and participants and participating in any activities and/or transport offered or arranged by Canopy Tours or third parties engaged by
-                        Canopy Tours by their signature of this document acknowledge that they have read & understand this indemnity, disclaimer and waiver (‘the
-                        Indemnity’) and agree to be bound by it, failing which he/she can choose not to board the transport and/or not to participate in the activities.
-                    </span>
+                    <span class="condition-section-text">{{ $data['footer'] }}</span>
                 </span>
 
             </div>            
