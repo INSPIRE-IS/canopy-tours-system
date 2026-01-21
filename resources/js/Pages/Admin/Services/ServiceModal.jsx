@@ -357,7 +357,7 @@ const ServiceModal = ({ isOpen, onClose, mode, service, serviceFields, auth, tea
                             <label className="block font-semibold mb-1">Current File</label>
                             {service.file.file_type.startsWith("image/") ? (
                                 <img
-                                    src={`/storage/${service.file.path}`}
+                                    src={`${service.file.path}`}
                                     alt={service.file.file_name}
                                     className="w-32 h-auto rounded shadow"
                                 />
