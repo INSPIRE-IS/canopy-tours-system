@@ -19,6 +19,7 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Session;
 use Symfony\Component\HttpFoundation\Response;
+use Illuminate\Support\Facades\Log;
 
 class InventoryController extends Controller
 {
@@ -59,7 +60,11 @@ class InventoryController extends Controller
         // dd($request->all());
         // plan with days if we select 1,2,3,4,5 this is saved then for the period we take these into consideration for the time slots and only do mon to friday
         // plan with time slots we capture these and then they go to every day we will use blockout to exclude days times and periods
-        $inventory = Inventory::create($request->all());
+        $data = $request->except(['day_slots', 'time_slots']);
+        $data['created_by_id'] = auth()->id();
+        $data['team_id'] = auth()->user()->team_id;
+
+        $inventory = Inventory::create($data);
 
         // Clear existing related slots
         $inventory->inventory_type_days()->delete();
@@ -93,38 +98,58 @@ class InventoryController extends Controller
 
     public function update(UpdateInventoryRequest $request, Inventory $inventory)
     {
-        $inventory->update($request->all());
-        //$inventory->time_slots()->sync($request->input('time_slots', []));
-        // Clear existing related slots
-        $inventory->inventory_type_days()->delete();
-        $inventory->inventory_time_slots()->delete();
+        try {
+            $data = $request->except(['day_slots', 'time_slots']);
+            $data['updated_by_id'] = auth()->id();
+            $data['team_id'] = auth()->user()->team_id;
 
-        // Prepare new day slot records
-        $daySlotRecords = collect($request->day_slots)->map(fn($typeDayId) => [
-            'inventory_id' => $inventory->id,
-            'type_day_id' => $typeDayId,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ])->toArray();
+            $inventory->update($data);
+            //$inventory->time_slots()->sync($request->input('time_slots', []));
+            // Clear existing related slots
+            $inventory->inventory_type_days()->delete();
+            $inventory->inventory_time_slots()->delete();
 
-        // Prepare new time slot records (adjust depending on format)
-        $timeSlotRecords = collect($request->time_slots)->map(function ($slot) use ($inventory) {
-            return [
+            // Prepare new day slot records
+            $daySlotRecords = collect($request->day_slots)->map(fn($typeDayId) => [
                 'inventory_id' => $inventory->id,
-                'start_time' => is_array($slot) ? $slot['start_time'] : $slot,
-                //'end_time' => is_array($slot) && isset($slot['end_time']) ? $slot['end_time'] : null,
+                'type_day_id' => $typeDayId,
                 'created_at' => now(),
                 'updated_at' => now(),
-            ];
-        })->toArray();
+            ])->toArray();
 
-        // Bulk insert
-        InventoryTypeDay::insert($daySlotRecords);
-        InventoryTimeSlot::insert($timeSlotRecords);
+            // Prepare new time slot records (adjust depending on format)
+            $timeSlotRecords = collect($request->time_slots)->map(function ($slot) use ($inventory) {
+                return [
+                    'inventory_id' => $inventory->id,
+                    'start_time' => is_array($slot) ? $slot['start_time'] : $slot,
+                    //'end_time' => is_array($slot) && isset($slot['end_time']) ? $slot['end_time'] : null,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ];
+            })->toArray();
+
+            // Bulk insert
+            InventoryTypeDay::insert($daySlotRecords);
+            InventoryTimeSlot::insert($timeSlotRecords);
 
 
 
-        return redirect()->route('admin.inventories.index');
+            return redirect()->route('admin.inventories.index');
+        } catch (\Throwable $e) {
+            // Log the full error for debugging
+            Log::error('Inventory failed', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'input' => $data,
+            ]);
+            return back()->with([
+                'error' => 'Something went wrong while saving your Inventory. Please try again.',
+            ]);
+            // return response()->json([
+            //     'success' => false,
+            //     'error' => 'Something went wrong while saving your booking. Please try again.',
+            // ], 500);
+        }
     }
 
     public function show(Inventory $inventory)

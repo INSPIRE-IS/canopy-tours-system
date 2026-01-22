@@ -16,6 +16,10 @@ class Inventory extends Model
 
     public $table = 'inventories';
 
+    protected $casts = [
+        'allow_internal_override' => 'boolean',
+    ];
+
     protected $dates = [
         'created_at',
         'updated_at',
