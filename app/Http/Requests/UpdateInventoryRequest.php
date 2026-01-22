@@ -48,11 +48,10 @@ class UpdateInventoryRequest extends FormRequest
                 'required',
                 'array',
             ],
-
-            'updated_by_id' => [
-                'required',
-                'integer',
-            ],
+            // 'updated_by_id' => [
+            //     'required',
+            //     'integer',
+            // ],
             'allow_internal_override' => [
                 'required',
             ],
