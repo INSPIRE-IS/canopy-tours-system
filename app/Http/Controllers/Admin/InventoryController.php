@@ -62,11 +62,11 @@ class InventoryController extends Controller
         $inventory = Inventory::create($request->all());
 
         // Clear existing related slots
-        $inventory->typeDays()->delete();
-        $inventory->timeSlots()->delete();
+        $inventory->inventory_type_days()->delete();
+        $inventory->inventory_time_slots()->delete();
 
         // Prepare new day slot records
-        $daySlotRecords = collect($request->inventory_type_days)->map(fn($typeDayId) => [
+        $daySlotRecords = collect($request->day_slots)->map(fn($typeDayId) => [
             'inventory_id' => $inventory->id,
             'type_day_id' => $typeDayId,
             'created_at' => now(),
@@ -100,7 +100,7 @@ class InventoryController extends Controller
         $inventory->inventory_time_slots()->delete();
 
         // Prepare new day slot records
-        $daySlotRecords = collect($request->inventory_type_days)->map(fn($typeDayId) => [
+        $daySlotRecords = collect($request->day_slots)->map(fn($typeDayId) => [
             'inventory_id' => $inventory->id,
             'type_day_id' => $typeDayId,
             'created_at' => now(),

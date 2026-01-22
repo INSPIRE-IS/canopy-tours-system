@@ -15,6 +15,10 @@ class Service extends Model
 
     public $table = 'services';
 
+    protected $casts = [
+        'allow_internal_capacity_override' => 'boolean',
+    ];
+
     protected $dates = [
         'created_at',
         'updated_at',

@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Validator;
 use Inertia\Inertia;
 use Symfony\Component\HttpFoundation\Response;
+use Illuminate\Support\Facades\Log;
 
 class ServicesController extends Controller
 {
@@ -94,13 +95,13 @@ class ServicesController extends Controller
 
             $validator->validate();
 
-            // $season = Season::create([
-            //     'service_id' => $request->service_id,
-            //     'name' => $request->name,
-            //     'created_by_id' => auth()->id(),
-            //     'team_id' => auth()->user()->team_id,
-            // ]);
-            $service = Service::create($request->all());
+            $data = $request->all(); //$request->validated(); // or 
+            Log::info($data);
+            $data['allow_internal_capacity_override'] =
+                $request->boolean('allow_internal_capacity_override');
+            Log::info($data);
+            $service = Service::create($data);
+            // $service = Service::create($request->all());
 
             foreach ($request->fields as $fieldId => $value) {
                 ServiceFieldValue::create([
