@@ -55,11 +55,25 @@ class WholesalerContactsController extends Controller
 
     public function update(Request $request, WholesalerContact $wholesalerContact)
     {
-        dd('not implemented');
-        $wholesalerContact->update($request->all());
-        $wholesalerContact->users()->sync($request->input('users', []));
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email',
+            'phone' => 'required|string',
+            'type' => 'required|string|max:255',
+            'wholesaler_id' => 'required|exists:wholesalers,id',
+        ]);
 
-        return redirect()->route('admin.wholesaler-contacts.index');
+        // Always enforce team ownership server-side
+        $validated['team_id'] = auth()->user()->team_id;
+
+        $wholesalerContact->update($validated);
+
+        // If/when you re-enable users
+        // $wholesalerContact->users()->sync($request->input('users', []));
+
+        return redirect()
+            ->route('admin.wholesaler-contacts.index')
+            ->with('success', 'Wholesaler contact updated successfully');
     }
 
     public function show(WholesalerContact $wholesalerContact)

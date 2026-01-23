@@ -45,7 +45,7 @@ export default function Index({ wholesalercontacts, wholesalers, auth, permissio
         // Redirect to the route with search query and other parameters
         console.log('search ', search);
 
-        window.location.href = route('wholesaler-contacts.index', {
+        window.location.href = route('admin.wholesaler-contacts.index', {
             search,
             sort: sortColumn,
             direction: sortDirection
@@ -55,7 +55,7 @@ export default function Index({ wholesalercontacts, wholesalers, auth, permissio
     const handleDelete = (wholesalercontact) => {
         if (confirm("Are you sure you want to delete this wholesalercontact?")) {
             //post(route("wholesalercontacts.destroy", wholesalercontact), { _method: "DELETE",});
-            router.delete(route('wholesaler-contacts.destroy', wholesalercontact), { preserveScroll: true });
+            router.delete(route('admin.wholesaler-contacts.destroy', wholesalercontact), { preserveScroll: true });
         }
     };
 

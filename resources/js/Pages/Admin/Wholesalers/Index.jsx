@@ -45,7 +45,7 @@ export default function Index({ permissions, wholesalers, auth, searchTerm, sort
         // Redirect to the route with search query and other parameters
         console.log('search ', search);
 
-        window.location.href = route('wholesalers.index', {
+        window.location.href = route('admin.wholesalers.index', {
             search,
             sort: sortColumn,
             direction: sortDirection
@@ -54,7 +54,7 @@ export default function Index({ permissions, wholesalers, auth, searchTerm, sort
     const handleDelete = (wholesaler) => {
         if (confirm("Are you sure you want to delete this wholesaler?")) {
             //post(route("wholesalers.destroy", wholesaler), { _method: "DELETE",});
-            router.delete(route('wholesalers.destroy', wholesaler), { preserveScroll: true });
+            router.delete(route('admin.wholesalers.destroy', wholesaler), { preserveScroll: true });
         }
     };
 

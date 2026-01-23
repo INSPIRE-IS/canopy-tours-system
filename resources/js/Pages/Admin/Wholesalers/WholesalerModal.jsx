@@ -9,10 +9,10 @@ import parse from "html-react-parser";
 
 const WholesalerModal = ({ isOpen, onClose, mode, wholesaler = null, wholesalerFields, fieldValues, auth, team }) => {
     // console.log("mode", mode);
-     console.log("wholesaler", wholesaler);
+    console.log("wholesaler", wholesaler);
     // console.log("roles", roles);
-const [description, setDescription] = useState("");
-const [file, setFile] = useState(null);
+    const [description, setDescription] = useState("");
+    const [file, setFile] = useState(null);
 
     const { data, setData, post, put, errors, reset, processing } = useForm({
         name: "",
@@ -32,7 +32,7 @@ const [file, setFile] = useState(null);
         } else if (mode === "create") {
             reset(); // Clear form for create mode
         }
-    }, [mode,wholesaler,team]);
+    }, [mode, wholesaler, team]);
 
     const handleChange = (target, value) => {
         setData(target, value);
@@ -42,11 +42,11 @@ const [file, setFile] = useState(null);
     const handleSubmit = (e) => {
         e.preventDefault();
         if (mode === "create") {
-            post(route("wholesalers.store"), {
+            post(route("admin.wholesalers.store"), {
                 onSuccess: () => onClose(),
             });
         } else if (mode === "edit") {
-            put(route("wholesalers.update", wholesaler.id), {
+            put(route("admin.wholesalers.update", wholesaler.id), {
                 onSuccess: () => onClose(),
             });
         }
@@ -83,21 +83,21 @@ const [file, setFile] = useState(null);
                             errors={errors}
                             isRequired
                             isReadOnly={mode === "view"}
-                        />  
-                      {/*   <div className="w-full mb-4">
+                        />
+                        {/*   <div className="w-full mb-4">
                             <label className="block text-main mb-1">Description</label>
                             <Tiptap setDescription={setDescription} />                           
                         </div>*/}
-                    {/*  show the description in a textarea
+                        {/*  show the description in a textarea
                     <div className="flex flex-row w-full items-center gap-2 justify-between mb-4">
                         <div className="ProseMirror">{parse(description)}</div>
                     </div>      
-                    */}                        
+                    */}
 
                     </div>
 
                     <div className="flex justify-center gap-4">
-                        <OutlineButton title="Cancel" onClick={onClose} width="w-[180px]"/>
+                        <OutlineButton title="Cancel" onClick={onClose} width="w-[180px]" />
                         {mode !== "view" && (
                             <BlueButton title={mode === "create" ? "Create" : "Update"} width="w-[180px]" onClick={handleSubmit} disabled={processing} type="submit" />
                         )}
