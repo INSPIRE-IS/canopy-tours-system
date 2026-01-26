@@ -80,7 +80,7 @@ export default function Index({ permissions, teams, auth, searchTerm, sortColumn
                     <SearchBar search={search} handleSearchChange={(e) => handleSearchChange(e)} handleSearchSubmit={handleSearchSubmit} />
 
                     <span className="flex gap-2">
-                        {permissions?.teams_create && (
+                        {permissions?.teams_create && false && (
                             <BlueButton title="Add Site" onClick={() => handleOpenModal("create")} icon={true} />
                         )}
                     </span>
