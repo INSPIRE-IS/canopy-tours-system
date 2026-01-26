@@ -23,7 +23,21 @@ class StoreTeamRequest extends FormRequest
     public function rules(): array
     {
         return [
-            //
+            'name' => ['required', 'string', 'max:255'],
+            'full_name' => ['nullable', 'string'],
+            'description' => ['nullable', 'string'],
+            'color' => ['nullable', 'string'],
+            'reg_no' => ['nullable', 'string'],
+            'address' => ['nullable', 'string'],
+            'address_code' => ['nullable', 'string'],
+            'account_owner' => ['nullable', 'string'],
+            'account_number' => ['nullable', 'string'],
+            'account_type' => ['nullable', 'string'],
+            'bank_name' => ['nullable', 'string'],
+            'branch_code' => ['nullable', 'string'],
+            'team_id' => ['nullable', 'exists:teams,id'],
+            'logo' => ['nullable', 'image', 'max:2048'],
+            'image' => ['nullable', 'image', 'max:4096'],
         ];
     }
 }

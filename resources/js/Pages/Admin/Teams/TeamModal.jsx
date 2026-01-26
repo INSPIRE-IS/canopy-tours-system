@@ -6,6 +6,8 @@ import CustomSelect from "@/Components/CustomSelect";
 import OutlineButton from "@/Components/OutlineButton";
 import BlueButton from "@/Components/BlueButton";
 import InputRichText from "@/Components/InputRichText";
+import { set } from "date-fns";
+import { toFormData } from "axios";
 
 const TeamModal = ({ isOpen, onClose, mode, team = null, teams }) => {
     // console.log("mode", mode);
@@ -81,7 +83,6 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams }) => {
         formData.append('bank_name', data.bank_name);
         formData.append('branch_code', data.branch_code);
         formData.append('team_id', data.team_id);
-        formData.append('owner_id', data.owner_id);
 
 
         // File (if present)
@@ -99,18 +100,28 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams }) => {
 
         if (mode === "create") {
 
-            axios.post(route("admin.teams.store"), formData, {
-                headers: {
-                    "Content-Type": "multipart/form-data",
-                },
-            }).then(() => onClose());
+            axios.post(route("admin.teams.store"), toFormData)
+                .then((res) => {
+                    console.log('---------------------------------------', res.data);
+                    setTimeout(() => {
+                        onClose();
+                    }, 1000);
+                })
+                .catch(error => {
+                    console.error(error.response ?? error);
+                });
         } else {
             formData.append('_method', 'PUT');
-            axios.post(route('admin.teams.update', team.id), formData, {
-                headers: {
-                    'Content-Type': 'multipart/form-data',
-                },
-            }).then(() => onClose());
+            axios.post(route('admin.teams.update', team.id), formData)
+                .then((res) => {
+                    console.log('---------------------------------------', res.data);
+                    setTimeout(() => {
+                        onClose();
+                    }, 1000);
+                })
+                .catch(error => {
+                    console.error(error.response ?? error);
+                });
         }
     };
 
