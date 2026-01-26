@@ -146,6 +146,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
         loadCalendar();
     }, [activityId, activityDate, view_mode, selectedTime, adults, children]);
     useEffect(() => {
+        console.log('-----------------------Tracker line 149----------------------', adults);
         console.log('-----------------------Adults----------------------', adults);
         console.log('-----------------------Children----------------------', children);
         console.log('-----------------------Guides----------------------', guides);
@@ -155,7 +156,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
 
     const loadCalendar = async () => {
         // console.log('-----------------loadCalendar-------------');
-        // console.log('-----------------data------------- ', data);
+        console.log('----------------- loadCalendar line 159------------- ', data);
         if (activityId) {
             setLoading(true);
             try {
@@ -183,6 +184,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
         if (selectedService && selectedSeason) {
             fetchCalculatedPrice();
         }
+        console.log('selectedService, selectedSeason, adults, children, guides, selectedDate, selectedTime 187', selectedService);
         console.log('selectedService', selectedService);
         console.log('selectedSeason', selectedSeason);
         console.log('selectedWholesaler', selectedWholesaler);
@@ -298,7 +300,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
         console.log('guides', guides);
         console.log('selectedDate', selectedDate);
         console.log('selectedTime', selectedTime);
-        console.log('==============Payload:========== ');
+        console.log('==============handleCalculate 303:========== ');
 
         const service_id = selectedService ? selectedService?.id : (alert('Please select a service'));
         const season_id = selectedSeason ? selectedSeason?.id : (alert('Please select a season'));
@@ -357,7 +359,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
 
 
     const fetchCalculatedPrice = async () => {
-        // console.log('selectedService', selectedService);
+        console.log('fetchCalculatedPrice 362');
         // console.log('selectedSeason', selectedSeason);
         // console.log('selectedWholesaler', selectedWholesaler);
         // console.log('promoCode', promoCode);
@@ -386,7 +388,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
 
     useEffect(() => {
         // console.log('selectedWholesaler', selectedWholesaler);
-        // console.log('wholesaler_rates', wholesaler_rates);
+        console.log('selectedWholesaler, data.is_wholesaler 391', wholesaler_rates);
         if (selectedWholesaler) {
             const wholesaler_rates_list = wholesaler_rates.filter(s => s.id === parseInt(selectedWholesaler));
             //console.log('wholesaler_rates_list', wholesaler_rates_list);
@@ -451,7 +453,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
             setSeasons([]);
             return selected;
         });
-        // console.log(service);
+        console.log('data.service_id 456');
         setSelectedService(service ?? null);
         const seasons = service ? setSeasons(service.seasons) : [];
         // console.log('seasons', service?.seasons);
@@ -577,28 +579,12 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
             const adult_total = (parseFloat(data?.adults || 0) * parseFloat(data?.rate_per_adult || 0));
             const child_total = (parseFloat(data?.children || 0) * parseFloat(data?.rate_per_child || 0));
             const guide_total = (parseFloat(data?.guides || 0) * parseFloat(data?.rate_per_guide || 0));
-            // console.log('data--------------------', data);
-            // console.log('adult_total', adult_total);
-            // console.log('child_total', child_total);
-            // console.log('guide_total', guide_total);
             return (parseFloat(adult_total || 0) + parseFloat(child_total || 0) + parseFloat(guide_total || 0)).toFixed(2);
         }
-
         return 0;
-
-        // if(data.override_rates){
-        //     setData({
-        //         ...data,
-        //         booking_total: booking_total || 0,
-        //     });
-        // }
     };
     const handleChange = (target, value) => {
         setData(target, value);
-        //setData("name", e.target.value);
-        // console.log('target----- ', target);
-        // console.log('value----- ', value);
-
     };
 
     const parseDate = (str) => {
@@ -609,7 +595,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
 
     useEffect(() => {
         if (data?.booking_date) {
-            // console.log('booking_date', data.booking_date);
+            console.log('data.booking_date 614', data.booking_date);
             //const selectedDate = new Date(value);
             const selectedDate = parseDate(data.booking_date);
             // console.log('selectedDate', selectedDate);
@@ -695,6 +681,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
     };
 
     const addDiscountGroup = () => {
+        console.log('addDiscountGroup 700');
         if (!discountId || !discountPax) return;
 
         const countToMove = parseInt(discountPax);
@@ -752,12 +739,14 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
     };
 
     function calculateDiscountedRate(baseRate, discountId) {
+        console.log('calculateDiscountedRate 758');
         if (!discountId) return baseRate;
         const discount = discountList.find(d => d.id === discountId);
         return baseRate * (1 - discount.percent_off / 100);
     }
 
     const totalAdult = paxGroups.reduce((sum, g) => {
+        console.log('totalAdult 765');
         if (g.type === "adult") {
             const baseRate = data.rate_per_adult;
             const rate = calculateDiscountedRate(baseRate, g.discount_id);
@@ -767,6 +756,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
         return sum; // ✅ always return sum if not adult
     }, 0);
     const totalChild = paxGroups.reduce((sum, g) => {
+        console.log('totalChild 775');
         if (g.type === "child") {
             const baseRate = data.rate_per_child;
             const rate = calculateDiscountedRate(baseRate, g.discount_id);
@@ -776,6 +766,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
         return sum; // ✅ always return sum if not adult
     }, 0);
     const totalGuide = paxGroups.reduce((sum, g) => {
+        console.log('totalGuide 785');
         if (g.type === "guide") {
             const baseRate = data.rate_per_guide;
             const rate = calculateDiscountedRate(baseRate, g.discount_id);
@@ -785,20 +776,16 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
         return sum; // ✅ always return sum if not adult
     }, 0);
     const total = paxGroups.reduce((sum, g) => {
+        console.log('total 795');
         const baseRate = g.type === "adult" ? data.rate_per_adult
             : g.type === "child" ? data.rate_per_child
                 : data.rate_per_guide;
         const rate = calculateDiscountedRate(baseRate, g.discount_id);
-        //setData("booking_total", sum + (rate * g.count));
-        return sum + (rate * g.count);
+        const out = sum + (rate * g.count);
+        return out;
     }, 0);
 
-    useEffect(() => {
-        setData("adult", totalAdult);
-        setData("child", totalChild);
-        setData("guide", totalGuide);
-        setData("booking_total", (total * lookups.find(l => l.slug == 'vat_rate')?.multiplier));
-    }, [total]);
+    const vatTotal = total * lookups.find(l => l.slug == 'vat_rate')?.multiplier;
 
     // find currently selected discount from the list
     const selectedDiscount = discountList?.find(d => d.id === parseInt(discountId));
@@ -1633,10 +1620,10 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                 </div>
                             </div>
                             <div className="flex items-center space-x-4">
-                                <label className="text-booking-lbl-main">Booking Total</label>
+                                <span className="text-booking-lbl-main">Booking Total</span>
                                 <div className="flex items-center justify-between w-[417px] h-[43px] bg-[#DBECFD4D] pl-[7px] pr-[7px] py-[7px] rounded-[6px]">
                                     <span className="text-booking-lbl-main-sub">R {(total * lookups.find(l => l.slug == 'vat_rate')?.multiplier).toFixed(2) || '0.00'}</span>
-                                    <WhiteButton
+                                    {/* <WhiteButton
                                         title="Recalucate from Rack"
                                         icon={true}
                                         type="button"
@@ -1644,7 +1631,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                         textColor='text-[#4D81E7]'
                                         width="w-[189px]"
                                         onClick={() => { }}
-                                    />
+                                    /> */}
                                 </div>
                             </div>
                         </div>
@@ -1848,7 +1835,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                     {/* Booking Payment */}
                     <div className="mt-10 bg-white w-full ml-[20%] lg:ml-[25%] ">
                         <div className="flex flex-col items-center justify-center px-6 py-[65px] w-[60%] lg:w-[50%] rounded-[10px] border border-secondary-100 shadow ">
-                            <div className="flex w-full items-center justify-start space-x-4 ">
+                            {/* <div className="flex w-full items-center justify-start space-x-4 ">
                                 <div className="flex basis-[80%] items-center justify-start space-x-4 ">
                                     <CustomInputText
                                         title="Redeem Voucher"
@@ -1878,38 +1865,38 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                         />
                                     </div>
                                 </div>
-                            </div>
+                            </div> */}
 
 
                             <div className="flex flex-col items-center justify-center space-y-4 mb-7">
                                 <div className="flex items-center space-x-[37px]">
                                     <span className="text-booking-lbl-main w-[160px] font-normal text-right">Total value of bookings</span>
                                     <div className="flex items-center justify-between w-[417px] h-[43px] bg-[#DBECFD4D] pl-[17px] py-[12.5px] rounded-[6px]">
-                                        <span className="text-booking-lbl-main-sub text-[#4D81E7]">R {Number(data?.booking_total || 0).toFixed(2)}</span>
+                                        <span className="text-booking-lbl-main-sub text-[#4D81E7]">R {Number(vatTotal || 0).toFixed(2)}</span>
                                     </div>
                                 </div>
                                 <div className="flex items-center space-x-[37px]">
                                     <span className="text-booking-lbl-main w-[160px] font-normal text-right">Deposit Due Today</span>
                                     <div className="flex items-center justify-between w-[417px] h-[43px] bg-[#DBECFD4D] pl-[17px] py-[12.5px] rounded-[6px]">
-                                        <span className="text-booking-lbl-main-sub text-[#AFAFAF]">R {((Number(data?.deposit_due) || 0) * (Number(data?.booking_total) || 0)).toFixed(2)}</span>
+                                        <span className="text-booking-lbl-main-sub text-[#AFAFAF]">R {((Number(data?.deposit_due) || 0) * (Number(vatTotal) || 0)).toFixed(2)}</span>
                                     </div>
                                 </div>
                                 <div className="flex items-center space-x-[37px]">
                                     <span className="text-booking-lbl-main w-[160px] text-right">Total Due Today</span>
                                     <div className="flex items-center justify-between w-[417px] h-[43px] bg-[#DBECFD4D] pl-[17px] py-[12.5px] rounded-[6px]">
-                                        <span className="text-booking-lbl-main-sub text-[#FF0000]">R {((Number(data?.due_today) || 0) * (Number(data?.booking_total) || 0)).toFixed(2)}</span>
+                                        <span className="text-booking-lbl-main-sub text-[#FF0000]">R {((Number(data?.due_today) || 0) * (Number(vatTotal) || 0)).toFixed(2)}</span>
                                     </div>
                                 </div>
                                 <div className="flex items-center space-x-[37px]">
                                     <span className="text-booking-lbl-main w-[160px] text-right text-[#4D81E7]">Total Rack Value</span>
                                     <div className="flex items-center justify-between w-[417px] h-[43px] bg-[#DBECFD4D] pl-[17px] py-[12.5px] rounded-[6px]">
-                                        <span className="text-booking-lbl-main-sub text-[#4D81E7]">R {((Number(data?.rack_value) || 0) * (Number(data?.booking_total) || 0)).toFixed(2)}</span>
+                                        <span className="text-booking-lbl-main-sub text-[#4D81E7]">R {((Number(data?.rack_value) || 0) * (Number(vatTotal) || 0)).toFixed(2)}</span>
                                     </div>
                                 </div>
                             </div>
 
                             {data.bill_back && (<span className="text-booking-lbl-main w-full text-center font-normal my-7">
-                                Bill Back - The Wholesaler will be invoiced for R{data?.rack_value * data?.booking_total} after the service is delivered.
+                                Bill Back - The Wholesaler will be invoiced for R{data?.rack_value * vatTotal} after the service is delivered.
                             </span>)}
                             <BlueButton
                                 title="Submit Booking"

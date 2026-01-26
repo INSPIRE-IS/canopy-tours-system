@@ -46,6 +46,7 @@ use App\Models\BookingDiscount;
 use App\Models\BookingPricing;
 use App\Models\BookingVoucher;
 use App\Models\Email;
+use App\Models\File;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use App\Models\InvoiceTemplate;
@@ -54,7 +55,7 @@ use App\Models\TypeBooking;
 use App\Models\LookupItem;
 use App\Services\RendererService;
 use Barryvdh\DomPDF\Facade\Pdf;
-use Illuminate\Support\Facades\File;
+
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 
@@ -64,10 +65,10 @@ class BookingsController extends Controller
     {
 
         abort_if(Gate::denies('bookings_access'), Response::HTTP_FORBIDDEN, '403 Forbidden');
-        $bookings = Booking::all();
+        //$bookings = Booking::all();
         // dd(auth()->user()->team_id);
 
-        $bookings->load("booking_payments");
+        //$bookings->load("booking_payments");
         //echo $bookings;
         $bookings = Booking::with([
             'booking_payments',
@@ -82,8 +83,10 @@ class BookingsController extends Controller
             'booking_detail',
             'booking_fee',
             'booking_inventory',
-        ])->get();
-
+        ])
+            ->where('team_id', auth()->user()->team_id)
+            ->get();
+        //dd($booking_items);
         $services = Service::with('seasons', 'seasons.inventory.inventory_time_slots')->get();
 
         $vatMultiplier = LookupItem::where('lookup_id', 1)->where('is_default', true)->first()->multiplier;
@@ -371,6 +374,7 @@ class BookingsController extends Controller
                     'promotion_id'   => $promotion ? $promotion->id : null,
                     'wholesaler_id'  => $validated['wholesaler_id'],
                     'discount_id'    => $booking_price ? $booking_price->id : null,
+                    'team_id' => auth()->user()->team_id,
                 ]);
 
                 // Prepare pivot data
