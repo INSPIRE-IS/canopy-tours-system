@@ -18,6 +18,8 @@ class Inventory extends Model
 
     protected $casts = [
         'allow_internal_override' => 'boolean',
+        'allow_slot_cutoff_hours' => 'boolean',
+        'allow_slot_funneling' => 'boolean',
     ];
 
     protected $dates = [
@@ -29,6 +31,8 @@ class Inventory extends Model
     protected $fillable = [
         'service_id',
         'season_id',
+        'slot_cutoff_hours',
+        'slot_funneling',
         'allow_internal_override',
         'created_by_id',
         'updated_by_id',

@@ -7,19 +7,23 @@ import OutlineButton from "@/Components/OutlineButton";
 import BlueButton from "@/Components/BlueButton";
 
 
-const InventoryModal = ({ isOpen, onClose, mode, inventory = null,services, seasons, day__slots, auth, team }) => {
+const InventoryModal = ({ isOpen, onClose, mode, inventory = null, services, seasons, day__slots, auth, team }) => {
     // console.log("mode", mode);
-     console.log("inventory", inventory);
-     console.log('inventory.time_slots', inventory?.time_slots);
-     const [newTimeSlot, setNewTimeSlot] = useState("");
-     const [filteredSeasons, setFilteredSeasons] = useState([]);
+    console.log("inventory", inventory);
+    console.log('inventory.time_slots', inventory?.time_slots);
+    const [newTimeSlot, setNewTimeSlot] = useState("");
+    const [filteredSeasons, setFilteredSeasons] = useState([]);
     // console.log("roles", roles);
     const { data, setData, post, put, errors, reset, processing } = useForm({
         service_id: "",
         season_id: "",
-        day_slots: [1,2,3,4,5,6,7],
+        day_slots: [1, 2, 3, 4, 5, 6, 7],
         time_slots: [],
+        slot_cutoff_hours: 0,
+        slot_funneling: 0,
         allow_internal_override: 0,
+        allow_slot_cutoff_hours: 0,
+        allow_slot_funneling: 0,
         created_by_id: auth?.user?.id,
     });
     useEffect(() => {
@@ -27,17 +31,21 @@ const InventoryModal = ({ isOpen, onClose, mode, inventory = null,services, seas
             setData({
                 service_id: inventory.service_id || "",
                 season_id: inventory.season_id || "",
-                day_slots: inventory.day_slots || [1,2,3,4,5,6,7],
-                time_slots: inventory?.time_slots?.map(slot => slot.start_time) || [],
+                day_slots: [1, 2, 3, 4, 5, 6, 7], // inventory.inventory_type_days ||
+                time_slots: inventory?.inventory_time_slots?.map(slot => slot.start_time) || [],
+                slot_cutoff_hours: inventory.slot_cutoff_hours || 0,
+                slot_funneling: inventory.slot_funneling || 0,
                 allow_internal_override: inventory.allow_internal_override || 0,
-                updated_by_id: inventory.updated_by_id || "",
+                allow_slot_cutoff_hours: inventory.slot_cutoff_hours == 0 ? 0 : 1,
+                allow_slot_funneling: inventory.slot_funneling == 0 ? 0 : 1,
+                updated_by_id: inventory.updated_by_id || auth?.user?.id,
                 //roles: inventory.roles.map((role) => role.id),
 
             });
         } else if (mode === "create") {
             reset(); // Clear form for create mode
         }
-    }, [mode,inventory,team]);
+    }, [mode, inventory, team]);
 
 
     useEffect(() => {
@@ -59,7 +67,7 @@ const InventoryModal = ({ isOpen, onClose, mode, inventory = null,services, seas
         //setData("name", e.target.value);
     };
 
-        const handleAddIdentification = () => {
+    const handleAddIdentification = () => {
         if (newTimeSlot.trim() !== "") {
             setData("time_slots", [...data.time_slots, newTimeSlot.trim()]);
             setNewTimeSlot(""); // Reset input field
@@ -105,36 +113,93 @@ const InventoryModal = ({ isOpen, onClose, mode, inventory = null,services, seas
                 </h2>
                 <form onSubmit={handleSubmit}>
                     <div className="flex flex-row w-full items-center gap-2 justify-between mb-4">
-                    <CustomSelect
-                        label="services"
-                        name="service_id"
-                        value={data.service_id}
-                        mode={mode}
-                        onChange={(e) => handleChange(e.target.name, e.target.value)}
-                        error={errors.service_id}
-                        options={services}
-                    /> 
-                    <CustomSelect
-                        label="Season/Name"
-                        name="season_id"
-                        value={data.season_id}
-                        mode={mode}
-                        onChange={(e) => handleChange(e.target.name, e.target.value)}
-                        error={errors.season_id}
-                        options={filteredSeasons}
-                    />
+                        <CustomSelect
+                            label="services"
+                            name="service_id"
+                            value={data.service_id}
+                            mode={mode}
+                            onChange={(e) => handleChange(e.target.name, e.target.value)}
+                            error={errors.service_id}
+                            options={services}
+                        />
+                        <CustomSelect
+                            label="Season/Name"
+                            name="season_id"
+                            value={data.season_id}
+                            mode={mode}
+                            onChange={(e) => handleChange(e.target.name, e.target.value)}
+                            error={errors.season_id}
+                            options={filteredSeasons}
+                        />
                     </div>
-                            <CustomCheckbox
-                                label="Allow Time Slot Override"
-                                name="allow_internal_override"
-                                checked={data.allow_internal_override}
-                                mode={mode}
-                                onChange={handleChange}
-                                errors={errors}
-                            />
-                    {/* Identification Section */}
                     <div className="flex flex-row w-full items-center gap-2 justify-start mb-4">
-                        <div className="mb-4 w-full">                        
+                        <CustomCheckbox
+                            label="Allow Time Slot Override"
+                            name="allow_internal_override"
+                            checked={data.allow_internal_override}
+                            mode={mode}
+                            onChange={handleChange}
+                            errors={errors}
+                        />
+                        <CustomCheckbox
+                            label="Slot Cutoff Hours (no hours before a slot closes)"
+                            name="allow_slot_cutoff_hours"
+                            checked={data.allow_slot_cutoff_hours}
+                            mode={mode}
+                            onChange={handleChange}
+                            errors={errors}
+                        />
+                        <CustomCheckbox
+                            label="Slot Funneling (Max Open Slots)"
+                            name="allow_slot_funneling"
+                            checked={data.allow_slot_funneling}
+                            mode={mode}
+                            onChange={handleChange}
+                            errors={errors}
+                        />
+                    </div>
+
+
+                    <div className="flex flex-row w-full items-center gap-2 justify-start mb-4">
+                        {data.allow_slot_cutoff_hours > 0 && (
+                            <CustomSelect
+                                label="Cutoff Hours before slot closes"
+                                name="slot_cutoff_hours"
+                                value={data.slot_cutoff_hours}
+                                mode={mode}
+                                onChange={(e) => setData("slot_cutoff_hours", Number(e.target.value))}
+                                options={[
+                                    { id: 0, name: "0" },
+                                    { id: 1, name: "1" },
+                                    { id: 2, name: "2" },
+                                    { id: 3, name: "3" },
+                                    { id: 6, name: "6" },
+                                    { id: 12, name: "12" },
+                                    { id: 24, name: "24" },
+                                ]}
+                            />
+                        )}
+                        {data.allow_slot_funneling > 0 && (
+                            <CustomSelect
+                                label="Visible Slots Before new slot opens"
+                                name="slot_funneling"
+                                value={data.slot_funneling}
+                                mode={mode}
+                                onChange={(e) => setData("slot_funneling", Number(e.target.value))}
+                                options={[
+                                    { id: 0, name: "0" },
+                                    { id: 1, name: "1" },
+                                    { id: 2, name: "2" },
+                                    { id: 3, name: "3" },
+                                    { id: 4, name: "4" },
+                                    { id: 5, name: "5" },
+                                    { id: 6, name: "6" },
+                                ]}
+                            />
+                        )}
+                    </div>
+                    <div className="flex flex-row w-full items-center gap-2 justify-start mb-4">
+                        <div className="mb-4 w-full">
                             <label className="block input-header">
                                 Time Slot
                             </label>
@@ -143,24 +208,24 @@ const InventoryModal = ({ isOpen, onClose, mode, inventory = null,services, seas
                                 className={`mt-1 block w-full ${errors.name ? "border-red-500" : "border-gray-300"} shadow-sm input-text rounded-xl
                                             hover:border-black  active:border-blue-600 focus:outline-none focus:ring-0 focus:border-black`}
                                 value={newTimeSlot ?? ""}
-                                onChange={(e) => {e.preventDefault(); setNewTimeSlot(e.target.value)}}
+                                onChange={(e) => { e.preventDefault(); setNewTimeSlot(e.target.value) }}
                             />
                         </div>
                         <div className="mt-6 mb-4 w-full">
-                            <BlueButton 
-                            title="Add Time Slot" 
-                            width="w-full" 
-                            onClick={(e) => {e.preventDefault();handleAddIdentification()}} 
-                            disabled={processing} 
-                            type="button" 
-                            />                            
+                            <BlueButton
+                                title="Add Time Slot"
+                                width="w-full"
+                                onClick={(e) => { e.preventDefault(); handleAddIdentification() }}
+                                disabled={processing}
+                                type="button"
+                            />
                         </div>
 
 
                     </div>
                     <label className="inline-flex input-header">
                         Time Slots
-                    </label>                        
+                    </label>
                     <div className="flex flex-row w-full items-center justify-start mb-4">
                         {/* List of added time_slots */}
 
@@ -173,14 +238,14 @@ const InventoryModal = ({ isOpen, onClose, mode, inventory = null,services, seas
                                         className="flex items-center py-2 justify-between bg-gray-100 rounded"
                                     >
                                         <span className="block ml-4">{item}</span>
-                                    <OutlineButton title="Remove" onClick={() => handleRemoveIdentification(index)} width="w-1/2"/>
+                                        <OutlineButton title="Remove" onClick={() => handleRemoveIdentification(index)} width="w-1/2" />
                                     </li>
                                 ))}
                             </ul>
-                        ):(<span className="block text-red-400">No time slots added</span>)}
+                        ) : (<span className="block text-red-400">No time slots added</span>)}
                     </div>
                     <div className="flex justify-center gap-4">
-                        <OutlineButton title="Cancel" onClick={onClose} width="w-[180px]"/>
+                        <OutlineButton title="Cancel" onClick={onClose} width="w-[180px]" />
                         {mode !== "view" && (
                             <BlueButton title={mode === "create" ? "Create" : "Update"} width="w-[180px]" onClick={handleSubmit} disabled={processing} type="submit" />
                         )}

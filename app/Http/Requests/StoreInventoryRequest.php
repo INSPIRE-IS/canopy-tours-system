@@ -47,6 +47,8 @@ class StoreInventoryRequest extends FormRequest
                 'required',
                 'array',
             ],
+            'slot_funneling' => 'nullable|integer|min:0|max:6',
+            'slot_cutoff_hours' => 'nullable|integer|min:0|max:24',
             'created_by_id' => [
                 'required',
                 'integer',
@@ -54,6 +56,9 @@ class StoreInventoryRequest extends FormRequest
             'allow_internal_override' => [
                 'required',
             ],
+            'allow_slot_cutoff_hours' => 'required',
+            'allow_slot_funneling' => 'required',
+
         ];
     }
 }

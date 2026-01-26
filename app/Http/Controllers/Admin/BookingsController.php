@@ -962,6 +962,7 @@ class BookingsController extends Controller
 
     public function calendar(Request $request)
     {
+        // dd($request->all());
         $activityId = $request->input('activity_id');
         $viewMode   = $request->input('view_mode', 'week');
         $startDate  = Carbon::parse($request->input('start_date', now()));

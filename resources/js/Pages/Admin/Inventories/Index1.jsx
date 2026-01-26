@@ -44,7 +44,7 @@ export default function Index({ permissions, seasons, services, inventories, day
         // Redirect to the route with search query and other parameters
         console.log('search ', search);
 
-        window.location.href = route('inventories.index', {
+        window.location.href = route('admin.inventories.index', {
             search,
             sort: sortColumn,
             direction: sortDirection
@@ -54,7 +54,7 @@ export default function Index({ permissions, seasons, services, inventories, day
     const handleDelete = (inventory) => {
         if (confirm("Are you sure you want to delete this inventory?")) {
             //post(route("inventorys.destroy", inventory), { _method: "DELETE",});
-            router.delete(route('inventories.destroy', inventory), { preserveScroll: true });
+            router.delete(route('admin.inventories.destroy', inventory), { preserveScroll: true });
         }
     };
 

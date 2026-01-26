@@ -3,12 +3,17 @@
 namespace App\Services\Calendar;
 
 use Carbon\CarbonPeriod;
+use Illuminate\Support\Facades\Log;
 
 class ServiceCalendarBuilder
 {
     public static function build($inventory, $season, $service, $bookingData, $startDate, $endDate, $totalRequested, $startTime = null)
     {
 
+        $lockoutHours = $inventory->slot_cutoff_hours ?? 0; // 0 = no lockout, 3 = 3h, 4 = 4h, etc
+        if (auth()->user() && $inventory->allow_internal_override) {
+            $lockoutHours = 0;
+        }
         $serviceId = $inventory->service_id;
         $seasonId = $inventory->season_id;
         $allowedDays = $inventory->inventory_type_days->pluck('type_day_id')->toArray();
@@ -21,7 +26,7 @@ class ServiceCalendarBuilder
             //->pluck('start_time')
             ->unique()->sort();
         logger()->info("$serviceId, $seasonId, $startDate, $endDate");
-        $calendar = self::initCalendar($season, $service, $bookingData, $startDate, $endDate, $totalRequested, $allowedDays, $timeSlots);
+        $calendar = self::initCalendar($season, $service, $bookingData, $startDate, $endDate, $totalRequested, $allowedDays, $timeSlots, $lockoutHours);
 
         // Apply Closeouts
         $calendar = ServiceCloseoutCalendarBuilder::apply(
@@ -39,13 +44,18 @@ class ServiceCalendarBuilder
         $calendar = ServicePromoCalendarBuilder::apply($calendar, $serviceId);
 
         // 3) Funnel slots LAST
-        $calendar = self::applySlotFunneling($calendar, 2); // 2 = number of open slots allowed
-
+        // $calendar = self::applySlotFunneling($calendar, 2); // 2 = number of open slots allowed
+        if ($inventory->slot_funneling > 0) {
+            $calendar = self::applySlotFunneling(
+                $calendar,
+                $inventory->slot_funneling
+            );
+        }
 
         return $calendar;
     }
 
-    protected static function initCalendar($season, $service, $bookingData, $startDate, $endDate, $totalRequested, $allowedDays, $timeSlots)
+    protected static function initCalendar($season, $service, $bookingData, $startDate, $endDate, $totalRequested, $allowedDays, $timeSlots, $lockoutHours)
     {
         $calendar = [];
         foreach ($timeSlots as $timeSlot) {
@@ -61,9 +71,17 @@ class ServiceCalendarBuilder
                 $label = $date->format('D d');
                 $dayOfWeek = $date->dayOfWeekIso;
                 $dateStr = $date->toDateString();
+                // time period in hours before a slot closes
+                $slotCloseTime = $lockoutHours ?? 0;
 
-                $now = now();
-                $cutoff = now()->addDay(); // 24-hour lockout                
+                $now = now('Africa/Johannesburg');
+                Log::info('now' . $now);
+                $cutoff = $slotCloseTime > 0
+                    ? $now->copy()->addHours($slotCloseTime)
+                    : null;
+                // $cutoff = now()->addDay(); // 24-hour lockout    
+                Log::info('cutoff' . $cutoff);
+
                 // Not an allowed weekday
                 if (!in_array($dayOfWeek, $allowedDays)) {
                     $row['days'][$label] = [
@@ -75,7 +93,7 @@ class ServiceCalendarBuilder
                     continue;
                 }
                 // Rule: Past date
-                if ($date->isPast()) {
+                if ($date->isBefore(now()->startOfDay())) {
                     $row['days'][$label] = [
                         'date'   => $dateStr,
                         'slots'  => 0,
@@ -85,14 +103,21 @@ class ServiceCalendarBuilder
                     continue;
                 }
                 // Rule: Online booking closes 24h before start time
-                $slotDateTime = $date->copy()->setTimeFromTimeString($timeSlot->start_time);
-
-                if ($slotDateTime->lt($cutoff)) {
+                // $slotDateTime = $date
+                //     ->copy()
+                //     ->timezone('Africa/Johannesburg')
+                //     ->setTimeFromTimeString($timeSlot->start_time);
+                $slotDateTime = \Carbon\Carbon::createFromFormat(
+                    'Y-m-d H:i:s',
+                    $dateStr . ' ' . $timeSlot->start_time,
+                    'Africa/Johannesburg'
+                );
+                if ($cutoff && $slotDateTime->lt($cutoff)) {
                     $row['days'][$label] = [
                         'date'   => $dateStr,
                         'slots'  => 0,
                         'status' => 'unavailable', // closed
-                        'note'   => 'Online booking closes 24h before tour',
+                        'note'   => 'Online booking closes' . $cutoff . 'h before tour',
                     ];
                     continue;
                 }

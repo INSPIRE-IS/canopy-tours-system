@@ -223,7 +223,7 @@ export default function HomePage({ activities, auth, teams, team_id, team }) {
                   badge={activity?.pillbox_conditions}
                   promo={activity?.promo}
                   gift={activity?.gift}
-                  onBook={() => router.get(route('front.activity', { activity_id: activity?.id }))}
+                  onBook={() => router.get(route('front.activity', { activity_id: activity?.season_id }))}
                   onGift={(e) => handleGift(e, activity)}
                 />
               )

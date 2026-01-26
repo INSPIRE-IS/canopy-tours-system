@@ -57,10 +57,10 @@ class InventoryController extends Controller
 
     public function store(StoreInventoryRequest $request)
     {
-        // dd($request->all());
+        //dd($request->all());
         // plan with days if we select 1,2,3,4,5 this is saved then for the period we take these into consideration for the time slots and only do mon to friday
         // plan with time slots we capture these and then they go to every day we will use blockout to exclude days times and periods
-        $data = $request->except(['day_slots', 'time_slots']);
+        $data = $request->except(['day_slots', 'time_slots', 'allow_slot_cutoff_hours', 'allow_slot_funneling']);
         $data['created_by_id'] = auth()->id();
         $data['team_id'] = auth()->user()->team_id;
 
@@ -98,17 +98,17 @@ class InventoryController extends Controller
 
     public function update(UpdateInventoryRequest $request, Inventory $inventory)
     {
+
         try {
-            $data = $request->except(['day_slots', 'time_slots']);
+            // dd($request);
+            $data = $request->except(['day_slots', 'time_slots', 'allow_slot_cutoff_hours', 'allow_slot_funneling']);
             $data['updated_by_id'] = auth()->id();
             $data['team_id'] = auth()->user()->team_id;
 
             $inventory->update($data);
             //$inventory->time_slots()->sync($request->input('time_slots', []));
-            // Clear existing related slots
+            // Clear existing related day slots we need these but technically use over rides currently
             $inventory->inventory_type_days()->delete();
-            $inventory->inventory_time_slots()->delete();
-
             // Prepare new day slot records
             $daySlotRecords = collect($request->day_slots)->map(fn($typeDayId) => [
                 'inventory_id' => $inventory->id,
@@ -117,11 +117,14 @@ class InventoryController extends Controller
                 'updated_at' => now(),
             ])->toArray();
 
+            $inventory->inventory_time_slots()->delete();
             // Prepare new time slot records (adjust depending on format)
             $timeSlotRecords = collect($request->time_slots)->map(function ($slot) use ($inventory) {
+                $slot_time = is_array($slot) ? $slot['start_time'] : $slot;
+                $start_time = strlen($slot_time) === 5 ? $slot_time . ':00' : $slot_time;
                 return [
                     'inventory_id' => $inventory->id,
-                    'start_time' => is_array($slot) ? $slot['start_time'] : $slot,
+                    'start_time' => $start_time,
                     //'end_time' => is_array($slot) && isset($slot['end_time']) ? $slot['end_time'] : null,
                     'created_at' => now(),
                     'updated_at' => now(),
@@ -132,9 +135,7 @@ class InventoryController extends Controller
             InventoryTypeDay::insert($daySlotRecords);
             InventoryTimeSlot::insert($timeSlotRecords);
 
-
-
-            return redirect()->route('admin.inventories.index');
+            // return redirect()->route('admin.inventories.index');
         } catch (\Throwable $e) {
             // Log the full error for debugging
             Log::error('Inventory failed', [
@@ -145,10 +146,6 @@ class InventoryController extends Controller
             return back()->with([
                 'error' => 'Something went wrong while saving your Inventory. Please try again.',
             ]);
-            // return response()->json([
-            //     'success' => false,
-            //     'error' => 'Something went wrong while saving your booking. Please try again.',
-            // ], 500);
         }
     }
 
@@ -163,8 +160,8 @@ class InventoryController extends Controller
 
     public function destroy(Inventory $inventory)
     {
-        abort_if(Gate::denies('inventory_delete'), Response::HTTP_FORBIDDEN, '403 Forbidden');
-
+        abort_if(Gate::denies('inventories_delete'), Response::HTTP_FORBIDDEN, '403 Forbidden');
+        //abort_if(Gate::denies('inventories_delete'), 403);
         $inventory->delete();
 
         return back();

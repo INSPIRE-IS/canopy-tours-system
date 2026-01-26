@@ -33,14 +33,13 @@ class UpdateInventoryRequest extends FormRequest
                 'required',
                 'integer',
             ],
-
-            'day_slots.*' => [
-                'integer',
-            ],
-            'day_slots' => [
-                'required',
-                'array',
-            ],
+            // 'day_slots.*' => [
+            //     'integer',
+            // ],
+            // 'day_slots' => [
+            //     'required',
+            //     'array',
+            // ],
             'time_slots.*' => [
                 'string',
             ],
@@ -48,13 +47,18 @@ class UpdateInventoryRequest extends FormRequest
                 'required',
                 'array',
             ],
-            // 'updated_by_id' => [
-            //     'required',
-            //     'integer',
-            // ],
+            'slot_funneling' => 'nullable|integer|min:0|max:6',
+            'slot_cutoff_hours' => 'nullable|integer|min:0|max:24',
+            'updated_by_id' => [
+                'required',
+                'integer',
+            ],
             'allow_internal_override' => [
                 'required',
             ],
+            'allow_slot_cutoff_hours' => 'required',
+            'allow_slot_funneling' => 'required',
+
         ];
     }
 }
