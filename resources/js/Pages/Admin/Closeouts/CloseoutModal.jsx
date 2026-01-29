@@ -49,22 +49,23 @@ const CloseoutModal = ({ isOpen, onClose, mode, closeout = null, services, auth,
             //     setSelectedSlots(slots);
             // }
 
-        } else if (mode === "create") {
+        }
+        if (mode === "create") {
             reset();
             setSelectedSlots([]); // clear slots on create
 
         }
     }, [mode, closeout, team_id]);
-    
-    useEffect(() => {
-        if (mode === "edit" && closeout && inventory) {
-                    const slots = closeout.closeout_day_time_slots.map(slot => ({
-                        day_id: slot.day_id,
-                        time_slot_id: slot.time_slot_id,
-                    }))
-                    console.log('slots ', slots);
 
-                    setSelectedSlots(slots);
+    useEffect(() => {
+        if ((mode === "edit" || mode === "view") && closeout && inventory) {
+            const slots = closeout.closeout_day_time_slots.map(slot => ({
+                day_id: slot.day_id,
+                time_slot_id: slot.time_slot_id,
+            }))
+            console.log('slots ', slots);
+
+            setSelectedSlots(slots);
         }
     }, [mode, closeout, inventory]);
     // When service changes, load seasons
@@ -74,19 +75,19 @@ const CloseoutModal = ({ isOpen, onClose, mode, closeout = null, services, auth,
     //     setSeasons(selectedService ? selectedService.seasons : []);
     // }, [data.service_id]);
     // inside useEffect when service changes
-useEffect(() => {
-    if (!data.service_id) return;
+    useEffect(() => {
+        if (!data.service_id) return;
 
-    const selectedService = services.find(s => s.id === parseInt(data.service_id));
-    setSeasons(selectedService ? selectedService.seasons : []);
+        const selectedService = services.find(s => s.id === parseInt(data.service_id));
+        setSeasons(selectedService ? selectedService.seasons : []);
 
-    // Only reset on service change if we're in create mode
-    if (mode === "create") {
-        setData("season_id", "");
-        setInventory(null);
-        setSelectedSlots([]);
-    }
-}, [data.service_id, mode, services]);
+        // Only reset on service change if we're in create mode
+        if (mode === "create") {
+            setData("season_id", "");
+            setInventory(null);
+            setSelectedSlots([]);
+        }
+    }, [data.service_id, mode, services]);
 
     // Toggle entire day column
     const toggleDayColumn = (dayId) => {
@@ -221,7 +222,7 @@ useEffect(() => {
                             mode={mode}
                             handleChange={handleChange}
                             errors={errors}
-                        />                        
+                        />
                     </div>
                     <div className="flex flex-row w-full items-center gap-2 justify-between mb-4">
                         <div className="flex flex-col w-full min-h-[80px] items-center space-y-2">
@@ -235,21 +236,21 @@ useEffect(() => {
                                 errors={errors}
                             />
                             {data.start_date && (
-                                    <span className="text-sm text-gray-600">
-                                        {getWeekday(data.start_date)}
-                                    </span>
-                                )}
+                                <span className="text-sm text-gray-600">
+                                    {getWeekday(data.start_date)}
+                                </span>
+                            )}
                         </div>
                         <div className="flex flex-col  w-full min-h-[80px] items-center space-y-2">
-                                                <InputText
-                                                    title="End Date"
-                                                    field="end_date"
-                                                    value={data.end_date}
-                                                    type="date"
-                                                    mode={mode}
-                                                    handleChange={handleChange}
-                                                    errors={errors}
-                                                />
+                            <InputText
+                                title="End Date"
+                                field="end_date"
+                                value={data.end_date}
+                                type="date"
+                                mode={mode}
+                                handleChange={handleChange}
+                                errors={errors}
+                            />
                             {data.end_date && (
                                 <span className="text-sm text-gray-600">
                                     {getWeekday(data.end_date)}
@@ -331,13 +332,13 @@ useEffect(() => {
                                                 return (
                                                     <td
                                                         key={`${day.type_day_id}-${slot.id}`}
-                                                        className={`border p-2 text-center transition-colors ${
-                                                            checked ? "bg-red-100" : ""
-                                                        }`}
+                                                        className={`border p-2 text-center transition-colors ${checked ? "bg-red-100" : ""
+                                                            }`}
                                                     >
                                                         <input
                                                             type="checkbox"
                                                             checked={checked}
+                                                            disabled={mode === "view"}
                                                             onChange={() => toggleSlot(day.type_day_id, slot.id)}
                                                         />
                                                     </td>
