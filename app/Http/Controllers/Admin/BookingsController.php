@@ -185,7 +185,10 @@ class BookingsController extends Controller
 
         $vouchers = Voucher::select('id', 'voucher_code as name', 'amount', 'note', 'expire_date', 'season_id', 'service_id')->with('season', 'service')->get();
         $discounts = Discount::select('id', 'name', 'applies_to', 'percent_off')->with('services')->get();
-        $wholesaler_rates = WholesalerRate::select('id', 'wholesaler_id', 'season_id', 'price_adult', 'price_child', 'price_guide')->with('season', 'wholesaler')->get();
+        //dd($discounts);
+        $wholesaler_rates = WholesalerRate::select('id', 'wholesaler_id', 'service_id', 'season_id', 'price_adult', 'price_child', 'price_guide')
+            ->with('service', 'season', 'wholesaler')
+            ->get();
         $promos = Promotion::select('id', 'name', 'promo_code', 'type', 'value', 'service_id', 'booking_start_date', 'booking_end_date', 'activity_start_date', 'activity_end_date')
             ->where('booking_start_date', '<=', $today)
             ->where('booking_end_date', '>=', $today)
@@ -230,7 +233,7 @@ class BookingsController extends Controller
             'lead_mobile' => 'required|string', //   "lead_mobile" => "Lead Mobile"
             'selected_slot' => 'required|array', //   "selected_slot" => array:3 [▶] date "2025-07-28" "selected_slot" => array:3 [▶] time "08:00:00"
 
-            'season_id' => 'required|integer', //   "season_id" => "2"
+            'service_id' => 'required|integer', //   "season_id" => "2"
             'corporate_customer' => 'boolean', //   "corporate_customer" => "true"
             'send_sms' => 'boolean', //   "send_sms" => "true"
             'booking_date' => 'required|date', //   "booking_date" => "2025-07-28"
@@ -1333,7 +1336,11 @@ class BookingsController extends Controller
                             }
                             logger()->info('percent promo applied ' . var_export($rates, true));
                             break;
-
+                        case 'time_slot':
+                            foreach ($rates as $k => $v) {
+                                $rates[$k] = $v - ($v * ($promo->value / 100));
+                            }
+                            break;
                         case 'fixed_value':
                             $rates['adult'] = round(max(0, $rates['adult'] - (float) $promo->value), 2);
                             logger()->info('promo applied ' . var_export($rates, true));
@@ -1547,7 +1554,7 @@ class BookingsController extends Controller
                 ->whereDate('booking_start_date', '<=', $data['booking_date'])
                 ->whereDate('booking_end_date', '>=', $data['booking_date'])
                 ->first();
-
+            //dd($promo);
             if ($promo) {
                 $appliedPromo = $promo;
                 $params = $promo->params ? json_decode($promo->params, true) : [];
@@ -1559,7 +1566,11 @@ class BookingsController extends Controller
                             $rates[$k] = $v - ($v * ($promo->value / 100));
                         }
                         break;
-
+                    case 'time_slot':
+                        foreach ($rates as $k => $v) {
+                            $rates[$k] = $v - ($v * ($promo->value / 100));
+                        }
+                        break;
                     case 'fixed_value':
                         // apply only to adults for simplicity
                         $rates['adult'] = max(0, $rates['adult'] - $promo->value);
