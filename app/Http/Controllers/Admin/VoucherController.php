@@ -50,7 +50,14 @@ class VoucherController extends Controller
      */
     public function store(Request $request)
     {
-        //dd($request->all());
+        $data = $request->validate([
+            'amount' => ['required', 'string', 'max:255'],
+            'voucher_code' => ['required', 'string', 'max:255'],
+            'note' => ['required', 'string', 'max:255'],
+            'service_id' => ['required', 'exists:services,id'],
+            'season_id' => ['required', 'exists:seasons,id'],
+            'expire_date' => ['required', 'date'],
+        ]);
         $voucher = Voucher::create($request->all());
 
         return redirect()->route('admin.vouchers.index');

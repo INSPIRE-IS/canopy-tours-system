@@ -1,6 +1,6 @@
 import React from "react";
 
-const CustomSelect = ({ label, name, value = null, width = "w-full", height = "h-[48px]", onChange, showOption = true, optionText = " -- Select an option --", error, mode, options }) => {
+const CustomSelect = ({ label, name, value = null, width = "w-full", height = "h-[48px]", onChange, showOption = true, optionText = " -- Select an option --", errors = {}, mode, options }) => {
   //console.log('options ', options);
   return (
     <div className="w-full mb-4">
@@ -16,7 +16,7 @@ const CustomSelect = ({ label, name, value = null, width = "w-full", height = "h
         name={name}
         value={value != null ? String(value) : ""}
         onChange={onChange}
-        className={`mt-1 block ${width} ${height} ${error ? "border-red-500" : "border-gray-300"} shadow-sm input-text rounded-[10px]
+        className={`mt-1 block ${width} ${height} ${errors?.[name] ? "border-red-500" : "border-gray-300"} shadow-sm input-text rounded-[10px]
                         hover:border-black  active:border-blue-600 
                 focus:outline-none focus:ring-0 focus:border-black
         `}
@@ -38,7 +38,11 @@ const CustomSelect = ({ label, name, value = null, width = "w-full", height = "h
           )
         })}
       </select>
-      {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
+      {errors?.[name] && (
+        <p className="text-red-500 text-sm mt-2">
+          {errors[name]}
+        </p>
+      )}
     </div>
   );
 };

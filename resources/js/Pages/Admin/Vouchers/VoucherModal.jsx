@@ -11,7 +11,7 @@ import CustomInputText from "@/Components/CustomInputText";
 
 const VoucherModal = ({ isOpen, onClose, mode, voucher = null, services, auth, team_id }) => {
     // console.log("mode", mode);
-     console.log("voucher", voucher);
+    console.log("voucher", voucher);
     // console.log("roles", roles);
     const [seasons, setSeasons] = useState([]);
 
@@ -43,7 +43,7 @@ const VoucherModal = ({ isOpen, onClose, mode, voucher = null, services, auth, t
         } else if (mode === "create") {
             reset(); // Clear form for create mode
         }
-    }, [mode,voucher,team_id]);
+    }, [mode, voucher, team_id]);
 
     useEffect(() => {
         const selectedService = services.find(s => {
@@ -98,19 +98,19 @@ const VoucherModal = ({ isOpen, onClose, mode, voucher = null, services, auth, t
                             name="service_id"
                             value={data.service_id}
                             onChange={(e) => handleChange(e.target.name, e.target.value)}
-                            error={errors.service_id}
+                            errors={errors}
                             options={services}
-                        /> 
+                        />
                         <CustomSelect
                             label="Season"
                             name="season_id"
                             value={data.season_id}
-                            
+
                             onChange={(e) => handleChange(e.target.name, e.target.value)}
-                            error={errors.season_id}
+                            errors={errors}
                             options={seasons}
-                        /> 
-                    </div>                    
+                        />
+                    </div>
                     <div className="flex flex-row w-full items-center gap-2 justify-between mb-4">
                         <CustomInputText
                             title="Voucher"
@@ -118,16 +118,16 @@ const VoucherModal = ({ isOpen, onClose, mode, voucher = null, services, auth, t
                             name="voucher_code"
                             type='text'
                             value={data.voucher_code}
-                            onChange={(e) => {handleChange(e.target.name, e.target.value);}}
+                            onChange={(e) => { handleChange(e.target.name, e.target.value); }}
                             errors={errors}
-                        />                        
+                        />
                         <CustomInputText
                             title="Amount"
                             id="amount"
                             name="amount"
                             type='number'
                             value={data.amount}
-                            onChange={(e) => {handleChange(e.target.name, e.target.value);}}
+                            onChange={(e) => { handleChange(e.target.name, e.target.value); }}
                             errors={errors}
                         />
                     </div>
@@ -139,7 +139,7 @@ const VoucherModal = ({ isOpen, onClose, mode, voucher = null, services, auth, t
                             name="note"
                             type='text'
                             value={data.note}
-                            onChange={(e) => {handleChange(e.target.name, e.target.value);}}
+                            onChange={(e) => { handleChange(e.target.name, e.target.value); }}
                             errors={errors}
                         />
                         <CustomInputText
@@ -148,14 +148,14 @@ const VoucherModal = ({ isOpen, onClose, mode, voucher = null, services, auth, t
                             name="expire_date"
                             type='date'
                             value={data.expire_date}
-                            
-                            onChange={(e) => {handleChange(e.target.name, e.target.value);}}
+
+                            onChange={(e) => { handleChange(e.target.name, e.target.value); }}
                             errors={errors}
                         />
                     </div>
 
                     <div className="flex justify-center gap-4">
-                        <OutlineButton title="Cancel" onClick={onClose} width="w-[180px]"/>
+                        <OutlineButton title="Cancel" onClick={onClose} width="w-[180px]" />
                         {mode !== "view" && (
                             <BlueButton title={mode === "create" ? "Create" : "Update"} width="w-[180px]" onClick={handleSubmit} disabled={processing} type="submit" />
                         )}

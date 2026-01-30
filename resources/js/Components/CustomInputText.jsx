@@ -1,4 +1,4 @@
-const CustomInputText = ({ title, name, value, mode, type="text", width="w-full" , height="h-[48px]", onChange, errors = {}, props }) => {
+const CustomInputText = ({ title, name, value, mode, type = "text", width = "w-full", height = "h-[48px]", onChange, errors = {}, ...props }) => {
     return (
         <div className="mb-4 w-full">
             <label
@@ -13,7 +13,7 @@ const CustomInputText = ({ title, name, value, mode, type="text", width="w-full"
                 name={name}
                 value={value ?? ""}
                 onChange={onChange}
-                className={`mt-1 block ${width} ${height}  ${errors.name ? "border-red-500" : "border-gray-300"}  shadow-sm input-text rounded-[10px]
+                className={`mt-1 block ${width} ${height}  ${errors?.[name] ? "border-red-500" : "border-gray-300"}  shadow-sm input-text rounded-[10px]
                 hover:border-black  active:border-blue-600 
                 focus:outline-none focus:ring-0 focus:border-black
                 `}

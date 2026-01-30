@@ -25,7 +25,7 @@ const Modal = ({ isOpen, onClose, mode, item = null, permissions, services }) =>
 
   const handleChange = (target, value) => setData(target, value);
 
-  const handleCheckChange = (day,value) => {
+  const handleCheckChange = (day, value) => {
     setCheckServices((prev) =>
       prev.includes(day)
         ? prev.filter((d) => d !== day) // remove if already checked
@@ -68,35 +68,35 @@ const Modal = ({ isOpen, onClose, mode, item = null, permissions, services }) =>
                   options={services}
               /> */}
               <CustomSelect
-                  label="Applies To"
-                  name="applies_to"
-                  value={data.applies_to}
-                  mode={mode}
-                  onChange={(e) => handleChange(e.target.name, e.target.value)}
-                  error={errors.applies_to}
-                  options={[
+                label="Applies To"
+                name="applies_to"
+                value={data.applies_to}
+                mode={mode}
+                onChange={(e) => handleChange(e.target.name, e.target.value)}
+                errors={errors}
+                options={[
                   { id: 'line_item', name: 'Line Item' },
                   { id: 'invoice', name: 'Invoice' }
-                  ]}
-                      /> 
-              <InputText title="Name" field="name" height="h-[48px]" value={data.name} mode={mode} handleChange={handleChange} errors={errors} />                         
+                ]}
+              />
+              <InputText title="Name" field="name" height="h-[48px]" value={data.name} mode={mode} handleChange={handleChange} errors={errors} />
             </div>
             <div className="flex flex-row w-full items-center gap-2 justify-between mb-4">
 
-              <InputText title="% Off" field="percent_off" height="h-[48px]" width="w-[50%]" value={data.percent_off} mode={mode} handleChange={handleChange} errors={errors} />              
+              <InputText title="% Off" field="percent_off" height="h-[48px]" width="w-[50%]" value={data.percent_off} mode={mode} handleChange={handleChange} errors={errors} />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-4">
-                  {services.map((service, i) => (
-                    <CustomCheckbox
-                        key={i}
-                        label={service.name}
-                        name={service.id}
-                        checked={checkServices.includes(service.id)}
-                        mode={mode}
-                        onChange={handleCheckChange}
-                        errors={errors}
-                    />
-                ))}
+              {services.map((service, i) => (
+                <CustomCheckbox
+                  key={i}
+                  label={service.name}
+                  name={service.id}
+                  checked={checkServices.includes(service.id)}
+                  mode={mode}
+                  onChange={handleCheckChange}
+                  errors={errors}
+                />
+              ))}
 
               {/* <CustomCheckbox
                   label="Mon"
