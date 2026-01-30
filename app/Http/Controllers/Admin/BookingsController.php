@@ -55,6 +55,7 @@ use App\Models\TypeBooking;
 use App\Models\LookupItem;
 use App\Services\RendererService;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Spatie\Browsershot\Browsershot;
 
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
@@ -505,10 +506,10 @@ class BookingsController extends Controller
                 Storage::disk('public')->put($invoiceFilename, $invoicePdf->output());
                 $content = "
                         <p>Hello {$customer->full_name},</p>
-                        <p>Your booking has been paid.</p>
+                        <p>Your booking has been created. Payment is required to confirm.</p>
                         <p>Thank you for choosing Canopy Tours.</p>
                         <p>Your booking reference is {$booking->reference}.</p>
-                        <p>Please Contact us if you have any questions.</p>";
+                        <p>Please contact us if you have any questions.</p>";
                 // send mail
                 // 🔹 log in emails table
                 Email::create([
@@ -534,61 +535,62 @@ class BookingsController extends Controller
                     'path'         => $invoiceFilename,
                     'booking_id'   => $booking->id,
                 ]);
-                $voucher  = BookingVoucher::with('items')
-                    ->where('service_id', 1)
-                    ->where('season_id', 1)
-                    ->first();
-                //dd($voucher);
-                $items = $voucher->items;
+                /*
+                 * Voucher email disabled: replace with boarding pass attachments for internal booking.
+                 * We will revisit voucher fields when boarding pass data mapping is updated.
+                 */
 
-                // Build replacements for placeholders
-                $replacements = [
-                    '{{reference}}' => $booking->reference ?? 'REF-000000',
-                    '{{provider}}' => $bookingVoucher->provider_name ?? 'Canopy Tours',
-                    '{{service}}' => $bookingVoucher->service_name ?? 'Service Test',
-                    '{{start_time_and_date}}' => $bookingVoucher->start_time_and_date ?? '12:00 12 Jan 2025',
-                    '{{start_location}}' => $bookingVoucher->start_location ?? 'Start Location',
-                    '{{end_location}}' => $bookingVoucher->end_location ?? 'End Location',
-                    '{{lead_name}}' => $booking->lead_name ?? 'Test Lead',
-                    '{{lead_email}}' => $booking->lead_email ?? 'test@email.com',
-                    '{{number_in_party}}' => $booking->number_in_party ?? '8',
-                    '{{supplier_email}}' => $bookingVoucher->supplier_email ?? 'test@email.com',
-                    '{{supplier_landline}}' => $bookingVoucher->supplier_landline ?? '123456789',
-                    '{{supplier_mobile}}' => $bookingVoucher->supplier_mobile ?? '123456789',
-                ];
+                $bookingItem = BookingItem::with(
+                    'booking',
+                    'booking.team',
+                    'booking.team.file_logo',
+                    'customers',
+                    'booking_inventory.inventory_time_slot',
+                    'booking_inventory.inventory_type_day.type_day',
+                    'booking_fee'
+                )->where('booking_id', $booking->id)->first();
 
-                // Perform replacements in the descriptions before sending to view
-                $items->transform(function ($item) use ($replacements) {
-                    $item->description = strtr($item->description, $replacements);
-                    return $item;
-                });
+                $passData = $this->getPassDetails($bookingItem);
+                $html = view('pdfs.boarding-pass', ['data' => $passData])->render();
+                $dir = "pass/{$bookingItem->id}";
 
-                $random = rand(1, 100);
-                $voucherPdf = Pdf::loadView('emails.booking_voucher', compact('items'));
-                $voucherFilename  = "vouchers/voucher-{$data['invoice']['number']}.pdf";
-                Storage::disk('public')->put($voucherFilename, $voucherPdf->output());
+                $fileName = "{$dir}/boarding_pass_{$bookingItem->id}.pdf";
+                $fullPath = storage_path("app/{$fileName}");
+                if (!is_dir(dirname($fullPath))) {
+                    mkdir(dirname($fullPath), 0755, true);
+                }
+                if (!file_exists($fullPath)) {
+                    Browsershot::html($html)
+                        ->setChromePath(config('browsershot.chrome_path'))
+                        ->format('A4')
+                        ->showBackground()
+                        ->margins(0, 0, 0, 0)
+                        ->scale(1.0)
+                        ->timeout(60000)
+                        ->save($fullPath);
+                }
 
                 Email::create([
                     'sender'         => config('mail.from.address'),
                     'receiver'       => $customer->email_address,
-                    'subject'        => 'Booking Detail for invoice' . $data['invoice']['number'],
-                    'body'           => strip_tags($content), // or a summary
-                    'attachment_path' => $voucherFilename,
+                    'subject'        => 'Your Boarding Pass – Invoice ' . $data['invoice']['number'],
+                    'body'           => strip_tags($content),
+                    'attachment_path' => $fileName,
                     'sent'           => true,
                     'sent_at'        => now(),
                     'user_id'        => null,
-                    'auditable_type' => 'App\Models\BookingVoucher',
-                    'auditable_id'   => $voucher->id,
-                    'team_id'        => $voucher->team_id,
+                    'auditable_type' => BookingItem::class,
+                    'auditable_id'   => $bookingItem->id,
+                    'team_id'        => $bookingItem->team_id,
                 ]);
                 File::create([
-                    'team_id'      => $voucher->team_id,
-                    'table_name'   => 'BookingVoucher',
-                    'table_row_id' => $voucher->id,
-                    'file_name'    =>  "voucher-{$voucher->id}.pdf",
+                    'team_id'      => $bookingItem->team_id,
+                    'table_name'   => 'BookingItem',
+                    'table_row_id' => $bookingItem->id,
+                    'file_name'    =>  $fileName,
                     'file_type'    => "application/pdf",
-                    'type_file_id' => 6, // optional enum/type
-                    'path'         => $voucherFilename,
+                    'type_file_id' => 6,
+                    'path'         => $fileName,
                     'booking_id'   => $booking->id,
                 ]);
                 $attachments = [
@@ -598,8 +600,8 @@ class BookingsController extends Controller
                         'mime' => 'application/pdf',
                     ],
                     [
-                        'data' => $voucherPdf->output(),
-                        'name' => "voucher-{$voucher->id}.pdf",
+                        'data' => file_get_contents($fullPath),
+                        'name' => $fileName,
                         'mime' => 'application/pdf',
                     ],
                 ];
@@ -767,6 +769,338 @@ class BookingsController extends Controller
         // $booking->load('user', 'status_booking', 'service', 'season', 'inventory', 'updated_by', 'customers', 'team');
 
         // return view('admin.bookings.edit', compact('booking', 'customers', 'inventories', 'seasons', 'services', 'status_bookings', 'updated_bies', 'users'));
+    }
+
+    public function getPassDetails($bookingItem)
+    {
+        // Mirror PaymentController boarding pass data for internal emails
+        $basePassData = [
+            'flightName' => $bookingItem->booking->team->name,
+            'location' => optional($bookingItem->service)->name ?? $bookingItem->booking->team->name,
+            'address' => '',
+            'passenger' => $bookingItem->booking->lead_name,
+            'date' => $bookingItem->booking_inventory->date,
+            'time' => optional($bookingItem->booking_inventory->inventory_time_slot)->start_time,
+            'seat' => $bookingItem->booking->reference,
+            'boarding_time' => optional($bookingItem->booking_inventory->inventory_time_slot)->start_time,
+            'booking_no' => $bookingItem->booking->reference,
+            'flight' => $bookingItem->booking->team->name,
+            'passenger_name' => $bookingItem->booking->lead_name,
+            'footer' => '',
+            'sections' => [],
+        ];
+
+        switch ($bookingItem->booking->team->name) {
+            case 'Tsitsikamma':
+                return array_merge($basePassData, [
+                    'flightName' => $bookingItem->booking->team->name,
+                    'location' => 'Tsitsikamma Canopy Tour',
+                    'address' => 'Tsitsikamma Indigenous Forest, Storms River',
+                    'passenger' => $bookingItem->booking->lead_name,
+                    'date' => $bookingItem->booking_inventory->date,
+                    'time' => $bookingItem->booking_inventory->inventory_time_slot->start_time,
+                    'seat' => $bookingItem->booking->reference,
+                    'boarding_time' => $bookingItem->booking_inventory->inventory_time_slot->start_time,
+                    'booking_no' => $bookingItem->booking->reference,
+                    'flight' => $bookingItem->booking->team->name,
+                    'passenger_name' => $bookingItem->booking->lead_name,
+                    'footer' => 'Please note:  A Canopy Tour is an adventure activity and does come with risks. Although every effort is taken by the Canopy Tours and our staff to ensure your safety, we request that you please follow all instructions given to you by our staff either in the briefing or on the system itself.  Any non compliance to safety and or rules and polocies may result in a person being removed from the tour at anytime, at which time no refund will be given.',
+                    'sections' => [
+                        [
+                            'title' => 'Tour Includes',
+                            'icon' => '/images/icons/tour.png',
+                            'items' => [
+                                'All equipment and training.',
+                                'A short 4x4 trip to the drop off point.',
+                                'A 2.5 - 3 hour fully guided forest canopy zipline adventure along 10 elevated platforms.',
+                                'Small exclusive groups of 8–10 people.',
+                                '2x fully trained Canopy Tour facilitators will join you on each tour.'
+                            ]
+                        ],
+                        [
+                            'title' => 'Arrival',
+                            'icon' => '/images/icons/location.png',
+                            'items' => [
+                                'Please arrive at 20 min BEFORE your tour time.',
+                                'Allow sufficient travel time — the tour will start promptly and late guests cannot be accommodated.',
+                                'Once the safety briefing begins late guests cannot join and the tour will be considered missed.'
+                            ]
+                        ],
+                        [
+                            'title' => 'What to Bring',
+                            'icon' => '/images/icons/tshirt.png',
+                            'items' => [
+                                'Rain jacket or rain poncho on rainy days.',
+                                'A small pouch or small sling bag for your phone, should you want to take photos.'
+                            ]
+                        ],
+                        [
+                            'title' => 'Weather',
+                            'icon' => '/images/icons/cloud.png',
+                            'items' => [
+                                'Tours are still run in the rain and will only be stopped/cancelled if lightning in the near vicinity.',
+                                'Notify the team 24 hours prior to your tour if you want to move or cancel your tour.'
+                            ]
+                        ],
+                        [
+                            'title' => 'Restrictions',
+                            'icon' => '/images/icons/restrictions.png',
+                            'items' => [
+                                'This is an adventure activity requiring moderate fitness.',
+                                'Recommended weight limit: 120 kg per person.',
+                                'Limit is based on harness size and strap circumference. (Mens size 44 jean should fit)'
+                            ]
+                        ],
+                        [
+                            'title' => 'Tandems / Children',
+                            'icon' => '/images/icons/family.png',
+                            'items' => [
+                                'We can offer 2 tandems per tour.',
+                                'Tandems for guests under 50 kg only.',
+                                'Email: adventure@gardenroute.co.za for children under 9 years.',
+                                'Minimum age: 5 years old.'
+                            ]
+                        ],
+                        [
+                            'title' => 'Further Info',
+                            'icon' => '/images/icons/info.png',
+                            'items' => [
+                                'Tips aren’t required but appreciated.',
+                                'Extra snacks and drinks available before and after your tour.',
+                                'Wi-Fi available at the base.',
+                                'Bring a card — no cash accepted.'
+                            ]
+                        ],
+                        [
+                            'title' => 'Cancellation / Refunds',
+                            'icon' => '/images/icons/refund.png',
+                            'items' => [
+                                '100% refund for cancellations 24+ hours before the tour.',
+                                'No refund for late arrivals or missed tours.',
+                                'If the company cancels, you receive a full refund.',
+                                'Third-party refunds handled through the agent.'
+                            ]
+                        ],
+                    ]
+                ]);
+            case 'Drakensberg':
+                return array_merge($basePassData, [
+                    'flightName' => $bookingItem->booking->team->name,
+                    'location' => 'Drakensberg Canopy Tour',
+                    'address' => 'Drakensberg Sun Property, R160 off the R600, Cathkin Park Central Drakensberg, 3340',
+                    'passenger' => $bookingItem->booking->lead_name,
+                    'date' =>  $bookingItem->booking_inventory->date,
+                    'time' => $bookingItem->booking_inventory->inventory_time_slot->start_time,
+                    'seat' => $bookingItem->booking->reference,
+                    'boarding_time' => $bookingItem->booking_inventory->inventory_time_slot->start_time,
+                    'booking_no' => $bookingItem->booking->reference,
+                    'flight' => $bookingItem->booking->team->name,
+                    'passenger_name' => $bookingItem->booking->lead_name,
+                    'footer' => 'Please note:  A Canopy Tour is an adventure activity and does come with risks. Although every effort is taken by the Canopy Tours and our staff to ensure your safety, we request that you please follow all instructions given to you by our staff either in the briefing or on the system itself.  Any non compliance to safety and or rules and polocies may result in a person being removed from the tour at anytime, at which time no refund will be given.',
+                    'sections' => [
+                        [
+                            'title' => 'Tour Includes',
+                            'icon' => '/images/icons/tour.png',
+                            'items' => [
+                                'All equipment and training.',
+                                'A 2,5km 4x4 drive, from base to the start point and from our finish point back to base.',
+                                'A 2.5 - 3 hour fully guided forest canopy zipline adventure along 11 elevated ziplines.',
+                                'Groups of up to 10 people at a time, however bigger groups can be accommodated by arrangement.',
+                                '2x fully trained Drakensberg Canopy Tour facilitators will join you on each tour to ensure your safe and well looked after.',
+                                'A bottle of water and a KitKat to keep you hydrated and your energy levels up.'
+                            ]
+                        ],
+                        [
+                            'title' => 'Arrival',
+                            'icon' => '/images/icons/location.png',
+                            'items' => [
+                                'Please arrive at least 20 - 30min BEFORE your tour time.',
+                                'Please ensure you arrive by the requested time, as late guests may be disappointed when we are unable to accommodate them.',
+                                'Once the safety briefing begins late guests might not be able to join and the tour could be considered missed.'
+                            ]
+                        ],
+                        [
+                            'title' => 'What to Bring',
+                            'icon' => '/images/icons/tshirt.png',
+                            'items' => [
+                                'Comfortable, weather appropriate clothing and closed walking shoes.',
+                                'Rain jacket on rainy days.',
+                                'You may bring your phone (at own risk). Please ensure you have zip up pockets or ask at reception for options.'
+                            ]
+                        ],
+                        [
+                            'title' => 'CBD Transfers',
+                            'icon' => '/images/icons/car.png',
+                            'items' => [
+                                'If booked, be ready at your transfer departure time.',
+                                'Transfers are operated by an external supplier.',
+                                'Contact us if you have not been contacted by the transfer driver.'
+                            ]
+                        ],
+                        [
+                            'title' => 'Weather',
+                            'icon' => '/images/icons/cloud.png',
+                            'items' => [
+                                'Tours are mildly weather-dependent but operate in rain or shine.',
+                                'The weather is monitored closely — tours may be postponed or cancelled due to severe weather and specifically if there is lightning in the immediate area.',
+                                'Weather changes quickly; contact the team if uncertain.',
+                                'Notify the team 24 hours in advance if you want to move or cancel your tour.'
+                            ]
+                        ],
+                        [
+                            'title' => 'Restrictions',
+                            'icon' => '/images/icons/restrictions.png',
+                            'items' => [
+                                'This is an adventure activity requiring moderate fitness.',
+                                'Recommended weight limit: 120 -130kg kg per person.',
+                                'Limit is based on harness size and strap circumference. (Mens size 44 jean should fit)',
+                                'If over 120–130 kg but fit your body shape may still allow safe harness fit.',
+                                'Minimum age: 6 years old. Management reserves the right to decline a child which they think, for safety reasons should not do the Canopy Tour, regardless of age.',
+                                'Anyone under the influence or suspected to be under the influence of alcohol are not allowed to participate in a Canopy Tour.',
+                                'Pregnant or suspected pregnant women are not allowed to do a Canopy Tour.'
+                            ]
+                        ],
+                        [
+                            'title' => 'Tandems / Children',
+                            'icon' => '/images/icons/family.png',
+                            'items' => [
+                                ''
+                            ]
+                        ],
+                        [
+                            'title' => 'Further Info',
+                            'icon' => '/images/icons/info.png',
+                            'items' => [
+                                'Extra snacks and drinks available before and after your tour.',
+                                'We accept card and cash payments on site.'
+                            ]
+                        ],
+                        [
+                            'title' => 'Cancellation / Refunds',
+                            'icon' => '/images/icons/refund.png',
+                            'items' => [
+                                'NO REFUNDS WILL BE GIVEN FOR THE FOLLOWING REASONS:',
+                                '- No-Shows',
+                                '- Not completing the tour or deciding last minute not to zipline',
+                                '- Any cancellations made within 24 hours of the tour',
+                                '- Late arrivals',
+                                '- Postponements within 24 hours of the tour'
+                            ]
+                        ],
+                    ]
+                ]);
+            case 'Test Team':
+                return array_merge($basePassData, [
+                    'flightName' => $bookingItem->booking->team->name,
+                    'location' => 'Cape Canopy Tour',
+                    'address' => 'Address Placeholder',
+                    'passenger' => $bookingItem->booking->lead_name,
+                    'date' =>  $bookingItem->booking_inventory->date,
+                    'time' => $bookingItem->booking_inventory->inventory_time_slot->start_time,
+                    'seat' => $bookingItem->booking->reference,
+                    'boarding_time' => $bookingItem->booking_inventory->inventory_time_slot->start_time,
+                    'booking_no' => $bookingItem->booking->reference,
+                    'flight' => $bookingItem->booking->team->name,
+                    'passenger_name' => $bookingItem->booking->lead_name,
+                    'sections' => [
+                        [
+                            'title' => 'Tour Includes',
+                            'icon' => '/images/icons/tour.png',
+                            'items' => [
+                                'All equipment and training.',
+                                'A return 4x4 experience from through the nature reserve.',
+                                'A 4–5 hour fully guided mountain top zipline adventure along 13 elevated platforms.',
+                                'Small exclusive groups of 8–9 people.',
+                                '2x fully trained Cape Canopy Tour facilitators will join you on each tour.',
+                                'A personalized video (this is available to purchase as an optional extra).'
+                            ]
+                        ],
+                        [
+                            'title' => 'Arrival',
+                            'icon' => '/images/icons/location.png',
+                            'items' => [
+                                'Please arrive at least 10–15min BEFORE your tour time.',
+                                'Allow sufficient travel time — the tour will start promptly and late guests cannot be accommodated.',
+                                'If coming from Cape Town, please factor in an extra 30–45min for irregular traffic delays.',
+                                'Once the safety briefing begins, late guests cannot join and the tour will be considered missed.'
+                            ]
+                        ],
+                        [
+                            'title' => 'What to Bring',
+                            'icon' => '/images/icons/tshirt.png',
+                            'items' => [
+                                'Warm clothes — mountain weather is unpredictable.',
+                                'Sunblock & Hat; rain jacket on rainy days.',
+                                'A small light backpack (optional).',
+                                'You may bring your phone or camera (at own risk).'
+                            ]
+                        ],
+                        [
+                            'title' => 'CBD Transfers',
+                            'icon' => '/images/icons/car.png',
+                            'items' => [
+                                'If booked, be ready at your transfer departure time.',
+                                'Transfers are operated by an external supplier.',
+                                'Contact us if you have not been contacted by the transfer driver.'
+                            ]
+                        ],
+                        [
+                            'title' => 'Weather',
+                            'icon' => '/images/icons/cloud.png',
+                            'items' => [
+                                'Tours are mildly weather-dependent but operate in most conditions.',
+                                'The weather is monitored closely — tours may be cancelled, refunded, or rescheduled.',
+                                'Weather changes quickly; contact the team if uncertain.',
+                                'Notify the team 24 hours in advance if you want to move or cancel your tour.'
+                            ]
+                        ],
+                        [
+                            'title' => 'Restrictions',
+                            'icon' => '/images/icons/restrictions.png',
+                            'items' => [
+                                'This is an adventure activity requiring moderate fitness.',
+                                'Recommended weight limit: 100–110 kg per person.',
+                                'Limit is based on harness size and strap circumference.',
+                                'If over 100–110 kg but fit, your body shape may still allow safe harness fit.',
+                                'Minimum age: 5 years old.'
+                            ]
+                        ],
+                        [
+                            'title' => 'Tandems / Children',
+                            'icon' => '/images/icons/family.png',
+                            'items' => [
+                                'We can offer 2 tandems per tour.',
+                                'Tandems for guests under 50 kg only.',
+                                'Email: zipline@capecanopytour.co.za for children under 9 years.',
+                                'Minimum age: 5 years old.',
+                                'Children under 5 may need to ride tandem with a guide.'
+                            ]
+                        ],
+                        [
+                            'title' => 'Further Info',
+                            'icon' => '/images/icons/info.png',
+                            'items' => [
+                                'Tips aren’t required but appreciated.',
+                                'Extra snacks and drinks available before and after your tour.',
+                                'Wi-Fi available at the base.',
+                                'Bring a card — no cash accepted.'
+                            ]
+                        ],
+                        [
+                            'title' => 'Cancellation / Refunds',
+                            'icon' => '/images/icons/refund.png',
+                            'items' => [
+                                '100% refund for cancellations 24+ hours before the tour.',
+                                'No refund for late arrivals or missed tours.',
+                                'If the company cancels, you receive a full refund.',
+                                'Third-party refunds handled through the agent.'
+                            ]
+                        ],
+                    ]
+                ]);
+            default:
+                return $basePassData;
+        }
     }
 
     public function update(UpdateBookingRequest $request, Booking $booking)
@@ -1215,6 +1549,7 @@ class BookingsController extends Controller
             'season_id'    => 'required|exists:seasons,id',
             'wholesaler_id' => 'nullable|exists:wholesalers,id',
             'promo_code'   => 'nullable|string',
+            'invoice_discount_id' => 'nullable|exists:discounts,id',
             'pax_groups'   => 'required|array|min:1',
             'pax_groups.*.type' => 'required|in:adult,child,guide',
             'pax_groups.*.count' => 'required|integer|min:0',
@@ -1263,6 +1598,22 @@ class BookingsController extends Controller
             // Enforce exclusivity: wholesaler cannot combine with promo/discounts
             if (!empty($data['wholesaler_id'])) {
                 $data['promo_code'] = null;
+                $data['invoice_discount_id'] = null;
+                $data['pax_groups'] = array_map(function ($g) {
+                    $g['discount_id'] = null;
+                    return $g;
+                }, $data['pax_groups']);
+            }
+            // Enforce exclusivity: promo cannot combine with discounts
+            if (!empty($data['promo_code'])) {
+                $data['invoice_discount_id'] = null;
+                $data['pax_groups'] = array_map(function ($g) {
+                    $g['discount_id'] = null;
+                    return $g;
+                }, $data['pax_groups']);
+            }
+            // Enforce exclusivity: invoice discount cannot combine with line-item discounts
+            if (!empty($data['invoice_discount_id'])) {
                 $data['pax_groups'] = array_map(function ($g) {
                     $g['discount_id'] = null;
                     return $g;
@@ -1490,6 +1841,22 @@ class BookingsController extends Controller
                 }
                 // When NO promo, applied_rates == baseRates (because discounts are per-line)
                 $rates = $baseRates;
+            }
+
+            // Apply invoice-level discount to total (no stacking)
+            if (!empty($data['invoice_discount_id'])) {
+                $invoiceDiscount = Discount::find($data['invoice_discount_id']);
+                if ($invoiceDiscount) {
+                    $total = round($total - ($total * ((float)$invoiceDiscount->percent_off / 100)), 2);
+                    $appliedDiscounts[] = [
+                        'id'          => $invoiceDiscount->id,
+                        'name'        => $invoiceDiscount->name,
+                        'percent_off' => (float) $invoiceDiscount->percent_off,
+                        'applied_to'  => 'invoice',
+                        'count'       => null,
+                        'final_rate'  => null,
+                    ];
+                }
             }
 
             $result = [

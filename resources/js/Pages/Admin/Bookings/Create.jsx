@@ -196,17 +196,19 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
             let rate_per_child = data?.rate_per_child || 0;
             let rate_per_guide = data?.rate_per_guide || 0;
 
-            const adult_total = (parseFloat(data.adults || 0) * parseFloat(rate_per_adult));
-            const child_total = (parseFloat(data.children || 0) * parseFloat(rate_per_child));
-            const guide_total = (parseFloat(data.guides || 0) * parseFloat(rate_per_guide));
-            const booking_total = (parseFloat(adult_total || 0) + parseFloat(child_total || 0) + parseFloat(guide_total || 0)).toFixed(2);
-            setData(prev => ({
-                ...prev,
-                rate_per_adult: rate_per_adult,
-                rate_per_child: rate_per_child,
-                rate_per_guide: rate_per_guide,
-                booking_total: booking_total || 0,
-            }));
+            if (computedMode === PRICING_MODES.STANDARD) {
+                const adult_total = (parseFloat(data.adults || 0) * parseFloat(rate_per_adult));
+                const child_total = (parseFloat(data.children || 0) * parseFloat(rate_per_child));
+                const guide_total = (parseFloat(data.guides || 0) * parseFloat(rate_per_guide));
+                const booking_total = (parseFloat(adult_total || 0) + parseFloat(child_total || 0) + parseFloat(guide_total || 0)).toFixed(2);
+                setData(prev => ({
+                    ...prev,
+                    rate_per_adult: rate_per_adult,
+                    rate_per_child: rate_per_child,
+                    rate_per_guide: rate_per_guide,
+                    booking_total: booking_total || 0,
+                }));
+            }
             let groups = [];
 
             if (data.adults > 0) {
@@ -314,7 +316,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
     }, [data.is_wholesaler]);
 
     // used by wholesaler and promo
-    const handleCalculate = async (type, paxGroupsOverride = null) => {
+    const handleCalculate = async (type, paxGroupsOverride = null, invoiceDiscountId = null) => {
         console.log('==============handleCalculate 303:========== ');
 
         const service_id = selectedService ? selectedService?.id : (alert('Please select a service'));
@@ -341,6 +343,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                 booking_date: booking_date,
                 promo_code: promo_code,
                 pax_groups: pax_groups,
+                invoice_discount_id: type === 'discount' ? invoiceDiscountId : null,
             };
 
             console.log('==============Payload:========== ', payload);
@@ -566,6 +569,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
         setDiscountId(null);
         setDiscountPax(null);
         setPromoModalOpen(false);
+        setPricing(null);
 
         const adultCount = parseInt(data.adults || 0);
         const childCount = parseInt(data.children || 0);
@@ -793,18 +797,36 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
 
     const addDiscountGroup = () => {
         console.log('addDiscountGroup 700');
-        if (!discountId || !discountPax) return;
+        if (!discountId) return;
         if (pricingMode === PRICING_MODES.WHOLESALER) {
             alert('Cannot apply discounts to wholesaler bookings');
             return;
         }
         setPricingMode(PRICING_MODES.DISCOUNT);
         // resetPricingState('discount');
-        const countToMove = parseInt(discountPax);
         const selectedDiscount = parseInt(discountId);
 
-                    setPaxGroups(prevGroups => {
-                        let updated = [...prevGroups];
+        const selectedDiscountObj = discountList?.find(d => d.id === selectedDiscount);
+        if (selectedDiscountObj?.applies_to === 'invoice') {
+            setPaxGroups(prev => prev.map(g => ({
+                ...g,
+                discount_id: null,
+                final_rate: undefined,
+            })));
+            setData(prev => ({
+                ...prev,
+                discount_lines: [],
+            }));
+            handleCalculate('discount', paxGroups, selectedDiscount);
+            setDiscountId(null);
+            setDiscountPax(0);
+            return;
+        }
+        if (!discountPax) return;
+        const countToMove = parseInt(discountPax);
+
+        setPaxGroups(prevGroups => {
+            let updated = [...prevGroups];
 
             // Find the first group of adults WITHOUT a discount (the pool to split from)
             const idx = updated.findIndex(g => g.type === "adult" && g.discount_id === null);
@@ -837,30 +859,44 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                             final_rate: finalRate,
                         });
             }
-                        setData(prev => ({
-                            ...prev,
-                            discount_lines: updated
-                        }));
-                        console.log('updated', updated);
-                        console.log('data', data);
-                        handleCalculate('discount', updated);
-                        return updated;
-                    });
+            setData(prev => ({
+                ...prev,
+                discount_lines: updated
+            }));
+            console.log('updated', updated);
+            console.log('data', data);
+            handleCalculate('discount', updated, null);
+            return updated;
+        });
 
         // reset UI inputs
         setDiscountId(null);
         setDiscountPax(0);
     };
 
+    const invoiceDiscountPct = pricing?.applied_discounts?.find(d => d.applied_to === 'invoice')?.percent_off;
+    const invoiceMultiplier = invoiceDiscountPct ? (1 - (Number(invoiceDiscountPct) / 100)) : 1;
     const totalAdult = paxGroups
         .filter(g => g.type === "adult")
-        .reduce((sum, g) => sum + (g.count * Number(g.final_rate ?? data.rate_per_adult ?? 0)), 0);
+        .reduce((sum, g) => {
+            const baseRate = Number(g.final_rate ?? data.rate_per_adult ?? 0);
+            const effectiveRate = invoiceDiscountPct && !g.discount_id ? baseRate * invoiceMultiplier : baseRate;
+            return sum + (g.count * effectiveRate);
+        }, 0);
     const totalChild = paxGroups
         .filter(g => g.type === "child")
-        .reduce((sum, g) => sum + (g.count * Number(g.final_rate ?? data.rate_per_child ?? 0)), 0);
+        .reduce((sum, g) => {
+            const baseRate = Number(g.final_rate ?? data.rate_per_child ?? 0);
+            const effectiveRate = invoiceDiscountPct && !g.discount_id ? baseRate * invoiceMultiplier : baseRate;
+            return sum + (g.count * effectiveRate);
+        }, 0);
     const totalGuide = paxGroups
         .filter(g => g.type === "guide")
-        .reduce((sum, g) => sum + (g.count * Number(g.final_rate ?? data.rate_per_guide ?? 0)), 0);
+        .reduce((sum, g) => {
+            const baseRate = Number(g.final_rate ?? data.rate_per_guide ?? 0);
+            const effectiveRate = invoiceDiscountPct && !g.discount_id ? baseRate * invoiceMultiplier : baseRate;
+            return sum + (g.count * effectiveRate);
+        }, 0);
     const total = Number(data.booking_total || 0);
 
     const vatTotal = total * lookups.find(l => l.slug == 'vat_rate')?.multiplier;
@@ -1425,7 +1461,8 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                         {paxGroups
                                             .filter((g) => g.type === "adult")
                                             .map((group, i) => {
-                                                const rate = Number(group.final_rate ?? data?.rate_per_adult ?? 0);
+                                                const baseRate = Number(group.final_rate ?? data?.rate_per_adult ?? 0);
+                                                const rate = invoiceDiscountPct && !group.discount_id ? (baseRate * invoiceMultiplier) : baseRate;
                                                 const amount = group.count * rate;
 
                                                 return (
@@ -1514,7 +1551,8 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                         {paxGroups
                                             .filter((g) => g.type === "child")
                                             .map((group, i) => {
-                                                const rate = Number(group.final_rate ?? data?.rate_per_child ?? 0);
+                                                const baseRate = Number(group.final_rate ?? data?.rate_per_child ?? 0);
+                                                const rate = invoiceDiscountPct && !group.discount_id ? (baseRate * invoiceMultiplier) : baseRate;
                                                 const amount = group.count * rate;
 
                                                 return (
@@ -1603,7 +1641,8 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                         {paxGroups
                                             .filter((g) => g.type === "guide")
                                             .map((group, i) => {
-                                                const rate = Number(group.final_rate ?? data?.rate_per_guide ?? 0);
+                                                const baseRate = Number(group.final_rate ?? data?.rate_per_guide ?? 0);
+                                                const rate = invoiceDiscountPct && !group.discount_id ? (baseRate * invoiceMultiplier) : baseRate;
                                                 const amount = group.count * rate;
 
                                                 return (
@@ -1655,7 +1694,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                 <span className="text-booking-lbl-main">Booking Total</span>
                                 <div className="flex items-center justify-between w-[417px] h-[43px] bg-[#DBECFD4D] pl-[7px] pr-[7px] py-[7px] rounded-[6px]">
                                     <span className="text-booking-lbl-main-sub">R {(total * lookups.find(l => l.slug == 'vat_rate')?.multiplier).toFixed(2) || '0.00'}</span>
-                                    {(hasPromo || hasDiscounts || data.is_wholesaler) && (
+                                    {(hasPromo || hasDiscounts || data.is_wholesaler || !!invoiceDiscountPct) && (
                                         <WhiteButton
                                             title="Recalculate from Rack"
                                             icon={true}
