@@ -4,47 +4,50 @@ import { icons } from '../icons';
 
 export default function SidebarMenuLink({ label, isOpen, url = null, iconName: iconName, submenuItems = [] }) {
   const [open, setOpen] = useState(false);
-const Icon = iconName ? icons[iconName] : null;
+  const Icon = iconName ? icons[iconName] : null;
+  const hasSubmenu = submenuItems.length > 0;
+  const isActive = !!url && route().current(url);
 
   useEffect(() => {
     if (!isOpen) setOpen(false);
   }, [isOpen]);
   return (
-    <div className={`${open ? 'text-[#3863C6]' : 'text-dark-gray'} `}>
-      <div
-        onClick={(e) => {
-          e.preventDefault();
-          setOpen(!open);
-        }}
-        className={`group menu-link flex items-center justify-between ${isOpen ? 'px-3' : 'px-1.5'} ${open ? 'text-[#3863C6]' : 'text-dark-gray'} py-2 hover:bg-secondary-200 hover:text-black rounded-lg ${
-          open ? 'bg-secondary-200' : ''
-        } cursor-pointer`}
-      >
-        {/* #3863C6 */}
-        <span className={`flex items-center gap-2 ${open ? 'text-[#3863C6]' : 'text-dark-gray'} `}>
-          <span
-            className={`dark-icon flex items-center justify-center w-5 h-5 transition-colors duration-300 ${open ? 'text-[#3863C6]' : 'text-dark-gray'} `}>
-             {Icon}
+    <div className={`${open || isActive ? 'text-[#3863C6]' : 'text-dark-gray'} `}>
+      {hasSubmenu ? (
+        <div
+          onClick={() => setOpen(!open)}
+          className={`group menu-link flex items-center justify-between ${isOpen ? 'px-3' : 'px-1.5'} ${
+            open ? 'text-[#3863C6]' : 'text-dark-gray'
+          } py-2 hover:bg-secondary-200 hover:text-black rounded-lg ${open ? 'bg-secondary-200' : ''} cursor-pointer`}
+        >
+          <span className={`flex items-center gap-2 ${open ? 'text-[#3863C6]' : 'text-dark-gray'} `}>
+            <span
+              className={`dark-icon flex items-center justify-center w-5 h-5 transition-colors duration-300 ${open ? 'text-[#3863C6]' : 'text-dark-gray'} `}>
+              {Icon}
+            </span>
+            <span className={`${isOpen ? '' : 'hidden'} menu-label text-menu-heading`}>{label}</span>
           </span>
-          {url ? (
-            <Link
-                key={label}
-                href={route(url)}
-                className={`${isOpen ? '' : 'hidden'} menu-label text-menu-heading`}
-                >
-               {label} 
-            </Link>
-          ):(
-          <span className={`${isOpen ? '' : 'hidden'} menu-label text-menu-heading`}>{label}</span>
-          )}
-        </span>
-        {submenuItems.length > 0 && (
-        <span className={`${isOpen ? '' : 'hidden'} arrow transition-transform duration-300 ${open ? 'rotate-90' : ''}`}>
-          <img src="/assets/icons/arrow-left.svg" alt="arrow" className="w-3 h-3" />
-        </span>
-        )}
-
-      </div>
+          <span className={`${isOpen ? '' : 'hidden'} arrow transition-transform duration-300 ${open ? 'rotate-90' : ''}`}>
+            <img src="/assets/icons/arrow-left.svg" alt="arrow" className="w-3 h-3" />
+          </span>
+        </div>
+      ) : (
+        <Link
+          key={label}
+          href={route(url)}
+          className={`group menu-link flex items-center justify-between ${isOpen ? 'px-3' : 'px-1.5'} ${
+            isActive ? 'text-[#3863C6] bg-secondary-200' : 'text-dark-gray'
+          } py-2 hover:bg-secondary-200 hover:text-black rounded-lg cursor-pointer`}
+        >
+          <span className={`flex items-center gap-2 ${isActive ? 'text-[#3863C6]' : 'text-dark-gray'} `}>
+            <span
+              className={`dark-icon flex items-center justify-center w-5 h-5 transition-colors duration-300 ${isActive ? 'text-[#3863C6]' : 'text-dark-gray'} `}>
+              {Icon}
+            </span>
+            <span className={`${isOpen ? '' : 'hidden'} menu-label text-menu-heading`}>{label}</span>
+          </span>
+        </Link>
+      )}
 
       {/* Submenu (if you want it) */}
       {open && submenuItems.length > 0 && (
