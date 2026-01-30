@@ -55,10 +55,8 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
     const [selectedService, setSelectedService] = useState(null);
     const [selectedSeason, setSelectedSeason] = useState(null);
     const [activityDate, setActivityDate] = useState(() => new Date(start_date));
-    const [selectedTime, setSelectedTime] = useState(null);
     const [selectedSlot, setSelectedSlot] = useState(null); // stores {date: string, day: string, time: string }
     const [showWholesaler, setShowWholesaler] = useState(false);
-    const [selectedWholesaler, setSelectedWholesaler] = useState(null);
     const [wholesalerApplied, setWholesalerApplied] = useState(false);
     const [wholesalerRateList, setWholesalerRateList] = useState([]);
 
@@ -75,7 +73,6 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
     const [promoCode, setPromoCode] = useState(null);
     const [promoModalOpen, setPromoModalOpen] = useState(false);
 
-    const [selectedDate, setSelectedDate] = useState(null);
     const [pricing, setPricing] = useState(null);
     const lastSlotWarningRef = useRef('');
 
@@ -158,7 +155,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
         // console.log('adults', adults);
         // console.log('children', children);
         loadCalendar();
-    }, [activityId, activityDate, view_mode, selectedTime, data.adults, data.children]);
+    }, [activityId, activityDate, view_mode, data.start_time, data.adults, data.children]);
 
     function resetPricingState(reason = '') {
         if (reason === 'discount') {
@@ -228,7 +225,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                         activity_id: activityId,
                         view_mode: view_mode,
                         start_date: format(activityDate, 'yyyy-MM-dd'),
-                        start_time: selectedTime,
+                        start_time: data.start_time,
                         adults: data.adults || 0,
                         children: data.children || 0
                     }
@@ -247,17 +244,17 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
         // if (selectedService && selectedSeason) {
         //     fetchCalculatedPrice();
         // }
-        console.log('selectedService, selectedSeason, adults, children, guides, selectedDate, selectedTime 187', selectedService);
+        console.log('selectedService, selectedSeason, adults, children, guides, booking_date, start_time 187', selectedService);
         console.log('selectedService', selectedService);
         console.log('selectedSeason', selectedSeason);
-        console.log('selectedWholesaler', selectedWholesaler);
+        console.log('wholesaler_id', data.wholesaler_id);
         console.log('promoCode', promoCode);
         console.log('discount', discount);
         console.log('adults', data.adults);
         console.log('children', data.children);
         console.log('guides', data.guides);
-        console.log('selectedDate', selectedDate);
-        console.log('selectedTime', selectedTime);
+        console.log('booking_date', data.booking_date);
+        console.log('start_time', data.start_time);
         if (data.adults > 0 || data.children > 0 || data.guides > 0) {
             let rate_per_adult = data?.rate_per_adult || 0;
             let rate_per_child = data?.rate_per_child || 0;
@@ -299,8 +296,8 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
         }
         console.log('data', data);
 
-    }, [selectedService, selectedSeason, data.adults, data.children, data.guides, selectedDate, selectedTime]);
-    //, selectedWholesaler, promoCode
+    }, [selectedService, selectedSeason, data.adults, data.children, data.guides, data.booking_date, data.start_time]);
+    //, promoCode
 
     const serviceWholesalers = selectedService
         ? Array.from(
@@ -318,7 +315,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
     const hasPromo = !!promoCode;
     const hasDiscountSelection = !!discountId;
     const hasDiscounts = (data.discount_lines?.length || 0) > 0 || paxGroups.some(g => g.discount_id) || hasDiscountSelection;
-    const computedMode = data.is_wholesaler || selectedWholesaler
+    const computedMode = data.is_wholesaler || data.wholesaler_id
         ? PRICING_MODES.WHOLESALER
         : hasPromo
             ? PRICING_MODES.PROMO
@@ -334,7 +331,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
         if (!hasWholesalers && data.is_wholesaler) {
             setData('is_wholesaler', false);
             setData('wholesaler_id', '');
-            setSelectedWholesaler(null);
+            setWholesalerApplied(false);
         }
 
         switch (computedMode) {
@@ -350,7 +347,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                 if (data.is_wholesaler) {
                     setData('is_wholesaler', false);
                     setData('wholesaler_id', '');
-                    setSelectedWholesaler(null);
+                    setWholesalerApplied(false);
                 }
                 setShowDiscount(false);
                 setShowPromo(canShowPromo);
@@ -360,7 +357,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                 if (data.is_wholesaler) {
                     setData('is_wholesaler', false);
                     setData('wholesaler_id', '');
-                    setSelectedWholesaler(null);
+                    setWholesalerApplied(false);
                 }
                 setShowPromo(false);
                 setShowDiscount(canShowDiscount);
@@ -386,11 +383,11 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
 
         const service_id = selectedService ? selectedService?.id : (alert('Please select a service'));
         const season_id = selectedSeason ? selectedSeason?.id : (alert('Please select a season'));
-        const wholesaler_id = selectedWholesaler || null;
-        const booking_date = selectedDate ? selectedDate : (alert('Please select a date'));
+        const wholesaler_id = data.wholesaler_id || null;
+        const booking_date = data.booking_date ? data.booking_date : (alert('Please select a date'));
         const promo_code = promoCode || null;
         const pax_groups = paxGroups ? paxGroups : (alert('Please select a pax group'));
-        if (!selectedService || !selectedSeason || !selectedDate || !selectedTime) return;
+        if (!selectedService || !selectedSeason || !data.booking_date || !data.start_time) return;
         if (Number(data.adults || 0) < 1) return;
 
         if (type === 'saler') {
@@ -475,15 +472,15 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
     // };
 
     useEffect(() => {
-        console.log('selectedWholesaler', selectedWholesaler);
+        console.log('wholesaler_id', data.wholesaler_id);
         console.log('selectedWholesaler, data.is_wholesaler 391', wholesaler_rates);
-        console.log('selectedWholesaler, data.is_wholesaler 391', selectedWholesaler);
+        console.log('selectedWholesaler, data.is_wholesaler 391', data.wholesaler_id);
         console.log('selectedWholesaler, data.is_wholesaler 391', data.is_wholesaler);
-        if (selectedWholesaler && data.is_wholesaler && wholesalerApplied) {
+        if (data.wholesaler_id && data.is_wholesaler && wholesalerApplied) {
             //setPricingMode(PRICING_MODES.WHOLESALER);
             //resetPricingState('wholesaler');
 
-            const wholesaler_rates_list = wholesaler_rates.filter(s => s.id === parseInt(selectedWholesaler));
+            const wholesaler_rates_list = wholesaler_rates.filter(s => s.id === parseInt(data.wholesaler_id));
             //console.log('wholesaler_rates_list', wholesaler_rates_list);
             let wholesalerList = [];
             wholesaler_rates_list.forEach(rate => {
@@ -507,7 +504,6 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
         }
         if (!data.is_wholesaler) {
             setWholesalerRateList([]);
-            setSelectedWholesaler(null);
             setWholesalerApplied(false);
             setData(prev => ({
                 ...prev,
@@ -523,7 +519,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
             // setGuides(0);
         }
 
-    }, [selectedWholesaler, data.is_wholesaler, wholesalerApplied]);
+    }, [data.wholesaler_id, data.is_wholesaler, wholesalerApplied]);
 
     const handleDateChange = (newDate) => {
         // setActivityDate(newDate);
@@ -570,7 +566,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
         // const rate_per_adult = service?.rate_per_adult || 0;
         // const rate_per_child = service?.rate_per_child || 0;
         // const rate_per_guide = service?.rate_per_guide || 0;
-        if (!selectedWholesaler && !data.is_wholesaler) {
+        if (!data.wholesaler_id && !data.is_wholesaler) {
             setData({
                 ...data,
                 override_capacity: service?.allow_internal_capacity_override || false,
@@ -755,10 +751,10 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
     };
 
     const handleResetToRack = () => {
-        if (data.is_wholesaler || selectedWholesaler) {
+        if (data.is_wholesaler || data.wholesaler_id) {
             setData('is_wholesaler', false);
             setData('wholesaler_id', '');
-            setSelectedWholesaler(null);
+            setWholesalerApplied(false);
         }
         resetPromoDiscountAndRates();
     };
@@ -784,10 +780,9 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                 setWholesalerApplied(false);
                 resetPromoDiscountAndRates();
             }
-            setSelectedWholesaler(value);
         }
         if (target === 'booking_date') {
-            setSelectedDate(value);
+            setActivityDate(parseDate(value));
         }
 
     };
@@ -843,7 +838,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                 ];
                 // console.log("formattedTimeSlots-----------ffffffffffffffff---------",formattedTimeSlots);
 
-                if (!selectedWholesaler && !data.is_wholesaler) {
+                if (!data.wholesaler_id && !data.is_wholesaler) {
                     setData({
                         ...data,
                         season_id: season.id,
@@ -880,14 +875,6 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
         }
 
     }, [data.booking_date]);
-
-    useEffect(() => {
-        setSelectedDate(data.booking_date || null);
-    }, [data.booking_date]);
-
-    useEffect(() => {
-        setSelectedTime(data.start_time || null);
-    }, [data.start_time]);
 
     useEffect(() => {
         if (!data.booking_date || !data.start_time || Number(data.start_time) === 0) {
@@ -1107,7 +1094,6 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
 
                             onChange={(e) => {
                                 setData('start_time', e.target.value);
-                                setSelectedTime(e.target.value);
                                 if (e.target.value == 0) {
                                     setSelectedSlot(null);
                                     setData('selected_slot', []);
@@ -1238,13 +1224,11 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                                                                 // console.log('row.time', row.time);
                                                                                 // console.log('-------timeslots----------', timeslots);
 
-                                                                                setSelectedDate(cell.date);
                                                                                 setData('booking_date', cell.date);
                                                                                 setActivityDate(parseDate(cell.date));
                                                                                 const time = row.time.slice(0, 5);
                                                                                 const slot = timeslots.find(s => s.name === time);
                                                                                 setData('start_time', slot.id);
-                                                                                setSelectedTime(slot.id);
                                                                                 console.log("SelectedSlot--------------------:", selectedSlot);
                                                                                 console.log("sDatalot:-----------------------", data);
                                                                             }
@@ -1588,7 +1572,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                             <div className="flex items-center gap-2 mt-3">
                                                 <BlueButton
                                                     title="Apply"
-                                                    disabled={processing || !selectedWholesaler}
+                                                    disabled={processing || !data.wholesaler_id}
                                                     onClick={() => handleCalculate('saler')}
                                                 />
                                             </div>
