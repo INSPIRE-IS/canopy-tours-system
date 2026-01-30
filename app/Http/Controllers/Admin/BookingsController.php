@@ -234,6 +234,7 @@ class BookingsController extends Controller
             'selected_slot' => 'required|array', //   "selected_slot" => array:3 [▶] date "2025-07-28" "selected_slot" => array:3 [▶] time "08:00:00"
 
             'service_id' => 'required|integer', //   "season_id" => "2"
+            'season_id' => 'required|integer', //   "season_id" => "2"
             'corporate_customer' => 'boolean', //   "corporate_customer" => "true"
             'send_sms' => 'boolean', //   "send_sms" => "true"
             'booking_date' => 'required|date', //   "booking_date" => "2025-07-28"
@@ -279,7 +280,7 @@ class BookingsController extends Controller
                 $inventory = Inventory::where('season_id', $season->id)->first();
                 //$FullNameOfDay = Carbon::parse($validated['date'])->format('l'); // e.g., Monday
                 //$ShortNameOfDay = Carbon::parse($validated['date'])->format('D'); // e.g., Mon
-                $isoNameOfDay = Carbon::parse($selected_slot['date'])->format('N'); // iso week starts on Monday
+                $isoNameOfDay = Carbon::parse($selected_slot['activityDate'])->format('N'); // iso week starts on Monday
                 //$numericNameOfDay = Carbon::parse($validated['date'])->format('w'); // week starts on Sunday
 
                 // if (($validated['wholesaler_id'] && $validated['promoCode']) || (!$validated['wholesaler_id'] && $validated['discount_lines']) || ($validated['promoCode'] && $validated['discount_lines'])) {
@@ -1259,6 +1260,15 @@ class BookingsController extends Controller
             $appliedDiscounts = [];
             $total = 0.0;
 
+            // Enforce exclusivity: wholesaler cannot combine with promo/discounts
+            if (!empty($data['wholesaler_id'])) {
+                $data['promo_code'] = null;
+                $data['pax_groups'] = array_map(function ($g) {
+                    $g['discount_id'] = null;
+                    return $g;
+                }, $data['pax_groups']);
+            }
+
             // Step 3: Check if promotion is applied (mutually exclusive with discounts)
             if (!empty($data['promo_code'])) {
                 // $promo = Promotion::where('promo_code', $data['promo_code'])
@@ -1290,10 +1300,8 @@ class BookingsController extends Controller
                     ->whereDate('activity_start_date', '<=', $activityDate)
                     ->whereDate('activity_end_date', '>=', $activityDate)
                     ->first();
-                logger()->info('promo ' . $promo->id);
-
-
                 if ($promo) {
+                    logger()->info('promo ' . $promo->id);
                     $appliedPromo = [
                         'id' => $promo->id,
                         'name' => $promo->name,

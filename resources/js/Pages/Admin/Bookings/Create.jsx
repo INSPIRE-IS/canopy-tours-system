@@ -314,15 +314,15 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
     }, [data.is_wholesaler]);
 
     // used by wholesaler and promo
-    const handleCalculate = async (type) => {
+    const handleCalculate = async (type, paxGroupsOverride = null) => {
         console.log('==============handleCalculate 303:========== ');
 
         const service_id = selectedService ? selectedService?.id : (alert('Please select a service'));
         const season_id = selectedSeason ? selectedSeason?.id : (alert('Please select a season'));
         const wholesaler_id = data.wholesaler_id || null;
         const booking_date = data.booking_date ? data.booking_date : (alert('Please select a date'));
-        const promo_code = promoCode || null;
-        const pax_groups = paxGroups ? paxGroups : (alert('Please select a pax group'));
+        const promo_code = type === 'promo' ? (promoCode || null) : null;
+        const pax_groups = paxGroupsOverride || paxGroups || (alert('Please select a pax group'));
         if (!selectedService || !selectedSeason || !data.booking_date || !data.start_time) return;
         if (Number(data.adults || 0) < 1) return;
 
@@ -353,6 +353,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                     const applied_rates = res.data.applied_rates;
                     const base_rates = res.data.applied_rates;
                     const total_price = res.data.total_price;
+                    setPricing(res.data);
                     setData(prev => ({
                         ...prev,
                         override_price: false,
@@ -360,7 +361,29 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                         rate_per_adult: applied_rates.adult,
                         rate_per_child: applied_rates.child,
                         rate_per_guide: applied_rates.guide,
+                        booking_total: total_price || 0,
                     }));
+                    if (Array.isArray(res.data.applied_discounts)) {
+                        const discountRateMap = new Map(
+                            res.data.applied_discounts.map(d => [`${d.applied_to}:${d.id}`, Number(d.final_rate || 0)])
+                        );
+                        setPaxGroups(prev =>
+                            prev.map(g => {
+                                if (g.discount_id) {
+                                    const key = `${g.type}:${g.discount_id}`;
+                                    if (discountRateMap.has(key)) {
+                                        return { ...g, final_rate: discountRateMap.get(key) };
+                                    }
+                                }
+                                const fallbackRate = g.type === "adult"
+                                    ? Number(applied_rates.adult || 0)
+                                    : g.type === "child"
+                                        ? Number(applied_rates.child || 0)
+                                        : Number(applied_rates.guide || 0);
+                                return { ...g, final_rate: fallbackRate };
+                            })
+                        );
+                    }
                 })
                 .catch((err) => {
                     console.error(err)
@@ -780,8 +803,8 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
         const countToMove = parseInt(discountPax);
         const selectedDiscount = parseInt(discountId);
 
-        setPaxGroups(prevGroups => {
-            let updated = [...prevGroups];
+                    setPaxGroups(prevGroups => {
+                        let updated = [...prevGroups];
 
             // Find the first group of adults WITHOUT a discount (the pool to split from)
             const idx = updated.findIndex(g => g.type === "adult" && g.discount_id === null);
@@ -791,89 +814,54 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                 return updated;
             }
             const baseRate = data.rate_per_adult;
-            const finalRate = calculateDiscountedRate(baseRate, selectedDiscount);
+            const finalRate = baseRate;
             const baseGroup = updated[idx];
 
             if (baseGroup.count <= countToMove) {
                 // All base adults are moved to discounted group
-                updated[idx] = {
-                    type: "adult",
-                    count: countToMove,
-                    discount_id: selectedDiscount,
-                    base_rate: baseRate,
-                    final_rate: finalRate,
-                };
+                        updated[idx] = {
+                            type: "adult",
+                            count: countToMove,
+                            discount_id: selectedDiscount,
+                            base_rate: baseRate,
+                            final_rate: finalRate,
+                        };
             } else {
                 // Split: reduce base group, add new discounted group
                 updated[idx].count -= countToMove;
-                updated.push({
-                    type: "adult",
-                    count: countToMove,
-                    discount_id: selectedDiscount,
-                    base_rate: baseRate,
-                    final_rate: finalRate,
-                });
+                        updated.push({
+                            type: "adult",
+                            count: countToMove,
+                            discount_id: selectedDiscount,
+                            base_rate: baseRate,
+                            final_rate: finalRate,
+                        });
             }
-            setData(prev => ({
-                ...prev,
-                discount_lines: updated
-            }));
-            console.log('updated', updated);
-            console.log('data', data);
-            return updated;
-        });
+                        setData(prev => ({
+                            ...prev,
+                            discount_lines: updated
+                        }));
+                        console.log('updated', updated);
+                        console.log('data', data);
+                        handleCalculate('discount', updated);
+                        return updated;
+                    });
 
         // reset UI inputs
         setDiscountId(null);
         setDiscountPax(0);
     };
 
-    function calculateDiscountedRate(baseRate, discountId) {
-        console.log('calculateDiscountedRate 758');
-        if (!discountId) return baseRate;
-        const discount = discountList.find(d => d.id === discountId);
-        return baseRate * (1 - discount.percent_off / 100);
-    }
-
-    const totalAdult = paxGroups.reduce((sum, g) => {
-        console.log('totalAdult 765');
-        if (g.type === "adult") {
-            const baseRate = data.rate_per_adult;
-            const rate = calculateDiscountedRate(baseRate, g.discount_id);
-            //setData("adult", sum + (rate * g.count));
-            return sum + (rate * g.count);   // ✅ add to sum
-        }
-        return sum; // ✅ always return sum if not adult
-    }, 0);
-    const totalChild = paxGroups.reduce((sum, g) => {
-        console.log('totalChild 775');
-        if (g.type === "child") {
-            const baseRate = data.rate_per_child;
-            const rate = calculateDiscountedRate(baseRate, g.discount_id);
-            //setData("child", sum + (rate * g.count));
-            return sum + (rate * g.count);   // ✅ add to sum
-        }
-        return sum; // ✅ always return sum if not adult
-    }, 0);
-    const totalGuide = paxGroups.reduce((sum, g) => {
-        console.log('totalGuide 785');
-        if (g.type === "guide") {
-            const baseRate = data.rate_per_guide;
-            const rate = calculateDiscountedRate(baseRate, g.discount_id);
-            //setData("guide", sum + (rate * g.count));
-            return sum + (rate * g.count);   // ✅ add to sum
-        }
-        return sum; // ✅ always return sum if not adult
-    }, 0);
-    const total = paxGroups.reduce((sum, g) => {
-        console.log('total 795');
-        const baseRate = g.type === "adult" ? data.rate_per_adult
-            : g.type === "child" ? data.rate_per_child
-                : data.rate_per_guide;
-        const rate = calculateDiscountedRate(baseRate, g.discount_id);
-        const out = sum + (rate * g.count);
-        return out;
-    }, 0);
+    const totalAdult = paxGroups
+        .filter(g => g.type === "adult")
+        .reduce((sum, g) => sum + (g.count * Number(g.final_rate ?? data.rate_per_adult ?? 0)), 0);
+    const totalChild = paxGroups
+        .filter(g => g.type === "child")
+        .reduce((sum, g) => sum + (g.count * Number(g.final_rate ?? data.rate_per_child ?? 0)), 0);
+    const totalGuide = paxGroups
+        .filter(g => g.type === "guide")
+        .reduce((sum, g) => sum + (g.count * Number(g.final_rate ?? data.rate_per_guide ?? 0)), 0);
+    const total = Number(data.booking_total || 0);
 
     const vatTotal = total * lookups.find(l => l.slug == 'vat_rate')?.multiplier;
 
@@ -1437,8 +1425,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                         {paxGroups
                                             .filter((g) => g.type === "adult")
                                             .map((group, i) => {
-                                                const baseAdultRate = data?.rate_per_adult || 0;
-                                                const rate = calculateDiscountedRate(baseAdultRate, group.discount_id);
+                                                const rate = Number(group.final_rate ?? data?.rate_per_adult ?? 0);
                                                 const amount = group.count * rate;
 
                                                 return (
@@ -1527,8 +1514,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                         {paxGroups
                                             .filter((g) => g.type === "child")
                                             .map((group, i) => {
-                                                const baseChildRate = data?.rate_per_child || 0;
-                                                const rate = calculateDiscountedRate(baseChildRate, group.discount_id);
+                                                const rate = Number(group.final_rate ?? data?.rate_per_child ?? 0);
                                                 const amount = group.count * rate;
 
                                                 return (
@@ -1617,8 +1603,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                         {paxGroups
                                             .filter((g) => g.type === "guide")
                                             .map((group, i) => {
-                                                const baseGuideRate = data?.rate_per_guide || 0;
-                                                const rate = calculateDiscountedRate(baseGuideRate, group.discount_id);
+                                                const rate = Number(group.final_rate ?? data?.rate_per_guide ?? 0);
                                                 const amount = group.count * rate;
 
                                                 return (
