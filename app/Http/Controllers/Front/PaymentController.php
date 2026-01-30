@@ -9,6 +9,7 @@ use App\Models\Alert;
 use App\Models\Booking;
 use App\Models\BookingItem;
 use App\Models\BookingPayment;
+use App\Models\BoardingPassTemplate;
 use App\Models\Customer;
 use App\Models\Email;
 use App\Models\GiftVoucher;
@@ -647,6 +648,81 @@ class PaymentController extends Controller
 
     public function getPassDetails($bookingItem)
     {
+        $basePassData = [
+            'flightName' => $bookingItem->booking->team->name,
+            'location' => optional($bookingItem->service)->name ?? $bookingItem->booking->team->name,
+            'address' => '',
+            'passenger' => $bookingItem->booking->lead_name,
+            'date' => $bookingItem->booking_inventory->date,
+            'time' => optional($bookingItem->booking_inventory->inventory_time_slot)->start_time,
+            'seat' => $bookingItem->booking->reference,
+            'boarding_time' => optional($bookingItem->booking_inventory->inventory_time_slot)->start_time,
+            'booking_no' => $bookingItem->booking->reference,
+            'flight' => $bookingItem->booking->team->name,
+            'passenger_name' => $bookingItem->booking->lead_name,
+            'footer' => '',
+            'sections' => [],
+        ];
+
+        $teamId = $bookingItem->booking->team_id;
+        $serviceId = $bookingItem->service_id;
+        $seasonId = $bookingItem->season_id;
+
+        $template = null;
+        if ($teamId) {
+            $template = BoardingPassTemplate::with(['sections' => function ($query) {
+                $query->where('is_active', true)->orderBy('sort_order');
+            }])
+                ->where('team_id', $teamId)
+                ->where('is_active', true)
+                ->where('service_id', $serviceId)
+                ->where('season_id', $seasonId)
+                ->first();
+
+            if (!$template && $serviceId) {
+                $template = BoardingPassTemplate::with(['sections' => function ($query) {
+                    $query->where('is_active', true)->orderBy('sort_order');
+                }])
+                    ->where('team_id', $teamId)
+                    ->where('is_active', true)
+                    ->where('service_id', $serviceId)
+                    ->whereNull('season_id')
+                    ->first();
+            }
+
+            if (!$template) {
+                $template = BoardingPassTemplate::with(['sections' => function ($query) {
+                    $query->where('is_active', true)->orderBy('sort_order');
+                }])
+                    ->where('team_id', $teamId)
+                    ->where('is_active', true)
+                    ->whereNull('service_id')
+                    ->whereNull('season_id')
+                    ->where('is_default', true)
+                    ->first();
+            }
+        }
+
+        if ($template) {
+            $sections = $template->sections
+                ->map(function ($section) {
+                    return [
+                        'title' => $section->title,
+                        'icon' => $section->icon_path,
+                        'items' => is_array($section->items) ? $section->items : [],
+                    ];
+                })
+                ->values()
+                ->all();
+
+            return array_merge($basePassData, [
+                'location' => $template->location ?? $basePassData['location'],
+                'address' => $template->address ?? '',
+                'footer' => $template->footer ?? '',
+                'sections' => $sections,
+            ]);
+        }
+
         //dd($bookingItem->booking->team->name);
         switch ($bookingItem->booking->team->name) {
             case 'Karkloof':
@@ -1095,7 +1171,7 @@ class PaymentController extends Controller
                 ];
                 break;
             default:
-                return [];
+                return $basePassData;
                 break;
         }
     }
