@@ -17,7 +17,9 @@ class RendererService
     {
         $site = Team::select('full_name', 'reg_no', 'address', 'address_code', 'account_owner', 'account_number', 'account_type', 'bank_name', 'branch_code')->find($booking->team_id);
         $invoice = Invoice::with('items', 'items.season')->where('booking_id', $booking->id)->first();
-
+        if (!$invoice) {
+            throw new \RuntimeException('Invoice not found for booking ' . $booking->id);
+        }
         $services = $invoice->items->map(function ($item) {
             $services = [
                 'name' => $item->service->name . ' ' . $item->season->name,
@@ -27,7 +29,9 @@ class RendererService
                 'price_adult' => $item->price_adult,
                 'price_child' => $item->price_child,
                 'guides' => $item->pax_guides,
-                'total' => $item->price_adult + $item->price_child + $item->price_guide,
+                'total' => ($item->price_adult * $item->pax_adults) +
+                    ($item->price_child * $item->pax_children) +
+                    ($item->price_guide * $item->pax_guides),
             ];
 
             return $services;
@@ -55,7 +59,7 @@ class RendererService
                 'ref' => $booking->reference,
             ],
             'services' => $services,
-            'file_logo' => $booking->team->file_logo->path,
+            'file_logo' => $booking->team->file_logo?->path ?? asset('images/logo.png'),
             'amount_ex_vat' => $booking->grand_tot_due,
             'vat'           => $booking->grand_tot_due * 0.15,
             'vat_amount'    => $booking->grand_tot_due * 1.15,
