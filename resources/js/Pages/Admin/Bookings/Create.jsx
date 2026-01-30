@@ -65,7 +65,6 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
     const [discountId, setDiscountId] = useState(null);
     const [discountPax, setDiscountPax] = useState(null);
     const [paxGroups, setPaxGroups] = useState([]);
-    const [discount, setDiscount] = useState(false);
 
     const [showPromo, setShowPromo] = useState(false);
     const [promoList, setPromoList] = useState([]);
@@ -148,70 +147,8 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
         }
     }, [flash, showToast]);
     useEffect(() => {
-        // console.log('activityId', activityId);
-        // console.log('activityDate', activityDate);
-        // console.log('start_time', selectedTime);
-        // console.log('view_mode', view_mode);
-        // console.log('adults', adults);
-        // console.log('children', children);
         loadCalendar();
     }, [activityId, activityDate, view_mode, data.start_time, data.adults, data.children]);
-
-    function resetPricingState(reason = '') {
-        if (reason === 'discount') {
-            setPromoCode(null);
-            setPromoModalOpen(false);
-            setPromoList([]);
-            setShowPromo(false);
-            setShowWholesaler(false);
-            setData(prev => ({
-                ...prev,
-                wholesaler_id: null,
-                promoCode: null,
-                // override_rates: false,
-                // override_price: false,
-            }));
-        }
-        if (reason === 'promo') {
-            setDiscountId(null);
-            setDiscountPax(null);
-            setShowDiscount(false);
-            setPaxGroups([]);
-            setShowWholesaler(false);
-            setData(prev => ({
-                ...prev,
-                wholesaler_id: null,
-                discount_lines: [],
-                // override_rates: false,
-                // override_price: false,
-            }));
-        }
-        if (reason === 'wholesaler') {
-            setDiscountId(null);
-            setDiscountPax(null);
-            setShowDiscount(false);
-            setPromoCode(null);
-            setPromoModalOpen(false);
-            setPromoList([]);
-            setShowPromo(false);
-            setPaxGroups([]);
-            setData(prev => ({
-                ...prev,
-                discount_lines: [],
-                promoCode: null,
-                // override_rates: false,
-                // override_price: false,
-            }));
-        }
-    }
-
-    // useEffect(() => {
-    //     console.log('-----------------------Tracker line 149----------------------', adults);
-    //     console.log('-----------------------Adults----------------------', adults);
-    //     console.log('-----------------------Children----------------------', children);
-    //     console.log('-----------------------Guides----------------------', guides);
-    //     console.log('-----------------------data----------------------', data);
-    // }, [data]);
 
 
     const loadCalendar = async () => {
@@ -249,7 +186,6 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
         console.log('selectedSeason', selectedSeason);
         console.log('wholesaler_id', data.wholesaler_id);
         console.log('promoCode', promoCode);
-        console.log('discount', discount);
         console.log('adults', data.adults);
         console.log('children', data.children);
         console.log('guides', data.guides);
@@ -425,51 +361,14 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                         rate_per_child: applied_rates.child,
                         rate_per_guide: applied_rates.guide,
                     }));
-
-                    // setPricing(res.data);
-                    // setShowDiscount(false);
-                    // setDiscountList([]);
                 })
                 .catch((err) => {
                     console.error(err)
                 });
-
-
-            // const { data } = await axios.post(route('admin.booking.calculate'), payload);
-            // console.log('Calculation result:', data);
-            // update state here
         } catch (err) {
             console.error(err.response?.data || err);
         }
     };
-
-    // const fetchCalculatedPrice = async () => {
-    //     console.log('fetchCalculatedPrice 362');
-    //     console.log('selectedSeason', selectedSeason);
-    //     console.log('selectedWholesaler', selectedWholesaler);
-    //     console.log('promoCode', promoCode);
-    //     console.log('discount', discount);
-    //     console.log('adults', adults);
-    //     console.log('children', children);
-    //     console.log('guides', guides);
-    //     console.log('selectedDate', selectedDate);
-    //     return;
-    //     if (!selectedService || !selectedSeason || !adults || !children || !guides || !selectedDate) return; // || !selectedWholesaler || !promoCode || !discount 
-    //     try {
-    //         const res = await axios.post('/admin/bookings/calculate-price', {
-    //             service_id: selectedService.id,
-    //             season_id: selectedSeason.id,
-    //             wholesaler_id: selectedWholesaler,
-    //             promo_code: promoCode,
-    //             discount_code: discount, // optional
-    //             pax: { adults, children, guides },
-    //             booking_date: selectedDate,
-    //         });
-    //         setPricing(res.data);
-    //     } catch (e) {
-    //         console.error(e);
-    //     }
-    // };
 
     useEffect(() => {
         console.log('wholesaler_id', data.wholesaler_id);
@@ -512,11 +411,6 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                 promoCode: null,
                 redeem_voucher: null,
             }));
-            // setShowDiscount(false);
-            // setPaxGroups([]);
-            // setAdults(0);
-            // setChildren(0);
-            // setGuides(0);
         }
 
     }, [data.wholesaler_id, data.is_wholesaler, wholesalerApplied]);
@@ -560,12 +454,6 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
             setDiscountList([]);
             setPromoList([]);
         }
-        // const base_per_adult = service?.rate_per_adult || 0;
-        // const base_per_child = service?.rate_per_child || 0;
-        // const base_per_guide = service?.rate_per_guide || 0;
-        // const rate_per_adult = service?.rate_per_adult || 0;
-        // const rate_per_child = service?.rate_per_child || 0;
-        // const rate_per_guide = service?.rate_per_guide || 0;
         if (!data.wholesaler_id && !data.is_wholesaler) {
             setData({
                 ...data,
@@ -611,57 +499,6 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
 
     }, [data.service_id]);
 
-    useEffect(() => {
-        // const season = seasons.find(s => {
-        //     console.log('season', s);
-        //     console.log('season_id ', data.season_id);
-        //     const selected = s.id === parseInt(data.season_id);
-        //     console.log(selected);
-
-        //     return selected;
-        // });
-        // console.log('selectedSeason', season);
-        // setSelectedSeason(season?.id ?? null);
-        // //const time_slots = selectedSeason ? setTimeslots(selectedSeason?.inventory?.time_slots) : [];
-        // //console.log('time_slots', selectedSeason?.inventory?.time_slots);
-        // if (season) {
-        //     const formattedTimeSlots = season?.inventory?.inventory_time_slots?.map(slot => ({
-        //         id: slot.id,
-        //         name: slot.start_time.slice(0, 5), // e.g., '08:00' from '08:00:00'
-        //     })) || [];
-        //     console.log('formattedTimeSlots--------------------', formattedTimeSlots);
-        //     // setData('adult', selectedSeason?.inventory?.rake_rate_adult || 0);
-        //     // setData('child', selectedSeason?.inventory?.rake_rate_child || 0);
-        //     // setData('guide', selectedSeason?.inventory?.rake_rate_guide || 0);
-        //     setData({
-        //         ...data,
-        //         adult: season?.inventory?.rake_rate_adult || 0,
-        //         child: season?.inventory?.rake_rate_child || 0,
-        //         guide: season?.inventory?.rake_rate_guide || 0,
-        //         rate_per_adult: season?.inventory?.rake_rate_adult || 0,
-        //         rate_per_child: season?.inventory?.rake_rate_child || 0,
-        //         rate_per_guide: season?.inventory?.rake_rate_guide || 0,
-        //     });
-        //     setTimeslots(formattedTimeSlots);
-        // } else {
-        //     setTimeslots([]); // fallback
-        // }
-
-    }, [data.season_id]);
-
-    // function applyPromoCode() {
-    //     if (!promoCode) return;
-    //     const promo = promoList.find(p => p.promo_code === promoCode);
-    //     if (!promo) return;
-    //     setData({
-    //         ...data,
-    //         override_price: false,
-    //         override_rates: false,
-    //         adult: promo.value,
-    //         child: promo.value,
-    //         guide: promo.value,
-    //     });
-    // }
 
     function handlePromoModalClose() {
         setPromoModalOpen(false);
@@ -987,9 +824,6 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
         });
 
         // reset UI inputs
-        setDiscount(true);
-        setShowPromo(false);
-        setPromoList([]);
         setDiscountId(null);
         setDiscountPax(0);
     };
@@ -1121,34 +955,6 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                             options={timeslots}
                         />
                     </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        {/* Time slots */}
-                        {/* <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <input
-                                type="date"
-                                value={data.booking_date}
-                                onChange={(e) => {setData('booking_date', e.target.value); setActivityDate(new Date(e.target.value))}}
-                                className="border rounded p-2"
-                            /> */}
-
-
-
-                    </div>
-
-                    {/* Counts 
-                        <Input placeholder="Number of Adults" value={adults} onChange={(e) => setAdults(e.target.value)} />
-                        <Input placeholder="Number of Children" value={children} onChange={(e) => setChildren(e.target.value)} />
-                        <Calendar selected={activityDate} onSelect={handleDateChange} />
-                        {availableTimes.length > 0 && (
-                            <Select onValueChange={(value) => setSelectedSlot({ date: activityDate.toISOString().split('T')[0], time: value })}>
-                                {availableTimes.map(time => (
-                                <SelectItem key={time} value={time}>{time}</SelectItem>
-                                ))}
-                            </Select>
-                            )}
-                    */}
-
 
                     {/* Inventory Calendar Table */}
                     <section className="md:col-span-3 bg-white p-6">
@@ -1568,7 +1374,10 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                 </div>
                                 <div className="flex w-[50%] items-center justify-start ">
                                     {showWholesaler && data.is_wholesaler && (
-                                        <div className="flex flex-none items-center gap-2">
+                                        <div className="flex flex-col items-center space-y-2">
+                                            <span className="text-[#161618] font-poppins text-[12px] font-normal leading-[130%]">
+                                                Wholesaler Discount
+                                            </span>
                                             <div className="flex items-center gap-2 mt-3">
                                                 <BlueButton
                                                     title="Apply"
