@@ -42,6 +42,7 @@ use Str;
 use Symfony\Component\HttpFoundation\Response;
 use App\Mail\InvoiceMail;
 use App\Mail\MessageGuestMail;
+use App\Models\BoardingPassTemplate;
 use App\Models\BookingDiscount;
 use App\Models\BookingPricing;
 use App\Models\BookingVoucher;
@@ -789,6 +790,65 @@ class BookingsController extends Controller
             'footer' => '',
             'sections' => [],
         ];
+
+        $teamId = $bookingItem->booking->team_id;
+        $serviceId = $bookingItem->service_id;
+        $seasonId = $bookingItem->season_id;
+
+        $template = null;
+        if ($teamId) {
+            $template = BoardingPassTemplate::with(['sections' => function ($query) {
+                $query->where('is_active', true)->orderBy('sort_order');
+            }])
+                ->where('team_id', $teamId)
+                ->where('is_active', true)
+                ->where('service_id', $serviceId)
+                ->where('season_id', $seasonId)
+                ->first();
+
+            if (!$template && $serviceId) {
+                $template = BoardingPassTemplate::with(['sections' => function ($query) {
+                    $query->where('is_active', true)->orderBy('sort_order');
+                }])
+                    ->where('team_id', $teamId)
+                    ->where('is_active', true)
+                    ->where('service_id', $serviceId)
+                    ->whereNull('season_id')
+                    ->first();
+            }
+
+            if (!$template) {
+                $template = BoardingPassTemplate::with(['sections' => function ($query) {
+                    $query->where('is_active', true)->orderBy('sort_order');
+                }])
+                    ->where('team_id', $teamId)
+                    ->where('is_active', true)
+                    ->whereNull('service_id')
+                    ->whereNull('season_id')
+                    ->where('is_default', true)
+                    ->first();
+            }
+        }
+
+        if ($template) {
+            $sections = $template->sections
+                ->map(function ($section) {
+                    return [
+                        'title' => $section->title,
+                        'icon' => $section->icon_path,
+                        'items' => is_array($section->items) ? $section->items : [],
+                    ];
+                })
+                ->values()
+                ->all();
+
+            return array_merge($basePassData, [
+                'location' => $template->location ?? $basePassData['location'],
+                'address' => $template->address ?? '',
+                'footer' => $template->footer ?? '',
+                'sections' => $sections,
+            ]);
+        }
 
         switch ($bookingItem->booking->team->name) {
             case 'Tsitsikamma':
