@@ -455,8 +455,8 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
             setPromoList([]);
         }
         if (!data.wholesaler_id && !data.is_wholesaler) {
-            setData({
-                ...data,
+            setData(prev => ({
+                ...prev,
                 override_capacity: service?.allow_internal_capacity_override || false,
                 capacity: service?.capacity || 0,
                 duration: service?.duration || 0,
@@ -474,14 +474,14 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                 rate_per_adult: 0,
                 rate_per_child: 0,
                 rate_per_guide: 0,
-            });
+            }));
             setSelectedSeason(null);
             setActivityId(null);
             setActivityDate(() => new Date(start_date));
             setTimeslots([]);
         } else {
-            setData({
-                ...data,
+            setData(prev => ({
+                ...prev,
                 override_capacity: service?.allow_internal_capacity_override || false,
                 capacity: service?.capacity || 0,
                 duration: service?.duration || 0,
@@ -490,7 +490,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                 override_price: false,
                 override_rates: false,
                 override_timeslots: false,
-            });
+            }));
             setSelectedSeason(null);
             setActivityId(null);
             setActivityDate(() => new Date(start_date));
@@ -676,8 +676,8 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                 // console.log("formattedTimeSlots-----------ffffffffffffffff---------",formattedTimeSlots);
 
                 if (!data.wholesaler_id && !data.is_wholesaler) {
-                    setData({
-                        ...data,
+                    setData(prev => ({
+                        ...prev,
                         season_id: season.id,
                         override_timeslots: season?.inventory?.allow_internal_override == 1 ? true : false || false,
                         override_price: season?.allow_internal_price_override == 1 ? true : false || false,
@@ -691,13 +691,13 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                         rate_per_adult: season?.rake_rate_adult || 0,
                         rate_per_child: season?.rake_rate_child || 0,
                         rate_per_guide: season?.rake_rate_guide || 0,
-                    });
+                    }));
                 } else {
-                    setData({
-                        ...data,
+                    setData(prev => ({
+                        ...prev,
                         season_id: season.id,
                         override_timeslots: season?.inventory?.allow_internal_override || false,
-                    });
+                    }));
                 }
                 console.log('-------------------------data-------------------------');
                 setSelectedSeason(season);
