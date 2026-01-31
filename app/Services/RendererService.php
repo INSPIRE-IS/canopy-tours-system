@@ -29,9 +29,7 @@ class RendererService
                 'price_adult' => $item->price_adult,
                 'price_child' => $item->price_child,
                 'guides' => $item->pax_guides,
-                'total' => ($item->price_adult * $item->pax_adults) +
-                    ($item->price_child * $item->pax_children) +
-                    ($item->price_guide * $item->pax_guides),
+                'total' => $item->price_adult  + $item->price_child  + $item->price_guide,
             ];
 
             return $services;

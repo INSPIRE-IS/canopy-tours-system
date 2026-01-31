@@ -66,6 +66,29 @@ use Inertia\Inertia;
 //     return Inertia::render('Activities');
 // })->name('activities');
 // Route::get('/', [ActivityController::class, 'index'])->name('welcome');
+
+//temp debug route
+// use App\Mail\BookingMail;
+// Route::get('/_debug/mail/invoice', function () {
+//     // Fake data shaped EXACTLY like the mail expects
+//     $data = [
+//         'invoice' => [
+//             'number' => 'INV-12345',
+//             'date' => now()->format('Y-m-d'),
+//         ],
+//         'customer' => [
+//             'name' => 'John Doe',
+//         ],
+//         'booking' => [
+//             'reference' => 'ABC123',
+//         ],
+//     ];
+
+//     return new BookingMail($data);
+// });
+
+
+
 Route::redirect('/', '/front/welcome');
 Route::get('/front/welcome/{team_id?}', [ActivityController::class, 'index'])->name('front.welcome');
 Route::get('/activity', [ActivityController::class, 'activity'])->name('front.activity');

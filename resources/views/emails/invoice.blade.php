@@ -55,7 +55,9 @@
             margin-top: 0;
             color: #555;
         }
-
+        p.message {
+            color: rgba(51, 51, 51);
+        }
         p.note {
             color: rgba(51, 51, 51, 0.4);
         }
@@ -88,10 +90,15 @@
         .invoice-logo {
             max-height: 100px;
             margin-bottom: 24px;
+            text-align: right;
         }
 
         .invoice-body {
             margin-bottom: 24px;
+        }
+        .invoice-message {
+                padding-top: 12px !important;
+                padding-bottom: 12px !important;
         }
 
         .invoice-footer {
@@ -160,12 +167,16 @@
             .invoice-logo {
                 max-height: 100px !important;
                 margin-bottom: 24px !important;
+                text-align: right;
             }
 
             .invoice-body {
                 margin-bottom: 24px !important;
             }
-
+            .invoice-message {
+                padding-top: 12px !important;
+                padding-bottom: 12px !important;
+            }
             .invoice-footer {
                 text-align: center !important;
             }
@@ -217,17 +228,26 @@
                         <td>
                             <table class="content" width="100%" cellpadding="0" cellspacing="0">
                                 <tr>
+                                    <td class="invoice-logo">
+                                        <p class="note"><img src="https://canopy-tours.inspireonline.co.za/images/logo.png" alt="Logo"
+                                            style="max-height:50px;"></p>
+                                    </td>
+                                </tr>                                
+                                <tr>
                                     <td class="invoice">
                                         <h1>Invoice</h1>
                                         <p class="invoice-number">Invoice #<span
-                                                class="invoice-number-value">number</span></p>
-                                        <p class="invoice-date">Date: <span class="invoice-date-value">date</span></p>
+                                                class="invoice-number-value">{{$invoice['number']}}</span></p>
+                                        <p class="invoice-date">Date: <span class="invoice-date-value">{{$invoice['date']}}</span></p>
                                     </td>
                                 </tr>
                                 <tr>
-                                    <td class="invoice-logo">
-                                        <img src="https://canopy-tours.com/logo.png" alt="Logo"
-                                            style="max-height:50px;">
+                                    <td class="invoice-message">
+                                                            <p class="message">Hello {{$customer['name']}},</p>
+                            <p class="message">Your booking has been paid.</p>
+                            <p class="message">Thank you for choosing Canopy Tours.</p>
+                            <p class="message">Your booking reference is {{$booking['reference']}}.</p>
+                            <p class="message">Please Contact us if you have any questions.</p>
                                     </td>
                                 </tr>
                                 <tr>

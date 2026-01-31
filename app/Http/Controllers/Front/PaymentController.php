@@ -248,7 +248,20 @@ class PaymentController extends Controller
                         ],
                     ];
                     // //send mail
-                    Mail::to($customer->email_address)->send(new BookingMail($data, $attachments));
+                    $messageData = [
+                        'invoice' => [
+                            'number' => $booking->reference ?? 'INV-No',
+                            'date' => now()->format('Y-m-d'),
+                        ],
+                        'customer' => [
+                            'name' => $customer->full_name,
+                        ],
+                        'booking' => [
+                            'reference' => $booking->reference,
+                        ],
+                    ];
+
+                    Mail::to($customer->email_address)->send(new BookingMail($messageData, $attachments));
 
                     Log::info('Payment confirmation email sent', [
                         'booking_id' => $booking->id,
@@ -430,106 +443,11 @@ class PaymentController extends Controller
         // or ->download("invoice-{$invoice->id}.pdf");
     }
 
-    public function invoiceDownload1(Booking $booking)
-    {
-        //dd($booking);
-        $sessionId = session()->getId() ?? null;
-        //logger()->info('sessionId inertia ' . $sessionId);
-        if ($sessionId != $booking->session_id || $booking->status_payment_id != 1) {
-            return redirect()->route('front.welcome');
-        }
-
-        $booking = Booking::with('team.file_logo', 'booking_items', 'booking_items.customers', 'booking_items.booking_fee')->find($booking->id);
-        $teamId = $booking->team_id;
-
-        $template = InvoiceTemplate::where('is_default', true)
-            ->where('type_invoice_id', 1) // invoice
-            ->where('team_id', $teamId)
-            ->first();
-
-        if (!$booking) {
-            $voucher = GiftVoucher::where('session_id', $sessionId)->where('status_payment_id', 1)->first();
-            $customer = collect([
-                'full_name'     => $voucher?->full_name,
-                'email_address' => $voucher?->email_address,
-                'contact_number' => $voucher?->contact_number,
-            ]);
-            $count = $voucher?->gift_voucher_items?->count();
-            $items = $voucher?->gift_voucher_items->first();
-            $teamId = $voucher?->booking_id;
-        } else {
-            $customer = Customer::find($booking?->customer_id);
-            $items = $booking?->booking_items->first();
-            $count = $booking?->booking_items?->count();
-        }
-
-        $site = Team::select('full_name', 'reg_no', 'address', 'address_code', 'account_owner', 'account_number', 'account_type', 'bank_name', 'branch_code')->find($teamId);
-        $invoice = Invoice::with('items', 'items.season')->where('booking_id', $booking->id)->first();
-
-        $services = $invoice->items->map(function ($item) {
-            $services = [
-                'name' => $item->service->name . ' ' . $item->season->name,
-                'file_logo' => $item->service->team->file_logo->path,
-                'adults' => $item->pax_adults,
-                'children' => $item->pax_children,
-                'guides' => $item->pax_guides,
-                'price_adult' => $item->price_adult,
-                'price_child' => $item->price_child,
-                'guides' => $item->pax_guides,
-            ];
-
-            return $services;
-        })->unique()->toArray();
-        //dd($services);
-        $data = [
-            'site' => [
-                'name' => $site->full_name,
-                'reg_no' => $site->reg_no,
-                'address' => $site->address,
-                'address_code' => $site->address_code,
-            ],
-            'client' => [
-                'name' => $customer->full_name,
-                'phone' => $customer->contact_number,
-                'email' => $customer->email_address,
-            ],
-            'invoice' => [
-                'number' => $invoice->invoice_number,
-                'date'   => $invoice->invoice_date,
-            ],
-            'booking' => [
-                'ref' => $booking->reference,
-            ],
-            'services' => $services,
-            'file_logo' => $booking->team->file_logo->path,
-            'amount_ex_vat' => $booking->grand_tot_due,
-            'vat'           => $booking->grand_tot_due * 0.15,
-            'vat_amount'    => $booking->grand_tot_due * 1.15,
-            'amount_paid'   => $booking->tot_paid,
-            'balance_due'   => ($booking->grand_tot_due * 1.15) - $booking->tot_paid,
-            'notes'         => 'Please pay within 7 days.',
-            'bank' => [
-                'owner' => $site->account_owner,
-                'number' => $site->account_number,
-                'type'   => $site->account_type,
-                'name'   => $site->bank_name,
-                'branch_code' => $site->branch_code,
-            ],
-        ];
-
-
-        $html = $this->renderTemplate($template->content, $data);
-
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadHTML($html);
-
-        return $pdf->stream("invoice-{$booking->id}.pdf");
-        // or ->download("invoice-{$invoice->id}.pdf");
-    }
-
-
     private function renderTemplate(string $template, array $data): string
     {
-        $logo = "<img src='/storage/" . $data['file_logo'] . "' alt='Logo' style='max-height:50px;'/>";
+        // https://canopy-tours.inspireonline.co.za/images/logo.png
+        // /storage/" . $data['file_logo'] . "
+        $logo = "<img src='logo.png' alt='Logo' style='max-height:50px;'/>";
         $placeholders = [
             '{{logo}}'                => $logo,
             '{{site_name}}'           => $data['site']['name'] ?? '',
@@ -578,30 +496,6 @@ class PaymentController extends Controller
         return $html;
     }
 
-    public function detailDownloadOld(Booking $booking)
-    {
-        dd($booking);
-        $sessionId = session()->getId() ?? null;
-        $renderService = app(RendererService::class);
-        if ($sessionId != $booking->session_id || $booking->status_payment_id != 1) {
-            return redirect()->route('front.welcome');
-        }
-        $booking = Booking::with('team.file_logo', 'booking_items', 'booking_items.customers', 'booking_items.booking_fee')
-            ->find($booking->id);
-        $teamId = $booking->team_id;
-
-        $bookingVoucher = BookingVoucher::with('items')
-            ->where('service_id', 1)
-            ->where('season_id', 1)
-            ->where('team_id', $teamId)
-            ->first();
-
-        $items = $renderService->voucher($booking, $bookingVoucher);
-        $random = rand(1, 100);
-        $pdf = Pdf::loadView('emails.booking_voucher', compact('items'));
-
-        return $pdf->stream('booking-details.pdf');
-    }
     public function detailDownload(Booking $booking)
     {
 
@@ -1174,5 +1068,125 @@ class PaymentController extends Controller
                 return $basePassData;
                 break;
         }
+    }
+
+    public function invoiceDownload1(Booking $booking)
+    {
+        //dd($booking);
+        $sessionId = session()->getId() ?? null;
+        //logger()->info('sessionId inertia ' . $sessionId);
+        if ($sessionId != $booking->session_id || $booking->status_payment_id != 1) {
+            return redirect()->route('front.welcome');
+        }
+
+        $booking = Booking::with('team.file_logo', 'booking_items', 'booking_items.customers', 'booking_items.booking_fee')->find($booking->id);
+        $teamId = $booking->team_id;
+
+        $template = InvoiceTemplate::where('is_default', true)
+            ->where('type_invoice_id', 1) // invoice
+            ->where('team_id', $teamId)
+            ->first();
+
+        if (!$booking) {
+            $voucher = GiftVoucher::where('session_id', $sessionId)->where('status_payment_id', 1)->first();
+            $customer = collect([
+                'full_name'     => $voucher?->full_name,
+                'email_address' => $voucher?->email_address,
+                'contact_number' => $voucher?->contact_number,
+            ]);
+            $count = $voucher?->gift_voucher_items?->count();
+            $items = $voucher?->gift_voucher_items->first();
+            $teamId = $voucher?->booking_id;
+        } else {
+            $customer = Customer::find($booking?->customer_id);
+            $items = $booking?->booking_items->first();
+            $count = $booking?->booking_items?->count();
+        }
+
+        $site = Team::select('full_name', 'reg_no', 'address', 'address_code', 'account_owner', 'account_number', 'account_type', 'bank_name', 'branch_code')->find($teamId);
+        $invoice = Invoice::with('items', 'items.season')->where('booking_id', $booking->id)->first();
+
+        $services = $invoice->items->map(function ($item) {
+            $services = [
+                'name' => $item->service->name . ' ' . $item->season->name,
+                'file_logo' => $item->service->team->file_logo->path,
+                'adults' => $item->pax_adults,
+                'children' => $item->pax_children,
+                'guides' => $item->pax_guides,
+                'price_adult' => $item->price_adult,
+                'price_child' => $item->price_child,
+                'guides' => $item->pax_guides,
+            ];
+
+            return $services;
+        })->unique()->toArray();
+        //dd($services);
+        $data = [
+            'site' => [
+                'name' => $site->full_name,
+                'reg_no' => $site->reg_no,
+                'address' => $site->address,
+                'address_code' => $site->address_code,
+            ],
+            'client' => [
+                'name' => $customer->full_name,
+                'phone' => $customer->contact_number,
+                'email' => $customer->email_address,
+            ],
+            'invoice' => [
+                'number' => $invoice->invoice_number,
+                'date'   => $invoice->invoice_date,
+            ],
+            'booking' => [
+                'ref' => $booking->reference,
+            ],
+            'services' => $services,
+            'file_logo' => $booking->team->file_logo->path,
+            'amount_ex_vat' => $booking->grand_tot_due,
+            'vat'           => $booking->grand_tot_due * 0.15,
+            'vat_amount'    => $booking->grand_tot_due * 1.15,
+            'amount_paid'   => $booking->tot_paid,
+            'balance_due'   => ($booking->grand_tot_due * 1.15) - $booking->tot_paid,
+            'notes'         => 'Please pay within 7 days.',
+            'bank' => [
+                'owner' => $site->account_owner,
+                'number' => $site->account_number,
+                'type'   => $site->account_type,
+                'name'   => $site->bank_name,
+                'branch_code' => $site->branch_code,
+            ],
+        ];
+
+
+        $html = $this->renderTemplate($template->content, $data);
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadHTML($html);
+
+        return $pdf->stream("invoice-{$booking->id}.pdf");
+        // or ->download("invoice-{$invoice->id}.pdf");
+    }
+    public function detailDownloadOld(Booking $booking)
+    {
+        dd($booking);
+        $sessionId = session()->getId() ?? null;
+        $renderService = app(RendererService::class);
+        if ($sessionId != $booking->session_id || $booking->status_payment_id != 1) {
+            return redirect()->route('front.welcome');
+        }
+        $booking = Booking::with('team.file_logo', 'booking_items', 'booking_items.customers', 'booking_items.booking_fee')
+            ->find($booking->id);
+        $teamId = $booking->team_id;
+
+        $bookingVoucher = BookingVoucher::with('items')
+            ->where('service_id', 1)
+            ->where('season_id', 1)
+            ->where('team_id', $teamId)
+            ->first();
+
+        $items = $renderService->voucher($booking, $bookingVoucher);
+        $random = rand(1, 100);
+        $pdf = Pdf::loadView('emails.booking_voucher', compact('items'));
+
+        return $pdf->stream('booking-details.pdf');
     }
 }

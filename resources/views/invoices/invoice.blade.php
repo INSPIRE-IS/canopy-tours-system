@@ -41,7 +41,7 @@
             </td>
             <td class="text-right logo">
                 @if(!empty($file_logo))
-                    <img src="{{ public_path('storage/' . $file_logo) }}" alt="Logo">
+                    <img src="{{ public_path($file_logo) }}" alt="Canopy Tours">
                 @endif
                 <h2 style="margin-top:10px;">INVOICE</h2>
             </td>
