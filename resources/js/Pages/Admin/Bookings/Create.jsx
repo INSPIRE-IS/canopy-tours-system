@@ -177,6 +177,30 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
         }
     };
 
+    const serviceWholesalers = selectedService
+        ? Array.from(
+            new Map(
+                (wholesaler_rates || [])
+                    .filter(r => r.service_id === selectedService.id)
+                    .map(r => {
+                        const w = r.wholesaler || wholesalers.find(x => x.id === r.wholesaler_id);
+                        return [w?.id, w];
+                    })
+            ).values()
+        ).filter(Boolean)
+        : (wholesalers || []);
+    const hasWholesalers = Array.isArray(serviceWholesalers) && serviceWholesalers.length > 0;
+    const hasPromo = !!promoCode;
+    const hasDiscountSelection = !!discountId;
+    const hasDiscounts = (data.discount_lines?.length || 0) > 0 || paxGroups.some(g => g.discount_id) || hasDiscountSelection;
+    const computedMode = data.is_wholesaler || data.wholesaler_id
+        ? PRICING_MODES.WHOLESALER
+        : hasPromo
+            ? PRICING_MODES.PROMO
+            : hasDiscounts
+                ? PRICING_MODES.DISCOUNT
+                : PRICING_MODES.STANDARD;
+
     useEffect(() => {
         // if (selectedService && selectedSeason) {
         //     fetchCalculatedPrice();
@@ -196,7 +220,8 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
             let rate_per_child = data?.rate_per_child || 0;
             let rate_per_guide = data?.rate_per_guide || 0;
 
-            if (computedMode === PRICING_MODES.STANDARD) {
+            const shouldAutoTotal = computedMode === PRICING_MODES.STANDARD || computedMode === PRICING_MODES.WHOLESALER;
+            if (shouldAutoTotal) {
                 const adult_total = (parseFloat(data.adults || 0) * parseFloat(rate_per_adult));
                 const child_total = (parseFloat(data.children || 0) * parseFloat(rate_per_child));
                 const guide_total = (parseFloat(data.guides || 0) * parseFloat(rate_per_guide));
@@ -234,32 +259,8 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
         }
         console.log('data', data);
 
-    }, [selectedService, selectedSeason, data.adults, data.children, data.guides, data.booking_date, data.start_time]);
+    }, [selectedService, selectedSeason, data.adults, data.children, data.guides, data.booking_date, data.start_time, data.rate_per_adult, data.rate_per_child, data.rate_per_guide, computedMode]);
     //, promoCode
-
-    const serviceWholesalers = selectedService
-        ? Array.from(
-            new Map(
-                (wholesaler_rates || [])
-                    .filter(r => r.service_id === selectedService.id)
-                    .map(r => {
-                        const w = r.wholesaler || wholesalers.find(x => x.id === r.wholesaler_id);
-                        return [w?.id, w];
-                    })
-            ).values()
-        ).filter(Boolean)
-        : (wholesalers || []);
-    const hasWholesalers = Array.isArray(serviceWholesalers) && serviceWholesalers.length > 0;
-    const hasPromo = !!promoCode;
-    const hasDiscountSelection = !!discountId;
-    const hasDiscounts = (data.discount_lines?.length || 0) > 0 || paxGroups.some(g => g.discount_id) || hasDiscountSelection;
-    const computedMode = data.is_wholesaler || data.wholesaler_id
-        ? PRICING_MODES.WHOLESALER
-        : hasPromo
-            ? PRICING_MODES.PROMO
-            : hasDiscounts
-                ? PRICING_MODES.DISCOUNT
-                : PRICING_MODES.STANDARD;
 
     useEffect(() => {
         setPricingMode(computedMode);

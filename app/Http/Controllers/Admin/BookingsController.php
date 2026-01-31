@@ -607,7 +607,21 @@ class BookingsController extends Controller
                     ],
                 ];
                 // //send mail
-                Mail::to($customer->email_address)->send(new BookingMail($data, $attachments));
+                $messageData = [
+                    'invoice' => [
+                        'number' => $booking->reference ?? 'INV-No',
+                        'date' => now()->format('Y-m-d'),
+                    ],
+                    'customer' => [
+                        'name' => $customer->full_name,
+                    ],
+                    'booking' => [
+                        'reference' => $booking->reference,
+                    ],
+                ];
+
+
+                Mail::to($customer->email_address)->send(new BookingMail($messageData, $attachments));
 
 
                 // //send mail
