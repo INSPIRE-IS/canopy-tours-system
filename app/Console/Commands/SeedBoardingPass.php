@@ -7,7 +7,7 @@ use App\Models\BoardingPassTemplate;
 use Illuminate\Console\Command;
 
 
-class SeedCoreData extends Command
+class SeedBoardingPass extends Command
 {
     protected $signature = 'seed:core-bording-pass'; // php artisan seed:core-bording-pass
     protected $description = 'Create or update core seed data for boarding pass templates.';
