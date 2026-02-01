@@ -200,10 +200,17 @@ class PaymentController extends Controller
                         mkdir(dirname($fullPath), 0755, true);
                     }
                     if (!file_exists($fullPath)) {
-
-                        Browsershot::html($html)
-                            ->setChromePath(config('browsershot.chrome_path'))
-                            ->format('A4')
+                        $chromePath = config('browsershot.chrome_path');
+                        if (empty($chromePath)) {
+                            Log::warning('Browsershot chrome path not resolved; using default detection.', [
+                                'env_path' => env('BROWSERSHOT_CHROME_PATH'),
+                            ]);
+                        }
+                        $shot = Browsershot::html($html);
+                        if (!empty($chromePath)) {
+                            $shot->setChromePath($chromePath);
+                        }
+                        $shot->format('A4')
                             ->showBackground()
                             ->margins(0, 0, 0, 0)
                             ->scale(1.0)
@@ -522,9 +529,17 @@ class PaymentController extends Controller
         if (!Storage::disk('local')->exists($file)) {
             Storage::disk('local')->makeDirectory($dir);
 
-            Browsershot::html($html)
-                ->setChromePath(config('browsershot.chrome_path'))
-                ->format('A4')
+            $chromePath = config('browsershot.chrome_path');
+            if (empty($chromePath)) {
+                Log::warning('Browsershot chrome path not resolved; using default detection.', [
+                    'env_path' => env('BROWSERSHOT_CHROME_PATH'),
+                ]);
+            }
+            $shot = Browsershot::html($html);
+            if (!empty($chromePath)) {
+                $shot->setChromePath($chromePath);
+            }
+            $shot->format('A4')
                 ->showBackground()
                 ->margins(0, 0, 0, 0)
                 ->scale(1.0)
