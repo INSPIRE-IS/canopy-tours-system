@@ -298,14 +298,16 @@ class BookingsController extends Controller
                 if (!$inventoryTimeSlot && !$validated['override_timeslots']) {
                     abort(404, 'This inventory has no time slot.');
                 }
-                // $adultsCount = (int) ($validated['adults'] ?? 0);
-                // $amount_adults = (int) ($validated['rate_per_adult'] ?? 0) * $adultsCount;
-                // $childrenCount = (int) ($validated['children'] ?? 0);
-                // $amount_children = (int) ($validated['rate_per_child'] ?? 0) * $childrenCount;
-                // $guidesCount = (int) ($validated['guides'] ?? 0);
-                // $amount_guides = (int) ($validated['rate_per_guide'] ?? 0) * $guidesCount;
-                // $amount = $amount_adults + $amount_children + $amount_guides;
-                $amount = (int) ($validated['adult'] ?? 0) + (int) ($validated['child'] ?? 0) + (int) ($validated['guide'] ?? 0);
+                $adultsCount = (int) ($validated['adults'] ?? 0);
+                $amount_adults = (int) ($validated['rate_per_adult'] ?? 0) * $adultsCount;
+                $childrenCount = (int) ($validated['children'] ?? 0);
+                $amount_children = (int) ($validated['rate_per_child'] ?? 0) * $childrenCount;
+                $guidesCount = (int) ($validated['guides'] ?? 0);
+                $amount_guides = (int) ($validated['rate_per_guide'] ?? 0) * $guidesCount;
+                // TODO figure out why we changed to only amount below that seems like a bad idea
+                $amount = $amount_adults + $amount_children + $amount_guides;
+                // $amount = (int) ($validated['adult'] ?? 0) + (int) ($validated['child'] ?? 0) + (int) ($validated['guide'] ?? 0);
+                // TODO: if we ever move to multiple bookings per customer, we need to add the booking fee to the amount
                 $booking = null; // Booking::where('id', $validated['booking_id'])->where('status_payment_id', 1)->first();
                 if (!$booking) {
                     // 1. Create or find customer
