@@ -111,6 +111,29 @@ class BookingPaymentController extends Controller
                 $validated['gateway_id'] = 2; // manual
                 logger()->info($validated);
                 $bookingPayment = BookingPayment::create($validated);
+                $payment = BookingPayment::updateOrCreate(
+                    ['booking_id' => $validated['booking_id'],],
+                    [
+                        'type_pay_option_id'   => $validated['type_pay_option_id'],     // or 'Pay Offline'
+                        'type_payment_id' => $validated['type_payment_id'], // Cash // 5 eft
+                        'status_payment_id' => $validated['status_payment_id'],        // 'paid', 'failed', 'cancelled'
+                        'ex_vat_amount'         => $validated['ex_vat_amount'],          // full amount due or partial
+                        'lookup_item_id' => $validated['lookup_item_id'],
+                        'vat' => $validated['vat'],
+                        'vat_amount' => ($validated['ex_vat_amount'] * $validated['vat']),
+                        'reference'      => $validated['reference'],      // 'OFF-' . strtoupper(Str::random(6)), // can be order ref or external tx
+                        'gateway_id'        => $validated['gateway_id'],        // 'Manual'
+                        'meta'           => json_encode(['ip' => request()->ip()]),
+                        'payment_date'   =>  now(),
+                        'redeemer_name'  => $validated['redeemer_name'], // '',
+                        'voucher_code' => $validated['voucher_code'],
+                        'note'           => $validated['note'],
+                        'updated_by_id'  => $validated['updated_by_id'],
+                        'team_id'        => $validated['team_id'],
+                    ]
+                );
+
+
                 $booking = $bookingPayment->booking;
                 logger()->info($booking);
                 $booking->update([
