@@ -452,9 +452,9 @@ class BookingsController extends Controller
                 $bookingFee = BookingFee::create([
                     'booking_item_id'     => $booking_item->id,
                     'booking_detail_id' => $bookingDetail->id,
-                    'tot_adults'     => (int) ($validated['adult'] ?? 0),
-                    'tot_children'   => (int) ($validated['child'] ?? 0),
-                    'tot_guides'     => (int) ($validated['guide'] ?? 0),
+                    'tot_adults'     => $amount_adults,
+                    'tot_children'   => $amount_children,
+                    'tot_guides'     => $amount_guides,
                     'is_voucher'     => $validated['redeem_voucher'] ? 1 : 0,
                     'voucher_code'   => $validated['redeem_voucher'] ?? '',
                     'invoice_note'   => $validated['invoice_note'] ?? '',
