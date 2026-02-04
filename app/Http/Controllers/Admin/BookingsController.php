@@ -589,7 +589,7 @@ class BookingsController extends Controller
                     'attachment_path' => $fileName,
                     'sent'           => true,
                     'sent_at'        => now(),
-                    'user_id'        => null,
+                    'user_id'        => auth()->user()->id,
                     'auditable_type' => BookingItem::class,
                     'auditable_id'   => $bookingItem->id,
                     'team_id'        => $bookingItem->team_id,
@@ -826,32 +826,15 @@ class BookingsController extends Controller
             }])
                 ->where('team_id', $teamId)
                 ->where('is_active', true)
-                ->where('service_id', $serviceId)
-                ->where('season_id', $seasonId)
+                ->when($serviceId, fn($q) => $q->where(function ($qq) use ($serviceId) {
+                    $qq->whereNull('service_id')->orWhere('service_id', $serviceId);
+                }))
+                ->when($seasonId, fn($q) => $q->where(function ($qq) use ($seasonId) {
+                    $qq->whereNull('season_id')->orWhere('season_id', $seasonId);
+                }))
+                ->orderByRaw('season_id is null')
+                ->orderByRaw('service_id is null')
                 ->first();
-
-            if (!$template && $serviceId) {
-                $template = BoardingPassTemplate::with(['sections' => function ($query) {
-                    $query->where('is_active', true)->orderBy('sort_order');
-                }])
-                    ->where('team_id', $teamId)
-                    ->where('is_active', true)
-                    ->where('service_id', $serviceId)
-                    ->whereNull('season_id')
-                    ->first();
-            }
-
-            if (!$template) {
-                $template = BoardingPassTemplate::with(['sections' => function ($query) {
-                    $query->where('is_active', true)->orderBy('sort_order');
-                }])
-                    ->where('team_id', $teamId)
-                    ->where('is_active', true)
-                    ->whereNull('service_id')
-                    ->whereNull('season_id')
-                    ->where('is_default', true)
-                    ->first();
-            }
         }
 
         if ($template) {
