@@ -54,11 +54,45 @@ class TeamController extends Controller
         $data['owner_id'] = auth()->user()->id;
         $team             = Team::create($data);
 
-        return redirect()->route('admin.teams.index');
+        if ($request->hasFile('logo')) {
+            $uploaded = $request->file('logo');
+            $path = $uploaded->store("teams/{$team->id}", 'public');
+
+            File::create([
+                'team_id' => auth()->user()->team_id,
+                'table_name' => 'teams',
+                'table_row_id' => $team->id,
+                'file_name' => $uploaded->getClientOriginalName(),
+                'file_type' => $uploaded->getMimeType(),
+                'type_file_id' => 1,
+                'path' => $path,
+            ]);
+        }
+
+        if ($request->hasFile('image')) {
+            $uploaded = $request->file('image');
+            $path = $uploaded->store("teams/{$team->id}", 'public');
+
+            File::create([
+                'team_id' => auth()->user()->team_id,
+                'table_name' => 'teams',
+                'table_row_id' => $team->id,
+                'file_name' => $uploaded->getClientOriginalName(),
+                'file_type' => $uploaded->getMimeType(),
+                'type_file_id' => 2,
+                'path' => $path,
+            ]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'error' => 'none',
+        ], 200);
     }
 
     public function update(UpdateTeamRequest $request, Team $team)
     {
+        // dd($team->wasChanged());
         // $team->forceFill([
         //     'name' => 'FORCE TEST ' . now(),
         // ])->save();
@@ -71,7 +105,7 @@ class TeamController extends Controller
         // );
         $data = $request->all();
         $data['owner_id'] = auth()->id();
-        // dd($team);
+        //dd($data);
         $team->update($data);
 
         if ($request->hasFile('logo')) {
@@ -95,15 +129,32 @@ class TeamController extends Controller
                 'path' => $path,
             ]);
         }
+
+        if ($request->hasFile('image')) {
+            $uploaded = $request->file('image');
+            $path = $uploaded->store("teams/{$team->id}", 'public');
+
+            optional(
+                File::where('table_name', 'teams')
+                    ->where('table_row_id', $team->id)
+                    ->where('type_file_id', 2)
+                    ->first()
+            )?->delete();
+
+            File::create([
+                'team_id' => auth()->user()->team_id,
+                'table_name' => 'teams',
+                'table_row_id' => $team->id,
+                'file_name' => $uploaded->getClientOriginalName(),
+                'file_type' => $uploaded->getMimeType(),
+                'type_file_id' => 2,
+                'path' => $path,
+            ]);
+        }
         return response()->json([
             'success' => true,
             'error' => 'none',
         ], 200);
-        return redirect()->route('admin.teams.index');
-        return response()->json([
-            'success' => false,
-            'error' => 'Something went wrong while saving your booking. Please try again.',
-        ], 500);
     }
 
 

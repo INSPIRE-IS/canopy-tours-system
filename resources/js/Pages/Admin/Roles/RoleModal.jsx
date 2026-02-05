@@ -6,9 +6,9 @@ import CustomSelect from "@/Components/CustomSelect";
 import OutlineButton from "@/Components/OutlineButton";
 import BlueButton from "@/Components/BlueButton";
 
-const RoleModal = ({ isOpen, onClose, mode, role = null, roles, teams, team }) => {
+const RoleModal = ({ isOpen, onClose, mode, role = null, roles, permissions, teams, team }) => {
     // console.log("mode", mode);
-     console.log("role", role);
+    console.log("role", role);
     // console.log("roles", roles);
     const { data, setData, post, put, errors, reset, processing } = useForm({
         name: "",
@@ -21,7 +21,7 @@ const RoleModal = ({ isOpen, onClose, mode, role = null, roles, teams, team }) =
         } else if (mode === "create") {
             reset(); // Clear form for create mode
         }
-    }, [mode,role,team]);
+    }, [mode, role, team]);
 
     const handleChange = (target, value) => {
         setData(target, value);
@@ -55,21 +55,55 @@ const RoleModal = ({ isOpen, onClose, mode, role = null, roles, teams, team }) =
 
 
                     <div className="flex flex-row w-full items-center gap-2 justify-start mb-4">
-                                        <InputText
-                                            title="Role"
-                                            field="role"
-                                            value={data.role}
-                                            mode={mode}
-                                            handleChange={handleChange}
-                                            errors={errors}
+                        <InputText
+                            title="Role"
+                            field="role"
+                            value={data.role}
+                            mode={mode}
+                            handleChange={handleChange}
+                            errors={errors}
+                        />
+                        <div className="mb-4 w-full">
+                            <label className="block text-sm font-medium text-gray-700">
+                                Permissions
+                            </label>
+                            <div
+                                className="mt-1 border border-gray-300 rounded-md p-2 max-h-80 w-full overflow-y-scroll flex flex-wrap gap-2"
+                            >
+                                {permissions?.map((permission) => (
+                                    <label
+                                        key={permission.id}
+                                        className="flex items-center text-sm space-x-2"
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            value={permission.id}
+                                            checked={Array.isArray(data.permissions) && data.permissions.includes(permission.id)}
+                                            onChange={(e) => {
+                                                const isChecked = e.target.checked;
+                                                setData((prevState) => {
+                                                    const updatedPermissions = isChecked
+                                                        ? [...prevState.permissions, permission.id]
+                                                        : prevState.permissions.filter((id) => id !== permission.id);
+
+                                                    return { ...prevState, permissions: updatedPermissions };
+                                                });
+                                            }
+                                            }
+                                            className="form-checkbox h-4 w-4 text-blue-600"
+                                            disabled={mode === "view"}
                                         />
-                    <div className="mb-4 w-full"></div>
+                                        <span>{permission.name}</span>
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
                     </div>
 
 
 
                     <div className="flex justify-center gap-4">
-                        <OutlineButton title="Cancel" onClick={onClose} width="w-[180px]"/>
+                        <OutlineButton title="Cancel" onClick={onClose} width="w-[180px]" />
                         {mode !== "view" && (
                             <BlueButton title={mode === "create" ? "Create" : "Update"} width="w-[180px]" onClick={handleSubmit} disabled={processing} type="submit" />
                         )}

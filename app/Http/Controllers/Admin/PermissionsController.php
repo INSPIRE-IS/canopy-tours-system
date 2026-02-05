@@ -18,7 +18,7 @@ class PermissionsController extends Controller
 {
     public function index(Request $request)
     {
-        abort_if(Gate::denies('permission_access'), Response::HTTP_FORBIDDEN, '403 Forbidden');
+        abort_if(Gate::denies('permissions_access'), Response::HTTP_FORBIDDEN, '403 Forbidden');
 
         $searchTerm = $request->get('search', '');
         $sortColumn = $request->get('sort', 'name'); // Default to 'name' if no sort is provided
@@ -36,10 +36,10 @@ class PermissionsController extends Controller
             'sortColumn' => $sortColumn,
             'sortDirection' => $sortDirection,
             'can' => [
-                'permission_show' => auth()->user()->can('permission_show'),
-                'permission_edit' => auth()->user()->can('permission_edit'),
-                'permission_delete' => auth()->user()->can('permission_delete'),
-                'permission_create' => auth()->user()->can('permission_create'),
+                'permission_show' => auth()->user()->can('permissions_show'),
+                'permission_edit' => auth()->user()->can('permissions_edit'),
+                'permission_delete' => auth()->user()->can('permissions_delete'),
+                'permission_create' => auth()->user()->can('permissions_create'),
             ],
         ]);
     }

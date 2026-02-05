@@ -17,7 +17,7 @@ class RolesController extends Controller
 {
     public function index(Request $request)
     {
-        // abort_if(Gate::denies('role_access'), Response::HTTP_FORBIDDEN, '403 Forbidden');
+        abort_if(Gate::denies('roles_access'), Response::HTTP_FORBIDDEN, '403 Forbidden');
 
         $searchTerm = $request->get('search', '');
         $sortColumn = $request->get('sort', 'name'); // Default to 'name' if no sort is provided
@@ -26,7 +26,7 @@ class RolesController extends Controller
             ->orderBy($sortColumn, $sortDirection)
             ->paginate(25);
 
-        //$permissions = Permission::all(); //latest()->get(); //// You can paginate if necessary
+        $permissions = Permission::all(); //latest()->get(); //// You can paginate if necessary
 
         //dd(method_exists($user, 'can'));
         //dd($user->can('view permission'));
@@ -34,15 +34,15 @@ class RolesController extends Controller
         return Inertia::render('Admin/Roles/Index', [
 
             'roles' => $roles,
-            //'permissions' => $permissions,
+            'permissions' => $permissions,
             'searchTerm' => $searchTerm,
             'sortColumn' => $sortColumn,
             'sortDirection' => $sortDirection,
             'can' => [
-                'role_show' => false, //auth()->user()->can('role_show'),
-                'role_create' => true, // auth()->user()->can('role_create'),
-                'role_edit' => true, // auth()->user()->can('role_edit'),
-                'role_delete' => true, // auth()->user()->can('role_delete'),
+                'roles_show' => auth()->user()->can('roles_show'),
+                'roles_create' => auth()->user()->can('roles_create'),
+                'roles_edit' => auth()->user()->can('roles_edit'),
+                'roles_delete' => auth()->user()->can('roles_delete'),
             ],
         ]);
     }

@@ -8,7 +8,7 @@ import BlueButton from "@/Components/BlueButton";
 
 const UserModal = ({ isOpen, onClose, mode, user = null, roles, teams, team }) => {
     // console.log("mode", mode);
-     console.log("user", user);
+    console.log("user", user);
     // console.log("roles", roles);
     const { data, setData, post, put, errors, reset, processing } = useForm({
         name: "",
@@ -37,7 +37,7 @@ const UserModal = ({ isOpen, onClose, mode, user = null, roles, teams, team }) =
         } else if (mode === "create") {
             reset(); // Clear form for create mode
         }
-    }, [mode,user,team]);
+    }, [mode, user, team]);
 
     const handleChange = (target, value) => {
         setData(target, value);
@@ -47,11 +47,11 @@ const UserModal = ({ isOpen, onClose, mode, user = null, roles, teams, team }) =
     const handleSubmit = (e) => {
         e.preventDefault();
         if (mode === "create") {
-            post(route("users.store"), {
+            post(route("admin.users.store"), {
                 onSuccess: () => onClose(),
             });
         } else if (mode === "edit") {
-            put(route("users.update", user.id), {
+            put(route("admin.users.update", user.id), {
                 onSuccess: () => onClose(),
             });
         }
@@ -86,55 +86,58 @@ const UserModal = ({ isOpen, onClose, mode, user = null, roles, teams, team }) =
                             errors={errors}
                         />
                     </div>
-<div className="flex flex-row w-full items-center gap-2 justify-between mb-4">
-                    <InputText
-                        title="Email"
-                        field="email"
-                        value={data.email}
-                        mode={mode}
-                        handleChange={handleChange}
-                        errors={errors}
-                    />
-                    <InputText
-                        title="Password"
-                        field="password"
-                        value={data.password}
-                        mode={mode}
-                        handleChange={handleChange}
-                        errors={errors}
-                    />    
-</div>
-<div className="flex flex-row w-full items-center gap-2 justify-start mb-4">
-                    <InputText
-                        title="Mobile Number"
-                        field="mobile_number"
-                        value={data.mobile_number}
-                        mode={mode}
-                        handleChange={handleChange}
-                        errors={errors}
-                    />
-   <div className="mb-4 w-full"></div>
-</div>
-<div className="flex flex-row w-full items-center gap-2 justify-between mb-4">
-                    <CustomSelect
-                        label="roles"
-                        name="roles"
-                        value={data.roles}
-                        mode={mode}
-                        onChange={(e) => handleChange(e.target.name, e.target.value)}
-                        error={errors.roles}
-                        options={roles}
-                    />     
-                    <CustomSelect
-                        label="teams"
-                        name="team_id"
-                        value={data.team_id ?? ""}
-                        mode={mode}
-                        onChange={(e) => handleChange(e.target.name, e.target.value)}
-                        error={errors.teams}
-                        options={teams}
-                    />    
-</div>
+                    <div className="flex flex-row w-full items-center gap-2 justify-between mb-4">
+                        <InputText
+                            title="Email"
+                            field="email"
+                            value={data.email}
+                            type="email"
+                            mode={mode}
+                            handleChange={handleChange}
+                            errors={errors}
+                        />
+                        <InputText
+                            title="Password"
+                            field="password"
+                            type="password"
+                            value={data.password}
+                            mode={mode}
+                            handleChange={handleChange}
+                            errors={errors}
+                        />
+                    </div>
+                    <div className="flex flex-row w-full items-center gap-2 justify-start mb-4">
+                        <InputText
+                            title="Mobile Number"
+                            field="mobile_number"
+                            type="tel"
+                            value={data.mobile_number}
+                            mode={mode}
+                            handleChange={handleChange}
+                            errors={errors}
+                        />
+                        <div className="mb-4 w-full"></div>
+                    </div>
+                    <div className="flex flex-row w-full items-center gap-2 justify-between mb-4">
+                        <CustomSelect
+                            label="roles"
+                            name="roles"
+                            value={data.roles}
+                            mode={mode}
+                            onChange={(e) => handleChange(e.target.name, e.target.value)}
+                            error={errors.roles}
+                            options={roles}
+                        />
+                        <CustomSelect
+                            label="teams"
+                            name="team_id"
+                            value={data.team_id ?? ""}
+                            mode={mode}
+                            onChange={(e) => handleChange(e.target.name, e.target.value)}
+                            error={errors.teams}
+                            options={teams}
+                        />
+                    </div>
 
                     {/* <div className="mb-4">
                         <label className="block text-sm font-medium text-gray-700">
@@ -238,7 +241,7 @@ const UserModal = ({ isOpen, onClose, mode, user = null, roles, teams, team }) =
                         errors={errors}
                     /> */}
                     <div className="flex justify-center gap-4">
-                        <OutlineButton title="Cancel" onClick={onClose} width="w-[180px]"/>
+                        <OutlineButton title="Cancel" onClick={onClose} width="w-[180px]" />
                         {mode !== "view" && (
                             <BlueButton title={mode === "create" ? "Create" : "Update"} width="w-[180px]" onClick={handleSubmit} disabled={processing} type="submit" />
                         )}

@@ -1,13 +1,11 @@
 import React, { useEffect, useState } from "react";
-import { useForm } from "@inertiajs/react";
+import { router, useForm } from "@inertiajs/react";
 import InputText from "@/Components/InputText";
 import CustomCheckbox from "@/Components/CustomCheckbox";
 import CustomSelect from "@/Components/CustomSelect";
 import OutlineButton from "@/Components/OutlineButton";
 import BlueButton from "@/Components/BlueButton";
 import InputRichText from "@/Components/InputRichText";
-import { set } from "date-fns";
-import { toFormData } from "axios";
 
 const TeamModal = ({ isOpen, onClose, mode, team = null, teams }) => {
     // console.log("mode", mode);
@@ -56,7 +54,9 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams }) => {
         } else if (mode === "create") {
             reset(); // Clear form for create mode
         }
-    }, [mode, team, team]);
+        setLogo(null);
+        setImage(null);
+    }, [mode, team]);
 
     const handleChange = (target, value) => {
         setData(target, value);
@@ -66,6 +66,12 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams }) => {
     const handleSubmit = (e) => {
         e.preventDefault();
         console.log('data ', data);
+
+        const requestConfig = {
+            headers: {
+                "Content-Type": "multipart/form-data",
+            },
+        };
 
         const formData = new FormData();
         formData.append('name', data.name);
@@ -99,25 +105,28 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams }) => {
         console.log('mode', mode);
 
         if (mode === "create") {
-
-            axios.post(route("admin.teams.store"), toFormData)
+            axios.post(route("admin.teams.store"), formData, requestConfig)
                 .then((res) => {
                     console.log('---------------------------------------', res.data);
-                    setTimeout(() => {
-                        onClose();
-                    }, 1000);
+                    router.reload({
+                        only: ["teams"],
+                        preserveScroll: true,
+                        onSuccess: () => onClose(),
+                    });
                 })
                 .catch(error => {
                     console.error(error.response ?? error);
                 });
         } else {
             formData.append('_method', 'PUT');
-            axios.post(route('admin.teams.update', team.id), formData)
+            axios.post(route('admin.teams.update', team.id), formData, requestConfig)
                 .then((res) => {
                     console.log('---------------------------------------', res.data);
-                    setTimeout(() => {
-                        onClose();
-                    }, 1000);
+                    router.reload({
+                        only: ["teams"],
+                        preserveScroll: true,
+                        onSuccess: () => onClose(),
+                    });
                 })
                 .catch(error => {
                     console.error(error.response ?? error);

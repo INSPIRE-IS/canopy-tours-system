@@ -23,6 +23,7 @@ use App\Http\Controllers\Admin\SeasonsController;
 use App\Http\Controllers\Admin\ServicesController;
 use App\Http\Controllers\Admin\TeamController;
 use App\Http\Controllers\Admin\AlertsController;
+use App\Http\Controllers\Admin\BoardingPassController;
 use App\Http\Controllers\Admin\UsersController;
 use App\Http\Controllers\Admin\VoucherController;
 use App\Http\Controllers\Admin\WholesalerContactsController;
@@ -189,6 +190,8 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['auth', 'v
     //Route::get('/teams/{team_id}/change', [TeamController::class, 'change'])->name('teams.change');
     Route::post('/teams/change', [TeamController::class, 'change'])->name('teams.change');
     Route::resource('teams', TeamController::class);
+    // Boarding Pass Templates
+    Route::resource('boardingpass', BoardingPassController::class);
     // Users
     Route::resource('users', UsersController::class);
 

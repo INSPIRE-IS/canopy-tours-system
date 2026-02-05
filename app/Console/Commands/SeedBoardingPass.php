@@ -39,8 +39,8 @@ class SeedBoardingPass extends Command
                         'title' => 'Arrival',
                         'icon' => '/images/icons/location.png',
                         'items' => [
-                            'Please arrive at least 10–15min BEFORE your tour time.',
-                            'Allow sufficient travel time — the trip will start promptly and late guests cannot be accommodated.',
+                            'Please arrive at least 10-15min BEFORE your tour time.',
+                            'Allow sufficient travel time - the tour will start promptly and late guests cannot be accommodated.',
                             'Alcohol and adventure do not mix. In the interest of the safety of the other guests and the guides, we reserve the right to refuse your participation on the trip if you are considered intoxicated. No refund will be given.',
                             'Once the safety briefing begins late guests cannot join and the tour will be considered missed. No refund will be given.',
                         ],
@@ -119,8 +119,8 @@ class SeedBoardingPass extends Command
                         'title' => 'Arrival',
                         'icon' => '/images/icons/location.png',
                         'items' => [
-                            'Please arrive at least 10–15min BEFORE your tour time.',
-                            'Allow sufficient travel time — the trip will start promptly and late guests cannot be accommodated.',
+                            'Please arrive at least 10-15min BEFORE your tour time.',
+                            'Allow sufficient travel time - the tour will start promptly and late guests cannot be accommodated.',
                             'Alcohol and adventure do not mix. In the interest of the safety of the other guests and the guides, we reserve the right to refuse your participation on the trip if you are considered intoxicated. No refund will be given.',
                             'Once the safety briefing begins late guests cannot join and the tour will be considered missed. No refund will be given.',
                         ],
@@ -425,35 +425,39 @@ class SeedBoardingPass extends Command
                 'team_id' => 6,
                 'name' => 'Tsitsikamma Boarding Pass',
                 'location' => 'Tsitsikamma Canopy Tour',
-                'address' => 'Tsitsikamma Indigenous Forest, Storms River',
-                'footer' => 'Please note: A Canopy Tour is an adventure activity and does come with risks. Although every effort is taken by the Canopy Tours and our staff to ensure your safety, we request that you please follow all instructions given to you by our staff either in the briefing or on the system itself. Any non compliance to safety and or rules and policies may result in a person being removed from the tour at anytime, at which time no refund will be given.',
+                'address' => '101 Darnell Street, Stormsriver Village, Tsitsikamma, Garden Route, Eastern Cape, 6308',
+                'footer' => 'Please note: All visitors and participants using any activities and/or transport offered or arranged by Stormsriver Adventures Pty Ltd (Tsitsikamma Canopy Tour), including services by third parties, acknowledge by signing this document that they have read, understood, and agree to this indemnity, disclaimer, and waiver ("the Indemnity"). By signing, participants indemnify and hold harmless Stormsriver Adventures Pty Ltd, its directors, employees, guides, agents, contractors, and affiliates against any claims, loss, injury, damage, or liability arising from participation. Participants who do not agree may choose not to participate.',
                 'sections' => [
                     [
                         'title' => 'Tour Includes',
                         'icon' => '/images/icons/tour.png',
                         'items' => [
                             'All equipment and training.',
-                            'A short 4x4 trip to the drop off point.',
-                            'A 2.5 - 3 hour fully guided forest canopy zipline adventure along 10 elevated platforms.',
-                            'Small exclusive groups of 8-10 people.',
-                            '2x fully trained Canopy Tour facilitators will join you on each tour.',
+                            'A return 4x4 experience from the adventure centre to the forest.',
+                            'A 2 - 3 hour fully guided forest canopy tour zipline experience along 10 elevated platforms.',
+                            'Small exclusive groups of 8 people.',
+                            'Two fully trained Tsitsikamma Canopy Tour guides will join you on each tour.',
+                            'A personalized video (this is available to purchase as an optional extra).',
                         ],
                     ],
                     [
                         'title' => 'Arrival',
                         'icon' => '/images/icons/location.png',
                         'items' => [
-                            'Please arrive at 20 min BEFORE your tour time.',
+                            'Please arrive at least 10-15min BEFORE your tour time.',
                             'Allow sufficient travel time - the tour will start promptly and late guests cannot be accommodated.',
+                            'If you are coming from outside the Tsitsikamma area, please factor in a 20-30 min delay on the time indicated by Google Maps due to irregular traffic conditions and possible roadworks.',
                             'Once the safety briefing begins late guests cannot join and the tour will be considered missed.',
                         ],
                     ],
                     [
-                        'title' => 'What to Bring',
+                        'title' => 'What to Bring/Note',
                         'icon' => '/images/icons/tshirt.png',
                         'items' => [
-                            'Rain jacket or rain poncho on rainy days.',
-                            'A small pouch or small sling bag for your phone, should you want to take photos.',
+                            'The activity operates in all-weather conditions. Even in the rain - just bring something warm to wear and come and enjoy a rainforest experience with us! It is in the Tsitsikamma Indigenous Forest, and always a magical experience. A rain jacket will be supplied if need be.',
+                            'Comfortable clothes should be worn and any footwear that is secure on your feet and that will not fall if you are suspended in mid-air. (Closed shoes).',
+                            'Long/Braided or Styled Hair: Please note that a helmet will have to fit onto your head. Hair cannot be tied on top of your head, obstructing the helmet from comfortably protecting your head.',
+                            'If a device is taken on tour and falls while on the system, it cannot be retrieved.',
                         ],
                     ],
                     [
@@ -528,7 +532,7 @@ class SeedBoardingPass extends Command
                         'title' => 'Arrival',
                         'icon' => '/images/icons/location.png',
                         'items' => [
-                            'Please arrive at least 20 - 30min BEFORE your tour time.',
+                            'Please arrive at least 10-15min BEFORE your tour time.',
                             'Please ensure you arrive by the requested time, as late guests may be disappointed when we are unable to accommodate them.',
                             'Once the safety briefing begins late guests might not be able to join and the tour could be considered missed.',
                         ],
@@ -746,3 +750,4 @@ class SeedBoardingPass extends Command
         // php artisan seed:core-bording-pass
     }
 }
+
