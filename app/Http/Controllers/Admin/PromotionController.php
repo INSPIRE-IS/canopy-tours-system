@@ -60,24 +60,21 @@ class PromotionController extends Controller
             'internal_use_only' => ['boolean'],
         ]);
 
-        $season = Season::where('service_id', $data['service_id'])->first();
+        $today = Carbon::today();
+        if (Carbon::parse($data['booking_start_date'])->lt($today)) {
+            throw ValidationException::withMessages([
+                'booking_start_date' => ['Booking start date cannot be in the past.'],
+            ]);
+        }
+
+        $season = Season::where('service_id', $data['service_id'])
+            ->whereDate('start_date', '<=', $data['activity_start_date'])
+            ->whereDate('end_date', '>=', $data['activity_end_date'])
+            ->first();
+
         if (!$season) {
             throw ValidationException::withMessages([
-                'service_id' => ['The selected service/season does not exist.'],
-            ]);
-        }
-
-        // Booking dates must be inside season
-        if ($data['booking_start_date'] < $season->start_date || $data['booking_end_date'] > $season->end_date) {
-            throw ValidationException::withMessages([
-                'booking_start_date' => ["Booking dates must be within the season ({$season->start_date} → {$season->end_date})."],
-            ]);
-        }
-
-        // Activity dates must be inside season
-        if ($data['activity_start_date'] < $season->start_date || $data['activity_end_date'] > $season->end_date) {
-            throw ValidationException::withMessages([
-                'activity_start_date' => ["Activity dates must be within the season ({$season->start_date} → {$season->end_date})."],
+                'activity_start_date' => ['Activity dates must fall within a season for the selected service.'],
             ]);
         }
 
@@ -153,24 +150,21 @@ class PromotionController extends Controller
             'internal_use_only' => ['boolean'],
         ]);
 
-        $season = Season::where('service_id', $data['service_id'])->first();
+        $today = Carbon::today();
+        if (Carbon::parse($data['booking_start_date'])->lt($today)) {
+            throw ValidationException::withMessages([
+                'booking_start_date' => ['Booking start date cannot be in the past.'],
+            ]);
+        }
+
+        $season = Season::where('service_id', $data['service_id'])
+            ->whereDate('start_date', '<=', $data['activity_start_date'])
+            ->whereDate('end_date', '>=', $data['activity_end_date'])
+            ->first();
+
         if (!$season) {
             throw ValidationException::withMessages([
-                'service_id' => ['The selected service/season does not exist.'],
-            ]);
-        }
-
-        // Booking dates must be inside season
-        if ($data['booking_start_date'] < $season->start_date || $data['booking_end_date'] > $season->end_date) {
-            throw ValidationException::withMessages([
-                'booking_start_date' => ["Booking dates must be within the season ({$season->start_date} → {$season->end_date})."],
-            ]);
-        }
-
-        // Activity dates must be inside season
-        if ($data['activity_start_date'] < $season->start_date || $data['activity_end_date'] > $season->end_date) {
-            throw ValidationException::withMessages([
-                'activity_start_date' => ["Activity dates must be within the season ({$season->start_date} → {$season->end_date})."],
+                'activity_start_date' => ['Activity dates must fall within a season for the selected service.'],
             ]);
         }
 

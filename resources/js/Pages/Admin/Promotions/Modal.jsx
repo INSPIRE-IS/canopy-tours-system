@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+﻿import React, { useEffect, useState } from "react";
 import { useForm } from "@inertiajs/react";
 import CustomInputText from "@/Components/CustomInputText";
 import CustomSelect from "@/Components/CustomSelect";
@@ -76,15 +76,22 @@ const Modal = ({ isOpen, onClose, mode, item = null, services }) => {
       return;
     }
 
-    // Make sure booking window is inside the chosen season
-    const season = services.find(s => s.id == data.service_id)?.season;
-    if (season) {
-      if (booking_start_date < season.start_date || booking_end_date > season.end_date) {
-        alert(`Booking dates must be within the season (${season.start_date} → ${season.end_date}).`);
-        return;
-      }
-      if (activity_start_date < season.start_date || activity_end_date > season.end_date) {
-        alert(`Activity dates must be within the season (${season.start_date} → ${season.end_date}).`);
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+    if (booking_start_date && booking_start_date < todayStr) {
+      alert("Booking start date cannot be in the past.");
+      return;
+    }
+
+    // Make sure activity window is inside a season for the selected service
+    if (activity_start_date && activity_end_date) {
+      const service = services.find(s => s.id == data.service_id);
+      const season = service?.seasons?.find((s) =>
+        activity_start_date >= s.start_date && activity_end_date <= s.end_date
+      );
+
+      if (!season) {
+        alert("Activity dates must fall within a season for the selected service.");
         return;
       }
     }
@@ -285,3 +292,4 @@ const Modal = ({ isOpen, onClose, mode, item = null, services }) => {
 };
 
 export default Modal;
+
