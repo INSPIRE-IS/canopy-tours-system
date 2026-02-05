@@ -4,8 +4,6 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\MassDestroyServiceRequest;
-use App\Http\Requests\StoreServiceRequest;
-use App\Http\Requests\UpdateServiceRequest;
 use App\Models\File;
 use App\Models\Service;
 use App\Models\ServiceFieldValue;
@@ -54,12 +52,13 @@ class ServicesController extends Controller
         ]);
     }
 
-    public function store(StoreServiceRequest $request)
+    public function store(Request $request)
     {
-        //dd($request->all());
+        // dd($request->all());
 
         if (true) {
             $serviceFields = [];
+            $serviceFieldRules = [];
 
             $fields = ServiceField::all();
             foreach ($fields as $field) {
@@ -87,15 +86,32 @@ class ServicesController extends Controller
 
                 $serviceFieldRules["fields.{$field->id}"] = $rules;
             }
-
-            $validator = Validator::make($request->all(), array_merge([
+            $data = $request->validate(array_merge([
                 'name' => 'required|string|max:255',
+                'tag' => [
+                    // 'string',
+                    // 'max:255',
+                ],
+                'duration' => [
+                    //'date_format:' . config('panel.time_format'),
+                ],
+                'capacity' => [
+                    'required',
+                    'integer',
+                    'min: 1',
+                    'max:100',
+                ],
+                'pillbox_conditions' => [
+                    'string',
+                    'nullable',
+                ],
+                'allow_internal_capacity_override' => [
+                    'required',
+                ],
                 'file' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120', // adjust as needed
+                'fields' => 'array',
             ], $serviceFieldRules));
 
-            $validator->validate();
-
-            $data = $request->all(); //$request->validated(); // or 
             Log::info($data);
             $data['allow_internal_capacity_override'] =
                 $request->boolean('allow_internal_capacity_override');
@@ -103,7 +119,7 @@ class ServicesController extends Controller
             $service = Service::create($data);
             // $service = Service::create($request->all());
 
-            foreach ($request->fields as $fieldId => $value) {
+            foreach ($request->input('fields', []) as $fieldId => $value) {
                 ServiceFieldValue::create([
                     'service_id' => $service->id,
                     'field_id' => $fieldId,
@@ -131,7 +147,7 @@ class ServicesController extends Controller
         return redirect()->route('admin.services.index');
     }
 
-    public function update(UpdateServiceRequest $request, Service $service)
+    public function update(Request $request, Service $service)
     {
         $serviceFieldRules = [];
 
@@ -160,21 +176,40 @@ class ServicesController extends Controller
             $serviceFieldRules["fields.{$field->id}"] = $rules;
         }
 
-        $validator = Validator::make($request->all(), array_merge([
+        $data = $request->validate(array_merge([
             'name' => 'required|string|max:255',
+            'tag' => [
+                // 'string',
+                // 'max:255',
+            ],
+            'duration' => [
+                //'date_format:' . config('panel.time_format'),
+            ],
+            'capacity' => [
+                'required',
+                'integer',
+                'min: 1',
+                'max:100',
+            ],
+            'pillbox_conditions' => [
+                'string',
+                'nullable',
+            ],
+            'allow_internal_capacity_override' => [
+                'required',
+            ],
             'file' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
+            'fields' => 'array',
         ], $serviceFieldRules));
-
-        $validator->validate();
 
         // $season->update([
         //     'season_id' => $request->season_id,
         //     'name' => $request->name,
         //     'updated_by_id' => auth()->id(),
         // ]);
-        $service->update($request->all());
+        $service->update($data);
 
-        foreach ($request->fields as $fieldId => $value) {
+        foreach ($request->input('fields', []) as $fieldId => $value) {
             ServiceFieldValue::updateOrCreate(
                 [
                     'service_id' => $service->id,

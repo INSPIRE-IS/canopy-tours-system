@@ -14,16 +14,16 @@ const InputText = ({ title, field, value, mode, type = "text", width = "w-full",
                 value={value || ""}
                 placeholder={placeholder}
                 onChange={(e) => handleChange(field, e.target.value)}
-                className={`mt-1 block ${width} ${height} ${errors?.name ? "border-red-500" : "border-gray-300"} shadow-sm input-text rounded-[10px]
+                className={`mt-1 block ${width} ${height} ${errors?.[field] ? "border-red-500" : "border-gray-300"} shadow-sm input-text rounded-[10px]
                 hover:border-black  active:border-blue-600 
                 focus:outline-none focus:ring-0 focus:border-black
                 `}
                 disabled={mode === "view"}
                 required
             />
-            {errors?.name && (
+            {errors?.[field] && (
                 <p className="text-red-500 text-sm mt-2">
-                    {errors?.name}
+                    {Array.isArray(errors?.[field]) ? errors[field][0] : errors?.[field]}
                 </p>
             )}
         </div>

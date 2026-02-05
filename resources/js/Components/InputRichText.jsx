@@ -61,7 +61,7 @@ export default function InputRichText({ title, field, value, mode, handleChange,
         {title}
       </label>
       <textarea ref={editorRef} id={field} className="hidden" />
-      {errors[field] && <p className="text-red-500 text-sm mt-2">{errors[field]}</p>}
+      {errors?.[field] && <p className="text-red-500 text-sm mt-2">{errors[field]}</p>}
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useForm } from "@inertiajs/react";
+import { useForm, usePage, router } from "@inertiajs/react";
 import InputText from "@/Components/InputText";
 import CustomCheckbox from "@/Components/CustomCheckbox";
 import CustomSelect from "@/Components/CustomSelect";
@@ -11,7 +11,18 @@ const ServiceModal = ({ isOpen, onClose, mode, service, serviceFields, auth, tea
     // console.log("mode", mode);
     console.log("service", service);
     const [file, setFile] = useState(null);
-    const { data, setData, post, put, errors, reset, processing } = useForm({
+    const { props } = usePage();
+    const {
+        data,
+        setData,
+        post,
+        put,
+        errors: formErrors,
+        reset,
+        processing,
+        setError,
+        clearErrors,
+    } = useForm({
         service_id: "",
         name: "",
         tag: "",
@@ -19,6 +30,7 @@ const ServiceModal = ({ isOpen, onClose, mode, service, serviceFields, auth, tea
         pillbox_conditions: "",
         capacity: "",
         allow_internal_capacity_override: 0,
+        file: null,
         // pillbox_text: "",
         // arrangements: "",
         // inclusions_exclusions: "",
@@ -86,55 +98,41 @@ const ServiceModal = ({ isOpen, onClose, mode, service, serviceFields, auth, tea
     };
     const handleSubmit = (e) => {
         e.preventDefault();
-        console.log('data ', data);
+        clearErrors();
 
-        const formData = new FormData();
-        formData.append('service_id', data.service_id);
-        formData.append('name', data.name);
-        formData.append('tag', data.tag);
-        formData.append('duration', data.duration);
-        formData.append('pillbox_conditions', data.pillbox_conditions);
-        formData.append('capacity', data.capacity);
-        formData.append('allow_internal_capacity_override', data.allow_internal_capacity_override);
-        formData.append('created_by_id', data.created_by_id);
-        formData.append('updated_by_id', data.updated_by_id);
-
-        // Dynamic fields
-        Object.entries(data.fields).forEach(([key, value]) => {
-            formData.append(`fields[${key}]`, value);
-        });
-
-        // File (if present)
-        if (file) {
-            formData.append('file', file);
-        }
-        for (let pair of formData.entries()) {
-            console.log(pair[0] + ':', pair[1]);
-        }
-        console.log('mode', mode);
+        const payload = {
+            ...data,
+            file: data.file ?? null,
+        };
 
         if (mode === "create") {
-
-            axios.post(route("admin.services.store"), formData, {
-                headers: {
-                    "Content-Type": "multipart/form-data",
-                },
-            }).then(() => onClose());
-        } else {
-            formData.append('_method', 'PUT');
-            axios.post(route('admin.services.update', service.id), formData, {
-                headers: {
-                    'Content-Type': 'multipart/form-data',
-                },
-            }).then(() => onClose());
-
-            // router.post(route('services.update', service.id), formData, {
-            // method: 'put',
-            // preserveScroll: true,
-            // })
+            router.post(route("admin.services.store"), payload, {
+                forceFormData: true,
+                preserveScroll: true,
+                preserveState: true,
+                onSuccess: () => onClose(),
+            });
+        } else if (mode === "edit") {
+            router.post(route("admin.services.update", service.id), { ...payload, _method: "PUT" }, {
+                forceFormData: true,
+                preserveScroll: true,
+                preserveState: true,
+                onSuccess: () => onClose(),
+            });
         }
     };
-
+    // const handleSubmit = (e) => {
+    //     e.preventDefault();
+    //     if (mode === "create") {
+    //         post(route("services.store"), {
+    //             onSuccess: () => onClose(),
+    //         });
+    //     } else if (mode === "edit") {
+    //         put(route("services.update", service.id), {
+    //             onSuccess: () => onClose(),
+    //         });
+    //     }
+    // };
     const renderField = (field) => {
         const value = data.fields?.[field.id] || "";
 
@@ -246,7 +244,7 @@ const ServiceModal = ({ isOpen, onClose, mode, service, serviceFields, auth, tea
                             setData("fields", { ...data.fields, [field.id]: e.target.value })
                         }
                         required={field.required}
-                        className={`mt-1 block w-full ${errors.name ? "border-red-500" : "border-gray-300"} shadow-sm input-text rounded-xl
+                        className={`mt-1 block w-full ${errors ? "border-red-500" : "border-gray-300"} shadow-sm input-text rounded-xl
                     hover:border-black  active:border-blue-600 
                     focus:outline-none focus:ring-0 focus:border-black
                     `}
@@ -254,20 +252,25 @@ const ServiceModal = ({ isOpen, onClose, mode, service, serviceFields, auth, tea
                 );
         }
     };
-    // const handleSubmit = (e) => {
-    //     e.preventDefault();
-    //     if (mode === "create") {
-    //         post(route("services.store"), {
-    //             onSuccess: () => onClose(),
-    //         });
-    //     } else if (mode === "edit") {
-    //         put(route("services.update", service.id), {
-    //             onSuccess: () => onClose(),
-    //         });
-    //     }
-    // };
+
 
     if (!isOpen) return null;
+    const errors = Object.keys(formErrors || {}).length ? formErrors : (props?.errors || {});
+    const fieldErrors = { ...(errors.fields || {}) };
+    Object.entries(errors || {}).forEach(([key, value]) => {
+        if (key.startsWith("fields.")) {
+            const fieldId = key.split(".")[1];
+            fieldErrors[fieldId] = value;
+        }
+    });
+    const formatFieldError = (field, message) => {
+        if (!message) return message;
+        if (typeof message !== "string") return message;
+        if (message.startsWith("The fields.")) {
+            return message.replace(/^The fields\.\d+ field/, `The ${field.name} field`);
+        }
+        return message;
+    };
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
@@ -346,8 +349,10 @@ const ServiceModal = ({ isOpen, onClose, mode, service, serviceFields, auth, tea
                             <div key={field.id} className="mb-4">
                                 <label className="block font-semibold mb-1">{field.name}</label>
                                 {renderField(field)}
-                                {errors?.fields?.[field.id] && (
-                                    <div className="text-red-500 text-sm">{errors.fields[field.id]}</div>
+                                {fieldErrors?.[field.id] && (
+                                    <div className="text-red-500 text-sm">
+                                        {formatFieldError(field, fieldErrors[field.id])}
+                                    </div>
                                 )}
                             </div>
                         )
@@ -375,7 +380,14 @@ const ServiceModal = ({ isOpen, onClose, mode, service, serviceFields, auth, tea
                     )}
                     <div className="mb-4">
                         <label className="block font-semibold mb-1">Upload New File (optional)</label>
-                        <input type="file" onChange={e => setFile(e.target.files[0])} />
+                        <input
+                            type="file"
+                            onChange={e => {
+                                const nextFile = e.target.files[0] ?? null;
+                                setFile(nextFile);
+                                setData("file", nextFile);
+                            }}
+                        />
                     </div>
                     <div className="flex justify-center gap-4">
                         <OutlineButton title="Cancel" onClick={onClose} width="w-[180px]" />
