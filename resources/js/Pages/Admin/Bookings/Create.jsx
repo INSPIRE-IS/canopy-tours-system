@@ -900,8 +900,6 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
         }, 0);
     const total = Number(data.booking_total || 0);
 
-    const vatTotal = total * lookups.find(l => l.slug == 'vat_rate')?.multiplier;
-
     // find currently selected discount from the list
     const selectedDiscount = discountList?.find(d => d.id === parseInt(discountId));
     const selectedPromo = promoList?.find(d => d.id === parseInt(promotionId));
@@ -1694,7 +1692,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                             <div className="flex items-center space-x-4">
                                 <span className="text-booking-lbl-main">Booking Total</span>
                                 <div className="flex items-center justify-between w-[417px] h-[43px] bg-[#DBECFD4D] pl-[7px] pr-[7px] py-[7px] rounded-[6px]">
-                                    <span className="text-booking-lbl-main-sub">R {(total * lookups.find(l => l.slug == 'vat_rate')?.multiplier).toFixed(2) || '0.00'}</span>
+                                    <span className="text-booking-lbl-main-sub">R {total.toFixed(2) || '0.00'}</span>
                                     {(hasPromo || hasDiscounts || data.is_wholesaler || !!invoiceDiscountPct) && (
                                         <WhiteButton
                                             title="Recalculate from Rack"
@@ -1946,31 +1944,31 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                 <div className="flex items-center space-x-[37px]">
                                     <span className="text-booking-lbl-main w-[160px] font-normal text-right">Total value of bookings</span>
                                     <div className="flex items-center justify-between w-[417px] h-[43px] bg-[#DBECFD4D] pl-[17px] py-[12.5px] rounded-[6px]">
-                                        <span className="text-booking-lbl-main-sub text-[#4D81E7]">R {Number(vatTotal || 0).toFixed(2)}</span>
+                                        <span className="text-booking-lbl-main-sub text-[#4D81E7]">R {Number(total || 0).toFixed(2)}</span>
                                     </div>
                                 </div>
                                 <div className="flex items-center space-x-[37px]">
                                     <span className="text-booking-lbl-main w-[160px] font-normal text-right">Deposit Due Today</span>
                                     <div className="flex items-center justify-between w-[417px] h-[43px] bg-[#DBECFD4D] pl-[17px] py-[12.5px] rounded-[6px]">
-                                        <span className="text-booking-lbl-main-sub text-[#AFAFAF]">R {((Number(data?.deposit_due) || 0) * (Number(vatTotal) || 0)).toFixed(2)}</span>
+                                        <span className="text-booking-lbl-main-sub text-[#AFAFAF]">R {((Number(data?.deposit_due) || 0) * (Number(total) || 0)).toFixed(2)}</span>
                                     </div>
                                 </div>
                                 <div className="flex items-center space-x-[37px]">
                                     <span className="text-booking-lbl-main w-[160px] text-right">Total Due Today</span>
                                     <div className="flex items-center justify-between w-[417px] h-[43px] bg-[#DBECFD4D] pl-[17px] py-[12.5px] rounded-[6px]">
-                                        <span className="text-booking-lbl-main-sub text-[#FF0000]">R {((Number(data?.due_today) || 0) * (Number(vatTotal) || 0)).toFixed(2)}</span>
+                                        <span className="text-booking-lbl-main-sub text-[#FF0000]">R {((Number(data?.due_today) || 0) * (Number(total) || 0)).toFixed(2)}</span>
                                     </div>
                                 </div>
                                 <div className="flex items-center space-x-[37px]">
                                     <span className="text-booking-lbl-main w-[160px] text-right text-[#4D81E7]">Total Rack Value</span>
                                     <div className="flex items-center justify-between w-[417px] h-[43px] bg-[#DBECFD4D] pl-[17px] py-[12.5px] rounded-[6px]">
-                                        <span className="text-booking-lbl-main-sub text-[#4D81E7]">R {((Number(data?.rack_value) || 0) * (Number(vatTotal) || 0)).toFixed(2)}</span>
+                                        <span className="text-booking-lbl-main-sub text-[#4D81E7]">R {((Number(data?.rack_value) || 0) * (Number(total) || 0)).toFixed(2)}</span>
                                     </div>
                                 </div>
                             </div>
 
                             {data.bill_back && (<span className="text-booking-lbl-main w-full text-center font-normal my-7">
-                                Bill Back - The Wholesaler will be invoiced for R{data?.rack_value * vatTotal} after the service is delivered.
+                                Bill Back - The Wholesaler will be invoiced for R{(Number(data?.rack_value) || 0) * (Number(total) || 0)} after the service is delivered.
                             </span>)}
                             <BlueButton
                                 title="Submit Booking"
