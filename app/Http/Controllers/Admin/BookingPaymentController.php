@@ -125,9 +125,9 @@ class BookingPaymentController extends Controller
                         'gateway_id'        => $validated['gateway_id'],        // 'Manual'
                         'meta'           => json_encode(['ip' => request()->ip()]),
                         'payment_date'   =>  now(),
-                        'redeemer_name'  => $validated['redeemer_name'], // '',
-                        'voucher_code' => $validated['voucher_code'],
-                        'note'           => $validated['note'],
+                        'redeemer_name'  => $validated['redeemer_name'] ?? null, // '',
+                        'voucher_code' => $validated['voucher_code'] ?? null,
+                        'note'           => $validated['note'] ?? null,
                         'updated_by_id'  => $validated['updated_by_id'],
                         'team_id'        => $validated['team_id'],
                     ]
