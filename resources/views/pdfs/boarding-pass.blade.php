@@ -525,6 +525,7 @@
                     </div>
                 @endforeach
             </div>
+            @if($data['footer'] != '')
             <div class="footer">
                 <span class="text-8 condition-section-header">
                     <img
@@ -532,10 +533,11 @@
                         class="condition-section-icon"
                         alt=""
                     >
-                    <span class="condition-section-text">{{ $data['footer'] }}</span>
+                    <span class="condition-section-text">{!! $data['footer'] !!}</span>
                 </span>
 
-            </div>            
+            </div>
+            @endif
         </div>
         <!-- FOOTER -->
 

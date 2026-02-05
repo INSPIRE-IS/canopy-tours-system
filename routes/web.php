@@ -245,6 +245,10 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['auth', 'v
     Route::resource('audit-logs', AuditLogsController::class);
 
     //Route::get('bookings/index', [HomeController::class, 'bookings'])->name('bookings.index');
+    // Route::get('invoices/download/{booking}', [BookingsController::class, 'invoiceDownload'])->name('invoices.download');
+    Route::get('details/download/{booking}', [BookingsController::class, 'detailDownload'])->name('details.download');
+
+
     Route::get('/booking/activity/calendar', [BookingsController::class, 'calendar'])->name('booking.activity.calendar');
     Route::post('/bookings/calculate-price', [BookingsController::class, 'calculate'])->name('booking.calculate');
     Route::post('/bookings/send-email', [BookingsController::class, 'sendEmail'])->name('bookings.send-email');

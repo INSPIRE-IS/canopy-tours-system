@@ -27,6 +27,7 @@ class BoardingPassSection extends Model
 
     protected $fillable = [
         'boarding_pass_template_id',
+        'section_tag',
         'title',
         'icon_path',
         'items',

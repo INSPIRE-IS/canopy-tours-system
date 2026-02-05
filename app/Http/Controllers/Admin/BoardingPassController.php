@@ -69,6 +69,7 @@ class BoardingPassController extends Controller
             'service_id' => ['nullable', 'exists:services,id'],
             'season_id' => ['nullable', 'exists:seasons,id'],
             'sections' => ['array'],
+            'sections.*.section_tag' => ['nullable', 'string'],
             'sections.*.title' => ['required', 'string'],
             'sections.*.items' => ['array'],
             'sections.*.items.*' => ['string'],
@@ -86,6 +87,7 @@ class BoardingPassController extends Controller
         foreach ($sections as $index => $sectionData) {
             BoardingPassSection::create([
                 'boarding_pass_template_id' => $template->id,
+                'section_tag' => $sectionData['section_tag'],
                 'title' => $sectionData['title'],
                 'icon_path' => $sectionData['icon_path'] ?? null,
                 'items' => $sectionData['items'] ?? [],
@@ -112,6 +114,7 @@ class BoardingPassController extends Controller
             'service_id' => ['nullable', 'exists:services,id'],
             'season_id' => ['nullable', 'exists:seasons,id'],
             'sections' => ['array'],
+            'sections.*.section_tag' => ['nullable', 'string'],
             'sections.*.title' => ['required', 'string'],
             'sections.*.items' => ['array'],
             'sections.*.items.*' => ['string'],
@@ -127,6 +130,7 @@ class BoardingPassController extends Controller
         foreach ($sections as $index => $sectionData) {
             BoardingPassSection::create([
                 'boarding_pass_template_id' => $boardingpass->id,
+                'section_tag' => $sectionData['section_tag'],
                 'title' => $sectionData['title'],
                 'icon_path' => $sectionData['icon_path'],
                 'items' => $sectionData['items'],
@@ -166,28 +170,35 @@ class BoardingPassController extends Controller
         $seen = [];
         $normalized = [];
         $titleIconList = BoardingPassSection::SECTION_TITLE_ICONS;
-        $titleToIcon = [];
+        $tagToIcon = [];
+        $titleToTag = [];
         foreach ($titleIconList as $entry) {
-            $titleToIcon[$entry['name']] = $entry['path'];
+            $tagToIcon[$entry['tag']] = $entry['path'];
+            $titleToTag[$entry['name']] = $entry['tag'];
         }
 
         foreach ($sections as $section) {
+            $tag = $section['section_tag'] ?? '';
             $title = $section['title'] ?? '';
-            $iconPath = $titleToIcon[$title] ?? null;
+            if (!$tag && $title) {
+                $tag = $titleToTag[$title] ?? '';
+            }
+            $iconPath = $tagToIcon[$tag] ?? null;
             if (!$iconPath) {
                 throw ValidationException::withMessages([
-                    'sections' => ['Invalid section title provided.'],
+                    'sections' => ['Invalid section tag provided.'],
                 ]);
             }
-            if (isset($seen[$title])) {
+            if (isset($seen[$tag])) {
                 throw ValidationException::withMessages([
-                    'sections' => ['Duplicate section title provided.'],
+                    'sections' => ['Duplicate section tag provided.'],
                 ]);
             }
-            $seen[$title] = true;
+            $seen[$tag] = true;
             $items = $section['items'] ?? [];
 
             $normalized[] = [
+                'section_tag' => $tag,
                 'title' => $title,
                 'icon_path' => $iconPath,
                 'items' => $items,

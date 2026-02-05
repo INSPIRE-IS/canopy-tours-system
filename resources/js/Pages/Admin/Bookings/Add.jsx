@@ -229,14 +229,26 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                             }}
                         />
                         {/* <a
-  href={route('admin.invoices.download', item.id)}
-  target="_blank"
-  rel="noopener noreferrer"
-  className="btn btn-primary"
->
-  Download Invoice PDF
-</a> */}
+                            href={route('admin.invoices.download', { booking: booking.id })}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                        >
+                            Proforma Invoice
+                        </a> */}
 
+                        <WhiteButton
+                            title="Booking Pass"
+                            icon={true}
+                            iconName={icons.manifest}
+                            textColor="text-[#4D81E7]"
+                            width="w-[158.8px]"
+                            height="h-[31px]"
+                            className="mt-4"
+                            onClick={() => {
+                                if (!booking?.id) return;
+                                window.open(route('admin.details.download', { booking: booking.id }), '_blank', 'noopener,noreferrer');
+                            }}
+                        />
 
                         {/* <WhiteButton
                                 title="Print Ticket" 

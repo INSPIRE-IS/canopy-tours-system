@@ -38,6 +38,7 @@ const BoardingPassModal = ({
                 season_id: boardingpass.season_id ?? "",
                 team_id: user?.team_id ?? boardingpass.team_id ?? null,
                 sections: (boardingpass.sections || []).map((section) => ({
+                    section_tag: section.section_tag || tagByTitle[section.title] || "",
                     title: section.title || "",
                     icon_path: section.icon_path || "",
                     items: Array.isArray(section.items) ? section.items : [],
@@ -74,6 +75,9 @@ const BoardingPassModal = ({
     const titleByTag = Object.fromEntries(
         sectionTitleIcons.map((entry) => [entry.tag, entry.name])
     );
+    const tagByTitle = Object.fromEntries(
+        sectionTitleIcons.map((entry) => [entry.name, entry.tag])
+    );
     const iconByTag = Object.fromEntries(
         sectionTitleIcons.map((entry) => [entry.tag, entry.path])
     );
@@ -87,11 +91,11 @@ const BoardingPassModal = ({
         if (!selectedSectionKey) return;
         const titleLabel = titleByTag[selectedSectionKey] || "";
         const iconPath = iconByTag[selectedSectionKey] || "";
-        const exists = (data.sections || []).some((section) => section.title === titleLabel);
+        const exists = (data.sections || []).some((section) => section.section_tag === selectedSectionKey);
         if (exists) return;
         setData("sections", [
             ...(data.sections || []),
-            { title: titleLabel, icon_path: iconPath, items: [] },
+            { section_tag: selectedSectionKey, title: titleLabel, icon_path: iconPath, items: [] },
         ]);
         setSelectedSectionKey("");
     };
@@ -228,10 +232,21 @@ const BoardingPassModal = ({
                                         <label className="text-[#161618] font-poppins text-[12px] font-normal leading-[130%]">
                                             Section Title
                                         </label>
-                                        <div className="mt-1 text-sm font-medium">{section.title}</div>
+                                        <input
+                                            type="text"
+                                            className="mt-1 block w-full h-[42px] border border-gray-300 rounded-[10px] px-3"
+                                            value={section.title || ""}
+                                            onChange={(e) =>
+                                                updateSection(index, {
+                                                    ...section,
+                                                    title: e.target.value,
+                                                })
+                                            }
+                                            disabled={mode === "view"}
+                                        />
                                     </div>
                                     {section.icon_path && (
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex items-center gap-2 mt-6">
                                             <span className="text-xs text-gray-500">Icon</span>
                                             <img src={section.icon_path} alt="icon" className="w-6 h-6" />
                                         </div>

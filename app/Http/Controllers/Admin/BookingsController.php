@@ -48,6 +48,7 @@ use App\Models\BookingPricing;
 use App\Models\BookingVoucher;
 use App\Models\Email;
 use App\Models\File;
+use App\Models\GiftVoucher;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use App\Models\InvoiceTemplate;
@@ -2107,5 +2108,104 @@ class BookingsController extends Controller
             ] : null,
             'total_price' => $total,
         ]);
+    }
+
+    public function invoiceDownload(Booking $booking)
+    {
+        $renderService = app(RendererService::class);
+        //dd($booking);
+        $sessionId = session()->getId() ?? null;
+        //logger()->info('sessionId inertia ' . $sessionId);
+        if ($sessionId != $booking->session_id || $booking->status_payment_id != 1) {
+            return redirect()->route('front.welcome');
+        }
+
+        $booking = Booking::with('team.file_logo', 'booking_items', 'booking_items.customers', 'booking_items.booking_fee')->find($booking->id);
+        $teamId = $booking->team_id;
+
+        $template = InvoiceTemplate::where('is_default', true)
+            ->where('type_invoice_id', 1) // invoice
+            ->where('team_id', $teamId)
+            ->first();
+
+        if (!$booking) {
+            $voucher = GiftVoucher::where('session_id', $sessionId)->where('status_payment_id', 1)->first();
+            $customer = collect([
+                'full_name'     => $voucher?->full_name,
+                'email_address' => $voucher?->email_address,
+                'contact_number' => $voucher?->contact_number,
+            ]);
+            $count = $voucher?->gift_voucher_items?->count();
+            $items = $voucher?->gift_voucher_items->first();
+            $teamId = $voucher?->booking_id;
+        } else {
+            $customer = Customer::find($booking?->customer_id);
+            $items = $booking?->booking_items->first();
+            $count = $booking?->booking_items?->count();
+        }
+
+
+        // 🔹 Load Blade view with data
+        $data = $renderService->invoice($booking, $customer);
+        $invoicePdf = Pdf::loadView('invoices.invoice', $data);
+
+        // Optional: tweak DOMPDF options
+        $invoicePdf->setPaper('A4', 'portrait');
+
+        // 🔹 Download or stream PDF
+        //return $pdf->download('invoice-' . $data['invoice']['number'] . '.pdf');
+        return $invoicePdf->stream(); // to preview in browser
+
+        // $html = $this->renderTemplate($template->content, $data);
+
+        // $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadHTML($html);
+
+        // return $pdf->stream("invoice-{$booking->id}.pdf");
+        // or ->download("invoice-{$invoice->id}.pdf");
+    }
+
+    public function detailDownload(Booking $booking)
+    {
+
+        if (!$booking || $booking?->id == null) {
+            return;
+        }
+
+        $bookingItem = BookingItem::with('booking', 'booking.team', 'booking.team.file_logo', 'customers', 'booking_inventory.inventory_time_slot', 'booking_inventory.inventory_type_day.type_day', 'booking_fee')
+            ->where('booking_id', $booking->id)->first(); // ->get();
+        $data = $this->getPassDetails($bookingItem);
+
+        $html = view('pdfs.boarding-pass', ['data' => $data])->render();
+
+        $dir = "pass/{$bookingItem->id}";
+        $random = rand(1, 100);
+        $file = "{$dir}/boarding_pass_{$random}{$bookingItem->id}.pdf";
+        $fullPath = storage_path("app/{$file}");
+        Log::info('boarding pass ' . var_export($fullPath, true));
+        Log::info('boarding pass ' . var_export($file, true));
+        Log::info('boarding pass ' . var_export($dir, true));
+
+        if (!Storage::disk('local')->exists($file)) {
+            Storage::disk('local')->makeDirectory($dir);
+
+            $chromePath = config('browsershot.chrome_path');
+            if (empty($chromePath)) {
+                Log::warning('Browsershot chrome path not resolved; using default detection.', [
+                    'env_path' => env('BROWSERSHOT_CHROME_PATH'),
+                ]);
+            }
+            $shot = Browsershot::html($html);
+            if (!empty($chromePath)) {
+                $shot->setChromePath($chromePath);
+            }
+            $shot->format('A4')
+                ->showBackground()
+                ->margins(0, 0, 0, 0)
+                ->scale(1.0)
+                ->timeout(60000)
+                ->save($fullPath);
+        }
+
+        return response()->download($fullPath);
     }
 }
