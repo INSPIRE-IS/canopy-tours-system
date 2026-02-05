@@ -59,7 +59,7 @@ class BoardingPassController extends Controller
 
     public function store(Request $request)
     {
-        abort_if(Gate::denies('boardingpass_create'), 403);
+        abort_if(Gate::denies('boarding_pass_templates_create'), 403);
 
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
@@ -99,7 +99,7 @@ class BoardingPassController extends Controller
 
     public function update(Request $request, BoardingPassTemplate $boardingpass)
     {
-        abort_if(Gate::denies('boardingpass_edit'), 403);
+        abort_if(Gate::denies('boarding_pass_templates_edit'), 403);
         if ($boardingpass->team_id !== auth()->user()->team_id) {
             abort(403);
         }
