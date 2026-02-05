@@ -139,7 +139,7 @@ class SeedPermissionsData extends Command
 
         $managerFilterPermissions = Permission::whereNotIn(
             'name',
-            ['audit_logs_access', 'booking_questionnaires_access', 'invoice_templates_access', 'help_questions_access', 'user_alerts_access', 'vouchers_access', 'teams_create']
+            ['audit_logs_access', 'booking_questionnaires_access', 'invoice_templates_access', 'help_questions_access', 'user_alerts_access', 'vouchers_access', 'teams_create', 'boarding_pass_templates_access']
         )->get();
         $managerPermissions = $managerFilterPermissions->filter(
             fn($p) =>
@@ -149,7 +149,7 @@ class SeedPermissionsData extends Command
         );
         Role::findOrFail(3)->permissions()->sync($managerPermissions->pluck('id'));
 
-        $userFilterPermissions = Permission::whereNotIn('name', ['audit_logs_access', 'booking_questionnaires_access', 'invoice_templates_access', 'help_questions_access', 'user_alerts_access', 'vouchers_access', 'teams_create'])->get();
+        $userFilterPermissions = Permission::whereNotIn('name', ['audit_logs_access', 'booking_questionnaires_access', 'invoice_templates_access', 'help_questions_access', 'user_alerts_access', 'vouchers_access', 'teams_create', 'boarding_pass_templates_access'])->get();
         $userPermissions = $userFilterPermissions->filter(
             fn($p) =>
             !str_starts_with($p->name, 'user_') &&

@@ -17,9 +17,7 @@ export default function Index({
     boardingpass,
     services = [],
     seasons = [],
-    sectionTitles = [],
-    sectionIcons = [],
-    sectionTitleIconMap = {},
+    sectionTitleIcons = [],
     auth,
     searchTerm,
     sortColumn,
@@ -92,7 +90,7 @@ export default function Index({
                     <SearchBar search={search} handleSearchChange={(e) => handleSearchChange(e)} handleSearchSubmit={handleSearchSubmit} />
 
                     <span className="flex gap-2">
-                        {permissions?.boardingpass_create && (
+                        {permissions?.boarding_pass_templates_create && (
                             <BlueButton title="Add Boarding Pass" onClick={() => handleOpenModal("create")} icon={true} />
                         )}
                     </span>
@@ -163,9 +161,7 @@ export default function Index({
                 boardingpass={selectedBoardingPass}
                 services={services}
                 seasons={seasons}
-                sectionTitles={sectionTitles}
-                sectionIcons={sectionIcons}
-                sectionTitleIconMap={sectionTitleIconMap}
+                sectionTitleIcons={sectionTitleIcons}
                 user={auth.user}
             />
 

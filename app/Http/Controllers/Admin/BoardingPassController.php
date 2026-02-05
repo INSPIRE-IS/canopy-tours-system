@@ -12,6 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Session;
 use Inertia\Inertia;
 use Symfony\Component\HttpFoundation\Response;
+use Illuminate\Validation\ValidationException;
 
 use App\Models\BoardingPassTemplate;
 
@@ -33,12 +34,7 @@ class BoardingPassController extends Controller
             ->orderBy($sortColumn, $sortDirection)
             ->paginate(10);
 
-        $sectionTitles = collect(BoardingPassSection::SECTION_TITLES)
-            ->map(fn($label, $key) => ['id' => $key, 'name' => $label])
-            ->values();
-        $sectionIcons = collect(BoardingPassSection::SECTION_ICONS)
-            ->map(fn($path, $key) => ['id' => $key, 'name' => $key, 'path' => $path])
-            ->values();
+        $sectionTitleIcons = collect(BoardingPassSection::SECTION_TITLE_ICONS)->values();
 
         $services = Service::select('id', 'name', 'team_id')
             ->where('team_id', auth()->user()->team_id)
@@ -53,9 +49,7 @@ class BoardingPassController extends Controller
             'boardingpass' => $boardingpass,
             'services' => $services,
             'seasons' => $seasons,
-            'sectionTitles' => $sectionTitles,
-            'sectionIcons' => $sectionIcons,
-            'sectionTitleIconMap' => BoardingPassSection::SECTION_TITLE_ICON_MAP,
+            'sectionTitleIcons' => $sectionTitleIcons,
             'searchTerm' => $searchTerm,
             'sortColumn' => $sortColumn,
             'sortDirection' => $sortDirection,
@@ -69,14 +63,13 @@ class BoardingPassController extends Controller
 
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'location' => ['nullable', 'string'],
-            'address' => ['nullable', 'string'],
+            'location' => ['required', 'string', 'max:255'],
+            'address' => ['required', 'string'],
             'footer' => ['nullable', 'string'],
             'service_id' => ['nullable', 'exists:services,id'],
             'season_id' => ['nullable', 'exists:seasons,id'],
             'sections' => ['array'],
             'sections.*.title' => ['required', 'string'],
-            'sections.*.icon_path' => ['nullable', 'string'],
             'sections.*.items' => ['array'],
             'sections.*.items.*' => ['string'],
         ]);
@@ -85,7 +78,7 @@ class BoardingPassController extends Controller
         $data['is_active'] = $data['is_active'] ?? true;
         $data['is_default'] = $data['is_default'] ?? true;
 
-        $sections = $data['sections'] ?? [];
+        $sections = $this->normalizeSections($data['sections'] ?? []);
         unset($data['sections']);
 
         $template = BoardingPassTemplate::create($data);
@@ -113,20 +106,19 @@ class BoardingPassController extends Controller
 
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'location' => ['nullable', 'string'],
-            'address' => ['nullable', 'string'],
+            'location' => ['required', 'string', 'max:255'],
+            'address' => ['required', 'string'],
             'footer' => ['nullable', 'string'],
             'service_id' => ['nullable', 'exists:services,id'],
             'season_id' => ['nullable', 'exists:seasons,id'],
             'sections' => ['array'],
             'sections.*.title' => ['required', 'string'],
-            'sections.*.icon_path' => ['nullable', 'string'],
             'sections.*.items' => ['array'],
             'sections.*.items.*' => ['string'],
         ]);
 
         $data['team_id'] = auth()->user()->team_id;
-        $sections = $data['sections'] ?? [];
+        $sections = $this->normalizeSections($data['sections'] ?? []);
         unset($data['sections']);
 
         $boardingpass->update($data);
@@ -136,8 +128,8 @@ class BoardingPassController extends Controller
             BoardingPassSection::create([
                 'boarding_pass_template_id' => $boardingpass->id,
                 'title' => $sectionData['title'],
-                'icon_path' => $sectionData['icon_path'] ?? null,
-                'items' => $sectionData['items'] ?? [],
+                'icon_path' => $sectionData['icon_path'],
+                'items' => $sectionData['items'],
                 'sort_order' => $index,
                 'is_active' => true,
             ]);
@@ -167,5 +159,41 @@ class BoardingPassController extends Controller
         $boardingpass->delete();
 
         return back();
+    }
+
+    private function normalizeSections(array $sections): array
+    {
+        $seen = [];
+        $normalized = [];
+        $titleIconList = BoardingPassSection::SECTION_TITLE_ICONS;
+        $titleToIcon = [];
+        foreach ($titleIconList as $entry) {
+            $titleToIcon[$entry['name']] = $entry['path'];
+        }
+
+        foreach ($sections as $section) {
+            $title = $section['title'] ?? '';
+            $iconPath = $titleToIcon[$title] ?? null;
+            if (!$iconPath) {
+                throw ValidationException::withMessages([
+                    'sections' => ['Invalid section title provided.'],
+                ]);
+            }
+            if (isset($seen[$title])) {
+                throw ValidationException::withMessages([
+                    'sections' => ['Duplicate section title provided.'],
+                ]);
+            }
+            $seen[$title] = true;
+            $items = $section['items'] ?? [];
+
+            $normalized[] = [
+                'title' => $title,
+                'icon_path' => $iconPath,
+                'items' => $items,
+            ];
+        }
+
+        return $normalized;
     }
 }
