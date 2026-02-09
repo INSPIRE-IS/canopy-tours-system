@@ -1,10 +1,13 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import React, { useEffect, useState } from 'react';
+import axios from 'axios';
 import { icons } from '../../../icons';
 import CustomInputText from '@/Components/CustomInputText';
 import BlueButton from '@/Components/BlueButton';
 import CustomCheckbox from '@/Components/CustomCheckbox';
+import Modal from '@/Components/Modal';
+import OutlineButton from '@/Components/OutlineButton';
 import { useToast } from "@/Context/ToastContext";
 // import { useRoute } from 'ziggy-js';
 // import { Ziggy } from '@/ziggy'; // the generated file
@@ -16,6 +19,7 @@ export default function Dashboard({ auth, booking, lookups, mode, gateways, stat
     const { showToast } = useToast();
     // console.log("type_pay_options", type_pay_options);
     // console.log("type_payments", type_payments);
+    const lookupList = Array.isArray(lookups) ? lookups : [];
     const { data, setData, post, put, processing, errors, isDirty } = useForm({
         booking_id: booking.id,
         redeemer_name: booking.lead_name,
@@ -26,9 +30,9 @@ export default function Dashboard({ auth, booking, lookups, mode, gateways, stat
         payment_options: {}, // store checkboxes here
         payment_methods: {}, // for type_payments
         ex_vat_amount: ((booking.grand_tot_due - booking.tot_paid)).toFixed(2),
-        lookup_item_id: lookups.find(l => l.slug == 'vat_rate')?.id,
-        vat: ((booking.grand_tot_due - booking.tot_paid) * lookups.find(l => l.slug == 'vat_rate')?.rate).toFixed(2),
-        vat_amount: ((booking.grand_tot_due - booking.tot_paid) * lookups.find(l => l.slug == 'vat_rate')?.multiplier).toFixed(2),
+        lookup_item_id: lookupList.find(l => l.slug == 'vat_rate')?.id,
+        vat: ((booking.grand_tot_due - booking.tot_paid) * lookupList.find(l => l.slug == 'vat_rate')?.rate).toFixed(2),
+        vat_amount: ((booking.grand_tot_due - booking.tot_paid) * lookupList.find(l => l.slug == 'vat_rate')?.multiplier).toFixed(2),
         payment_date: booking.due_date,
         updated_by_id: auth.user.id,
         note: '',
@@ -36,6 +40,31 @@ export default function Dashboard({ auth, booking, lookups, mode, gateways, stat
         meta: '',
         team_id: booking.team_id,
     });
+    const [showPayOnlineModal, setShowPayOnlineModal] = useState(false);
+    const [payOnlineStep, setPayOnlineStep] = useState('checkout');
+    const [payOnlineProcessing, setPayOnlineProcessing] = useState(false);
+    const [payLinkSending, setPayLinkSending] = useState(false);
+
+    const payOnlineOption = type_pay_options.find((option) => {
+        const slug = (option.slug || '').toLowerCase();
+        return slug === 'pay_online' || /pay\s*online/i.test(option.name || '');
+    });
+    const payOfflineOption = type_pay_options.find((option) => {
+        const slug = (option.slug || '').toLowerCase();
+        return slug === 'pay_offline' || /pay\s*offline/i.test(option.name || '');
+    });
+    const creditCardOption = type_payments.find((option) => {
+        const slug = (option.slug || '').toLowerCase();
+        return slug === 'credit_card' || /credit\s*card/i.test(option.name || '');
+    });
+    const cashOption = type_payments.find((option) => {
+        const slug = (option.slug || '').toLowerCase();
+        return slug === 'cash' || /cash/i.test(option.name || '');
+    });
+    const isPayOnline = !!payOnlineOption && data.type_pay_option_id === payOnlineOption.id;
+
+    const amountDue = Math.max(0, Number(booking.grand_tot_due) - Number(booking.tot_paid || 0));
+    const isFullyPaid = amountDue <= 0;
     useEffect(() => {
         if (flash?.success) {
             showToast(flash.success, "success");
@@ -44,6 +73,32 @@ export default function Dashboard({ auth, booking, lookups, mode, gateways, stat
             showToast(flash.error, "error");
         }
     }, [flash, showToast]);
+    useEffect(() => {
+        if (!isPayOnline) {
+            setShowPayOnlineModal(false);
+            setPayOnlineStep('checkout');
+        }
+    }, [isPayOnline]);
+    useEffect(() => {
+        if (!payOfflineOption || data.type_pay_option_id) return;
+        setData((prev) => ({
+            ...prev,
+            payment_options: {
+                ...prev.payment_options,
+                [payOfflineOption.id]: true,
+            },
+            type_pay_option_id: payOfflineOption.id,
+            ...(cashOption
+                ? {
+                    payment_methods: {
+                        ...prev.payment_methods,
+                        [cashOption.id]: true,
+                    },
+                    type_payment_id: cashOption.id,
+                }
+                : {}),
+        }));
+    }, [payOfflineOption, cashOption, data.type_pay_option_id, setData]);
     const handleChange = (target, value) => {
         setData(target, value);
         console.log('target----- ', target);
@@ -80,6 +135,24 @@ export default function Dashboard({ auth, booking, lookups, mode, gateways, stat
         });
         if (group == "payment_options") {
             setData('type_pay_option_id', id);
+            const paymentReset = Object.keys(data.payment_methods).reduce((acc, key) => {
+                acc[key] = false;
+                return acc;
+            }, {});
+            if (payOnlineOption && creditCardOption && id === payOnlineOption.id) {
+                setData('payment_methods', {
+                    ...paymentReset,
+                    [creditCardOption.id]: true,
+                });
+                setData('type_payment_id', creditCardOption.id);
+            }
+            if (payOfflineOption && cashOption && id === payOfflineOption.id) {
+                setData('payment_methods', {
+                    ...paymentReset,
+                    [cashOption.id]: true,
+                });
+                setData('type_payment_id', cashOption.id);
+            }
         }
         if (group == "payment_methods") {
             setData('type_payment_id', id);
@@ -97,6 +170,40 @@ export default function Dashboard({ auth, booking, lookups, mode, gateways, stat
             put(route("admin.booking-payments.update", booking.id), {
                 onSuccess: () => console.log('success'),
             });
+        }
+    };
+    const openPayOnlineModal = () => {
+        setPayOnlineStep('checkout');
+        setShowPayOnlineModal(true);
+    };
+    const closePayOnlineModal = () => {
+        setShowPayOnlineModal(false);
+        setPayOnlineStep('checkout');
+    };
+    const handleSimulatedPayment = async () => {
+        setPayOnlineProcessing(true);
+        try {
+            await axios.post(route('admin.booking-payments.simulated', booking.id));
+            showToast('Payment marked as paid (simulated).', 'success');
+            closePayOnlineModal();
+            router.get(route('admin.bookings.index'));
+        } catch (error) {
+            console.error('Simulated payment failed:', error);
+            showToast('Failed to simulate payment. Please try again.', 'error');
+        } finally {
+            setPayOnlineProcessing(false);
+        }
+    };
+    const handleSendPayLink = async () => {
+        setPayLinkSending(true);
+        try {
+            await axios.post(route('admin.booking-payments.paylink', booking.id));
+            showToast('PayLink sent to the client.', 'success');
+        } catch (error) {
+            console.error('PayLink send failed:', error);
+            showToast('Failed to send PayLink. Please try again.', 'error');
+        } finally {
+            setPayLinkSending(false);
         }
     };
 
@@ -178,70 +285,151 @@ export default function Dashboard({ auth, booking, lookups, mode, gateways, stat
 
                         </div>
                     </div>
-                    <div className="flex flex-col w-full pr-[51px]  gap-2 ">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 ">
-                            <CustomInputText
-                                title="Amount"
-                                name="vat_amount"
-                                type='text'
-                                value={data.vat_amount}
-                                onChange={(e) => { handleChange(e.target.name, e.target.value) }}
-                                errors={errors}
-                            />
-
-                            <CustomInputText
-                                title="Payment Date"
-                                name="payment_date"
-                                type='date'
-                                value={data.payment_date}
-
-                                onChange={(e) => { handleChange(e.target.name, e.target.value); }}
-                                errors={errors}
-                            />
+                    {isPayOnline ? (
+                        <div className="flex flex-col w-full pr-[51px] gap-4">
+                            <div className="flex items-center gap-4">
+                                <BlueButton
+                                    title="Pay Online (Simulated)"
+                                    width="w-[200px]"
+                                    onClick={openPayOnlineModal}
+                                    disabled={isFullyPaid}
+                                    props={{ type: 'button' }}
+                                />
+                                <OutlineButton
+                                    title={payLinkSending ? 'Sending...' : 'Send PayLink'}
+                                    onClick={handleSendPayLink}
+                                    props={{ type: 'button', disabled: payLinkSending || isFullyPaid }}
+                                />
+                                {isFullyPaid && (
+                                    <span className="text-sm text-red-500">Booking already paid.</span>
+                                )}
+                            </div>
                         </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 ">
-                            <CustomInputText
-                                title="Voucher Code"
-                                name="voucher_code"
-                                type='text'
-                                value={data.voucher_code}
-                                onChange={(e) => { handleChange(e.target.name, e.target.value) }}
-                                errors={errors}
-                            />
+                    ) : (
+                        <div className="flex flex-col w-full pr-[51px]  gap-2 ">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 ">
+                                <CustomInputText
+                                    title="Total"
+                                    name="ex_vat_amount"
+                                    type='text'
+                                    value={data.ex_vat_amount}
+                                    onChange={(e) => { handleChange(e.target.name, e.target.value) }}
+                                    errors={errors}
+                                />
 
-                            <CustomInputText
-                                title="Redeemer Name"
-                                name="redeemer_name"
-                                type='text'
-                                value={data.redeemer_name}
-                                onChange={(e) => { handleChange(e.target.name, e.target.value); }}
-                                errors={errors}
-                            />
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 ">
-                            <CustomInputText
-                                title="payment Note"
-                                name="note"
-                                type='text'
-                                value={data.note}
-                                onChange={(e) => { handleChange(e.target.name, e.target.value) }}
-                                errors={errors}
-                            />
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 ">
-                            <BlueButton
-                                title="Add Payment Now"
-                                width="w-[169px]"
-                                onClick={handleSubmit}
-                                disabled={processing}
-                                type="submit"
-                            />
-                        </div>
-                    </div>
+                                <CustomInputText
+                                    title="Payment Date"
+                                    name="payment_date"
+                                    type='date'
+                                    value={data.payment_date}
 
+                                    onChange={(e) => { handleChange(e.target.name, e.target.value); }}
+                                    errors={errors}
+                                />
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 ">
+                                <CustomInputText
+                                    title="Voucher Code"
+                                    name="voucher_code"
+                                    type='text'
+                                    value={data.voucher_code}
+                                    onChange={(e) => { handleChange(e.target.name, e.target.value) }}
+                                    errors={errors}
+                                />
+
+                                <CustomInputText
+                                    title="Redeemer Name"
+                                    name="redeemer_name"
+                                    type='text'
+                                    value={data.redeemer_name}
+                                    onChange={(e) => { handleChange(e.target.name, e.target.value); }}
+                                    errors={errors}
+                                />
+                            </div>
+                            <div className="flex flex-col w-full gap-4">
+                                <CustomInputText
+                                    title="payment Note"
+                                    name="note"
+                                    type='text'
+                                    value={data.note}
+                                    onChange={(e) => { handleChange(e.target.name, e.target.value) }}
+                                    errors={errors}
+                                />
+                            </div>
+                            <div className="flex flex-row items-center w-full gap-4 ">
+                                <BlueButton
+                                    title="Add Payment Now"
+                                    width="w-[169px]"
+                                    onClick={handleSubmit}
+                                    disabled={processing || isFullyPaid}
+                                    type="submit"
+                                />
+                                {isFullyPaid && (
+                                    <span className="text-sm text-red-500">Booking already paid.</span>
+                                )}
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
 
+            <Modal show={showPayOnlineModal} onClose={closePayOnlineModal} maxWidth="md">
+                <div className="p-6 space-y-4">
+                    {payOnlineStep === 'checkout' ? (
+                        <>
+                            <div>
+                                <h3 className="text-lg font-semibold">PayFast Checkout (Simulated)</h3>
+                                <p className="text-sm text-gray-600">Confirm the payment details below.</p>
+                            </div>
+                            <div className="space-y-2 text-sm">
+                                <div className="flex justify-between">
+                                    <span className="text-gray-600">Booking Reference</span>
+                                    <span className="font-medium">{booking.reference}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-gray-600">Lead Name</span>
+                                    <span className="font-medium">{booking.lead_name}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-gray-600">Total</span>
+                                    <span className="font-semibold">R{amountDue.toFixed(2)}</span>
+                                </div>
+                            </div>
+                            <div className="flex justify-end gap-3">
+                                <OutlineButton title="Cancel" onClick={closePayOnlineModal} props={{ type: 'button' }} />
+                                <BlueButton
+                                    title="Continue to Payment"
+                                    onClick={() => setPayOnlineStep('simulated')}
+                                    disabled={isFullyPaid}
+                                    props={{ type: 'button' }}
+                                />
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                            <div>
+                                <h3 className="text-lg font-semibold">Simulated Payment</h3>
+                                <p className="text-sm text-gray-600">
+                                    Pretend you are paying R{amountDue.toFixed(2)} via PayFast.
+                                </p>
+                            </div>
+                            <div className="flex justify-end gap-3">
+                                <OutlineButton
+                                    title="Back"
+                                    onClick={() => setPayOnlineStep('checkout')}
+                                    props={{ type: 'button' }}
+                                />
+                                <BlueButton
+                                    title={payOnlineProcessing ? 'Processing...' : 'Simulate Success'}
+                                    onClick={handleSimulatedPayment}
+                                    disabled={payOnlineProcessing}
+                                    props={{ type: 'button' }}
+                                />
+                            </div>
+                        </>
+                    )}
+                </div>
+            </Modal>
         </AuthenticatedLayout>
     );
 }

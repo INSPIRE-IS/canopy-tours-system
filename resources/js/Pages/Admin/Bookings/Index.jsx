@@ -1,4 +1,4 @@
-import BookingToolsModal from '@/Components/BookingToolsModal';
+﻿import BookingToolsModal from '@/Components/BookingToolsModal';
 import CustomerToolsModal from '@/Components/CustomerToolsModal';
 import GuestEmailModal from '@/Components/GuestEmailModal';
 import Header from '@/Components/Header';
@@ -11,14 +11,21 @@ import ManifestModal from './ManifestModal';
 import EditTimeSlotModal from './EditTimeSlotModal';
 import ViewBookingModal from './ViewBookingModal';
 import NavSelect from '@/Components/NavSelect';
-import CustomInputText from '@/Components/CustomInputText';
-import { format } from 'date-fns';
+import DatePicker from '@/Components/DatePicker';
+import WhiteButton from '@/Components/WhiteButton';
+import { endOfDay, endOfWeek, format, isSameDay, isValid, isWithinInterval, parseISO, startOfDay, startOfWeek } from 'date-fns';
 import ConfirmModal from '@/Components/ConfirmModal';
 import { useToast } from '@/Context/ToastContext';
+import CustomDatePicker from '@/Components/CustomDatePicker';
 // import { useRoute } from 'ziggy-js';
 // import { Ziggy } from '@/ziggy'; // the generated file
 
 export default function Dashboard({ auth, bookings, activities, lookups, services }) {
+    const VIEW_MODES = {
+        DAY: 'day',
+        RANGE: 'range',
+        WEEK: 'week',
+    };
     const { props } = usePage();
     const { flash } = props;
     const { showToast } = useToast();
@@ -37,7 +44,11 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
     const [selectedBooking, setSelectedBooking] = useState(null);
     const [selectedManifests, setSelectedManifests] = useState(null);
     const [selectedManifest, setSelectedManifest] = useState(null);
-    const [selectedDate, setSelectedDate] = useState(new Date());
+    const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+    const [rangeStart, setRangeStart] = useState(format(new Date(), 'yyyy-MM-dd'));
+    const [rangeEnd, setRangeEnd] = useState(format(new Date(), 'yyyy-MM-dd'));
+    const [viewMode, setViewMode] = useState(VIEW_MODES.DAY);
+    const [selectedServiceId, setSelectedServiceId] = useState('0');
     const [showServices, setShowServices] = useState(false);
     const [confirmOpen, setConfirmOpen] = useState(false);
     const [viewDocsIndex, setViewDocsIndex] = useState(null);
@@ -260,13 +271,61 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
     }, []);
 
     const handleFilterBookings = (activity_id) => {
-        if (activity_id === '0') {
-            setFilteredBookings(bookings);
-            return;
-        }
-        bookings = bookings.filter(booking => booking.service_id === activity_id);
-        setFilteredBookings(bookings);
+        setSelectedServiceId(activity_id);
     };
+
+    const normalizeBookingDate = (bookingDate) => {
+        if (!bookingDate) return null;
+        const parsed = parseISO(bookingDate);
+        return isValid(parsed) ? parsed : null;
+    };
+
+    const applyFilters = () => {
+        let next = Array.isArray(bookings) ? bookings : [];
+        if (selectedServiceId !== '0') {
+            next = next.filter(booking => Number(booking.service_id) === Number(selectedServiceId));
+        }
+
+        if (viewMode === VIEW_MODES.DAY) {
+            const selected = selectedDate ? parseISO(selectedDate) : null;
+            const day = selected ? startOfDay(selected) : null;
+            next = next.filter(booking => {
+                const bookingDate = normalizeBookingDate(booking.booking_date);
+                return bookingDate && day && isSameDay(bookingDate, day);
+            });
+        } else if (viewMode === VIEW_MODES.RANGE) {
+            const startDate = rangeStart ? parseISO(rangeStart) : null;
+            const endDate = rangeEnd ? parseISO(rangeEnd) : null;
+            const start = startDate && endDate && startDate > endDate ? endDate : startDate;
+            const end = startDate && endDate && startDate > endDate ? startDate : endDate;
+            next = next.filter(booking => {
+                const bookingDate = normalizeBookingDate(booking.booking_date);
+                if (!bookingDate || !start || !end) return false;
+                return isWithinInterval(bookingDate, {
+                    start: startOfDay(start),
+                    end: endOfDay(end),
+                });
+            });
+        } else if (viewMode === VIEW_MODES.WEEK) {
+            const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
+            const weekEnd = endOfWeek(new Date(), { weekStartsOn: 1 });
+            next = next.filter(booking => {
+                const bookingDate = normalizeBookingDate(booking.booking_date);
+                return bookingDate
+                    ? isWithinInterval(bookingDate, {
+                        start: startOfDay(weekStart),
+                        end: endOfDay(weekEnd),
+                    })
+                    : false;
+            });
+        }
+
+        return next;
+    };
+
+    useEffect(() => {
+        setFilteredBookings(applyFilters());
+    }, [bookings, selectedServiceId, viewMode, selectedDate, rangeStart, rangeEnd]);
 
     const handleCloseModal = () => {
         setGuestEmailTarget(null);
@@ -291,41 +350,97 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                         {/* <span className="font-semibold text-lg text-gray-800 block text-start">We have 2 Pending Tasks and 5 New Bookings.</span> */}
 
                     </span>
-                    <span className="flex gap-2">
-                        <div className="flex items-center w-auto h-[40px]">
-                            <input
-                                type='date'
-                                id='selected_date'
-                                name='selected_date'
-                                value={selectedDate ? format(selectedDate, 'yyyy-MM-dd') : ''}
-                                onChange={(e) => { setSelectedDate(e.target.value); }}
-                                className={`w-auto h-[40px] rounded-xl border-[3px] border-primary-14 text-primary-14 cursor-pointer`}
-                            />
-                        </div>
-                        <button onClick={() => router.get(route('admin.bookings.create'))} className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-blue-gradient-overlay border-[#3863C6] text-white shadow-inset-white cursor-pointer">
-                            <img src="/assets/icons/plus.svg" alt="bookings" className="w-5 h-5" />
-                            <span className="text-btn-outline-gray">New Booking</span>
-                        </button>
-                        <button onClick={() => router.get(route('booking-questionnaire.index'))} className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-red-gradient-overlay border-[#C65468] text-white shadow-inset-white cursor-pointer">
-                            <img src="/assets/icons/plus.svg" alt="bookings" className="w-5 h-5" />
-                            <span className="text-btn-outline-gray">Check in</span>
-                        </button>
-                        <button onClick={() => router.get(route('front.feedback-questionnaire.index'))} className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-red-gradient-overlay border-[#C65468] text-white shadow-inset-white cursor-pointer">
-                            <img src="/assets/icons/plus.svg" alt="bookings" className="w-5 h-5" />
-                            <span className="text-btn-outline-gray">Feedback</span>
-                        </button>
+                    <div className="flex flex-wrap items-center gap-4">
+                        <div className="flex flex-wrap items-end gap-3">
+                            <div className="flex flex-wrap items-center gap-2">
+                                <WhiteButton
+                                    title="Day"
+                                    width="w-[90px]"
+                                    textColor={viewMode === VIEW_MODES.DAY ? 'text-white' : 'text-primary-14'}
+                                    className={viewMode === VIEW_MODES.DAY ? 'bg-blue-gradient-overlay border-[#3863C6]' : ''}
+                                    onClick={() => setViewMode(VIEW_MODES.DAY)}
+                                />
+                                <WhiteButton
+                                    title="Date Range"
+                                    width="w-[120px]"
+                                    textColor={viewMode === VIEW_MODES.RANGE ? 'text-white' : 'text-primary-14'}
+                                    className={viewMode === VIEW_MODES.RANGE ? 'bg-blue-gradient-overlay border-[#3863C6]' : ''}
+                                    onClick={() => setViewMode(VIEW_MODES.RANGE)}
+                                />
+                                <WhiteButton
+                                    title="Week"
+                                    width="w-[90px]"
+                                    textColor={viewMode === VIEW_MODES.WEEK ? 'text-white' : 'text-primary-14'}
+                                    className={viewMode === VIEW_MODES.WEEK ? 'bg-blue-gradient-overlay border-[#3863C6]' : ''}
+                                    onClick={() => setViewMode(VIEW_MODES.WEEK)}
+                                />
+                            </div>
 
-                    </span>
+                        </div>
+                        <div className="flex gap-2">
+                            <button onClick={() => router.get(route('admin.bookings.create'))} className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-blue-gradient-overlay border-[#3863C6] text-white shadow-inset-white cursor-pointer">
+                                <img src="/assets/icons/plus.svg" alt="bookings" className="w-5 h-5" />
+                                <span className="text-btn-outline-gray">New Booking</span>
+                            </button>
+                            <button onClick={() => router.get(route('booking-questionnaire.index'))} className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-red-gradient-overlay border-[#C65468] text-white shadow-inset-white cursor-pointer">
+                                <img src="/assets/icons/plus.svg" alt="bookings" className="w-5 h-5" />
+                                <span className="text-btn-outline-gray">Check in</span>
+                            </button>
+                            <button onClick={() => router.get(route('front.feedback-questionnaire.index'))} className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-red-gradient-overlay border-[#C65468] text-white shadow-inset-white cursor-pointer">
+                                <img src="/assets/icons/plus.svg" alt="bookings" className="w-5 h-5" />
+                                <span className="text-btn-outline-gray">Feedback</span>
+                            </button>
+                        </div>
+                    </div>
                 </div>
                 {/* bottom */}
                 <div className="bg-white min-h-[500px] ">
-                    <div className="bg-white overflow-hidden min-h-[500px] shadow-sm sm:rounded-lg">
+                    <div className="bg-white overflow-visible min-h-[500px] shadow-sm sm:rounded-lg">
                         <div className="flex justify-between items-center px-4 pt-4 pb-[9px] ">
                             <span className='flex items-center gap-2'>
                                 <img src="/assets/icons/task-square.svg" alt="bookings" className="w-5 h-5" />
                                 <span className="font-semibold text-lg text-gray-800 block text-start">Bookings</span>
                             </span>
                             <span className="flex gap-2">
+
+                                {viewMode === VIEW_MODES.DAY && (
+                                    <div className="w-[200px]">
+                                        <CustomDatePicker
+                                            label="Date"
+                                            name='selected_date'
+                                            value={selectedDate}
+                                            onChange={(e) => { setSelectedDate(e.target.value); }}
+
+                                        />
+                                    </div>
+                                )}
+                                {viewMode === VIEW_MODES.RANGE && (
+                                    <div className="flex flex-wrap gap-3">
+                                        <div className="w-[200px]">
+                                            <CustomDatePicker
+                                                label="Start Date"
+                                                name='range_start'
+                                                value={rangeStart}
+                                                onChange={(e) => { setRangeStart(e.target.value); }}
+
+                                            />
+                                        </div>
+                                        <div className="w-[200px]">
+                                            <CustomDatePicker
+                                                label="End Date"
+                                                name='range_end'
+                                                value={rangeEnd}
+                                                onChange={(e) => { setRangeEnd(e.target.value); }}
+
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+                                {viewMode === VIEW_MODES.WEEK && (
+                                    <div className="text-[#161618] font-poppins text-[14px] font-semibold leading-[130%] h-[40px] px-4 py-2 rounded-xl border-[3px] border-primary-14 cursor-pointer">
+                                        Week of {format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd')} to {format(endOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd')}
+                                    </div>
+                                )}
                                 <div className="relative" ref={servicesRef}>
                                     <button onClick={() => setShowServices(!showServices)}
                                         className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] border-primary-14 text-primary-14 cursor-pointer">
@@ -344,12 +459,13 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                                         </div>
                                     )}
                                 </div>
+
                                 <button className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] border-primary-14 text-primary-14 cursor-pointer">
                                     <img src="/assets/icons/search-normal.svg" alt="bookings" className="w-5 h-5" />
                                     <span className="text-btn-outline-gray">Search here</span>
                                 </button>
 
-                                <button onClick={() => handleExportCSV(bookings)} className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] border-primary-14 text-primary-14 cursor-pointer">
+                                <button onClick={() => handleExportCSV(filteredBookings)} className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] border-primary-14 text-primary-14 cursor-pointer">
                                     <img src="/assets/icons/export.svg" alt="export" className="w-5 h-5" />
                                     <span className="text-btn-outline-gray">Export</span>
                                 </button>
@@ -400,12 +516,12 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                                                     </td>
                                                     <td className="w-[95px] p-3">{item?.bookingPax} ({item?.maxPax})</td>
                                                     <td className="w-[268px] p-3">{item?.service}</td>
-                                                    <td className="w-[132px] p-3">R{(item?.price * lookups.find(l => l.slug == 'vat_rate')?.multiplier).toFixed(2)}</td>
-                                                    <td className="w-[111px] p-3">R{(item?.paid * lookups.find(l => l.slug == 'vat_rate')?.multiplier).toFixed(2)}</td>
+                                                    <td className="w-[132px] p-3">R{Number(item?.price || 0).toFixed(2)}</td>
+                                                    <td className="w-[111px] p-3">R{Number(item?.paid || 0).toFixed(2)}</td>
                                                     <td className="w-[107px] p-3">
                                                         <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium 
                                                         ${item?.dueStatus ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`}>
-                                                            • {item?.due === 0 ? 'R0.00' : `R${(item?.due * lookups.find(l => l.slug == 'vat_rate')?.multiplier).toFixed(2)}`}
+                                                            - {Number(item?.due || 0) === 0 ? 'R0.00' : `R${Number(item?.due || 0).toFixed(2)}`}
                                                         </span>
                                                     </td>
                                                     <td className="w-[185px] p-3 flex gap-2">
@@ -440,14 +556,14 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                                                                     <div className="text-sm text-gray-600">{customer.email_address ?? 'Unknown Email'} | {customer.contact_number ?? 'Unknown Phone'}</div>
                                                                     <div className="text-sm text-gray-600 capitalize">{customer.type} Age: {customer?.age || 'Unknown Age'}</div>
                                                                 </td>
-                                                                <td className="w-[132px] p-3">R{(customer?.price * lookups.find(l => l.slug == 'vat_rate')?.multiplier).toFixed(2) || '0.00'}</td>
-                                                                <td className="w-[111px] p-3">R{(customer.paid * lookups.find(l => l.slug == 'vat_rate')?.multiplier).toFixed(2) || '0.00'}</td>
+                                                                <td className="w-[132px] p-3">R{Number(customer?.price || 0).toFixed(2)}</td>
+                                                                <td className="w-[111px] p-3">R{Number(customer?.paid || 0).toFixed(2)}</td>
                                                                 <td className="w-[107px] p-3">
                                                                     <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${customer.due === 0 ? 'bg-blue-100 text-blue-600'
                                                                         : customer.dueStatus === 'Normal' ? 'bg-orange-100 text-orange-600'
                                                                             : 'bg-red-100 text-red-600'
                                                                         }`}>
-                                                                        • {customer.due === 0 ? 'R0.00' : customer.dueStatus === 'Normal' ? 'Normal' : `R${(customer.due * lookups.find(l => l.slug == 'vat_rate')?.multiplier).toFixed(2)}`}
+                                                                        - {Number(customer?.due || 0) === 0 ? 'R0.00' : customer.dueStatus === 'Normal' ? 'Normal' : `R${Number(customer?.due || 0).toFixed(2)}`}
                                                                     </span>
                                                                 </td>
                                                                 <td className="flex flex-col w-[120px] p-3  gap-2">
@@ -589,3 +705,5 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
         </AuthenticatedLayout>
     );
 }
+
+

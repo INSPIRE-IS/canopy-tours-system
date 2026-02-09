@@ -84,4 +84,9 @@ class BookingInventory extends Model
     {
         return $this->belongsTo(InventoryOverride::class, 'inventory_override_id');
     }
+
+    public function booking_item()
+    {
+        return $this->belongsTo(BookingItem::class, 'booking_item_id');
+    }
 }

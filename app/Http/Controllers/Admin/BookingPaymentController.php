@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\MassDestroyBookingPaymentRequest;
 use App\Http\Requests\StoreBookingPaymentRequest;
 use App\Http\Requests\UpdateBookingPaymentRequest;
+use App\Mail\MessageGuestMail;
 use App\Models\Booking;
 use App\Models\BookingItem;
 use App\Models\BookingPayment;
@@ -27,6 +28,8 @@ use Gate;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\URL;
 use Inertia\Inertia;
 use Storage;
 use Symfony\Component\HttpFoundation\Response;
@@ -331,6 +334,119 @@ class BookingPaymentController extends Controller
                 'error' => 'Something went wrong while saving your booking. Please try again.',
             ]);
         }
+    }
+
+    public function simulate(Request $request, Booking $booking)
+    {
+        abort_if(Gate::denies('booking_payments_create'), Response::HTTP_FORBIDDEN, '403 Forbidden');
+
+        $vatRate = LookupItem::where('is_default', true)->where('slug', '=', 'vat_rate')->first();
+        if (!$vatRate) {
+            return response()->json(['message' => 'VAT rate lookup missing.'], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        $payOnlineOptionId = TypePayOption::whereRaw("LOWER(REPLACE(name, ' ', '_')) = ?", ['pay_online'])
+            ->orWhere('name', 'like', '%online%')
+            ->value('id');
+        if (!$payOnlineOptionId) {
+            $payOnlineOptionId = TypePayOption::value('id');
+        }
+
+        $cardPaymentId = TypePayment::whereRaw("LOWER(REPLACE(name, ' ', '_')) = ?", ['credit_card'])
+            ->orWhere('name', 'like', '%card%')
+            ->value('id');
+        if (!$cardPaymentId) {
+            $cardPaymentId = TypePayment::value('id');
+        }
+
+        $gatewayId = Gateway::whereRaw("LOWER(REPLACE(name, ' ', '_')) = ?", ['payfast'])
+            ->orWhere('name', 'like', '%payfast%')
+            ->value('id');
+
+        $amountDue = max(0, (float) $booking->grand_tot_due - (float) $booking->tot_paid);
+
+        DB::transaction(function () use ($booking, $vatRate, $payOnlineOptionId, $cardPaymentId, $gatewayId, $amountDue) {
+            $booking->loadMissing('booking_items.booking_fees');
+
+            BookingPayment::updateOrCreate(
+                ['booking_id' => $booking->id],
+                [
+                    'payment_date' => now(),
+                    'ex_vat_amount' => $amountDue,
+                    'lookup_item_id' => $vatRate->id,
+                    'vat' => $vatRate->rate,
+                    'vat_amount' => $amountDue * $vatRate->multiplier,
+                    'voucher_code' => null,
+                    'redeemer_name' => $booking->lead_name ?? null,
+                    'note' => 'Simulated PayFast payment',
+                    'reference' => $booking->reference,
+                    'meta' => json_encode(['ip' => request()->ip(), 'source' => 'admin_simulated']),
+                    'type_pay_option_id' => $payOnlineOptionId,
+                    'type_payment_id' => $cardPaymentId,
+                    'gateway_id' => $gatewayId,
+                    'status_payment_id' => 2,
+                    'updated_by_id' => auth()->id(),
+                    'team_id' => $booking->team_id,
+                ]
+            );
+
+            $booking->update([
+                'status_payment_id' => 2,
+                'tot_paid' => $booking->grand_tot_due,
+            ]);
+
+            $booking->booking_items->each(function ($item) {
+                $item->booking_fees->each(function ($fee) {
+                    $fee->update([
+                        'tot_paid' => $fee->tot_amount,
+                    ]);
+                });
+            });
+        });
+
+        return response()->json(['success' => true]);
+    }
+
+    public function sendPayLink(Request $request, Booking $booking)
+    {
+        abort_if(Gate::denies('booking_payments_create'), Response::HTTP_FORBIDDEN, '403 Forbidden');
+
+        $customer = Customer::find($booking->customer_id);
+        if (!$customer || empty($customer->email_address)) {
+            return response()->json(['message' => 'Booking customer email not found.'], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        $payLink = URL::temporarySignedRoute(
+            'front.payment.booking.signed',
+            now()->addMinutes(80),
+            ['booking' => $booking->id]
+        );
+
+        $subject = "Complete your payment for booking {$booking->reference}";
+        $content = "
+            <p>Hello {$customer->full_name},</p>
+            <p>Please use the secure link below to complete your booking payment.</p>
+            <p><a href=\"{$payLink}\">Pay Now</a></p>
+            <p>If you have any questions, please contact us.</p>
+        ";
+
+        Email::create([
+            'sender'         => config('mail.from.address'),
+            'receiver'       => $customer->email_address,
+            'subject'        => $subject,
+            'body'           => strip_tags($content),
+            'attachment_path' => null,
+            'sent'           => true,
+            'sent_at'        => now(),
+            'user_id'        => auth()->user()?->id,
+            'auditable_type' => 'App\Models\Booking',
+            'auditable_id'   => $booking->id,
+            'team_id'        => $booking->team_id,
+        ]);
+
+        Mail::to($customer->email_address)->send(new MessageGuestMail($subject, $content));
+
+        return response()->json(['success' => true]);
     }
 
     public function edit(Booking $booking)

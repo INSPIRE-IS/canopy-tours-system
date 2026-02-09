@@ -243,10 +243,10 @@
                                 </tr>
                                 <tr>
                                     <td class="invoice-message">
-                                                            <p class="message">Hello {{$customer['name']}},</p>
+                                                            <p class="message">Hello {{ $client['name'] ?? $customer['name'] ?? '' }},</p>
                             <p class="message">Your booking has been paid.</p>
                             <p class="message">Thank you for choosing Canopy Tours.</p>
-                            <p class="message">Your booking reference is {{$booking['reference']}}.</p>
+                            <p class="message">Your booking reference is {{ $booking['ref'] ?? $booking['reference'] ?? '' }}.</p>
                             <p class="message">Please Contact us if you have any questions.</p>
                                     </td>
                                 </tr>

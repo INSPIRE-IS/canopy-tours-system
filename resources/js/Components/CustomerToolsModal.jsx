@@ -21,7 +21,7 @@ export default function CustomerToolsModal({ index, booking, customer, position,
     return (
         <div
             ref={modalRef}
-            className="absolute z-50 w-[220px] bg-white rounded-xl shadow-lg border border-gray-200"
+            className="absolute z-50 w-[220px] bg-white rounded-xl shadow-lg border border-gray-200 p-4"
             style={{
                 top: position.top,
                 left: position.left,

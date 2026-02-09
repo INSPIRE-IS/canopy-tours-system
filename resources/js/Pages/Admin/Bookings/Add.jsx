@@ -79,6 +79,9 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
     }
     );
 
+    const totalDue = Math.max(0, Number(booking?.grand_tot_due || 0) - Number(booking?.tot_paid || 0));
+    const totalPaid = Number(booking?.tot_paid || 0);
+
     console.log('data', data);
     const handleOpenModal = (mode, user = null) => {
         console.log('mode ', mode);
@@ -250,7 +253,8 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                             }}
                         />
 
-                        {/* <WhiteButton
+                        {/* 
+                        <WhiteButton
                                 title="Print Ticket" 
                                 icon={true}
                                 iconName={icons.print_ticket}
@@ -269,7 +273,8 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                                 height="h-[31px]"
                                 className="mt-4"
                                 onClick={() => handleSubmit(e)}
-                            /> */}
+                            /> 
+                        */}
                     </div>
                     <div className="flex w-full items-start px-4 pb-[9px] gap-6 ">
                         {/* left */}
@@ -745,7 +750,7 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                                                 <div className="flex items-center just space-x-4">
                                                     <label className="text-booking-lbl-main basis-[20%]">Overdue</label>
                                                     <div className="flex items-center justify-between w-[417px] h-[43px] bg-[#FCE4DF4D] pl-[7px] pr-[7px] py-[7px] rounded-[6px]">
-                                                        <span className="text-booking-lbl-main-sub-error inline-flex items-center gap-2">{icons.red_dot} R {(booking?.grand_tot_due * lookups.find(l => l.slug == 'vat_rate')?.multiplier).toFixed(2) - (booking?.tot_paid * lookups.find(l => l.slug == 'vat_rate')?.multiplier).toFixed(2) || '0.00'}</span>
+                                                        <span className="text-booking-lbl-main-sub-error inline-flex items-center gap-2">{icons.red_dot} R {totalDue.toFixed(2)}</span>
                                                         <div className='flex items-center gap-2'>
 
                                                             <WhiteButton
@@ -774,7 +779,7 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                                                 <div className="flex items-center space-x-4">
                                                     <label className="text-booking-lbl-main basis-[20%]">Paid</label>
                                                     <div className="flex items-center justify-between w-[417px] h-[43px] bg-[#DBECFD4D] pl-[7px] pr-[7px] py-[7px] rounded-[6px]">
-                                                        <span className="text-booking-lbl-main-sub inline-flex items-center gap-2">{icons.blue_dot} R {(booking?.grand_tot_due * lookups.find(l => l.slug == 'vat_rate')?.multiplier).toFixed(2) || '0.00'}</span>
+                                                        <span className="text-booking-lbl-main-sub inline-flex items-center gap-2">{icons.blue_dot} R {totalPaid.toFixed(2)}</span>
                                                         <WhiteButton
                                                             title="Tools"
                                                             icon={true}

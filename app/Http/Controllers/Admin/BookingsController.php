@@ -111,6 +111,97 @@ class BookingsController extends Controller
                 $end_time = $start_time->copy()->addHours($hours)->addMinutes($minutes)->addSeconds($seconds);
 
                 $customers = $booking_item->paxWithCustomers();
+                $leadCustomer = $booking_item->customers->firstWhere('pivot.is_lead', 1);
+                if (!$leadCustomer && $booking_item->booking?->customer_id) {
+                    $leadCustomer = Customer::find($booking_item->booking->customer_id);
+                }
+                $leadName = $leadCustomer?->full_name ?? $booking_item->booking->lead_name ?? 'Test Customer';
+                $leadEmail = $leadCustomer?->email_address ?? '';
+                $leadPhone = $leadCustomer?->contact_number ?: 'Test Phone';
+
+                $leadIndex = $customers->search(fn($c) => ($c['is_lead'] ?? false) === true);
+                if ($leadIndex === false) {
+                    $matchIndex = $customers->search(function ($c) use ($leadCustomer, $leadEmail, $leadPhone, $leadName) {
+                        if ($leadCustomer && !empty($c['customer_id']) && (int) $c['customer_id'] === (int) $leadCustomer->id) {
+                            return true;
+                        }
+                        if (!empty($leadEmail) && !empty($c['email_address']) && strtolower($c['email_address']) === strtolower($leadEmail)) {
+                            return true;
+                        }
+                        if (!empty($leadPhone) && !empty($c['contact_number']) && $c['contact_number'] === $leadPhone) {
+                            return true;
+                        }
+                        if (!empty($leadName) && !empty($c['full_name']) && $c['full_name'] === $leadName) {
+                            return true;
+                        }
+                        return false;
+                    });
+
+                    if ($matchIndex !== false) {
+                        $leadRow = $customers[$matchIndex];
+                        $leadRow['is_lead'] = true;
+                        if (empty($leadRow['full_name'])) {
+                            $leadRow['full_name'] = $leadName;
+                        }
+                        if (empty($leadRow['email_address'])) {
+                            $leadRow['email_address'] = $leadEmail;
+                        }
+                        if (empty($leadRow['contact_number'])) {
+                            $leadRow['contact_number'] = $leadPhone;
+                            Log::warning('Lead customer missing contact number; using fallback.', [
+                                'booking_id' => $booking_item->booking->id ?? null,
+                                'booking_item_id' => $booking_item->id ?? null,
+                                'customer_id' => $leadRow['customer_id'] ?? null,
+                            ]);
+                        }
+                        $customers[$matchIndex] = $leadRow;
+                    } else {
+                        $customers->prepend([
+                            'reference' => $booking_item->booking->reference ?? null,
+                            'booking_item_id'  => $booking_item->id ?? null,
+                            'type'              => 'adult',
+                            'customer_id'       => $leadCustomer?->id,
+                            'full_name'         => $leadName,
+                            'email_address'     => $leadEmail,
+                            'contact_number'    => $leadPhone,
+                            'age'               => null,
+                            'parent_id'         => null,
+                            'notes'             => null,
+                            'is_indemnity'      => null,
+                            'position'          => null,
+                            'price'             => null,
+                            'paid'              => null,
+                            'due'               => null,
+                            'files'             => $booking_item->booking?->files,
+                            'discount'          => null,
+                            'is_lead'           => true,
+                            'team_id'           => $booking_item->booking?->team_id,
+                            'source'            => 'fallback',
+                        ]);
+                        Log::warning('Lead customer missing from booking item customers; using fallback.', [
+                            'booking_id' => $booking_item->booking->id ?? null,
+                            'booking_item_id' => $booking_item->id ?? null,
+                            'customer_id' => $booking_item->booking?->customer_id ?? null,
+                        ]);
+                    }
+                } else {
+                    $leadRow = $customers[$leadIndex];
+                    if (empty($leadRow['full_name'])) {
+                        $leadRow['full_name'] = $leadName;
+                    }
+                    if (empty($leadRow['email_address'])) {
+                        $leadRow['email_address'] = $leadEmail;
+                    }
+                    if (empty($leadRow['contact_number'])) {
+                        $leadRow['contact_number'] = $leadPhone;
+                        Log::warning('Lead customer missing contact number; using fallback.', [
+                            'booking_id' => $booking_item->booking->id ?? null,
+                            'booking_item_id' => $booking_item->id ?? null,
+                            'customer_id' => $leadRow['customer_id'] ?? null,
+                        ]);
+                    }
+                    $customers[$leadIndex] = $leadRow;
+                }
                 $info = [
                     'id' => $booking_item->booking->id,
                     'reference' => $booking_item->booking->reference,
@@ -272,6 +363,7 @@ class BookingsController extends Controller
             'discount_lines' => 'array|nullable',
             'promoCode' => 'nullable|string',
             'redeem_voucher' => 'string|nullable', //   "redeem_voucher" => "Voucher Code"
+            'pay_later' => 'boolean', //   "pay_later" => "true"
         ]);
         try {
             $booking = DB::transaction(function () use ($validated) {
@@ -657,6 +749,10 @@ class BookingsController extends Controller
             Log::info('booking created', [
                 'booking' => $booking,
             ]);
+            if ($validated['pay_later']) {
+                return Inertia::location(route('admin.bookings.index'));
+            }
+
             return Inertia::location(route('admin.booking-payments.create', $booking->id));
             // return Inertia::location(route('admin.booking_payments.create') . '?booking_id=' . $booking->id);
             // return Inertia::location(route('admin.booking_payments.edit', $booking->id));
@@ -800,6 +896,7 @@ class BookingsController extends Controller
     public function getPassDetails($bookingItem)
     {
         // Mirror PaymentController boarding pass data for internal emails
+        $seatsBooked = $bookingItem?->booking_inventory?->pax ?? 0;
         $basePassData = [
             'flightName' => $bookingItem->booking->team->name,
             'location' => optional($bookingItem->service)->name ?? $bookingItem->booking->team->name,
@@ -808,6 +905,7 @@ class BookingsController extends Controller
             'date' => $bookingItem->booking_inventory->date,
             'time' => optional($bookingItem->booking_inventory->inventory_time_slot)->start_time,
             'seat' => $bookingItem->booking->reference,
+            'seats_booked' => $seatsBooked,
             'boarding_time' => optional($bookingItem->booking_inventory->inventory_time_slot)->start_time,
             'booking_no' => $bookingItem->booking->reference,
             'flight' => $bookingItem->booking->team->name,

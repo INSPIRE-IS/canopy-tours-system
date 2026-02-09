@@ -452,6 +452,8 @@
                             <div class="value">{{ strtoupper($data['passenger_name']) }}</div>
                             <div class="label">SEAT NO:</div>
                             <div class="value">{{ $data['seat'] }}</div>
+                            <div class="label">SEATS BOOKED:</div>
+                            <div class="value">{{ $data['seats_booked'] ?? '' }}</div>
                         </div>
                         <div style="padding: 16px 20px" >
                             <div class="label">DATE:</div>

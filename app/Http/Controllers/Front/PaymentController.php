@@ -49,6 +49,20 @@ class PaymentController extends Controller
         ]);
     }
 
+    public function bookingSigned(Booking $booking)
+    {
+        if ($booking->status_payment_id != 1) {
+            return redirect()->route('front.welcome');
+        }
+
+        $lookups = LookupItem::where('is_default', true)->where('slug', '=', 'vat_rate')->first();
+
+        return Inertia::render('BookingPayment', [
+            'booking' => $booking->load('booking_items', 'booking_items.customers', 'booking_items.booking_fee'),
+            'lookups' => $lookups,
+        ]);
+    }
+
     public function gift(GiftVoucher $gift)
     {
         //dd($gift);
@@ -557,6 +571,7 @@ class PaymentController extends Controller
 
     public function getPassDetails($bookingItem)
     {
+        $seatsBooked = $bookingItem?->booking_inventory?->pax ?? 0;
         $basePassData = [
             'flightName' => $bookingItem->booking->team->name,
             'location' => optional($bookingItem->service)->name ?? $bookingItem->booking->team->name,
@@ -565,6 +580,7 @@ class PaymentController extends Controller
             'date' => $bookingItem->booking_inventory->date,
             'time' => optional($bookingItem->booking_inventory->inventory_time_slot)->start_time,
             'seat' => $bookingItem->booking->reference,
+            'seats_booked' => $seatsBooked,
             'boarding_time' => optional($bookingItem->booking_inventory->inventory_time_slot)->start_time,
             'booking_no' => $bookingItem->booking->reference,
             'flight' => $bookingItem->booking->team->name,
@@ -626,6 +642,7 @@ class PaymentController extends Controller
                     'date' =>  $bookingItem->booking_inventory->date,
                     'time' => $bookingItem->booking_inventory->inventory_time_slot->start_time,
                     'seat' => $bookingItem->booking->reference,
+                    'seats_booked' => $seatsBooked,
                     'boarding_time' => $bookingItem->booking_inventory->inventory_time_slot->start_time,
                     'booking_no' => $bookingItem->booking->reference,
                     'flight' => $bookingItem->booking->team->name,
@@ -735,6 +752,7 @@ class PaymentController extends Controller
                     'date' =>  $bookingItem->booking_inventory->date,
                     'time' => $bookingItem->booking_inventory->inventory_time_slot->start_time,
                     'seat' => $bookingItem->booking->reference,
+                    'seats_booked' => $seatsBooked,
                     'boarding_time' => $bookingItem->booking_inventory->inventory_time_slot->start_time,
                     'booking_no' => $bookingItem->booking->reference,
                     'flight' => $bookingItem->booking->team->name,
@@ -856,6 +874,7 @@ class PaymentController extends Controller
                     'date' =>  $bookingItem->booking_inventory->date,
                     'time' => $bookingItem->booking_inventory->inventory_time_slot->start_time,
                     'seat' => $bookingItem->booking->reference,
+                    'seats_booked' => $seatsBooked,
                     'boarding_time' => $bookingItem->booking_inventory->inventory_time_slot->start_time,
                     'booking_no' => $bookingItem->booking->reference,
                     'flight' => $bookingItem->booking->team->name,
@@ -961,6 +980,7 @@ class PaymentController extends Controller
                     'date' =>  $bookingItem->booking_inventory->date,
                     'time' => $bookingItem->booking_inventory->inventory_time_slot->start_time,
                     'seat' => $bookingItem->booking->reference,
+                    'seats_booked' => $seatsBooked,
                     'boarding_time' => $bookingItem->booking_inventory->inventory_time_slot->start_time,
                     'booking_no' => $bookingItem->booking->reference,
                     'flight' => $bookingItem->booking->team->name,

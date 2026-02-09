@@ -16,25 +16,41 @@ class RendererService
     public function invoice(Booking $booking, Customer $customer): array
     {
         $site = Team::select('full_name', 'reg_no', 'address', 'address_code', 'account_owner', 'account_number', 'account_type', 'bank_name', 'branch_code')->find($booking->team_id);
-        $invoice = Invoice::with('items', 'items.season')->where('booking_id', $booking->id)->first();
+        $invoice = Invoice::with([
+            'items',
+            'items.season',
+            'items.service',
+            'items.booking_inventory.booking_item.booking_fee',
+        ])->where('booking_id', $booking->id)->first();
         if (!$invoice) {
             throw new \RuntimeException('Invoice not found for booking ' . $booking->id);
         }
         $services = $invoice->items->map(function ($item) {
-            $services = [
-                'name' => $item->service->name . ' ' . $item->season->name,
+            $fee = $item->booking_inventory?->booking_item?->booking_fee;
+            $adultTotal = $fee?->tot_adults ?? ($item->price_adult ?? 0);
+            $childTotal = $fee?->tot_children ?? ($item->price_child ?? 0);
+            $guideTotal = $fee?->tot_guides ?? ($item->price_guide ?? 0);
+            $total = (float) $adultTotal + (float) $childTotal + (float) $guideTotal;
+
+            return [
+                'name' => trim(($item->service?->name ?? '') . ' ' . ($item->season?->name ?? '')),
                 'adults' => $item->pax_adults,
                 'children' => $item->pax_children,
                 'guides' => $item->pax_guides,
-                'price_adult' => $item->price_adult,
-                'price_child' => $item->price_child,
-                'guides' => $item->pax_guides,
-                'total' => $item->price_adult  + $item->price_child  + $item->price_guide,
+                'price_adult' => $adultTotal,
+                'price_child' => $childTotal,
+                'price_guide' => $guideTotal,
+                'total' => $total,
             ];
-
-            return $services;
-        })->unique()->toArray();
+        })->values()->toArray();
         //dd($services);
+        $amountExVat = $invoice->subtotal ?? $booking->grand_tot_due ?? 0;
+        $vat = $invoice->vat ?? ($amountExVat * 0.15);
+        $vatAmount = $invoice->total ?? ($amountExVat + $vat);
+        $vatMultiplier = $amountExVat > 0 ? ($vatAmount / $amountExVat) : 1;
+        $amountPaid = ($booking->tot_paid ?? 0) * $vatMultiplier;
+        $balanceDue = max(0, $vatAmount - $amountPaid);
+
         $data = [
             'site' => [
                 'name' => $site->full_name,
@@ -58,11 +74,11 @@ class RendererService
             ],
             'services' => $services,
             'file_logo' => $booking->team->file_logo?->path ?? asset('images/logo.png'),
-            'amount_ex_vat' => $booking->grand_tot_due,
-            'vat'           => $booking->grand_tot_due * 0.15,
-            'vat_amount'    => $booking->grand_tot_due * 1.15,
-            'amount_paid'   => $booking->tot_paid,
-            'balance_due'   => ($booking->grand_tot_due * 1.15) - $booking->tot_paid,
+            'amount_ex_vat' => $amountExVat,
+            'vat'           => $vat,
+            'vat_amount'    => $vatAmount,
+            'amount_paid'   => $amountPaid,
+            'balance_due'   => $balanceDue,
             'notes'         => 'Please pay within 7 days.',
             'bank' => [
                 'owner' => $site->account_owner,

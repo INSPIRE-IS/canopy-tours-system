@@ -101,6 +101,9 @@ Route::post('/booking/gift-store', [ActivityController::class, 'storeGift'])->na
 
 Route::get('/test-order', [ActivityController::class, 'showTestOrder']); // Review payment screen
 Route::get('/payment/booking/{booking}', [PaymentController::class, 'booking'])->name('front.payment.booking');
+Route::get('/payment/booking/signed/{booking}', [PaymentController::class, 'bookingSigned'])
+    ->name('front.payment.booking.signed')
+    ->middleware('signed');
 Route::get('/payment/gift/{gift}', [PaymentController::class, 'gift'])->name('front.payment.gift');
 
 // Fake PayFast screen
@@ -260,6 +263,8 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['auth', 'v
     Route::put('customer-manifests/edit-single/{booking_item_id}', [CustomerManifestController::class, 'editSingle'])->name('customer-manifests.edit-single');
     Route::put('customer-manifests/edit/{booking_item_id}', [CustomerManifestController::class, 'edit'])->name('customer-manifests.edit');
     Route::get('booking-payments/create/{booking}', [BookingPaymentController::class, 'create'])->name('booking-payments.create');
+    Route::post('booking-payments/simulated/{booking}', [BookingPaymentController::class, 'simulate'])->name('booking-payments.simulated');
+    Route::post('booking-payments/paylink/{booking}', [BookingPaymentController::class, 'sendPayLink'])->name('booking-payments.paylink');
     Route::post('booking-payments/store', [BookingPaymentController::class, 'store'])->name('booking-payments.store');
     Route::get('booking-payments/edit/{booking}', [BookingPaymentController::class, 'edit'])->name('booking-payments.edit');
     Route::put('booking-payments/update', [BookingPaymentController::class, 'update'])->name('booking-payments.update');

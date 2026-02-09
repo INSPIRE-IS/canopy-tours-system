@@ -137,6 +137,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
         rack_value: 1,
         bill_back: false,
         team_id: auth.user.team_id,
+        pay_later: false,
     });
     useEffect(() => {
         if (flash?.success) {
@@ -709,7 +710,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                         season_id: season.id,
                         override_timeslots: season?.inventory?.allow_internal_override == 1 ? true : false || false,
                         override_price: season?.allow_internal_price_override == 1 ? true : false || false,
-                        override_rates: season?.allow_internal_price_override == 1 ? true : false || false,
+                        override_rates: false,
                         adult: season?.rake_rate_adult || 0,
                         child: season?.rake_rate_child || 0,
                         guide: season?.rake_rate_guide || 0,
@@ -842,23 +843,23 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
 
             if (baseGroup.count <= countToMove) {
                 // All base adults are moved to discounted group
-                        updated[idx] = {
-                            type: "adult",
-                            count: countToMove,
-                            discount_id: selectedDiscount,
-                            base_rate: baseRate,
-                            final_rate: finalRate,
-                        };
+                updated[idx] = {
+                    type: "adult",
+                    count: countToMove,
+                    discount_id: selectedDiscount,
+                    base_rate: baseRate,
+                    final_rate: finalRate,
+                };
             } else {
                 // Split: reduce base group, add new discounted group
                 updated[idx].count -= countToMove;
-                        updated.push({
-                            type: "adult",
-                            count: countToMove,
-                            discount_id: selectedDiscount,
-                            base_rate: baseRate,
-                            final_rate: finalRate,
-                        });
+                updated.push({
+                    type: "adult",
+                    count: countToMove,
+                    discount_id: selectedDiscount,
+                    base_rate: baseRate,
+                    final_rate: finalRate,
+                });
             }
             setData(prev => ({
                 ...prev,
@@ -1970,13 +1971,24 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                             {data.bill_back && (<span className="text-booking-lbl-main w-full text-center font-normal my-7">
                                 Bill Back - The Wholesaler will be invoiced for R{(Number(data?.rack_value) || 0) * (Number(total) || 0)} after the service is delivered.
                             </span>)}
-                            <BlueButton
-                                title="Submit Booking"
-                                width={"w-[169px]"}
-                                type="button"
-                                onClick={(e) => handleSubmit(e)}
-                                disabled={processing}
-                            />
+
+                            <div className="flex items-center mt-2 space-x-4">
+                                <CustomCheckbox
+                                    label="Pay Later"
+                                    name="pay_later"
+                                    checked={data.pay_later}
+                                    onChange={handleChange}
+                                    errors={errors}
+                                />
+                                <BlueButton
+                                    title="Submit Booking"
+                                    width={"w-[169px]"}
+                                    type="button"
+                                    onClick={(e) => handleSubmit(e)}
+                                    disabled={processing}
+                                />
+                            </div>
+
                             {/* <button
   type="button"
   className="btn-secondary"

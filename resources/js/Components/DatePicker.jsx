@@ -1,11 +1,20 @@
 import { useEffect, useRef, useState } from "react";
 
-const DatePicker = ({ label = "Select Date", name, onChange, errors }) => {
+const DatePicker = ({ label = "Select Date", name, value = null, onChange, errors }) => {
   const calendarRef = useRef(null);
   const buttonRef = useRef(null);
   const [showCalendar, setShowCalendar] = useState(false);
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const [selectedDate, setSelectedDate] = useState(null);
+  const [currentDate, setCurrentDate] = useState(value instanceof Date ? value : new Date());
+  const [selectedDate, setSelectedDate] = useState(value instanceof Date ? value : null);
+
+  useEffect(() => {
+    if (!value) return;
+    const nextDate = value instanceof Date ? value : new Date(value);
+    if (!Number.isNaN(nextDate?.getTime())) {
+      setSelectedDate(nextDate);
+      setCurrentDate(nextDate);
+    }
+  }, [value]);
 
   // Close on outside click
   useEffect(() => {
