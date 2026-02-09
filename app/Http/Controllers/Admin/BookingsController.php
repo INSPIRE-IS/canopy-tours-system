@@ -749,11 +749,16 @@ class BookingsController extends Controller
             Log::info('booking created', [
                 'booking' => $booking,
             ]);
+            $message = "Booking {$booking->reference} saved successfully.";
             if ($validated['pay_later']) {
-                return Inertia::location(route('admin.bookings.index'));
+                return redirect()
+                    ->route('admin.bookings.index')
+                    ->with('success', $message);
             }
 
-            return Inertia::location(route('admin.booking-payments.create', $booking->id));
+            return redirect()
+                ->route('admin.booking-payments.create', $booking->id)
+                ->with('success', $message);
             // return Inertia::location(route('admin.booking_payments.create') . '?booking_id=' . $booking->id);
             // return Inertia::location(route('admin.booking_payments.edit', $booking->id));
             // return redirect()->route('admin.booking_payments.edit', ['booking' => $booking->id]);
