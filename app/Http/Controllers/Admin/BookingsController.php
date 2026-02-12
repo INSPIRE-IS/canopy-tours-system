@@ -259,31 +259,17 @@ class BookingsController extends Controller
 
         $users = User::select('name', 'id')->get();
         $today = now()->toDateString();
-        $currentServiceId = $booking_items?->service_id;
-        $currentSeasonId = $booking_items?->season_id;
-        $currentServiceId = $booking_items?->service_id;
-        $currentSeasonId = $booking_items?->season_id;
         $status_bookings = TypeBooking::select('name', 'id')->get();
         $wholesalers = Wholesaler::select('id', 'name')->get();
         //$services = Service::select('id', 'name')->get();
         $services = Service::select('id', 'name', 'allow_internal_capacity_override', 'duration', 'capacity')
-            ->where(function ($query) use ($today, $currentServiceId) {
-                $query->whereHas('seasons', function ($subQuery) use ($today) {
-                    $subQuery->whereDate('end_date', '>=', $today);
-                });
-                if ($currentServiceId) {
-                    $query->orWhere('id', $currentServiceId);
-                }
+            ->whereHas('seasons', function ($query) use ($today) {
+                $query->whereDate('end_date', '>=', $today);
             })
             ->with([
-                'seasons' => function ($query) use ($today, $currentSeasonId) {
+                'seasons' => function ($query) use ($today) {
                     $query->select('id', 'name', 'start_date', 'end_date', 'service_id', 'rake_rate_adult', 'rake_rate_child', 'rake_rate_guide', 'allow_internal_price_override', 'status')
-                        ->where(function ($subQuery) use ($today, $currentSeasonId) {
-                            $subQuery->whereDate('end_date', '>=', $today);
-                            if ($currentSeasonId) {
-                                $subQuery->orWhere('id', $currentSeasonId);
-                            }
-                        });
+                        ->whereDate('end_date', '>=', $today);
                 },
                 'seasons.inventory',
                 'seasons.inventory.inventory_time_slots',
@@ -848,6 +834,8 @@ class BookingsController extends Controller
 
         $users = User::select('name', 'id')->get();
         $today = now()->toDateString();
+        $currentServiceId = $booking_items?->service_id;
+        $currentSeasonId = $booking_items?->season_id;
         $status_bookings = TypeBooking::select('name', 'id')->get();
         $wholesalers = Wholesaler::select('id', 'name')->get();
         //$services = Service::select('id', 'name')->get();
