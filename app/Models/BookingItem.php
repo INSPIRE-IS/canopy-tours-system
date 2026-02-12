@@ -392,7 +392,7 @@ class BookingItem extends Model
         ];
         logger()->info('season rates ' . var_export($rates, true));
         // Step 2: Override with wholesaler rates (if present)
-        if (!empty($data['wholesaler_id'])) {
+        if (!empty($wholesaler_id)) {
             $wr = WholesalerRate::where('wholesaler_id', $wholesaler_id)
                 ->where('season_id', $season->id)
                 ->first();
@@ -444,6 +444,19 @@ class BookingItem extends Model
 
                 // $totalPax  = collect($data['pax_groups'])->sum('count');
                 $totalPax  = $pax_adults + $pax_children;
+                $guideCount = (int) ($this->pax_guides ?? 0);
+                $baseTotal = ($baseRates['adult'] * $pax_adults)
+                    + ($baseRates['child'] * $pax_children)
+                    + ($baseRates['guide'] * $guideCount);
+                $applyBookingTotal = function (float $targetTotal) use (&$rates, $baseRates, $baseTotal) {
+                    if ($baseTotal <= 0) {
+                        return;
+                    }
+                    $multiplier = max(0, $targetTotal) / $baseTotal;
+                    $rates['adult'] = round($baseRates['adult'] * $multiplier, 2);
+                    $rates['child'] = round($baseRates['child'] * $multiplier, 2);
+                    $rates['guide'] = round($baseRates['guide'] * $multiplier, 2);
+                };
 
                 // Apply promo rules
                 switch ($promo->type) {
@@ -455,8 +468,9 @@ class BookingItem extends Model
                         break;
 
                     case 'fixed_value':
-                        $rates['adult'] = round(max(0, $rates['adult'] - (float) $promo->value), 2);
-                        logger()->info('promo applied ' . var_export($rates, true));
+                        $targetTotal = max(0, $baseTotal - (float) $promo->value);
+                        $applyBookingTotal($targetTotal);
+                        logger()->info('promo applied (booking total) ' . var_export($rates, true));
                         break;
 
                     case 'graduated':
@@ -495,17 +509,8 @@ class BookingItem extends Model
                         logger()->info('paxRate **************** ' . $paxRate);
 
                         if ($paxRate !== null) {
-                            $rates['adult'] = $paxRate;
-                            $rates['child'] = $paxRate;
-                            //$rates['guide'] = $promoTotal;
-
-                            return response()->json([
-                                'base_rates'         => $baseRates,
-                                'applied_rates'      => $rates, // unchanged per-pax; total is overridden
-                                'applied_promotion'  => $appliedPromo,
-                                'applied_discounts'  => [],
-                                'total_price'        => round($paxRate * $totalPax, 2),
-                            ]);
+                            $applyBookingTotal($paxRate);
+                            logger()->info('graduated promo applied (booking total) ' . var_export($rates, true));
                         }
                         // If there’s no exact lookup, fall through to normal per-pax multiplication.
                         break;
@@ -550,15 +555,17 @@ class BookingItem extends Model
                                 }
                             } elseif (($best['type'] ?? '') === 'fixed_value') {
                                 $fv = (float) ($best['value'] ?? 0);
-                                $rates['adult'] = round(max(0, $rates['adult'] - $fv), 2);
+                                $targetTotal = max(0, $baseTotal - $fv);
+                                $applyBookingTotal($targetTotal);
                             }
                         }
                         logger()->info('volume_discount promo applied ' . var_export($rates, true));
                         break;
 
                     case 'time_slot':
-                        $rates['adult'] = round(max(0, $rates['adult'] - ($rates['adult'] * ($promo->value / 100))), 2);
-                        $rates['child'] = round(max(0, $rates['child'] - ($rates['child'] * ($promo->value / 100))), 2);
+                        foreach ($rates as $k => $v) {
+                            $rates[$k] = round($v - ($v * ($promo->value / 100)), 2);
+                        }
                         logger()->info('time_slot promo applied ' . var_export($rates, true));
                         break;
                 }

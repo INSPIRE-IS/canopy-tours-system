@@ -52,17 +52,18 @@ class ServicePromoCalendarBuilder
 
                     // slot-level promo (match day + timeslot_id)
                     foreach ($p->promo_day_time_slots as $slot) {
-                        if ((int) $slot->day_id === $dayOfWeek && $row['slot_id'] === $slot->time_slot_id) {
-                            // check if this row corresponds to the timeslot
-                            if (($row['slot_id'] ?? null) === $slot->time_slot_id) {
-                                $row['days'][$dayLabel]['promo'] = [
-                                    'promo_id' => $p->id,
-                                    'type'     => $p->type,
-                                    'value'    => $p->value,
-                                    'promo_code'     => $p->promo_code,
-                                    'name'     => $p->name,
-                                ];
-                            }
+                        if ((int) $slot->day_id !== $dayOfWeek) {
+                            continue;
+                        }
+                        if ($slot->time_slot_id === null || ($row['slot_id'] ?? null) === $slot->time_slot_id) {
+                            $row['days'][$dayLabel]['promo'] = [
+                                'promo_id' => $p->id,
+                                'type'     => $p->type,
+                                'value'    => $p->value,
+                                'promo_code'     => $p->promo_code,
+                                'name'     => $p->name,
+                            ];
+                            break;
                         }
                     }
                 }
