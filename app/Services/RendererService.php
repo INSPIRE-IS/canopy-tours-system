@@ -43,6 +43,10 @@ class RendererService
                 'total' => $total,
             ];
         })->values()->toArray();
+        $invoiceNote = $invoice->items
+            ->map(fn($item) => $item->booking_inventory?->booking_item?->booking_fee?->invoice_note)
+            ->filter(fn($note) => !empty($note))
+            ->first();
         //dd($services);
         $amountExVat = $invoice->subtotal ?? $booking->grand_tot_due ?? 0;
         $vat = $invoice->vat ?? ($amountExVat * 0.15);
@@ -79,7 +83,7 @@ class RendererService
             'vat_amount'    => $vatAmount,
             'amount_paid'   => $amountPaid,
             'balance_due'   => $balanceDue,
-            'notes'         => 'Please pay within 7 days.',
+            'notes'         => $invoiceNote ?: 'Please pay within 7 days.',
             'bank' => [
                 'owner' => $site->account_owner,
                 'number' => $site->account_number,

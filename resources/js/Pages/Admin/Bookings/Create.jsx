@@ -1852,7 +1852,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                 <CustomCheckbox
                                     label="Send SMS Notification Immediately"
                                     name="send_sms"
-                                    checked={data.corporate_custsend_smsomer}
+                                    checked={data.send_sms}
                                     onChange={handleChange}
                                     errors={errors}
                                 />

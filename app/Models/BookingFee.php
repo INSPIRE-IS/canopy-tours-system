@@ -30,6 +30,7 @@ class BookingFee extends Model
         'is_voucher',
         'voucher_code',
         'invoice_note',
+        'email_reminder',
         'is_email_reminder',
         'booking_note',
         'tot_amount',

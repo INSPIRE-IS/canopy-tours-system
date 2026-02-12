@@ -221,6 +221,7 @@ class BookingsController extends Controller
                     'inventory_time_slot_id' => $booking_item->booking_inventory->inventory_time_slot_id,
                     'service_id' => $booking_item->service_id,
                     'season_id' => $booking_item->season_id,
+                    'booking_note' => $booking_item->booking_fee?->booking_note,
                 ];
                 return $info;
             } catch (\Throwable $e) {
@@ -234,7 +235,14 @@ class BookingsController extends Controller
         });
 
         $lookups = LookupItem::where('is_default', true)->get();
-        $activities = Service::with('seasons')->get();
+        $today = now()->toDateString();
+        $activities = Service::whereHas('seasons', function ($query) use ($today) {
+            $query->whereDate('end_date', '>=', $today);
+        })
+            ->with(['seasons' => function ($query) use ($today) {
+                $query->whereDate('end_date', '>=', $today);
+            }])
+            ->get();
         //dd($formatted);
 
         return Inertia::render('Admin/Bookings/Index', [
@@ -251,11 +259,35 @@ class BookingsController extends Controller
 
         $users = User::select('name', 'id')->get();
         $today = now()->toDateString();
+        $currentServiceId = $booking_items?->service_id;
+        $currentSeasonId = $booking_items?->season_id;
+        $currentServiceId = $booking_items?->service_id;
+        $currentSeasonId = $booking_items?->season_id;
         $status_bookings = TypeBooking::select('name', 'id')->get();
         $wholesalers = Wholesaler::select('id', 'name')->get();
         //$services = Service::select('id', 'name')->get();
         $services = Service::select('id', 'name', 'allow_internal_capacity_override', 'duration', 'capacity')
-            ->with('seasons:id,name,start_date,end_date,service_id,rake_rate_adult,rake_rate_child,rake_rate_guide,allow_internal_price_override,status', 'seasons.inventory', 'seasons.inventory.inventory_time_slots')
+            ->where(function ($query) use ($today, $currentServiceId) {
+                $query->whereHas('seasons', function ($subQuery) use ($today) {
+                    $subQuery->whereDate('end_date', '>=', $today);
+                });
+                if ($currentServiceId) {
+                    $query->orWhere('id', $currentServiceId);
+                }
+            })
+            ->with([
+                'seasons' => function ($query) use ($today, $currentSeasonId) {
+                    $query->select('id', 'name', 'start_date', 'end_date', 'service_id', 'rake_rate_adult', 'rake_rate_child', 'rake_rate_guide', 'allow_internal_price_override', 'status')
+                        ->where(function ($subQuery) use ($today, $currentSeasonId) {
+                            $subQuery->whereDate('end_date', '>=', $today);
+                            if ($currentSeasonId) {
+                                $subQuery->orWhere('id', $currentSeasonId);
+                            }
+                        });
+                },
+                'seasons.inventory',
+                'seasons.inventory.inventory_time_slots',
+            ])
             ->get();
         //$seasons = Season::select('id', 'name', 'service_id')->get();
         $seasons = Season::select('start_date', 'id')->get();
@@ -418,7 +450,7 @@ class BookingsController extends Controller
                         'lead_name' => $customer->full_name,
                         'type_booking_id' => 1,
                         'status_payment_id' => 1,
-                        'is_sms' => 0,
+                        'is_sms' => $validated['send_sms'] ?? 0,
                         'is_corporate' => $validated['corporate_customer'],
                         'due_date' => $validated['booking_date'],
                         'tot_paid' => 0,
@@ -551,6 +583,7 @@ class BookingsController extends Controller
                     'is_voucher'     => $validated['redeem_voucher'] ? 1 : 0,
                     'voucher_code'   => $validated['redeem_voucher'] ?? '',
                     'invoice_note'   => $validated['invoice_note'] ?? '',
+                    'email_reminder' => $validated['email_reminder'] ?? '',
                     'is_email_reminder' => $validated['email_reminder'] ? 1 : 0,
                     'booking_note'   => $validated['booking_note'] ?? '',
                     'tot_amount'     => $amount,
@@ -600,11 +633,15 @@ class BookingsController extends Controller
 
                 $invoiceFilename = 'invoices/' . $data['invoice']['number'] . '.pdf';
                 Storage::disk('public')->put($invoiceFilename, $invoicePdf->output());
+                $reminderContent = !empty($validated['email_reminder'])
+                    ? "<p><strong>Reminder</strong></p><p>{$validated['email_reminder']}</p>"
+                    : '';
                 $content = "
                         <p>Hello {$customer->full_name},</p>
                         <p>Your booking has been created. Payment is required to confirm.</p>
                         <p>Thank you for choosing Canopy Tours.</p>
                         <p>Your booking reference is {$booking->reference}.</p>
+                        {$reminderContent}
                         <p>Please contact us if you have any questions.</p>";
                 // send mail
                 // 🔹 log in emails table
@@ -815,7 +852,27 @@ class BookingsController extends Controller
         $wholesalers = Wholesaler::select('id', 'name')->get();
         //$services = Service::select('id', 'name')->get();
         $services = Service::select('id', 'name', 'allow_internal_capacity_override', 'duration', 'capacity')
-            ->with('seasons:id,name,start_date,end_date,service_id,rake_rate_adult,rake_rate_child,rake_rate_guide,allow_internal_price_override,status', 'seasons.inventory', 'seasons.inventory.inventory_time_slots')
+            ->where(function ($query) use ($today, $currentServiceId) {
+                $query->whereHas('seasons', function ($subQuery) use ($today) {
+                    $subQuery->whereDate('end_date', '>=', $today);
+                });
+                if ($currentServiceId) {
+                    $query->orWhere('id', $currentServiceId);
+                }
+            })
+            ->with([
+                'seasons' => function ($query) use ($today, $currentSeasonId) {
+                    $query->select('id', 'name', 'start_date', 'end_date', 'service_id', 'rake_rate_adult', 'rake_rate_child', 'rake_rate_guide', 'allow_internal_price_override', 'status')
+                        ->where(function ($subQuery) use ($today, $currentSeasonId) {
+                            $subQuery->whereDate('end_date', '>=', $today);
+                            if ($currentSeasonId) {
+                                $subQuery->orWhere('id', $currentSeasonId);
+                            }
+                        });
+                },
+                'seasons.inventory',
+                'seasons.inventory.inventory_time_slots',
+            ])
             ->get();
         //$seasons = Season::select('id', 'name', 'service_id')->get();
         $seasons = Season::select('start_date', 'id')->get();
@@ -904,7 +961,7 @@ class BookingsController extends Controller
             'lead_person' => 'required|string',
             'lead_email' => 'required|email',
             'lead_mobile' => 'required|string',
-            'selected_slot' => 'nullable|array',
+            'selected_slot' => 'required|array',
 
             'service_id' => 'required|integer',
             'season_id' => 'required|integer',
@@ -951,11 +1008,8 @@ class BookingsController extends Controller
                     ->where('booking_id', $booking->id)
                     ->firstOrFail();
 
-                $selectedSlot = $validated['selected_slot'] ?? [];
-                $bookingDate = $validated['booking_date'] ?? ($selectedSlot['activityDate'] ?? null);
-                if (!$bookingDate) {
-                    abort(422, 'Booking date is required.');
-                }
+                $selectedSlot = $validated['selected_slot'];
+                $bookingDate = $validated['booking_date'];
 
                 $season = Season::findOrFail($validated['season_id']);
                 $inventory = Inventory::where('season_id', $season->id)->first();
@@ -963,15 +1017,9 @@ class BookingsController extends Controller
                     abort(404, 'This season has no inventory.');
                 }
 
-                $inventoryTimeSlot = null;
-                if (!empty($validated['start_time'])) {
-                    $inventoryTimeSlot = InventoryTimeSlot::find($validated['start_time']);
-                }
-                if (!$inventoryTimeSlot && !empty($selectedSlot['time'])) {
-                    $inventoryTimeSlot = InventoryTimeSlot::where('inventory_id', $inventory->id)
-                        ->where('start_time', $selectedSlot['time'])
-                        ->first();
-                }
+                $inventoryTimeSlot = InventoryTimeSlot::where('inventory_id', $inventory->id)
+                    ->where('start_time', $selectedSlot['time'])
+                    ->first();
 
                 if (!$inventoryTimeSlot && !$validated['override_timeslots']) {
                     abort(404, 'This inventory has no time slot.');
@@ -1109,6 +1157,7 @@ class BookingsController extends Controller
                     'is_voucher' => $validated['redeem_voucher'] ? 1 : 0,
                     'voucher_code' => $validated['redeem_voucher'] ?? '',
                     'invoice_note' => $validated['invoice_note'] ?? '',
+                    'email_reminder' => $validated['email_reminder'] ?? '',
                     'is_email_reminder' => $validated['email_reminder'] ? 1 : 0,
                     'booking_note' => $validated['booking_note'] ?? '',
                     'tot_amount' => $amount,
@@ -1204,11 +1253,15 @@ class BookingsController extends Controller
 
                 $invoiceFilename = 'invoices/' . $data['invoice']['number'] . '.pdf';
                 Storage::disk('public')->put($invoiceFilename, $invoicePdf->output());
+                $reminderContent = !empty($validated['email_reminder'])
+                    ? "<p><strong>Reminder</strong></p><p>{$validated['email_reminder']}</p>"
+                    : '';
                 $content = "
                         <p>Hello {$customer->full_name},</p>
                         <p>Your booking has been updated. Please review your updated invoice.</p>
                         <p>Thank you for choosing Canopy Tours.</p>
                         <p>Your booking reference is {$booking->reference}.</p>
+                        {$reminderContent}
                         <p>Please contact us if you have any questions.</p>";
                 Email::create([
                     'sender'         => config('mail.from.address'),
@@ -1769,7 +1822,17 @@ class BookingsController extends Controller
         $wholesalers = Wholesaler::select('id', 'name')->get();
         //$services = Service::select('id', 'name')->get();
         $services = Service::select('id', 'name', 'allow_internal_capacity_override', 'duration', 'capacity')
-            ->with('seasons:id,name,start_date,end_date,service_id,rake_rate_adult,rake_rate_child,rake_rate_guide,allow_internal_price_override,status', 'seasons.inventory', 'seasons.inventory.inventory_time_slots')
+            ->whereHas('seasons', function ($query) use ($today) {
+                $query->whereDate('end_date', '>=', $today);
+            })
+            ->with([
+                'seasons' => function ($query) use ($today) {
+                    $query->select('id', 'name', 'start_date', 'end_date', 'service_id', 'rake_rate_adult', 'rake_rate_child', 'rake_rate_guide', 'allow_internal_price_override', 'status')
+                        ->whereDate('end_date', '>=', $today);
+                },
+                'seasons.inventory',
+                'seasons.inventory.inventory_time_slots',
+            ])
             ->get();
         //$seasons = Season::select('id', 'name', 'service_id')->get();
         $seasons = Season::select('start_date', 'id')->get();

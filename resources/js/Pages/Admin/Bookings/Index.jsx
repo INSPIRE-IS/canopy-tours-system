@@ -1,6 +1,7 @@
 ﻿import BookingToolsModal from '@/Components/BookingToolsModal';
 import CustomerToolsModal from '@/Components/CustomerToolsModal';
 import GuestEmailModal from '@/Components/GuestEmailModal';
+import BookingNotesModal from '@/Components/BookingNotesModal';
 import Header from '@/Components/Header';
 import { icons } from '@/icons';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
@@ -36,6 +37,7 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
     const [customerToolsTarget, setCustomerToolsTarget] = useState(null); // { customer, position }
     const [bookingToolsTarget, setBookingToolsTarget] = useState(null); // { customer, position }
     const [guestEmailTarget, setGuestEmailTarget] = useState(null); // { customer, position }
+    const [bookingNotesTarget, setBookingNotesTarget] = useState(null);
     const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
     const [isViewBookingModalOpen, setIsViewBookingModalOpen] = useState(false);
     const [isEditTimeSlotModalOpen, setIsEditTimeSlotModalOpen] = useState(false);
@@ -44,11 +46,22 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
     const [selectedBooking, setSelectedBooking] = useState(null);
     const [selectedManifests, setSelectedManifests] = useState(null);
     const [selectedManifest, setSelectedManifest] = useState(null);
-    const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
-    const [rangeStart, setRangeStart] = useState(format(new Date(), 'yyyy-MM-dd'));
-    const [rangeEnd, setRangeEnd] = useState(format(new Date(), 'yyyy-MM-dd'));
-    const [viewMode, setViewMode] = useState(VIEW_MODES.DAY);
-    const [selectedServiceId, setSelectedServiceId] = useState('0');
+    const today = format(new Date(), 'yyyy-MM-dd');
+    const [selectedDate, setSelectedDate] = useState(() => {
+        return sessionStorage.getItem('bookings.selectedDate') || format(new Date(), 'yyyy-MM-dd');
+    });
+    const [rangeStart, setRangeStart] = useState(() => {
+        return sessionStorage.getItem('bookings.rangeStart') || format(new Date(), 'yyyy-MM-dd');
+    });
+    const [rangeEnd, setRangeEnd] = useState(() => {
+        return sessionStorage.getItem('bookings.rangeEnd') || format(new Date(), 'yyyy-MM-dd');
+    });
+    const [viewMode, setViewMode] = useState(() => {
+        return sessionStorage.getItem('bookings.viewMode') || VIEW_MODES.DAY;
+    });
+    const [selectedServiceId, setSelectedServiceId] = useState(() => {
+        return sessionStorage.getItem('bookings.selectedServiceId') || '0';
+    });
     const [showServices, setShowServices] = useState(false);
     const [confirmOpen, setConfirmOpen] = useState(false);
     const [viewDocsIndex, setViewDocsIndex] = useState(null);
@@ -113,6 +126,9 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
         if (tool === 'message_guest') {
             setGuestEmailTarget(booking);
             setIsEmailModalOpen(true);
+        }
+        if (tool === 'booking_notes') {
+            setBookingNotesTarget(booking);
         }
         // if (tool === 'message_staff') {
         //     router.get(route('admin.messenger.createTopic'));
@@ -310,8 +326,9 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                 });
             });
         } else if (viewMode === VIEW_MODES.WEEK) {
-            const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
-            const weekEnd = endOfWeek(new Date(), { weekStartsOn: 1 });
+            const selected = selectedDate ? parseISO(selectedDate) : new Date();
+            const weekStart = startOfWeek(selected, { weekStartsOn: 1 });
+            const weekEnd = endOfWeek(selected, { weekStartsOn: 1 });
             next = next.filter(booking => {
                 const bookingDate = normalizeBookingDate(booking.booking_date);
                 return bookingDate
@@ -330,8 +347,39 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
         setFilteredBookings(applyFilters());
     }, [bookings, selectedServiceId, viewMode, selectedDate, rangeStart, rangeEnd]);
 
+    useEffect(() => {
+        sessionStorage.setItem('bookings.selectedDate', selectedDate || '');
+    }, [selectedDate]);
+
+    useEffect(() => {
+        sessionStorage.setItem('bookings.rangeStart', rangeStart || '');
+    }, [rangeStart]);
+
+    useEffect(() => {
+        sessionStorage.setItem('bookings.rangeEnd', rangeEnd || '');
+    }, [rangeEnd]);
+
+    useEffect(() => {
+        sessionStorage.setItem('bookings.viewMode', viewMode || '');
+    }, [viewMode]);
+
+    useEffect(() => {
+        sessionStorage.setItem('bookings.selectedServiceId', selectedServiceId || '0');
+    }, [selectedServiceId]);
+
+    const handleTodayClick = () => {
+
+        if (viewMode === VIEW_MODES.RANGE) {
+            setRangeStart(today);
+            setRangeEnd(today);
+            return;
+        }
+        setSelectedDate(today);
+    };
+
     const handleCloseModal = () => {
         setGuestEmailTarget(null);
+        setBookingNotesTarget(null);
         setIsEditTimeSlotModalOpen(false);
         setIsViewBookingModalOpen(false);
         setSelectedBooking(null);
@@ -356,6 +404,13 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                     <div className="flex flex-wrap items-center gap-4">
                         <div className="flex flex-wrap items-end gap-3">
                             <div className="flex flex-wrap items-center gap-2">
+                                <WhiteButton
+                                    title="Today"
+                                    width="w-[90px]"
+                                    textColor={selectedDate === today ? 'text-white' : 'text-primary-14'}
+                                    className={selectedDate === today ? 'bg-blue-gradient-overlay border-[#3863C6]' : ''}
+                                    onClick={handleTodayClick}
+                                />
                                 <WhiteButton
                                     title="Day"
                                     width="w-[90px]"
@@ -441,9 +496,10 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                                 )}
                                 {viewMode === VIEW_MODES.WEEK && (
                                     <div className="text-[#161618] font-poppins text-[14px] font-semibold leading-[130%] h-[40px] px-4 py-2 rounded-xl border-[3px] border-primary-14 cursor-pointer">
-                                        Week of {format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd')} to {format(endOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd')}
+                                        Week of {format(startOfWeek(selectedDate ? parseISO(selectedDate) : new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd')} to {format(endOfWeek(selectedDate ? parseISO(selectedDate) : new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd')}
                                     </div>
                                 )}
+
                                 <div className="relative" ref={servicesRef}>
                                     <button onClick={() => setShowServices(!showServices)}
                                         className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] border-primary-14 text-primary-14 cursor-pointer">
@@ -683,6 +739,11 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                     mode='create'
                     booking={guestEmailTarget}
                 />
+                <BookingNotesModal
+                    isOpen={!!bookingNotesTarget}
+                    onClose={() => setBookingNotesTarget(null)}
+                    booking={bookingNotesTarget}
+                />
 
                 <ManifestModal
                     isOpen={isManifestModalOpen}
@@ -708,5 +769,3 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
         </AuthenticatedLayout>
     );
 }
-
-
