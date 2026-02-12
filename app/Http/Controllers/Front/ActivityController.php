@@ -350,9 +350,11 @@ class ActivityController extends Controller
             $timeSlot = $inventory->inventory_time_slots?->where('start_time', $slotTime)->first();
             logger()->info('time slot ', [$timeSlot]);
 
-            $valid = $promo->promo_day_time_slots
-                ->where('day_id', $dayNumber)
-                ->where('time_slot_id', $timeSlot->id)->first();
+            $daySlots = $promo->promo_day_time_slots->where('day_id', $dayNumber);
+            $hasDayOnly = $daySlots->contains(function ($slot) {
+                return $slot->time_slot_id == null;
+            });
+            $valid = $hasDayOnly ? true : ($timeSlot ? $daySlots->where('time_slot_id', $timeSlot->id)->first() : null);
             logger()->info('day time slot valid ', [$valid]);
             if (!$valid) {
                 return response()->json(['status' => false, 'promo' => 'day time slot in valid']);
@@ -427,38 +429,118 @@ class ActivityController extends Controller
                     }
                     $is_voucher = true;
                     $promotion_id = $promo->id;
-                    if ($promo->type == 'time_slot') {
-                        $tot_adults = $adults > 0 ? $tot_adults * (1 - $promo->value / 100) : 0;
-                        $tot_children = $children > 0 ? $tot_children * (1 - $promo->value / 100) : 0;
-                        $tot_guides = $guides > 0 ? $tot_guides * (1 - $promo->value / 100) : 0;
+                    $baseTotals = [
+                        'adult' => $tot_adults,
+                        'child' => $tot_children,
+                        'guide' => $tot_guides,
+                    ];
+                    $baseTotal = $baseTotals['adult'] + $baseTotals['child'] + $baseTotals['guide'];
+                    $applyMultiplier = function (float $multiplier) use (&$tot_adults, &$tot_children, &$tot_guides, $baseTotals) {
+                        $tot_adults = round($baseTotals['adult'] * $multiplier, 2);
+                        $tot_children = round($baseTotals['child'] * $multiplier, 2);
+                        $tot_guides = round($baseTotals['guide'] * $multiplier, 2);
+                    };
+                    $applyBookingDiscount = function (float $discount) use ($baseTotal, $applyMultiplier) {
+                        if ($baseTotal <= 0) {
+                            return;
+                        }
+                        $targetTotal = max(0, $baseTotal - $discount);
+                        $multiplier = $targetTotal / $baseTotal;
+                        $applyMultiplier($multiplier);
+                    };
+
+                    $params = $promo->params;
+                    if (is_string($params)) {
+                        $decoded = json_decode($params, true);
+                        $params = is_array($decoded) ? $decoded : [];
                     }
-                    if ($promo->type == 'fixed_value') {
-                        $tot_adults = $adults > 0 ? $tot_adults -  $promo->value : 0;
-                        $tot_children = $children > 0 ? $tot_children -  $promo->value : 0;
-                        $tot_guides = $guides > 0 ? $tot_guides -  $promo->value : 0;
+                    if (!is_array($params)) {
+                        $params = [];
                     }
-                    // if($promo->type == 'graduated'){
-                    //     $tot_adults = $adults > 0 ? $tot_adults -  $promo->value : 0;
-                    //     $tot_children = $children > 0 ? $tot_children -  $promo->value : 0;
-                    //     $tot_guides = $guides > 0 ? $tot_guides -  $promo->value : 0;
-                    // }
-                    if ($promo->type == 'percent') {
-                        $tot_adults = $adults > 0 ? $tot_adults -  $promo->value : 0;
-                        $tot_children = $children > 0 ? $tot_children -  $promo->value : 0;
-                        $tot_guides = $guides > 0 ? $tot_guides -  $promo->value : 0;
+
+                    $totalPax = $adults + $children;
+                    switch ($promo->type) {
+                        case 'time_slot':
+                        case 'percent':
+                            $multiplier = 1 - ((float) $promo->value / 100);
+                            $applyMultiplier($multiplier);
+                            break;
+                        case 'fixed_value':
+                            $applyBookingDiscount((float) $promo->value);
+                            break;
+                        case 'graduated':
+                            $paxRate = null;
+                            if (!empty($params['lookup']) && is_array($params['lookup'])) {
+                                $key = (string) $totalPax;
+                                if (array_key_exists($key, $params['lookup'])) {
+                                    $paxRate = (float) $params['lookup'][$key];
+                                }
+                            } elseif (!empty($params['lookup']) && is_string($params['lookup'])) {
+                                $lk = json_decode($params['lookup'], true) ?: [];
+                                $key = (string) $totalPax;
+                                if (is_array($lk) && array_key_exists($key, $lk)) {
+                                    $paxRate = (float) $lk[$key];
+                                }
+                            } elseif (!empty($params['lookup']) && is_object($params['lookup'])) {
+                                $lk = (array) $params['lookup'];
+                                $key = (string) $totalPax;
+                                if (array_key_exists($key, $lk)) {
+                                    $paxRate = (float) $lk[$key];
+                                }
+                            } elseif (!empty($params['lookup']) && is_iterable($params['lookup'])) {
+                                foreach ($params['lookup'] as $row) {
+                                    if (isset($row['pax']) && (int) $row['pax'] === (int) $totalPax) {
+                                        $paxRate = (float) ($row['value'] ?? 0);
+                                        break;
+                                    }
+                                }
+                            }
+                            if ($paxRate !== null && $baseTotal > 0) {
+                                $applyMultiplier($paxRate / $baseTotal);
+                            }
+                            break;
+                        case 'varied_child':
+                            if (!empty($params['tiers']) && is_array($params['tiers'])) {
+                                $best = collect($params['tiers'])
+                                    ->filter(fn($t) => isset($t['min_adults']) && $adults >= (int) $t['min_adults'])
+                                    ->sortByDesc('min_adults')
+                                    ->first();
+                                if ($best && isset($best['child_discount_percent'])) {
+                                    $pct = (float) $best['child_discount_percent'];
+                                    $tot_children = round($baseTotals['child'] * (1 - ($pct / 100)), 2);
+                                }
+                            } elseif (isset($params['min_adults'], $params['child_discount_percent'])) {
+                                if ($adults >= (int) $params['min_adults']) {
+                                    $pct = (float) $params['child_discount_percent'];
+                                    $tot_children = round($baseTotals['child'] * (1 - ($pct / 100)), 2);
+                                }
+                            }
+                            break;
+                        case 'volume_discount':
+                            $best = null;
+                            if (!empty($params['tiers']) && is_array($params['tiers'])) {
+                                $best = collect($params['tiers'])
+                                    ->filter(fn($t) => isset($t['pax']) && $totalPax >= (int) $t['pax'])
+                                    ->sortByDesc('pax')
+                                    ->first();
+                            }
+                            if ($best) {
+                                if (($best['type'] ?? '') === 'percent') {
+                                    $pct = (float) ($best['value'] ?? 0);
+                                    $applyMultiplier(1 - ($pct / 100));
+                                } elseif (($best['type'] ?? '') === 'fixed_value') {
+                                    $applyBookingDiscount((float) ($best['value'] ?? 0));
+                                }
+                            }
+                            break;
                     }
-                    // if($promo->type == 'varied_child'){
-                    //     $tot_adults = $adults > 0 ? $tot_adults -  $promo->value : 0;
-                    //     $tot_children = $children > 0 ? $tot_children -  $promo->value : 0;
-                    //     $tot_guides = $guides > 0 ? $tot_guides -  $promo->value : 0;
-                    // }
-                    // if($promo->type == 'volume_discount'){
-                    //     $tot_adults = $adults > 0 ? $tot_adults -  $promo->value : 0;
-                    //     $tot_children = $children > 0 ? $tot_children -  $promo->value : 0;
-                    //     $tot_guides = $guides > 0 ? $tot_guides -  $promo->value : 0;
-                    // }
+
                     $amount = $tot_adults + $tot_children + $tot_guides;
                 }
+
+                $rate_adult = $adults > 0 ? round($tot_adults / $adults, 2) : 0;
+                $rate_child = $children > 0 ? round($tot_children / $children, 2) : 0;
+                $rate_guide = $guides > 0 ? round($tot_guides / $guides, 2) : 0;
 
                 if (!$inventory) {
                     abort(404, 'This season has no inventory.');
@@ -511,9 +593,9 @@ class ActivityController extends Controller
                     'season_id' => $season->id,
                     'inventory_id' => $inventory->id,
                     'booking_id' => $booking->id,
-                    'price_adult' => $season->rake_rate_adult,
-                    'price_child' => $season->rake_rate_child,
-                    'price_guide' => $season->rake_rate_guide,
+                    'price_adult' => $rate_adult,
+                    'price_child' => $rate_child,
+                    'price_guide' => $rate_guide,
                     'promotion_id' => $promotion_id,
                     'pax_adults' => $adults,
                     'pax_children' => $children,

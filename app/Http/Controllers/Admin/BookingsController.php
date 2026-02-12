@@ -2431,7 +2431,20 @@ class BookingsController extends Controller
                     // $totalPax  = collect($data['pax_groups'])->sum('count');
                     $adultCount = collect($data['pax_groups'])->where('type', 'adult')->sum('count');
                     $childCount = collect($data['pax_groups'])->where('type', 'child')->sum('count');
+                    $guideCount = collect($data['pax_groups'])->where('type', 'guide')->sum('count');
                     $totalPax  = $adultCount + $childCount;
+                    $baseTotal = ($baseRates['adult'] * $adultCount)
+                        + ($baseRates['child'] * $childCount)
+                        + ($baseRates['guide'] * $guideCount);
+                    $applyBookingTotal = function (float $targetTotal) use (&$rates, $baseRates, $baseTotal) {
+                        if ($baseTotal <= 0) {
+                            return;
+                        }
+                        $multiplier = max(0, $targetTotal) / $baseTotal;
+                        $rates['adult'] = round($baseRates['adult'] * $multiplier, 2);
+                        $rates['child'] = round($baseRates['child'] * $multiplier, 2);
+                        $rates['guide'] = round($baseRates['guide'] * $multiplier, 2);
+                    };
                     logger()->info('totalPax ' . $totalPax);
                     logger()->info('adultCount ' . $adultCount);
                     logger()->info('childCount ' . $childCount);
@@ -2445,12 +2458,13 @@ class BookingsController extends Controller
                             break;
                         case 'time_slot':
                             foreach ($rates as $k => $v) {
-                                $rates[$k] = $v - ($v * ($promo->value / 100));
+                                $rates[$k] = round($v - ($v * ($promo->value / 100)), 2);
                             }
                             break;
                         case 'fixed_value':
-                            $rates['adult'] = round(max(0, $rates['adult'] - (float) $promo->value), 2);
-                            logger()->info('promo applied ' . var_export($rates, true));
+                            $targetTotal = max(0, $baseTotal - (float) $promo->value);
+                            $applyBookingTotal($targetTotal);
+                            logger()->info('promo applied (booking total) ' . var_export($rates, true));
                             break;
 
                         case 'graduated':
@@ -2489,17 +2503,8 @@ class BookingsController extends Controller
                             logger()->info('paxRate **************** ' . $paxRate);
 
                             if ($paxRate !== null) {
-                                $rates['adult'] = $paxRate;
-                                $rates['child'] = $paxRate;
-                                //$rates['guide'] = $promoTotal;
-
-                                return response()->json([
-                                    'base_rates'         => $baseRates,
-                                    'applied_rates'      => $rates, // unchanged per-pax; total is overridden
-                                    'applied_promotion'  => $appliedPromo,
-                                    'applied_discounts'  => [],
-                                    'total_price'        => round($paxRate * $totalPax, 2),
-                                ]);
+                                $applyBookingTotal($paxRate);
+                                logger()->info('graduated promo applied (booking total) ' . var_export($rates, true));
                             }
                             // If there’s no exact lookup, fall through to normal per-pax multiplication.
                             break;
@@ -2544,7 +2549,8 @@ class BookingsController extends Controller
                                     }
                                 } elseif (($best['type'] ?? '') === 'fixed_value') {
                                     $fv = (float) ($best['value'] ?? 0);
-                                    $rates['adult'] = round(max(0, $rates['adult'] - $fv), 2);
+                                    $targetTotal = max(0, $baseTotal - $fv);
+                                    $applyBookingTotal($targetTotal);
                                 }
                             }
                             logger()->info('volume_discount promo applied ' . var_export($rates, true));
@@ -2825,14 +2831,14 @@ class BookingsController extends Controller
         }
 
 
-        // 🔹 Load Blade view with data
+        //  Load Blade view with data
         $data = $renderService->invoice($booking, $customer);
         $invoicePdf = Pdf::loadView('invoices.invoice', $data);
 
         // Optional: tweak DOMPDF options
         $invoicePdf->setPaper('A4', 'portrait');
 
-        // 🔹 Download or stream PDF
+        //  Download or stream PDF
         //return $pdf->download('invoice-' . $data['invoice']['number'] . '.pdf');
         return $invoicePdf->stream(); // to preview in browser
 

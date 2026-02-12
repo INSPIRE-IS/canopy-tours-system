@@ -123,9 +123,11 @@ class Promotion extends Model
 
         // 4. promo day time slot must match
         if ($this->promo_day_time_slots->isNotEmpty()) {
-            $valid = $this->promo_day_time_slots
-                ->where('day_id', $dayNumber)
-                ->where('time_slot_id', $timeSlot->id)->first();
+            $daySlots = $this->promo_day_time_slots->where('day_id', $dayNumber);
+            $hasDayOnly = $daySlots->contains(function ($slot) {
+                return $slot->time_slot_id == null;
+            });
+            $valid = $hasDayOnly ? true : ($timeSlot ? $daySlots->where('time_slot_id', $timeSlot->id)->first() : null);
             logger()->info('day time slot valid ', [$valid]);
             if (!$valid) {
                 return ['status' => false, 'promo' => 'day time slot in valid'];

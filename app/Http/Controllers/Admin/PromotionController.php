@@ -11,6 +11,7 @@ use App\Models\Service;
 use App\Models\TypeDay;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
@@ -46,8 +47,8 @@ class PromotionController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'promo_code' => ['required', 'string', 'max:50', 'unique:promotions,promo_code'],
-            'type' => ['required', 'in:percent,fixed_value,graduated,varied_child,volume_discount,time_slot'],
-            'value' => ['numeric', 'min:0'],
+            'type' => ['required', Rule::in(['percent', 'fixed_value', 'graduated', 'varied_child', 'volume_discount', 'time_slot'])],
+            'value' => ['nullable', 'numeric', 'min:0'],
             'params' => ['nullable'],
             'service_id' => ['required', 'exists:services,id'],
             'season_id' => ['nullable', 'exists:seasons,id'],
@@ -59,6 +60,59 @@ class PromotionController extends Controller
             'valid_slots' => ['nullable', 'string'],
             'internal_use_only' => ['boolean'],
         ]);
+
+        $rawValue = $request->input('value');
+        $requiresValue = in_array($data['type'], ['percent', 'fixed_value', 'time_slot'], true);
+        if ($requiresValue && ($rawValue === null || $rawValue === '')) {
+            throw ValidationException::withMessages([
+                'value' => ['A value is required for this promotion type.'],
+            ]);
+        }
+        $data['value'] = ($rawValue === null || $rawValue === '') ? 0 : (float) $rawValue;
+
+        if (in_array($data['type'], ['percent', 'time_slot'], true) && $data['value'] > 100) {
+            throw ValidationException::withMessages([
+                'value' => ['Percent cannot exceed 100.'],
+            ]);
+        }
+
+        $params = $request->input('params');
+        if (is_string($params)) {
+            $decoded = json_decode($params, true);
+            $params = is_array($decoded) ? $decoded : [];
+        }
+        if (!is_array($params)) {
+            $params = [];
+        }
+        $data['params'] = $params;
+
+        if ($data['type'] === 'graduated' && empty($params['lookup'])) {
+            throw ValidationException::withMessages([
+                'params' => ['Graduated promotions require a lookup table.'],
+            ]);
+        }
+
+        if ($data['type'] === 'volume_discount' && empty($params['tiers'])) {
+            throw ValidationException::withMessages([
+                'params' => ['Volume discounts require tiers.'],
+            ]);
+        }
+
+        if ($data['type'] === 'varied_child') {
+            $hasTiers = !empty($params['tiers']);
+            $hasSingle = isset($params['min_adults'], $params['child_discount_percent']);
+            if (!$hasTiers && !$hasSingle) {
+                throw ValidationException::withMessages([
+                    'params' => ['Varied child promotions require tiers or a min adult rule.'],
+                ]);
+            }
+        }
+
+        if ($data['type'] === 'time_slot' && empty($data['season_id'])) {
+            throw ValidationException::withMessages([
+                'season_id' => ['Season is required for time slot promotions.'],
+            ]);
+        }
 
         $today = Carbon::today();
         if (Carbon::parse($data['booking_start_date'])->lt($today)) {
@@ -104,28 +158,31 @@ class PromotionController extends Controller
         // }
 
         $promo = Promotion::create($data);
-        $valid_days = explode(',', $request->valid_days);
-        $valid_times = explode(',', $request->valid_slots);
-        foreach ($valid_days as $day) {
-            $day = TypeDay::where('id', $day)->first();
-            if (!$day) {
-                continue;
-            }
-            if ($valid_times == null) {
-                $promo->promo_day_time_slots()->create([
-                    'day_id' => $day->id,
-                    'time_slot_id' => null,
-                ]);
-            } else {
-                foreach ($valid_times as $time) {
-                    $time = InventoryTimeSlot::where('id', $time)->first();
-                    if (!$time) {
-                        continue;
-                    }
+        $valid_days = array_filter(array_map('trim', explode(',', (string) $request->valid_days)));
+        $valid_times = array_filter(array_map('trim', explode(',', (string) $request->valid_slots)));
+
+        if (!empty($valid_days)) {
+            foreach ($valid_days as $day) {
+                $day = TypeDay::where('id', $day)->first();
+                if (!$day) {
+                    continue;
+                }
+                if (empty($valid_times)) {
                     $promo->promo_day_time_slots()->create([
                         'day_id' => $day->id,
-                        'time_slot_id' => $time->id,
+                        'time_slot_id' => null,
                     ]);
+                } else {
+                    foreach ($valid_times as $time) {
+                        $time = InventoryTimeSlot::where('id', $time)->first();
+                        if (!$time) {
+                            continue;
+                        }
+                        $promo->promo_day_time_slots()->create([
+                            'day_id' => $day->id,
+                            'time_slot_id' => $time->id,
+                        ]);
+                    }
                 }
             }
         }
@@ -139,16 +196,72 @@ class PromotionController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'promo_code' => ['required', 'string', 'max:50', 'unique:promotions,promo_code,' . $promotion->id],
-            'type' => ['required', 'in:percent,fixed_value,graduated,varied_child'],
-            'value' => ['required', 'numeric', 'min:0'],
+            'type' => ['required', Rule::in(['percent', 'fixed_value', 'graduated', 'varied_child', 'volume_discount', 'time_slot'])],
+            'value' => ['nullable', 'numeric', 'min:0'],
+            'params' => ['nullable'],
             'service_id' => ['required', 'exists:services,id'],
+            'season_id' => ['nullable', 'exists:seasons,id'],
             'booking_start_date' => ['required', 'date'],
             'booking_end_date' => ['required', 'date', 'after_or_equal:booking_start_date'],
             'activity_start_date' => ['required', 'date'],
             'activity_end_date' => ['required', 'date', 'after_or_equal:activity_start_date'],
-            //'valid_days' => ['nullable', 'string'],
+            'valid_days' => ['nullable', 'string'],
+            'valid_slots' => ['nullable', 'string'],
             'internal_use_only' => ['boolean'],
         ]);
+
+        $rawValue = $request->input('value');
+        $requiresValue = in_array($data['type'], ['percent', 'fixed_value', 'time_slot'], true);
+        if ($requiresValue && ($rawValue === null || $rawValue === '')) {
+            throw ValidationException::withMessages([
+                'value' => ['A value is required for this promotion type.'],
+            ]);
+        }
+        $data['value'] = ($rawValue === null || $rawValue === '') ? 0 : (float) $rawValue;
+
+        if (in_array($data['type'], ['percent', 'time_slot'], true) && $data['value'] > 100) {
+            throw ValidationException::withMessages([
+                'value' => ['Percent cannot exceed 100.'],
+            ]);
+        }
+
+        $params = $request->input('params');
+        if (is_string($params)) {
+            $decoded = json_decode($params, true);
+            $params = is_array($decoded) ? $decoded : [];
+        }
+        if (!is_array($params)) {
+            $params = [];
+        }
+        $data['params'] = $params;
+
+        if ($data['type'] === 'graduated' && empty($params['lookup'])) {
+            throw ValidationException::withMessages([
+                'params' => ['Graduated promotions require a lookup table.'],
+            ]);
+        }
+
+        if ($data['type'] === 'volume_discount' && empty($params['tiers'])) {
+            throw ValidationException::withMessages([
+                'params' => ['Volume discounts require tiers.'],
+            ]);
+        }
+
+        if ($data['type'] === 'varied_child') {
+            $hasTiers = !empty($params['tiers']);
+            $hasSingle = isset($params['min_adults'], $params['child_discount_percent']);
+            if (!$hasTiers && !$hasSingle) {
+                throw ValidationException::withMessages([
+                    'params' => ['Varied child promotions require tiers or a min adult rule.'],
+                ]);
+            }
+        }
+
+        if ($data['type'] === 'time_slot' && empty($data['season_id'])) {
+            throw ValidationException::withMessages([
+                'season_id' => ['Season is required for time slot promotions.'],
+            ]);
+        }
 
         $today = Carbon::today();
         if (Carbon::parse($data['booking_start_date'])->lt($today)) {
@@ -181,17 +294,32 @@ class PromotionController extends Controller
             $promotion_day_time_slot->delete();
         }
 
-        $valid_days = explode(',', $request->valid_days);
-        foreach ($valid_days as $day) {
-            $day = TypeDay::where('id', $day)->first();
-            if (!$day) {
-                continue;
+        $valid_days = array_filter(array_map('trim', explode(',', (string) $request->valid_days)));
+        $valid_times = array_filter(array_map('trim', explode(',', (string) $request->valid_slots)));
+        if (!empty($valid_days)) {
+            foreach ($valid_days as $day) {
+                $day = TypeDay::where('id', $day)->first();
+                if (!$day) {
+                    continue;
+                }
+                if (empty($valid_times)) {
+                    $promotion->promo_day_time_slots()->create([
+                        'day_id' => $day->id,
+                        'time_slot_id' => null,
+                    ]);
+                } else {
+                    foreach ($valid_times as $time) {
+                        $time = InventoryTimeSlot::where('id', $time)->first();
+                        if (!$time) {
+                            continue;
+                        }
+                        $promotion->promo_day_time_slots()->create([
+                            'day_id' => $day->id,
+                            'time_slot_id' => $time->id,
+                        ]);
+                    }
+                }
             }
-
-            $promotion->promo_day_time_slots()->create([
-                'day_id' => $day->id,
-                'time_slot_id' => null,
-            ]);
         }
 
         return redirect()->back()->with('message', 'Promotion updated.');
