@@ -102,6 +102,9 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
     function BookingToolClick(tool, booking) {
 
         console.log("-------tool clicked-------", tool);
+        if (tool === 'edit_booking') {
+            router.get(route('admin.bookings.edit', booking.id));
+        }
         if (tool === 'edit_timeslot') {
             //router.get(route('admin.bookings.edit', booking.id));
             setSelectedBooking(booking);

@@ -897,6 +897,472 @@ class BookingsController extends Controller
 
         // return view('admin.bookings.edit', compact('booking', 'customers', 'inventories', 'seasons', 'services', 'status_bookings', 'updated_bies', 'users'));
     }
+    public function update(UpdateBookingRequest $request, Booking $booking)
+    {
+        $validated = $request->validate([
+            'booking_id' => 'nullable|integer',
+            'lead_person' => 'required|string',
+            'lead_email' => 'required|email',
+            'lead_mobile' => 'required|string',
+            'selected_slot' => 'nullable|array',
+
+            'service_id' => 'required|integer',
+            'season_id' => 'required|integer',
+            'corporate_customer' => 'boolean',
+            'send_sms' => 'boolean',
+            'booking_date' => 'required|date',
+            'start_time' => 'required',
+
+            'add_consultant' => 'boolean',
+            'consultant_name' => 'string|nullable',
+            'consultant_email' => 'email|nullable',
+            'consultant_mobile' => 'string|nullable',
+            'needs_pickup' => 'boolean',
+            'web_booking' => 'boolean',
+            'include_media' => 'boolean',
+            'override_timeslots' => 'boolean',
+            'exclusive_resource' => 'boolean',
+
+            'invoice_note' => 'string|nullable',
+            'email_reminder' => 'string|nullable',
+            'booking_note' => 'string|nullable',
+
+            'adults' => 'required|integer|min:1',
+            'children' => 'nullable|integer|min:0',
+            'guides' => 'nullable|integer|min:0',
+            'adult' => 'integer|nullable',
+            'child' => 'integer|nullable',
+            'guide' => 'integer|nullable',
+            'rate_per_adult' => 'integer|nullable',
+            'rate_per_child' => 'integer|nullable',
+            'rate_per_guide' => 'integer|nullable',
+
+            'is_wholesaler' => 'boolean',
+            'wholesaler_id' => 'integer|nullable',
+            'discount_lines' => 'array|nullable',
+            'promoCode' => 'nullable|string',
+            'redeem_voucher' => 'string|nullable',
+            'pay_later' => 'boolean',
+        ]);
+
+        try {
+            DB::transaction(function () use ($validated, $booking) {
+                $bookingItem = BookingItem::with(['booking_detail', 'booking_inventory', 'booking_fee', 'customers'])
+                    ->where('booking_id', $booking->id)
+                    ->firstOrFail();
+
+                $selectedSlot = $validated['selected_slot'] ?? [];
+                $bookingDate = $validated['booking_date'] ?? ($selectedSlot['activityDate'] ?? null);
+                if (!$bookingDate) {
+                    abort(422, 'Booking date is required.');
+                }
+
+                $season = Season::findOrFail($validated['season_id']);
+                $inventory = Inventory::where('season_id', $season->id)->first();
+                if (!$inventory) {
+                    abort(404, 'This season has no inventory.');
+                }
+
+                $inventoryTimeSlot = null;
+                if (!empty($validated['start_time'])) {
+                    $inventoryTimeSlot = InventoryTimeSlot::find($validated['start_time']);
+                }
+                if (!$inventoryTimeSlot && !empty($selectedSlot['time'])) {
+                    $inventoryTimeSlot = InventoryTimeSlot::where('inventory_id', $inventory->id)
+                        ->where('start_time', $selectedSlot['time'])
+                        ->first();
+                }
+
+                if (!$inventoryTimeSlot && !$validated['override_timeslots']) {
+                    abort(404, 'This inventory has no time slot.');
+                }
+
+                $isoNameOfDay = Carbon::parse($bookingDate)->format('N');
+
+                $adultsCount = (int) ($validated['adults'] ?? 0);
+                $childrenCount = (int) ($validated['children'] ?? 0);
+                $guidesCount = (int) ($validated['guides'] ?? 0);
+                $amount_adults = (int) ($validated['rate_per_adult'] ?? 0) * $adultsCount;
+                $amount_children = (int) ($validated['rate_per_child'] ?? 0) * $childrenCount;
+                $amount_guides = (int) ($validated['rate_per_guide'] ?? 0) * $guidesCount;
+                $amount = $amount_adults + $amount_children + $amount_guides;
+
+                $customer = Customer::firstOrCreate(
+                    [
+                        'email_address' => $validated['lead_email'],
+                    ],
+                    [
+                        'full_name' => $validated['lead_person'],
+                        'contact_number' => $validated['lead_mobile'],
+                    ]
+                );
+
+                $customerUpdates = [];
+                if (!empty($validated['lead_person']) && $customer->full_name !== $validated['lead_person']) {
+                    $customerUpdates['full_name'] = $validated['lead_person'];
+                }
+                if (!empty($validated['lead_mobile']) && $customer->contact_number !== $validated['lead_mobile']) {
+                    $customerUpdates['contact_number'] = $validated['lead_mobile'];
+                }
+                if (!empty($customerUpdates)) {
+                    $customer->update($customerUpdates);
+                }
+
+                $booking->update([
+                    'lead_name' => $customer->full_name,
+                    'is_corporate' => $validated['corporate_customer'],
+                    'is_sms' => $validated['send_sms'],
+                    'due_date' => $bookingDate,
+                    'grand_tot_due' => $amount,
+                    'customer_id' => $customer->id,
+                    'updated_by_id' => auth()->id(),
+                ]);
+
+                $promotion = !empty($validated['promoCode'])
+                    ? Promotion::where('promo_code', $validated['promoCode'])->first()
+                    : null;
+
+                $bookingItem->update([
+                    'service_id' => $season->service_id,
+                    'season_id' => $season->id,
+                    'inventory_id' => $inventory->id,
+                    'pax_adults' => $adultsCount,
+                    'pax_children' => $childrenCount,
+                    'pax_guides' => $guidesCount,
+                    'price_adult' => (int) ($validated['rate_per_adult'] ?? 0),
+                    'price_child' => (int) ($validated['rate_per_child'] ?? 0),
+                    'price_guide' => (int) ($validated['rate_per_guide'] ?? 0),
+                    'promotion_id' => $promotion?->id,
+                    'wholesaler_id' => $validated['wholesaler_id'],
+                ]);
+
+                DB::table('booking_items_customer')
+                    ->where('booking_item_id', $bookingItem->id)
+                    ->update(['is_lead' => 0]);
+                $bookingItem->customers()->syncWithoutDetaching([
+                    $customer->id => [
+                        'team_id' => auth()->user()->team_id,
+                        'is_lead' => 1,
+                    ],
+                ]);
+
+                $bookingDetailData = [
+                    'booking_item_id' => $bookingItem->id,
+                    'is_wholesaler_booking' => $validated['is_wholesaler'],
+                    'is_needs_pickup' => $validated['needs_pickup'],
+                    'is_web_booking' => $validated['web_booking'],
+                    'is_videos_photos' => $validated['include_media'],
+                    'is_exclusive_resource_use' => $validated['exclusive_resource'],
+                    'is_override_time_slots' => $validated['override_timeslots'],
+                    'team_id' => auth()->user()->team_id,
+                ];
+                if ($bookingItem->booking_detail) {
+                    $bookingItem->booking_detail->update($bookingDetailData);
+                    $bookingDetail = $bookingItem->booking_detail;
+                } else {
+                    $bookingDetail = BookingDetail::create($bookingDetailData);
+                }
+
+                if ($validated['is_wholesaler']) {
+                    WholesalerBooking::updateOrCreate(
+                        [
+                            'booking_id' => $booking->id,
+                        ],
+                        [
+                            'wholesaler_id' => $validated['wholesaler_id'],
+                            'consultant_name' => $validated['consultant_name'] ?? '',
+                            'consultant_email' => $validated['consultant_email'] ?? '',
+                            'consultant_mobile' => $validated['consultant_mobile'] ?? '',
+                            'team_id' => auth()->user()->team_id,
+                        ]
+                    );
+                } else {
+                    WholesalerBooking::where('booking_id', $booking->id)->delete();
+                }
+
+                $bookingInventoryData = [
+                    'booking_item_id' => $bookingItem->id,
+                    'booking_detail_id' => $bookingDetail->id,
+                    'adults' => $adultsCount,
+                    'children' => $childrenCount,
+                    'guides' => $guidesCount,
+                    'pax' => $adultsCount + $childrenCount,
+                    'date' => $bookingDate,
+                    'inventory_type_day_id' => $isoNameOfDay,
+                    'inventory_time_slot_id' => $inventoryTimeSlot?->id,
+                    'inventory_override_id' => null,
+                    'team_id' => auth()->user()->team_id,
+                ];
+                if ($bookingItem->booking_inventory) {
+                    $bookingItem->booking_inventory->update($bookingInventoryData);
+                    $bookingInventory = $bookingItem->booking_inventory;
+                } else {
+                    $bookingInventory = BookingInventory::create($bookingInventoryData);
+                }
+
+                $bookingFeeData = [
+                    'booking_item_id' => $bookingItem->id,
+                    'booking_detail_id' => $bookingDetail->id,
+                    'tot_adults' => $amount_adults,
+                    'tot_children' => $amount_children,
+                    'tot_guides' => $amount_guides,
+                    'is_voucher' => $validated['redeem_voucher'] ? 1 : 0,
+                    'voucher_code' => $validated['redeem_voucher'] ?? '',
+                    'invoice_note' => $validated['invoice_note'] ?? '',
+                    'is_email_reminder' => $validated['email_reminder'] ? 1 : 0,
+                    'booking_note' => $validated['booking_note'] ?? '',
+                    'tot_amount' => $amount,
+                    'team_id' => auth()->user()->team_id,
+                ];
+                if ($bookingItem->booking_fee) {
+                    $bookingItem->booking_fee->update($bookingFeeData);
+                } else {
+                    BookingFee::create($bookingFeeData);
+                }
+
+                if (is_array($validated['discount_lines']) && $validated['discount_lines'] != null) {
+                    $booking_discount = BookingDiscount::updateOrCreate(
+                        [
+                            'booking_id' => $booking->id,
+                        ],
+                        [
+                            'final_price_adult' => (int) ($validated['adult'] ?? 0),
+                            'final_price_child' => (int) ($validated['child'] ?? 0),
+                            'final_price_guide' => (int) ($validated['guide'] ?? 0),
+                        ]
+                    );
+                    $booking_discount->booking_discount_items()->delete();
+                    foreach ($validated['discount_lines'] as $line) {
+                        $booking_discount->booking_discount_items()->updateOrCreate(
+                            [
+                                'pax_type' => $line['type'],
+                                'discount_id' => $line['discount_id'],
+                            ],
+                            [
+                                'count' => $line['count'],
+                                'base_rate' => $line['base_rate'],
+                                'final_rate' => $line['final_rate'],
+                            ]
+                        );
+                    }
+                }
+
+                $existingInvoiceIds = Invoice::withTrashed()->where('booking_id', $booking->id)->pluck('id');
+                if ($existingInvoiceIds->isNotEmpty()) {
+                    InvoiceItem::whereIn('invoice_id', $existingInvoiceIds)->delete();
+                    Invoice::whereIn('id', $existingInvoiceIds)->delete();
+                }
+
+                File::where('booking_id', $booking->id)
+                    ->where(function ($query) {
+                        $query->where(function ($subQuery) {
+                            $subQuery->where('table_name', 'invoices')
+                                ->where('type_file_id', 4);
+                        })->orWhere(function ($subQuery) {
+                            $subQuery->where('table_name', 'BookingItem')
+                                ->where('type_file_id', 6);
+                        });
+                    })
+                    ->delete();
+
+                $template = InvoiceTemplate::where('is_default', true)->firstOrFail();
+                $invoice = Invoice::create([
+                    'booking_id'     => $booking->id,
+                    'gift_voucher_id'    => null,
+                    'invoice_date'   => $bookingDate,
+                    'due_date'       => $bookingDate,
+                    'subtotal'       => $amount,
+                    'vat'            => $amount * 0.15,
+                    'total'          => $amount * 1.15,
+                    'status'         => 'draft',
+                    'invoice_template_id'    => $template->id,
+                    'team_id'        => auth()->user()->team_id,
+
+                ]);
+
+                $invoiceItems = InvoiceItem::create([
+                    'invoice_id'     => $invoice->id,
+                    'pax_adults'     => (int) ($validated['adults'] ?? 0),
+                    'pax_children'   => (int) ($validated['children'] ?? 0),
+                    'pax_guides'     => (int) ($validated['guides'] ?? 0),
+                    'price_adult'    => (int) ($validated['adult'] ?? 0),
+                    'price_child'    => (int) ($validated['child'] ?? 0),
+                    'price_guide'    => (int) ($validated['guide'] ?? 0),
+                    'team_id'        => auth()->user()->team_id,
+                    'service_id'     => $season->service_id,
+                    'season_id'      => $season->id,
+                    'booking_inventory_id' => $bookingInventory?->id,
+                    'promotion_id'   => $promotion ? $promotion->id : null,
+                    'wholesaler_id'  => $validated['wholesaler_id'],
+                    'discount_id'    => null,
+                ]);
+
+                $renderService = app(RendererService::class);
+                $data = $renderService->invoice($booking, $customer);
+                $invoicePdf = Pdf::loadView('invoices.invoice', $data);
+                $invoicePdf->setPaper('A4', 'portrait');
+
+                $invoiceFilename = 'invoices/' . $data['invoice']['number'] . '.pdf';
+                Storage::disk('public')->put($invoiceFilename, $invoicePdf->output());
+                $content = "
+                        <p>Hello {$customer->full_name},</p>
+                        <p>Your booking has been updated. Please review your updated invoice.</p>
+                        <p>Thank you for choosing Canopy Tours.</p>
+                        <p>Your booking reference is {$booking->reference}.</p>
+                        <p>Please contact us if you have any questions.</p>";
+                Email::create([
+                    'sender'         => config('mail.from.address'),
+                    'receiver'       => $validated['lead_email'],
+                    'subject'        => 'Invoice ' . $data['invoice']['number'],
+                    'body'           => strip_tags($content),
+                    'attachment_path' => $invoiceFilename,
+                    'sent'           => true,
+                    'sent_at'        => now(),
+                    'user_id'        => auth()->user()->id,
+                    'auditable_type' => 'App\Models\Booking',
+                    'auditable_id'   => $booking->id,
+                    'team_id'        => auth()->user()->team_id,
+                ]);
+                File::create([
+                    'team_id'      => $invoice->team_id,
+                    'table_name'   => 'invoices',
+                    'table_row_id' => $invoice->id,
+                    'file_name'    => $data['invoice']['number'] . '.pdf',
+                    'file_type'    => "application/pdf",
+                    'type_file_id' => 4,
+                    'path'         => $invoiceFilename,
+                    'booking_id'   => $booking->id,
+                ]);
+
+                $bookingItem = BookingItem::with(
+                    'booking',
+                    'booking.team',
+                    'booking.team.file_logo',
+                    'customers',
+                    'booking_inventory.inventory_time_slot',
+                    'booking_inventory.inventory_type_day.type_day',
+                    'booking_fee'
+                )->where('booking_id', $booking->id)->first();
+
+                $passData = $this->getPassDetails($bookingItem);
+                $html = view('pdfs.boarding-pass', ['data' => $passData])->render();
+                $dir = "pass/{$bookingItem->id}";
+
+                $fileName = "{$dir}/boarding_pass_{$bookingItem->id}.pdf";
+                $fullPath = storage_path("app/{$fileName}");
+                if (!is_dir(dirname($fullPath))) {
+                    mkdir(dirname($fullPath), 0755, true);
+                }
+                $chromePath = config('browsershot.chrome_path');
+                if (empty($chromePath)) {
+                    Log::warning('Browsershot chrome path not resolved; using default detection.', [
+                        'env_path' => env('BROWSERSHOT_CHROME_PATH'),
+                    ]);
+                }
+                $shot = Browsershot::html($html);
+                if (!empty($chromePath)) {
+                    $shot->setChromePath($chromePath);
+                }
+                $shot->format('A4')
+                    ->showBackground()
+                    ->margins(0, 0, 0, 0)
+                    ->scale(1.0)
+                    ->timeout(60000)
+                    ->save($fullPath);
+
+                Email::create([
+                    'sender'         => config('mail.from.address'),
+                    'receiver'       => $customer->email_address,
+                    'subject'        => 'Your Boarding Pass – Invoice ' . $data['invoice']['number'],
+                    'body'           => strip_tags($content),
+                    'attachment_path' => $fileName,
+                    'sent'           => true,
+                    'sent_at'        => now(),
+                    'user_id'        => auth()->user()->id,
+                    'auditable_type' => BookingItem::class,
+                    'auditable_id'   => $bookingItem->id,
+                    'team_id'        => $bookingItem->team_id,
+                ]);
+                File::create([
+                    'team_id'      => $bookingItem->team_id,
+                    'table_name'   => 'BookingItem',
+                    'table_row_id' => $bookingItem->id,
+                    'file_name'    =>  $fileName,
+                    'file_type'    => "application/pdf",
+                    'type_file_id' => 6,
+                    'path'         => $fileName,
+                    'booking_id'   => $booking->id,
+                ]);
+                $attachments = [
+                    [
+                        'data' => $invoicePdf->output(),
+                        'name' => "invoice-{$data['invoice']['number']}.pdf",
+                        'mime' => 'application/pdf',
+                    ],
+                    [
+                        'data' => file_get_contents($fullPath),
+                        'name' => $fileName,
+                        'mime' => 'application/pdf',
+                    ],
+                ];
+                $messageData = [
+                    'invoice' => [
+                        'number' => $booking->reference ?? 'INV-No',
+                        'date' => now()->format('Y-m-d'),
+                    ],
+                    'customer' => [
+                        'name' => $customer->full_name,
+                    ],
+                    'booking' => [
+                        'reference' => $booking->reference,
+                    ],
+                ];
+
+                Mail::to($customer->email_address)->send(new BookingMail($messageData, $attachments));
+            });
+
+            $locations = TypeLocation::pluck('id', 'name');
+            $booking_infos = [];
+            foreach ($locations as $key => $type_id) {
+                $location = $request->input("{$key}_location");
+                $time     = $request->input("{$key}_time");
+                $meridiem = $request->input("{$key}_meridiem"); // Optional — only needed for pickup
+
+                if ($location && $time) {
+                    $booking_infos[] = [
+                        'booking_id'       => $booking->id,
+                        'type_location_id' => $type_id,
+                        'location'         => $location,
+                        'time'             => $time,
+                        'meridiem'         => $meridiem,
+                    ];
+                }
+            }
+            foreach ($booking_infos as $info) {
+                BookingInfo::updateOrCreate(
+                    [
+                        'booking_id' => $info['booking_id'],
+                        'type_location_id' => $info['type_location_id'],
+                    ],
+                    $info
+                );
+            }
+
+            return redirect()
+                ->route('admin.bookings.index')
+                ->with('success', "Booking {$booking->reference} updated successfully.");
+        } catch (\Throwable $e) {
+            Log::error('Booking update failed and rolled back', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'input' => $validated,
+            ]);
+
+            return back()->with([
+                'error' => 'Something went wrong while updating this booking. Please try again.',
+            ]);
+        }
+    }
 
     public function getPassDetails($bookingItem)
     {
@@ -1273,8 +1739,119 @@ class BookingsController extends Controller
                 return $basePassData;
         }
     }
+    public function editOld(Request $request, Booking $booking)
+    {
+        //abort_if(Gate::denies('booking_edit'), Response::HTTP_FORBIDDEN, '403 Forbidden');
+        $user = auth()->user();
 
-    public function update(UpdateBookingRequest $request, Booking $booking)
+        $booking->load([
+            'booking_payments', // :id,booking_id,amount
+        ])->get();
+
+        $booking_items = BookingItem::with([
+            'service',
+            'season',
+            'inventory',
+            'customers', // :id,name,email,contact_number
+            'customer_manifests.customer.booking_questionnaire', // :id,position,notes,is_indemnity,customer_id,booking_id\
+            'booking_infos', // :id,booking_id,type_location_id,location,time,created_at,updated_at,deleted_at
+            'customers.booking_questionnaire', // :id,booking_id,customer_id,guide_id,safety_guide_id,type_group_id,fullname,email,signature,birth_date,type_referral,country_id,province_id,is_medical,medical_detail,is_fit,is_agree
+            'booking_detail', //:id,booking_id ,start_time,end_time
+            'booking_fee', //:id,booking_id,tot_amount
+            'booking_inventory', // :id,booking_id,inventory_id
+            'booking_staff', // :id,booking_id,user_id
+            'booking_staff.user', // :id,name,email,contact_number
+        ])->where('booking_id', $booking->id)->first();
+
+        $users = User::select('name', 'id')->get();
+        $today = now()->toDateString();
+        $status_bookings = TypeBooking::select('name', 'id')->get();
+        $wholesalers = Wholesaler::select('id', 'name')->get();
+        //$services = Service::select('id', 'name')->get();
+        $services = Service::select('id', 'name', 'allow_internal_capacity_override', 'duration', 'capacity')
+            ->with('seasons:id,name,start_date,end_date,service_id,rake_rate_adult,rake_rate_child,rake_rate_guide,allow_internal_price_override,status', 'seasons.inventory', 'seasons.inventory.inventory_time_slots')
+            ->get();
+        //$seasons = Season::select('id', 'name', 'service_id')->get();
+        $seasons = Season::select('start_date', 'id')->get();
+        // $inventories = Inventory::select('start_date', 'id')->get();
+        $type_affiliates = TypeReferral::select('name', 'id')->get();
+        $updated_bies = User::select('name', 'id')->get();
+        $customers = Customer::select('full_name as name', 'id')->get();
+
+        $viewMode = $request->input('view_mode', 'week');
+        $startDate = Carbon::parse($request->input('start_date', now()));
+        $timeslots = Booking::TIME_SLOTS;
+
+        $schedule = [];
+        $days = match ($viewMode) {
+            'day' => 1,
+            'week' => 7,
+            'month' => 30,
+            default => 7
+        };
+        $endDate = (clone $startDate)->addDays($days - 1);
+
+        $vouchers = Voucher::select('id', 'voucher_code as name', 'amount', 'note', 'expire_date', 'season_id', 'service_id')->with('season', 'service')->get();
+        $discounts = Discount::select('id', 'name', 'applies_to', 'percent_off')->with('services')->get();
+        $wholesaler_rates = WholesalerRate::select('id', 'wholesaler_id', 'season_id', 'price_adult', 'price_child', 'price_guide')->with('season', 'wholesaler')->get();
+        $promos = Promotion::select('id', 'name', 'promo_code', 'type', 'value', 'service_id', 'booking_start_date', 'booking_end_date', 'activity_start_date', 'activity_end_date')
+            ->where('booking_start_date', '<=', $today)
+            ->where('booking_end_date', '>=', $today)
+            ->where('internal_use_only', false)
+            ->with('service')
+            ->get();
+        $lookups = LookupItem::where('is_default', true)->get();
+
+        return Inertia::render('Admin/Bookings/Edit', [
+            'wholesalers' => $wholesalers,
+            'booking_items' => $booking_items,
+            'booking' => $booking,
+            'services' => $services,
+            'inventories' => $seasons,
+            'type_affiliates' => $type_affiliates,
+            'updated_bies' => $updated_bies,
+            'users' => $users,
+            'status_bookings' => $status_bookings,
+            'schedule' => $schedule,
+            'start_date' => $startDate->toDateString(),
+            'view_mode' => $viewMode,
+            'days' => collect(CarbonPeriod::create($startDate, $endDate))
+                ->map(fn(\Carbon\Carbon $d) => $d->format('D d'))
+                ->values(),
+            'adults' => 0,
+            'children' => 0,
+            'guides' => 0,
+            'availableTimes' => [],
+            'vouchers' => $vouchers,
+            'discounts' => $discounts,
+            'wholesaler_rates' => $wholesaler_rates,
+            'promos' => $promos,
+            'lookups' => $lookups,
+        ]);
+
+
+
+
+        // $users = User::pluck('name', 'id')->prepend(trans('global.pleaseSelect'), '');
+
+        // $status_bookings = StatusBooking::pluck('name', 'id')->prepend(trans('global.pleaseSelect'), '');
+
+        // $services = Service::pluck('name', 'id')->prepend(trans('global.pleaseSelect'), '');
+
+        // $seasons = Season::pluck('name', 'id')->prepend(trans('global.pleaseSelect'), '');
+
+        // $inventories = Inventory::pluck('start_date', 'id')->prepend(trans('global.pleaseSelect'), '');
+
+
+        // $updated_bies = User::pluck('name', 'id')->prepend(trans('global.pleaseSelect'), '');
+
+        // $customers = Customer::pluck('full_name as name', 'id');
+
+        // $booking->load('user', 'status_booking', 'service', 'season', 'inventory', 'updated_by', 'customers', 'team');
+
+        // return view('admin.bookings.edit', compact('booking', 'customers', 'inventories', 'seasons', 'services', 'status_bookings', 'updated_bies', 'users'));
+    }
+    public function updateOld(UpdateBookingRequest $request, Booking $booking)
     {
         //dd($request->all());
         //$booking->update($request->all());

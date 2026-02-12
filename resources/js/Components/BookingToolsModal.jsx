@@ -34,6 +34,7 @@ export default function BookingToolsModal({ booking, position, onClose, BookingT
                 </div>
 
                 <div className="flex flex-col gap-2">
+                    <button type='button' onClick={() => BookingToolClick('edit_booking', booking)} className="btn-tool">{icons.edit_timeslot} Edit Booking</button>
                     <button type='button' onClick={() => BookingToolClick('edit_timeslot', booking)} className="btn-tool">{icons.edit_timeslot} Edit Timeslot</button>
                     <button type='button' onClick={() => BookingToolClick('message_guest', booking)} className="btn-tool">{icons.message} Message Guests</button>
                     {/* <button type="button" onClick={() => router.get(route('admin.messenger.createTopic'))} className="btn-tool">{icons.message} Message Staff</button> */}
