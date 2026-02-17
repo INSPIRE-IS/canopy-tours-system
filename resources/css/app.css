@@ -1,4 +1,4 @@
-@import "./fonts.css";
+﻿@import "./fonts.css";
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -309,3 +309,14 @@ button.is_active {
 .btn-tool-red {
   @apply flex items-center justify-start gap-2 cursor-pointer px-3 py-2 text-left text-tool-card-btn-red rounded-[10px] border border-secondary-100 hover:bg-secondary-200 transition;
 }
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+

@@ -111,6 +111,13 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
         });
     };
 
+    const getSelectedBookingDate = () => {
+        if (viewMode === VIEW_MODES.RANGE) {
+            return rangeStart || today;
+        }
+        return selectedDate || today;
+    };
+
 
     function BookingToolClick(tool, booking) {
 
@@ -135,7 +142,9 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
         // }
         if (tool === 'check_in_progress') {
             // router.get(route('admin.bookings.check_in_progress'));
-            router.get(route('booking-questionnaire.index'))
+            router.get(route('booking-questionnaire.index', {
+                booking_date: getSelectedBookingDate()
+            }))
         }
         if (tool === 'manifest_edit') {
             //router.get(route('admin.bookings.manifest_edit'));
@@ -440,11 +449,11 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                                 <img src="/assets/icons/plus.svg" alt="bookings" className="w-5 h-5" />
                                 <span className="text-btn-outline-gray">New Booking</span>
                             </button>
-                            <button onClick={() => router.get(route('booking-questionnaire.index'))} className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-red-gradient-overlay border-[#C65468] text-white shadow-inset-white cursor-pointer">
+                            <button onClick={() => router.get(route('booking-questionnaire.index', { booking_date: getSelectedBookingDate() }))} className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-red-gradient-overlay border-[#C65468] text-white shadow-inset-white cursor-pointer">
                                 <img src="/assets/icons/plus.svg" alt="bookings" className="w-5 h-5" />
                                 <span className="text-btn-outline-gray">Check in</span>
                             </button>
-                            <button onClick={() => router.get(route('front.feedback-questionnaire.index'))} className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-red-gradient-overlay border-[#C65468] text-white shadow-inset-white cursor-pointer">
+                            <button onClick={() => router.get(route('front.feedback-questionnaire.index', { booking_date: getSelectedBookingDate() }))} className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-red-gradient-overlay border-[#C65468] text-white shadow-inset-white cursor-pointer">
                                 <img src="/assets/icons/plus.svg" alt="bookings" className="w-5 h-5" />
                                 <span className="text-btn-outline-gray">Feedback</span>
                             </button>

@@ -11,6 +11,7 @@ use App\Models\BookingItem;
 use App\Models\BookingQuestionnaire;
 use App\Models\Team;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use App\Models\Continent;
 use App\Models\Country;
 use App\Models\Customer;
@@ -43,8 +44,15 @@ use Storage;
 class FeedbackQuestionnaireController extends Controller
 {
 
-    public function index()
+    public function index(Request $request)
     {
+        $bookingDate = $request->query('booking_date');
+        try {
+            $bookingDate = $bookingDate ? Carbon::parse($bookingDate)->toDateString() : now()->toDateString();
+        } catch (\Throwable $e) {
+            $bookingDate = now()->toDateString();
+        }
+
         $booking_items = BookingItem::with([
             'service',
             'booking.files',
@@ -53,7 +61,11 @@ class FeedbackQuestionnaireController extends Controller
             'booking_detail',
             'booking_fee',
             'booking_inventory',
-        ])->get();
+        ])
+            ->whereHas('booking_inventory', function ($query) use ($bookingDate) {
+                $query->whereDate('date', $bookingDate);
+            })
+            ->get();
         // dd($booking_items);
 
         $formatted = $booking_items->map(function ($booking_item) {

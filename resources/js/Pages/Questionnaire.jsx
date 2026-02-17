@@ -1,6 +1,6 @@
-// resources/js/Pages/BookingLookup.jsx
+﻿// resources/js/Pages/BookingLookup.jsx
 import React, { useState, useEffect } from 'react';
-import { Head, router, useForm } from '@inertiajs/react';
+import { Head, router, useForm, usePage } from '@inertiajs/react';
 import CustomButton from '@/Components/CustomButton';
 import CustomCheckboxQ from '@/Components/CustomCheckboxQ';
 import CustomInputText from '@/Components/CustomInputText';
@@ -13,6 +13,8 @@ import GreenButton from '@/Components/GreenButton';
 import axios from 'axios';
 
 export default function BookingLookup({ auth, booking, bookings, bookingItem, questions, leadGuides, safetyGuides, typeGroups, ageGroups, typeGender, typeReferral, typeConfirmation }) {
+  const { props } = usePage();
+  const { flash, old } = props;
   // console.log("auth", auth);
   const mode = 'edit';
   // console.log("booking", booking);
@@ -70,11 +72,27 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
 
   useEffect(() => {
     if (mode === "edit" && bookings?.customers?.length) {
+      if (old?.customer_manifests?.length) {
+        const restored = old.customer_manifests;
+        setData('customer_manifests', restored);
+        const restoredAdults = restored
+          .filter(p => p.type === "adult" && p.full_name != "")
+          .map((p, i) => ({
+            id: typeof p.customer_id == 'number' ? p.customer_id : i + 1,
+            name: p.full_name || "Unnamed Adult"
+          }));
+        setAdults(restoredAdults);
+        const selectedIndex = restored.findIndex(p => p.index == 1);
+        if (selectedIndex >= 0) {
+          setSelected(selectedIndex);
+        }
+        return;
+      }
       // Map API data into form shape
       const mapped = bookings.customers.map((item, i) => {
         const { customer, manifest, questionnaire } = item;
 
-        // Convert questionnaire array → { slug: value }
+        // Convert questionnaire array â†’ { slug: value }
         const qAnswers = questionnaire.reduce((acc, q) => {
           acc[q.slug] = q.answer ?? "";
           return acc;
@@ -83,13 +101,13 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
         return {
           id: i,
 
-          // 1️⃣ Base customer DB fields
+          // 1ï¸âƒ£ Base customer DB fields
           ...customer,
 
-          // 2️⃣ Merge manifest (position, notes, etc.)
+          // 2ï¸âƒ£ Merge manifest (position, notes, etc.)
           ...manifest,
 
-          // 3️⃣ Inject questionnaire answers dynamically
+          // 3ï¸âƒ£ Inject questionnaire answers dynamically
           ...qAnswers,
         };
       });
@@ -261,10 +279,10 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
   return (
     <>
       <Head title="Find Your Booking" />
-      <div className="flex flex-col  h-screen items-center justify-center bg-secondary-100">
-        <div className="flex items-center justify-center w-full sm:pb-[51px] ">
+      <div className="flex flex-col min-h-screen items-center justify-start sm:justify-center bg-secondary-100 px-4 py-6">
+        <div className="flex flex-wrap items-center justify-center w-full gap-4 sm:pb-[51px]">
           {/* Logo Box */}
-          <div className="flex items-center justify-center w-[118px] h-[106px] ">
+          <div className="flex items-center justify-center w-[118px] h-[106px] shrink-0">
             <img
               src="/images/logo.png"
               alt="Canopy Tours"
@@ -273,7 +291,7 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
           </div>
 
           {/* Text Logo */}
-          <div className="flex items-center pl-2 gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <img
               src="/images/text.png"
               alt="Canopy Tours Text"
@@ -286,15 +304,27 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
 
 
         </div>
-        <div className="flex flex-col bg-white h-[80%] w-full sm:w-[50%] items-center shadow-lg rounded-[20px]">
+        <div className="flex flex-col bg-white w-full max-w-4xl sm:w-[80%] md:w-[60%] sm:h-[80%] max-h-[70vh] items-center shadow-lg rounded-[20px] overflow-hidden">
+          {(flash?.error || flash?.success) && (
+            <div className="w-full px-4 pt-4">
+              <div
+                className={`rounded-lg border px-4 py-3 text-sm ${flash?.error
+                  ? 'border-red-200 bg-red-50 text-red-700'
+                  : 'border-green-200 bg-green-50 text-green-700'
+                  }`}
+              >
+                {flash?.error || flash?.success}
+              </div>
+            </div>
+          )}
 
           {prevNext == 1 && (
-            <div className="flex w-[90%] flex-col h-full mb-[26px]">
-              <div className="flex flex-col w-full h-[90%] gap-2" >
-                <span className="text-welcome-card-title text-center min-w-[90%] sm:w-full mt-[42px] mb-[26px] px-6 sm:px-[39px]">
+            <div className="flex w-[90%] flex-col h-full min-h-0 mb-[26px]">
+              <div className="flex flex-col w-full flex-1 overflow-y-auto no-scrollbar gap-2" >
+                <span className="text-welcome-card-title text-center w-full sm:w-[90%] mt-[42px] mb-[26px] px-6 sm:px-[39px]">
                   Select or add your Name
                 </span>
-                <div className="h-auto w-[90%] sm:w-full pl-7 sm:pl-0 overflow-x-auto">
+                <div className="h-auto w-full sm:w-[90%] pl-7 sm:pl-0 overflow-x-auto">
                   {data?.customer_manifests?.map((person, index) => {
                     // console.log("person", person);
                     return (
@@ -380,9 +410,9 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
 
           {/* select age group */}
           {prevNext == 2 && isEnabled('age_id') && (
-            <div className="flex flex-col w-[70%] sm:w-full h-full mb-[26px]">
-              <div className="flex flex-col w-[70%] sm:w-full h-[90%] gap-2">
-                <span className="text-welcome-card-title text-center min-w-[90%] sm:w-full mt-[42px] mb-[26px] px-6 sm:px-[39px]">
+            <div className="flex flex-col w-[70%] sm:w-full h-full min-h-0 mb-[26px]">
+              <div className="flex flex-col w-[70%] sm:w-full flex-1 overflow-y-auto no-scrollbar gap-2">
+                <span className="text-welcome-card-title text-center w-full sm:w-[90%] mt-[42px] mb-[26px] px-6 sm:px-[39px]">
                   Please select your Age Group
                 </span>
                 <div className="h-auto w-[70%] sm:w-full pl-7 sm:pl-0 overflow-x-auto">
@@ -412,15 +442,15 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
           )}
           {/* Continent Country  Province*/}
           {prevNext == 3 && (
-            <div className="flex flex-col w-[70%] sm:w-full h-full mb-[26px]">
-              <div className="flex flex-col w-[70%] sm:w-full h-[90%] gap-2">
+            <div className="flex flex-col w-[70%] sm:w-full h-full min-h-0 mb-[26px]">
+              <div className="flex flex-col w-[70%] sm:w-full flex-1 overflow-y-auto no-scrollbar gap-2">
                 {/* Continent */}
                 {(continents.length > 0 && countries.length == 0) && (
-                  <div className="flex flex-col w-[90%] sm:w-full h-[90%] gap-2 " >
-                    <span className="text-welcome-card-title text-center min-w-[90%] sm:w-full mt-[42px] mb-[26px] px-6 sm:px-[39px]">
+                  <div className="flex flex-col w-full sm:w-[90%] flex-1 overflow-y-auto gap-2 " >
+                    <span className="text-welcome-card-title text-center w-full sm:w-[90%] mt-[42px] mb-[26px] px-6 sm:px-[39px]">
                       Where are you from? Select your Continent
                     </span>
-                    <div className="h-auto w-[70%] sm:w-full pl-7 sm:pl-0 overflow-x-auto">
+                    <div className="h-auto w-[70%] sm:w-full pl-7 sm:pl-0 overflow-x-auto no-scrollbar">
                       {continents?.map((continent, i) => (
                         <CustomRadio
                           key={continent.id}
@@ -438,11 +468,11 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
 
                 {/* Country */}
                 {(countries.length > 0 && states.length == 0) && (
-                  <div className="flex flex-col w-[90%] sm:w-full h-[90%] gap-2" >
-                    <span className="text-welcome-card-title text-center w-[90%] sm:w-full mt-[42px] mb-[26px] px-6 sm:px-[39px]">
+                  <div className="flex flex-col w-full sm:w-[90%] flex-1 overflow-y-auto gap-2" >
+                    <span className="text-welcome-card-title text-center w-full sm:w-[90%] mt-[42px] mb-[26px] px-6 sm:px-[39px]">
                       Country of Residence
                     </span>
-                    <div className="h-auto w-[70%] sm:w-full pl-7 sm:pl-0 overflow-x-auto">
+                    <div className="h-auto w-[70%] sm:w-full pl-7 sm:pl-0 overflow-x-auto no-scrollbar">
                       {countries?.map((country, i) => (
                         <CustomRadio
                           key={country.id}
@@ -460,11 +490,11 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
 
                 {/* Province shows only if country == South Africa */}
                 {(states.length > 0 && selectedCountry == "204") && (
-                  <div className="flex flex-col w-full h-[90%] gap-2  " >
+                  <div className="flex flex-col w-full sm:w-[90%] flex-1 overflow-y-auto gap-2  " >
                     <span className="text-welcome-card-title text-center sm:w-full sm:px-[39px] mt-[42px] mb-[26px] ">
                       Select Province
                     </span>
-                    <div className="h-auto w-[70%] sm:w-full pl-7 sm:pl-0 overflow-x-auto">
+                    <div className="h-auto w-[70%] sm:w-full pl-7 sm:pl-0 overflow-x-auto no-scrollbar">
                       {states?.map((state, i) => (
                         <CustomRadio
                           key={state.id}
@@ -493,12 +523,12 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
 
           {/* Marketing source */}
           {prevNext == 6 && (
-            <div className="flex flex-col w-[70%] sm:w-full h-full mb-[26px]">
-              <div className="flex flex-col w-[70%] sm:w-full h-[90%] gap-2 " >
-                <span className="text-welcome-card-title text-center min-w-[90%] sm:w-full mt-[42px] mb-[26px] px-6 sm:px-[39px]">
+            <div className="flex flex-col w-full sm:w-[90%] h-full min-h-0 mb-[26px]">
+              <div className="flex flex-col w-[70%] sm:w-full flex-1 overflow-y-auto  gap-2 " >
+                <span className="text-welcome-card-title text-center w-full sm:w-[90%] mt-[42px] mb-[26px] px-6 sm:px-[39px]">
                   Where did you hear about us
                 </span>
-                <div className="h-auto w-[70%] sm:w-full pl-7 sm:pl-0 overflow-x-auto">
+                <div className="h-auto w-[70%] sm:w-full pl-7 sm:pl-0 overflow-x-auto no-scrollbar">
                   {typeReferral?.map((referral, i) => (
                     <CustomRadio
                       key={referral.id}
@@ -525,12 +555,12 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
           )}
           {/* Visitor type (individual, couple, etc.) */}
           {prevNext == 7 && (
-            <div className="flex flex-col w-[70%] sm:w-full h-full mb-[26px]">
-              <div className="flex flex-col w-[70%] sm:w-full h-[90%] gap-2" >
-                <span className="text-welcome-card-title text-center min-w-[90%] sm:w-full mt-[42px] mb-[26px] px-6 sm:px-[39px]">
+            <div className="flex flex-col w-full sm:w-[90%] h-full min-h-0 mb-[26px]">
+              <div className="flex flex-col w-[70%] sm:w-full flex-1 overflow-y-auto no-scrollbar gap-2" >
+                <span className="text-welcome-card-title text-center w-full sm:w-[90%] mt-[42px] mb-[26px] px-6 sm:px-[39px]">
                   What kind of a group are you with?
                 </span>
-                <div className="h-autow-[70%] sm:w-full pl-7 sm:pl-0 overflow-x-auto">
+                <div className="h-auto w-[70%] sm:w-full pl-7 sm:pl-0 overflow-x-auto no-scrollbar">
                   {typeGroups?.map((group, i) => (
                     <CustomRadio
                       key={group.id}
@@ -557,29 +587,31 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
           )}
           {/* marketing opt-in */}
           {prevNext == 8 && (
-            <div className="flex flex-col w-[70%] sm:w-full h-full mb-[26px]">
+            <div className="flex flex-col w-[70%] sm:w-full h-full min-h-0 mb-[26px]">
 
-              <div className="flex flex-col w-[70%] sm:w-full h-[90%] gap-2  ">
+              <div className="flex flex-col w-[70%] sm:w-full flex-1 overflow-y-auto no-scrollbar gap-2  ">
                 <span className="text-welcome-card-title text-center sm:w-full px-7 sm:px-[39px] mt-[42px] mb-[26px]">
                   Would you like us to email you a certificate and invite you for a free tour on your birthday?
                   (This also means you are happy to receive the occasional email from us regarding specials and promos on Canopy Tours around Southern Africa.)
                 </span>
 
-                <div className="h-auto w-[70%] sm:w-full pl-7 sm:pl-0 overflow-x-auto ">
+                <div className="flex flex-row items-center justify-center h-auto w-[70%] sm:w-full pl-7 sm:pl-0 overflow-x-auto no-scrollbar">
                   {typeConfirmation?.map((marketing, i) => (
-                    <CustomRadio
-                      key={marketing.id}
-                      label={marketing.name}
-                      name="marketing_opt_in"
-                      value={marketing.id}
-                      checked={data.customer_manifests[selected].marketing_opt_in == marketing.id.toString()}
-                      onChange={handleIndemnityChange}
-                      errors={errors}
-                    />
+                    <div className="w-[20%] flex p-3">
+                      <CustomRadio
+                        key={marketing.id}
+                        label={marketing.name}
+                        name="marketing_opt_in"
+                        value={marketing.id}
+                        checked={data.customer_manifests[selected].marketing_opt_in == marketing.id.toString()}
+                        onChange={handleIndemnityChange}
+                        errors={errors}
+                      />
+                    </div>
                   ))}
                 </div>
                 {data.customer_manifests[selected].marketing_opt_in == 1 && (
-                  <div className="h-auto w-[70%] sm:w-full pl-7 sm:px-[39px] overflow-x-auto">
+                  <div className="h-auto w-[70%] sm:w-full pl-7 sm:px-[39px] overflow-x-auto no-scrollbar">
                     <CustomInputText
                       title="What email address should we use? "
                       name="email_address"
@@ -603,7 +635,7 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
                       name="birthday_day"
                       value={data.customer_manifests[selected].birthday_day}
                       height="h-[52px]"
-                      type="text"
+                      type="number"
                       mode={mode}
                       onChange={(e) => handleIndemnityChange(e.target.name, e.target.value)}
                     />
@@ -624,26 +656,28 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
 
           {/* Medical detail text only when YES */}
           {prevNext == 9 && (
-            <div className="flex flex-col w-[70%] sm:w-full h-full mb-[26px]">
+            <div className="flex flex-col w-[70%] sm:w-full h-full min-h-0 mb-[26px]">
 
-              <div className="flex flex-col w-[70%] sm:w-full h-[90%] gap-2  ">
+              <div className="flex flex-col w-[70%] sm:w-full flex-1 overflow-y-auto no-scrollbar gap-2  ">
                 <span className="text-welcome-card-title text-center sm:w-full px-7 sm:px-[39px] mt-[42px] mb-[26px]">
                   Do you have any medical conditions we should be aware of?
                   Please let us know what medical conditions you have and confirm that your doctor
                   has agreed that you may partake in this activity?
                 </span>
 
-                <div className="h-auto w-[70%] sm:w-full pl-7 sm:pl-0 overflow-x-auto">
+                <div className="flex flex-row items-center justify-center h-auto w-[70%] sm:w-full pl-7 sm:pl-0 overflow-x-auto">
                   {typeConfirmation?.map((medical, i) => (
-                    <CustomRadio
-                      key={medical.id}
-                      label={medical.name}
-                      name="medical_id"
-                      value={medical.id}
-                      checked={data.customer_manifests[selected].medical_id == medical.id.toString()}
-                      onChange={handleIndemnityChange}
-                      errors={errors}
-                    />
+                    <div className="w-[20%] flex p-3">
+                      <CustomRadio
+                        key={medical.id}
+                        label={medical.name}
+                        name="medical_id"
+                        value={medical.id}
+                        checked={data.customer_manifests[selected].medical_id == medical.id.toString()}
+                        onChange={handleIndemnityChange}
+                        errors={errors}
+                      />
+                    </div>
                   ))}
                 </div>
                 {data.customer_manifests[selected].medical_id == 1 && (
@@ -673,41 +707,45 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
           )}
           {/* Gender */}
           {prevNext == 10 && (
-            <div className="flex flex-col w-[70%] sm:w-full h-full mb-[26px]">
-              <div className="flex flex-col w-[70%] sm:w-full h-[90%] gap-2" >
-                <span className="text-welcome-card-title text-center min-w-[90%] sm:w-full mt-[42px] mb-[26px] px-6 sm:px-[39px]">
+            <div className="flex flex-col w-[70%] sm:w-full h-full min-h-0 mb-[26px]">
+              <div className="flex flex-col w-[70%] sm:w-full flex-1 overflow-y-auto no-scrollbar gap-2" >
+                <span className="text-welcome-card-title text-center w-full sm:w-[90%] mt-[42px] mb-[26px] px-6 sm:px-[39px]">
                   Gender?
                 </span>
-                <div className="h-auto w-[70%] sm:w-full pl-7 sm:pl-0 overflow-x-auto">
+                <div className="flex flex-row items-center justify-center h-auto w-[70%] sm:w-full pl-7 sm:pl-0 overflow-x-auto">
                   {typeGender?.map((gender, i) => (
-                    <CustomRadio
-                      key={gender.id}
-                      label={gender.name}
-                      name="gender"
-                      value={gender.id}
-                      checked={data.customer_manifests[selected].gender == gender.id.toString()}
-                      onChange={handleIndemnityChange}
-                      errors={errors}
-                    />
+                    <div className="w-[20%] flex p-3">
+                      <CustomRadio
+                        key={gender.id}
+                        label={gender.name}
+                        name="gender"
+                        value={gender.id}
+                        checked={data.customer_manifests[selected].gender == gender.id.toString()}
+                        onChange={handleIndemnityChange}
+                        errors={errors}
+                      />
+                    </div>
                   ))}
                 </div>
                 {/* Pregnancy shows only if female */}
                 {data.customer_manifests[selected].gender == "2" && (
                   <>
-                    <span className="text-welcome-card-title text-center min-w-[90%] sm:w-full mt-[42px] mb-[26px] px-6 sm:px-[39px]">
+                    <span className="text-welcome-card-title text-center w-full sm:w-[90%] mt-[42px] mb-[26px] px-6 sm:px-[39px]">
                       Pregnant?
                     </span>
-                    <div className="h-auto w-[70%] sm:w-full pl-7 sm:pl-0 overflow-x-auto">
+                    <div className="flex flex-row items-center justify-center h-auto w-[70%] sm:w-full pl-7 sm:pl-0 overflow-x-auto">
                       {typeConfirmation?.map((pregnant, i) => (
-                        <CustomRadio
-                          key={pregnant.id}
-                          label={pregnant.name}
-                          name="pregnant"
-                          value={pregnant.id}
-                          checked={data.customer_manifests[selected].pregnant == pregnant.id.toString()}
-                          onChange={handleIndemnityChange}
-                          errors={errors}
-                        />
+                        <div className="w-[20%] flex p-3">
+                          <CustomRadio
+                            key={pregnant.id}
+                            label={pregnant.name}
+                            name="pregnant"
+                            value={pregnant.id}
+                            checked={data.customer_manifests[selected].pregnant == pregnant.id.toString()}
+                            onChange={handleIndemnityChange}
+                            errors={errors}
+                          />
+                        </div>
                       ))}
                     </div>
                   </>
@@ -727,22 +765,24 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
           )}
           {/* Fit */}
           {prevNext == 11 && (
-            <div className="flex flex-col w-[70%] sm:w-full h-full mb-[26px]">
-              <div className="flex flex-col w-[70%] sm:w-full h-[90%] gap-2  " >
+            <div className="flex flex-col w-[70%] sm:w-full h-full min-h-0 mb-[26px]">
+              <div className="flex flex-col w-[70%] sm:w-full flex-1 overflow-y-auto no-scrollbar gap-2  " >
                 <span className="text-welcome-card-title text-center sm:w-full sm:px-[39px] mt-[42px] mb-[26px]">
                   I am fit enough to walk 1km in steep terrain
                 </span>
-                <div className="h-auto w-[70%] sm:w-full pl-7 sm:pl-0 overflow-x-auto">
+                <div className="flex flex-row items-center justify-center h-auto w-[70%] sm:w-full pl-7 sm:pl-0 overflow-x-auto">
                   {typeConfirmation?.map((fit, i) => (
-                    <CustomRadio
-                      key={fit.id}
-                      label={fit.name}
-                      name="is_fit"
-                      value={fit.id}
-                      checked={data.customer_manifests[selected].is_fit == fit.id.toString()}
-                      onChange={handleIndemnityChange}
-                      errors={errors}
-                    />
+                    <div className="w-[20%] flex p-3">
+                      <CustomRadio
+                        key={fit.id}
+                        label={fit.name}
+                        name="is_fit"
+                        value={fit.id}
+                        checked={data.customer_manifests[selected].is_fit == fit.id.toString()}
+                        onChange={handleIndemnityChange}
+                        errors={errors}
+                      />
+                    </div>
                   ))}
                 </div>
               </div>
@@ -759,12 +799,12 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
           )}
           {/* Agree */}
           {prevNext == 12 && (
-            <div className="flex flex-col w-[70%] sm:w-full h-full mb-[26px]">
-              <div className="flex flex-col w-[70%] sm:w-full h-[90%] gap-2 overflow-x-auto" >
-                <span className="text-welcome-card-title text-center w-[90%] sm:w-full mt-[42px] mb-[8px] px-6 sm:px-[39px]">
+            <div className="flex flex-col w-[70%] sm:w-full h-full min-h-0 mb-[26px]">
+              <div className="flex flex-col w-[70%] sm:w-full flex-1 overflow-y-auto no-scrollbar gap-2 overflow-x-auto" >
+                <span className="text-welcome-card-title text-center w-full sm:w-[90%] mt-[42px] mb-[8px] px-6 sm:px-[39px]">
                   Please agree to the following terms and conditions
                 </span>
-                <span className="text-welcome-card-title text-center w-[90%] sm:w-full mb-[8px] px-6 sm:px-[39px]">
+                <span className="text-welcome-card-title text-center w-full sm:w-[90%] mb-[8px] px-6 sm:px-[39px]">
                   By accessing and using this website, you acknowledge and agree to the terms outlined in this Indemnity Agreement. This form serves to protect the website owners, administrators, and affiliated parties from any liability arising from the use of the site, its content, or any services provided. By proceeding, you confirm that you understand and accept full responsibility for any risks associated with your use of this website and waive any claims against its owners for potential losses, damages, or liabilities.
                 </span>
                 <div className="w-[70%] sm:w-full mb-[8px] px-6 sm:px-[39px]">
@@ -796,12 +836,12 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
 
           {/* signature */}
           {prevNext == 13 && (
-            <div className="flex flex-col w-[70%] sm:w-full h-full mb-[26px]">
-              <div className="flex flex-col w-[70%] sm:w-full h-[90%] gap-2" >
-                <span className="text-welcome-card-title text-center min-w-[90%] sm:w-full mt-[42px] mb-[26px] px-6 sm:px-[39px]">
+            <div className="flex flex-col w-full sm:w-[90%] h-full min-h-0 mb-[26px]">
+              <div className="flex flex-col w-[70%] sm:w-full flex-1 overflow-y-auto no-scrollbar gap-2" >
+                <span className="text-welcome-card-title text-center w-full sm:w-[90%] mt-[42px] mb-[26px] px-6 sm:px-[39px]">
                   Please sign below
                 </span>
-                <div className="h-auto w-[70%] sm:w-full pl-7 sm:pl-0 overflow-x-auto">
+                <div className="h-auto w-[70%] sm:w-full pl-7 sm:pl-0 overflow-x-auto mb-2">
                   <SignaturePad
                     value={data.customer_manifests[selected].signature}
                     onChange={(value) => handleIndemnityChange('signature', value)}
@@ -822,9 +862,9 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
           )}
           {/* submit */}
           {prevNext == 14 && (
-            <div className="flex flex-col w-[70%] sm:w-full h-full mb-[26px]">
-              <div className="flex flex-col w-[70%] sm:w-full h-[90%] gap-2" >
-                <span className="text-welcome-card-title text-center min-w-[90%] sm:w-full mt-[42px] px-6 sm:px-[39px]">
+            <div className="flex flex-col  w-full sm:w-[90%] h-full min-h-0 mb-[26px]">
+              <div className="flex flex-col w-[70%] sm:w-full flex-1 overflow-y-auto no-scrollbar gap-2" >
+                <span className="text-welcome-card-title text-center w-full sm:w-[90%] mt-[42px] px-6 sm:px-[39px]">
                   Your Indemnity is ready to submit
                 </span>
                 <span className=" text-center min-w-[90%] mb-[26px]">
@@ -884,12 +924,12 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
 
 {/* enter name */ }
 {/* {prevNext == 4 && (
-            <div className="flex flex-col h-full mb-[26px]">
-              <div className="flex flex-col w-full h-[90%] gap-2" >
-                <span className="text-welcome-card-title text-center min-w-[90%] sm:w-full mt-[42px] mb-[26px] px-6 sm:px-[39px]">
+            <div className="flex flex-col h-full min-h-0 mb-[26px]">
+              <div className="flex flex-col w-full flex-1 overflow-y-auto no-scrollbar gap-2" >
+                <span className="text-welcome-card-title text-center w-full sm:w-[90%] mt-[42px] mb-[26px] px-6 sm:px-[39px]">
                   Please enter your First and Last name
                 </span>
-                <div className="h-auto w-[90%] sm:w-full pl-7 sm:pl-0 overflow-x-auto">
+                <div className="h-auto w-full sm:w-[90%] pl-7 sm:pl-0 overflow-x-auto">
                   <CustomInputText
                     name="full_name"
                     value={data.customer_manifests[selected].full_name}
@@ -914,12 +954,12 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
 
 {/* Email only required if marketing opt-in is YES */ }
 {/* {prevNext == 13 && (
-            <div className="flex flex-col h-full mb-[26px]">
-              <div className="flex flex-col w-full h-[90%] gap-2" >
-                <span className="text-welcome-card-title text-center min-w-[90%] sm:w-full mt-[42px] mb-[26px] px-6 sm:px-[39px]">
+            <div className="flex flex-col h-full min-h-0 mb-[26px]">
+              <div className="flex flex-col w-full flex-1 overflow-y-auto no-scrollbar gap-2" >
+                <span className="text-welcome-card-title text-center w-full sm:w-[90%] mt-[42px] mb-[26px] px-6 sm:px-[39px]">
                   Please enter your email address
                 </span>
-                <div className="h-auto w-[90%] sm:w-full pl-7 sm:pl-0 overflow-x-auto">
+                <div className="h-auto w-full sm:w-[90%] pl-7 sm:pl-0 overflow-x-auto">
                   <CustomInputText
                     name="email_address"
                     value={data.customer_manifests[selected].email_address}
@@ -945,12 +985,12 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
 {/* Birthday (month + day) */ }
 {/* referral */ }
 {/* {prevNext == 6 && (
-            <div className="flex flex-col h-full mb-[26px]">
-              <div className="flex flex-col w-full h-[90%] gap-2 " >
-                <span className="text-welcome-card-title text-center min-w-[90%] sm:w-full mt-[42px] mb-[26px] px-6 sm:px-[39px]">
+            <div className="flex flex-col h-full min-h-0 mb-[26px]">
+              <div className="flex flex-col w-full flex-1 overflow-y-auto no-scrollbar gap-2 " >
+                <span className="text-welcome-card-title text-center w-full sm:w-[90%] mt-[42px] mb-[26px] px-6 sm:px-[39px]">
                   Where did you hear about us
                 </span>
-                <div className="h-auto w-[90%] sm:w-full pl-7 sm:pl-0 overflow-x-auto">
+                <div className="h-auto w-full sm:w-[90%] pl-7 sm:pl-0 overflow-x-auto">
                   {typeReferral?.map((referral, i) => (
                     <CustomRadio
                       key={referral.id}
@@ -977,7 +1017,7 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
           )} */}
 
 {/* {prevNext == 4 && (
-            <div className="flex flex-col w-full sm:w-auto h-full mb-[26px]">
+            <div className="flex flex-col w-full sm:w-auto h-full min-h-0 mb-[26px]">
 
               <div className="flex items-center justify-center gap-6">
                 <button type='button' onClick={() => handlePrevNext(3, selected)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border border-primary-14 text-primary-14 cursor-pointer">
@@ -991,7 +1031,7 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
           )}
           
           {prevNext == 5 && (
-            <div className="flex flex-col w-full sm:w-auto h-full mb-[26px]">
+            <div className="flex flex-col w-full sm:w-auto h-full min-h-0 mb-[26px]">
 
               <div className="flex items-center justify-center gap-6">
                 <button type='button' onClick={() => handlePrevNext(4, selected)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border border-primary-14 text-primary-14 cursor-pointer">
@@ -1006,9 +1046,9 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
 
 {/* select lead guide */ }
 {/* {prevNext == 1 && (
-            <div className="flex flex-col h-full mb-[26px]">
-              <div className="flex flex-col w-full h-[90%] gap-2" >
-                <span className="text-welcome-card-title text-center min-w-[90%] sm:w-full mt-[42px] mb-[26px] px-6 sm:px-[39px]">
+            <div className="flex flex-col h-full min-h-0 mb-[26px]">
+              <div className="flex flex-col w-full flex-1 overflow-y-auto no-scrollbar gap-2" >
+                <span className="text-welcome-card-title text-center w-full sm:w-[90%] mt-[42px] mb-[26px] px-6 sm:px-[39px]">
                   Select your Lead Guide
                 </span>
                 {leadGuides?.map((staff, i) => (
@@ -1032,9 +1072,9 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
           )} */}
 {/* select safety guide */ }
 {/* {prevNext == 2 && (
-            <div className="flex flex-col h-full mb-[26px]">
-              <div className="flex flex-col w-full h-[90%] gap-2" >
-                <span className="text-welcome-card-title text-center min-w-[90%] sm:w-full mt-[42px] mb-[26px] px-6 sm:px-[39px]">
+            <div className="flex flex-col h-full min-h-0 mb-[26px]">
+              <div className="flex flex-col w-full flex-1 overflow-y-auto no-scrollbar gap-2" >
+                <span className="text-welcome-card-title text-center w-full sm:w-[90%] mt-[42px] mb-[26px] px-6 sm:px-[39px]">
                   Select your Safety Guide
                 </span>
                 {safetyGuides?.map((staff, i) => (
@@ -1061,12 +1101,12 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
             </div>
           )}
                     {prevNext == 4 && (
-            <div className="flex flex-col w-full h-full mb-[26px]">
-              <div className="flex flex-col w-full h-[90%] gap-2" >
-                <span className="text-welcome-card-title text-center min-w-[90%] sm:w-full mt-[42px] mb-[26px] px-6 sm:px-[39px]">
+            <div className="flex flex-col w-full h-full min-h-0 mb-[26px]">
+              <div className="flex flex-col w-full flex-1 overflow-y-auto no-scrollbar gap-2" >
+                <span className="text-welcome-card-title text-center w-full sm:w-[90%] mt-[42px] mb-[26px] px-6 sm:px-[39px]">
                   Please enter your email address
                 </span>
-                <div className="h-auto w-[90%] sm:w-full pl-7 sm:pl-0 overflow-x-auto">
+                <div className="h-auto w-full sm:w-[90%] pl-7 sm:pl-0 overflow-x-auto">
                   <CustomInputText
                     name="email_address"
                     value={data.customer_manifests[selected].email_address}
@@ -1090,3 +1130,9 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
           )}  
           
           */}
+
+
+
+
+
+

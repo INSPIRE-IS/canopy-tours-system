@@ -17,7 +17,7 @@ class SeedBoardingPass extends Command
         $this->info('Seeding core data...');
 
         $boardingPassTemplates = [
-            [
+            [ //Magoebaskloof Boarding Pass default
                 'team_id' => 5,
                 'name' => 'Magoebaskloof Boarding Pass',
                 'location' => 'Magoebaskloof Adventures',
@@ -95,9 +95,9 @@ class SeedBoardingPass extends Command
                     ],
                 ],
             ],
-            [
+            [ //Magoebaskloof Boarding Pass Tubing
                 'team_id' => 5,
-                'service_id' => 14, // Tubing
+                'service_id' => 14, // 
                 'season_id' => 14,
                 'name' => 'Magoebaskloof Boarding Pass',
                 'location' => 'Magoebaskloof Adventures',
@@ -175,253 +175,253 @@ class SeedBoardingPass extends Command
                     ],
                 ],
             ],
-            // [
-            //     'team_id' => 5, // Abseiling
-            //     'service_id' => 2,
-            //     'season_id' => 2,
-            //     'name' => 'Magoebaskloof Boarding Pass',
-            //     'location' => 'Magoebaskloof Adventures',
-            //     'address' => 'GV11B, R528, Georges Valley, Limpopo',
-            //     'footer' => '',
-            //     'sections' => [
-            //         [
-            //             'title' => 'Tour Includes',
-            //             'icon' => '/images/icons/tour.png',
-            //             'items' => [
-            //                 'All equipment and training.',
-            //                 'A light meal.',
-            //                 'A 2-2.5hour fully guided abseil adventure in the Letaba Gorge.',
-            //                 'Group size: 2-10.',
-            //                 '2x fully trained facilitators will guide you.',
-            //             ],
-            //         ],
-            //         [
-            //             'title' => 'Arrival',
-            //             'icon' => '/images/icons/location.png',
-            //             'items' => [
-            //                 'Please arrive at least 10–15min BEFORE your tour time.',
-            //                 'Allow sufficient travel time — the trip will start promptly and late guests cannot be accommodated.',
-            //                 'Alcohol and adventure do not mix. In the interest of the safety of the other guests and the guides, we reserve the right to refuse your participation on the trip if you are considered intoxicated. No refund will be given.',
-            //                 'Once the safety briefing begins late guests cannot join and the tour will be considered missed. No refund will be given.',
-            //             ],
-            //         ],
-            //         [
-            //             'title' => 'What to Bring',
-            //             'icon' => '/images/icons/tshirt.png',
-            //             'items' => [
-            //                 'Trainers, comfortable pants/ shorts, a warm jacket — mountain weather is unpredictable.',
-            //                 'Costume and towel (if you would like to swim),  sunscreen.',
-            //                 'You may bring your phone or camera (at own risk).',
-            //             ],
-            //         ],
-            //         [
-            //             'title' => 'Weather',
-            //             'icon' => '/images/icons/cloud.png',
-            //             'items' => [
-            //                 'trips are dependent on river levels.',
-            //                 'In the event of risky river levels, you will be given the option, on the day of you trip, to reschedule your trip or a refund will be given.',
-            //             ],
-            //         ],
-            //         [
-            //             'title' => 'Restrictions',
-            //             'icon' => '/images/icons/restrictions.png',
-            //             'items' => [
-            //                 'This is an adventure activity requiring moderate fitness. We do not recommend that the trip is done during pregnancy.',
-            //                 'Maximum weight: 120 kg.',
-            //                 'Limit is based on harness size and strap circumference.',
-            //                 'If over 120 kg but fit, your body shape may still allow safe harness fit.',
-            //                 'Minimum age: 13 years old.',
-            //             ],
-            //         ],
-            //         [
-            //             'title' => 'Tandems / Children',
-            //             'icon' => '/images/icons/family.png',
-            //             'items' => [
-            //                 'Minimum age: 13 years old.',
-            //             ],
-            //         ],
-            //         [
-            //             'title' => 'Further Info',
-            //             'icon' => '/images/icons/info.png',
-            //             'items' => [
-            //                 "Tips aren’t required but appreciated.",
-            //                 'Extra snacks and drinks available before and after your tour.',
-            //                 'Wi-Fi available at the base.',
-            //             ],
-            //         ],
-            //         [
-            //             'title' => 'Cancellation / Refunds',
-            //             'icon' => '/images/icons/refund.png',
-            //             'items' => [
-            //                 '100% refund for cancellations 7 days before the trip.',
-            //                 'No refund for late arrivals or missed tours.',
-            //             ],
-            //         ],
-            //     ],
-            // ],
-            // [
-            //     'team_id' => 5, // Tree Hop
-            //     'service_id' => 3,
-            //     'season_id' => 3,
-            //     'name' => 'Magoebaskloof Boarding Pass',
-            //     'location' => 'Magoebaskloof Adventures',
-            //     'address' => 'GV11B, R528, Georges Valley, Limpopo',
-            //     'footer' => '',
-            //     'sections' => [
-            //         [
-            //             'title' => 'Tour Includes',
-            //             'icon' => '/images/icons/tour.png',
-            //             'items' => [
-            //                 'All equipment and training.',
-            //                 'An hour of amazing challenges in our ancient Eucalytus trees - think flying foxes,cargo nets, suspended rafts, twisted ladders mini ziplines and more.',
-            //                 'Group size: 2-10.',
-            //                 '1 x fully trained facilitators will guide you.',
-            //             ],
-            //         ],
-            //         [
-            //             'title' => 'Arrival',
-            //             'icon' => '/images/icons/location.png',
-            //             'items' => [
-            //                 'Please arrive at least 10–15min BEFORE your tour time.',
-            //                 'Allow sufficient travel time — the trip will start promptly and late guests cannot be accommodated.',
-            //                 'Alcohol and adventure do not mix. In the interest of the safety of the other guests and the guides, we reserve the right to refuse your participation on the trip if you are considered intoxicated. No refund will be given.',
-            //                 'Once the safety briefing begins late guests cannot join and the tour will be considered missed. No refund will be given.',
-            //             ],
-            //         ],
-            //         [
-            //             'title' => 'What to Bring',
-            //             'icon' => '/images/icons/tshirt.png',
-            //             'items' => [
-            //                 'Trainers, comfortable pants/ shorts, a warm jacket — mountain weather is unpredictable.',
-            //                 'Sunblock; rain jacket on rainy days.',
-            //                 'You may bring your phone or camera (at own risk).',
-            //             ],
-            //         ],
-            //         [
-            //             'title' => 'Weather',
-            //             'icon' => '/images/icons/cloud.png',
-            //             'items' => [
-            //                 'trips are mildly weather-dependent but operate in most conditions.',
-            //                 'In the event of inclement weather, you will be given the option, on the day of you trip, to reschedule your trip or a refund will be given.',
-            //             ],
-            //         ],
-            //         [
-            //             'title' => 'Restrictions',
-            //             'icon' => '/images/icons/restrictions.png',
-            //             'items' => [
-            //                 'This is an adventure activity requiring moderate fitness. We do not recommend that the trip is done during pregnancy.',
-            //                 'Maximum weight: 120 kg.',
-            //                 'Limit is based on harness size and strap circumference.',
-            //                 'If over 120 kg but fit, your body shape may still allow safe harness fit.',
-            //                 'Minimum age: 10 years old.',
-            //             ],
-            //         ],
-            //         [
-            //             'title' => 'Tandems / Children',
-            //             'icon' => '/images/icons/family.png',
-            //             'items' => [
-            //                 'Minimum age: 10 years old.',
-            //             ],
-            //         ],
-            //         [
-            //             'title' => 'Further Info',
-            //             'icon' => '/images/icons/info.png',
-            //             'items' => [
-            //                 "Tips aren’t required but appreciated.",
-            //                 'Extra snacks and drinks available before and after your tour.',
-            //                 'Wi-Fi available at the base.',
-            //             ],
-            //         ],
-            //         [
-            //             'title' => 'Cancellation / Refunds',
-            //             'icon' => '/images/icons/refund.png',
-            //             'items' => [
-            //                 '100% refund for cancellations 7 days before the trip.',
-            //                 'No refund for late arrivals or missed tours.',
-            //             ],
-            //         ],
-            //     ],
-            // ],
-            // [
-            //     'team_id' => 5, // Hiking
-            //     'service_id' => 4,
-            //     'season_id' => 4,
-            //     'name' => 'Magoebaskloof Boarding Pass',
-            //     'location' => 'Magoebaskloof Adventures',
-            //     'address' => 'GV11B, R528, Georges Valley, Limpopo',
-            //     'footer' => '',
-            //     'sections' => [
-            //         [
-            //             'title' => 'Tour Includes',
-            //             'icon' => '/images/icons/tour.png',
-            //             'items' => [
-            //                 'A light snack and bottle of water.',
-            //                 'A 2hr guided hiking trail along the Letaba River, between 2km and 8km depending on the fitness of the group.',
-            //                 '1 x fully trained facilitators will guide you.',
-            //             ],
-            //         ],
-            //         [
-            //             'title' => 'Arrival',
-            //             'icon' => '/images/icons/location.png',
-            //             'items' => [
-            //                 'Please arrive at least 10–15min BEFORE your tour time.',
-            //                 'Allow sufficient travel time — the trip will start promptly and late guests cannot be accommodated.',
-            //                 'Alcohol and adventure do not mix. In the interest of the safety of the other guests and the guides, we reserve the right to refuse your participation on the trip if you are considered intoxicated. No refund will be given.',
-            //                 'Once the safety briefing begins late guests cannot join and the tour will be considered missed. No refund will be given.',
-            //             ],
-            //         ],
-            //         [
-            //             'title' => 'What to Bring',
-            //             'icon' => '/images/icons/tshirt.png',
-            //             'items' => [
-            //                 'Trainers, comfortable pants/ shorts, a warm jacket — mountain weather is unpredictable.',
-            //                 'Sunblock; rain jacket on rainy days.',
-            //                 'You may bring your phone or camera (at own risk).',
-            //             ],
-            //         ],
-            //         [
-            //             'title' => 'Weather',
-            //             'icon' => '/images/icons/cloud.png',
-            //             'items' => [
-            //                 'trips are mildly weather-dependent but operate in most conditions.',
-            //                 'In the event of inclement weather, you will be given the option, on the day of you trip, to reschedule your trip or a refund will be given.',
-            //             ],
-            //         ],
-            //         [
-            //             'title' => 'Restrictions',
-            //             'icon' => '/images/icons/restrictions.png',
-            //             'items' => [
-            //                 'This is an adventure activity requiring moderate fitness.',
-            //                 'Minimum age: 7 years old.',
-            //             ],
-            //         ],
-            //         [
-            //             'title' => 'Tandems / Children',
-            //             'icon' => '/images/icons/family.png',
-            //             'items' => [
-            //                 'Minimum age: 10 years old.',
-            //             ],
-            //         ],
-            //         [
-            //             'title' => 'Further Info',
-            //             'icon' => '/images/icons/info.png',
-            //             'items' => [
-            //                 "Tips aren’t required but appreciated.",
-            //                 'Extra snacks and drinks available before and after your tour.',
-            //                 'Wi-Fi available at the base.',
-            //             ],
-            //         ],
-            //         [
-            //             'title' => 'Cancellation / Refunds',
-            //             'icon' => '/images/icons/refund.png',
-            //             'items' => [
-            //                 '100% refund for cancellations 7 days before the trip.',
-            //                 'No refund for late arrivals or missed tours.',
-            //             ],
-            //         ],
-            //     ],
-            // ],
-            [
+            [ //Magoebaskloof Boarding Pass Abseiling
+                'team_id' => 5, // 
+                'service_id' => 2,
+                'season_id' => 2,
+                'name' => 'Magoebaskloof Boarding Pass',
+                'location' => 'Magoebaskloof Adventures',
+                'address' => 'GV11B, R528, Georges Valley, Limpopo',
+                'footer' => '',
+                'sections' => [
+                    [
+                        'title' => 'Tour Includes',
+                        'icon' => '/images/icons/tour.png',
+                        'items' => [
+                            'All equipment and training.',
+                            'A light meal.',
+                            'A 2-2.5hour fully guided abseil adventure in the Letaba Gorge.',
+                            'Group size: 2-10.',
+                            '2x fully trained facilitators will guide you.',
+                        ],
+                    ],
+                    [
+                        'title' => 'Arrival',
+                        'icon' => '/images/icons/location.png',
+                        'items' => [
+                            'Please arrive at least 10–15min BEFORE your tour time.',
+                            'Allow sufficient travel time — the trip will start promptly and late guests cannot be accommodated.',
+                            'Alcohol and adventure do not mix. In the interest of the safety of the other guests and the guides, we reserve the right to refuse your participation on the trip if you are considered intoxicated. No refund will be given.',
+                            'Once the safety briefing begins late guests cannot join and the tour will be considered missed. No refund will be given.',
+                        ],
+                    ],
+                    [
+                        'title' => 'What to Bring',
+                        'icon' => '/images/icons/tshirt.png',
+                        'items' => [
+                            'Trainers, comfortable pants/ shorts, a warm jacket — mountain weather is unpredictable.',
+                            'Costume and towel (if you would like to swim),  sunscreen.',
+                            'You may bring your phone or camera (at own risk).',
+                        ],
+                    ],
+                    [
+                        'title' => 'Weather',
+                        'icon' => '/images/icons/cloud.png',
+                        'items' => [
+                            'trips are dependent on river levels.',
+                            'In the event of risky river levels, you will be given the option, on the day of you trip, to reschedule your trip or a refund will be given.',
+                        ],
+                    ],
+                    [
+                        'title' => 'Restrictions',
+                        'icon' => '/images/icons/restrictions.png',
+                        'items' => [
+                            'This is an adventure activity requiring moderate fitness. We do not recommend that the trip is done during pregnancy.',
+                            'Maximum weight: 120 kg.',
+                            'Limit is based on harness size and strap circumference.',
+                            'If over 120 kg but fit, your body shape may still allow safe harness fit.',
+                            'Minimum age: 13 years old.',
+                        ],
+                    ],
+                    [
+                        'title' => 'Tandems / Children',
+                        'icon' => '/images/icons/family.png',
+                        'items' => [
+                            'Minimum age: 13 years old.',
+                        ],
+                    ],
+                    [
+                        'title' => 'Further Info',
+                        'icon' => '/images/icons/info.png',
+                        'items' => [
+                            "Tips aren’t required but appreciated.",
+                            'Extra snacks and drinks available before and after your tour.',
+                            'Wi-Fi available at the base.',
+                        ],
+                    ],
+                    [
+                        'title' => 'Cancellation / Refunds',
+                        'icon' => '/images/icons/refund.png',
+                        'items' => [
+                            '100% refund for cancellations 7 days before the trip.',
+                            'No refund for late arrivals or missed tours.',
+                        ],
+                    ],
+                ],
+            ],
+            [ //Magoebaskloof Boarding Pass Tree Hop
+                'team_id' => 5, // 
+                'service_id' => 3,
+                'season_id' => 3,
+                'name' => 'Magoebaskloof Boarding Pass',
+                'location' => 'Magoebaskloof Adventures',
+                'address' => 'GV11B, R528, Georges Valley, Limpopo',
+                'footer' => '',
+                'sections' => [
+                    [
+                        'title' => 'Tour Includes',
+                        'icon' => '/images/icons/tour.png',
+                        'items' => [
+                            'All equipment and training.',
+                            'An hour of amazing challenges in our ancient Eucalytus trees - think flying foxes,cargo nets, suspended rafts, twisted ladders mini ziplines and more.',
+                            'Group size: 2-10.',
+                            '1 x fully trained facilitators will guide you.',
+                        ],
+                    ],
+                    [
+                        'title' => 'Arrival',
+                        'icon' => '/images/icons/location.png',
+                        'items' => [
+                            'Please arrive at least 10–15min BEFORE your tour time.',
+                            'Allow sufficient travel time — the trip will start promptly and late guests cannot be accommodated.',
+                            'Alcohol and adventure do not mix. In the interest of the safety of the other guests and the guides, we reserve the right to refuse your participation on the trip if you are considered intoxicated. No refund will be given.',
+                            'Once the safety briefing begins late guests cannot join and the tour will be considered missed. No refund will be given.',
+                        ],
+                    ],
+                    [
+                        'title' => 'What to Bring',
+                        'icon' => '/images/icons/tshirt.png',
+                        'items' => [
+                            'Trainers, comfortable pants/ shorts, a warm jacket — mountain weather is unpredictable.',
+                            'Sunblock; rain jacket on rainy days.',
+                            'You may bring your phone or camera (at own risk).',
+                        ],
+                    ],
+                    [
+                        'title' => 'Weather',
+                        'icon' => '/images/icons/cloud.png',
+                        'items' => [
+                            'trips are mildly weather-dependent but operate in most conditions.',
+                            'In the event of inclement weather, you will be given the option, on the day of you trip, to reschedule your trip or a refund will be given.',
+                        ],
+                    ],
+                    [
+                        'title' => 'Restrictions',
+                        'icon' => '/images/icons/restrictions.png',
+                        'items' => [
+                            'This is an adventure activity requiring moderate fitness. We do not recommend that the trip is done during pregnancy.',
+                            'Maximum weight: 120 kg.',
+                            'Limit is based on harness size and strap circumference.',
+                            'If over 120 kg but fit, your body shape may still allow safe harness fit.',
+                            'Minimum age: 10 years old.',
+                        ],
+                    ],
+                    [
+                        'title' => 'Tandems / Children',
+                        'icon' => '/images/icons/family.png',
+                        'items' => [
+                            'Minimum age: 10 years old.',
+                        ],
+                    ],
+                    [
+                        'title' => 'Further Info',
+                        'icon' => '/images/icons/info.png',
+                        'items' => [
+                            "Tips aren’t required but appreciated.",
+                            'Extra snacks and drinks available before and after your tour.',
+                            'Wi-Fi available at the base.',
+                        ],
+                    ],
+                    [
+                        'title' => 'Cancellation / Refunds',
+                        'icon' => '/images/icons/refund.png',
+                        'items' => [
+                            '100% refund for cancellations 7 days before the trip.',
+                            'No refund for late arrivals or missed tours.',
+                        ],
+                    ],
+                ],
+            ],
+            [ //Magoebaskloof Boarding Pass Hiking
+                'team_id' => 5, // 
+                'service_id' => 4,
+                'season_id' => 4,
+                'name' => 'Magoebaskloof Boarding Pass',
+                'location' => 'Magoebaskloof Adventures',
+                'address' => 'GV11B, R528, Georges Valley, Limpopo',
+                'footer' => '',
+                'sections' => [
+                    [
+                        'title' => 'Tour Includes',
+                        'icon' => '/images/icons/tour.png',
+                        'items' => [
+                            'A light snack and bottle of water.',
+                            'A 2hr guided hiking trail along the Letaba River, between 2km and 8km depending on the fitness of the group.',
+                            '1 x fully trained facilitators will guide you.',
+                        ],
+                    ],
+                    [
+                        'title' => 'Arrival',
+                        'icon' => '/images/icons/location.png',
+                        'items' => [
+                            'Please arrive at least 10–15min BEFORE your tour time.',
+                            'Allow sufficient travel time — the trip will start promptly and late guests cannot be accommodated.',
+                            'Alcohol and adventure do not mix. In the interest of the safety of the other guests and the guides, we reserve the right to refuse your participation on the trip if you are considered intoxicated. No refund will be given.',
+                            'Once the safety briefing begins late guests cannot join and the tour will be considered missed. No refund will be given.',
+                        ],
+                    ],
+                    [
+                        'title' => 'What to Bring',
+                        'icon' => '/images/icons/tshirt.png',
+                        'items' => [
+                            'Trainers, comfortable pants/ shorts, a warm jacket — mountain weather is unpredictable.',
+                            'Sunblock; rain jacket on rainy days.',
+                            'You may bring your phone or camera (at own risk).',
+                        ],
+                    ],
+                    [
+                        'title' => 'Weather',
+                        'icon' => '/images/icons/cloud.png',
+                        'items' => [
+                            'trips are mildly weather-dependent but operate in most conditions.',
+                            'In the event of inclement weather, you will be given the option, on the day of you trip, to reschedule your trip or a refund will be given.',
+                        ],
+                    ],
+                    [
+                        'title' => 'Restrictions',
+                        'icon' => '/images/icons/restrictions.png',
+                        'items' => [
+                            'This is an adventure activity requiring moderate fitness.',
+                            'Minimum age: 7 years old.',
+                        ],
+                    ],
+                    [
+                        'title' => 'Tandems / Children',
+                        'icon' => '/images/icons/family.png',
+                        'items' => [
+                            'Minimum age: 10 years old.',
+                        ],
+                    ],
+                    [
+                        'title' => 'Further Info',
+                        'icon' => '/images/icons/info.png',
+                        'items' => [
+                            "Tips aren’t required but appreciated.",
+                            'Extra snacks and drinks available before and after your tour.',
+                            'Wi-Fi available at the base.',
+                        ],
+                    ],
+                    [
+                        'title' => 'Cancellation / Refunds',
+                        'icon' => '/images/icons/refund.png',
+                        'items' => [
+                            '100% refund for cancellations 7 days before the trip.',
+                            'No refund for late arrivals or missed tours.',
+                        ],
+                    ],
+                ],
+            ],
+            [ //Tsitsikamma Boarding Pass
                 'team_id' => 6,
                 'name' => 'Tsitsikamma Boarding Pass',
                 'location' => 'Tsitsikamma Canopy Tour',
@@ -509,7 +509,7 @@ class SeedBoardingPass extends Command
                     ],
                 ],
             ],
-            [
+            [ //Drakensberg Boarding Pass
                 'team_id' => 2,
                 'name' => 'Drakensberg Boarding Pass',
                 'location' => 'Drakensberg Canopy Tour',
@@ -607,7 +607,7 @@ class SeedBoardingPass extends Command
                     ],
                 ],
             ],
-            [
+            [ //Test Team Boarding Pass
                 'team_id' => 7,
                 'name' => 'Test Team Boarding Pass',
                 'location' => 'Cape Canopy Tour',
@@ -750,4 +750,3 @@ class SeedBoardingPass extends Command
         // php artisan seed:core-bording-pass
     }
 }
-

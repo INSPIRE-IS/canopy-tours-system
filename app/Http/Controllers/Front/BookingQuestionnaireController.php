@@ -11,6 +11,7 @@ use App\Models\BookingItem;
 use App\Models\BookingQuestionnaire;
 use App\Models\Team;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use App\Models\Continent;
 use App\Models\Country;
 use App\Models\Customer;
@@ -24,11 +25,13 @@ use App\Models\Questionnaire;
 use App\Models\QuestionnaireAnswer;
 use App\Models\QuestionSite;
 use App\Models\Service;
+use App\Models\Season;
 use App\Models\State;
 use App\Models\TypeConfirmation;
 use App\Models\TypeGroup;
 use App\Models\TypeReferral;
 use App\Models\User;
+use App\Services\QuestionnaireSeeder;
 use Barryvdh\DomPDF\Facade\Pdf;
 use DB;
 use Illuminate\Support\Facades\Log;
@@ -43,8 +46,15 @@ class BookingQuestionnaireController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
+        $bookingDate = $request->query('booking_date');
+        try {
+            $bookingDate = $bookingDate ? Carbon::parse($bookingDate)->toDateString() : now()->toDateString();
+        } catch (\Throwable $e) {
+            $bookingDate = now()->toDateString();
+        }
+
         $booking_items = BookingItem::with([
             'service',
             'booking.files',
@@ -53,7 +63,11 @@ class BookingQuestionnaireController extends Controller
             'booking_detail',
             'booking_fee',
             'booking_inventory',
-        ])->get();
+        ])
+            ->whereHas('booking_inventory', function ($query) use ($bookingDate) {
+                $query->whereDate('date', $bookingDate);
+            })
+            ->get();
         //dd($booking_items);
 
         $formatted = $booking_items->map(function ($booking_item) {
@@ -158,6 +172,16 @@ class BookingQuestionnaireController extends Controller
                     'success' => false,
                     'error' => 'Booking not found',
                 ], 200);
+            }
+
+            $questionnaire = Questionnaire::where('service_id', $bookingItem->service_id)
+                ->where('season_id', $bookingItem->season_id)
+                ->first();
+            if (!$questionnaire && $bookingItem->season_id) {
+                $season = Season::find($bookingItem->season_id);
+                if ($season) {
+                    app(QuestionnaireSeeder::class)->seedForSeason($season);
+                }
             }
             $questions = Question::whereHas('question_sites', function ($q) use ($bookingItem) {
                 $q->where('service_id', $bookingItem->service_id)
@@ -518,15 +542,35 @@ class BookingQuestionnaireController extends Controller
                 $booking = Booking::find($bookingItem->booking_id);
                 $customer = Customer::find($validated['customer_id']);
 
-                if ($customer) {
+                if (!$customer) {
+                    if (empty($validated['full_name'])) {
+                        throw new \Exception('Customer not found and full name is missing.');
+                    }
+
+                    $customer = Customer::create([
+                        'full_name' => $validated['full_name'],
+                        'email_address' => $validated['email_address'] ?? null,
+                        'contact_number' => $validated['contact_number'] ?? null,
+                        'age' => $validated['age_id'] ?? null,
+                        'parent_id' => $validated['parent_id'] ?? null,
+                        'team_id' => $booking->team_id ?? null,
+                    ]);
+
+                    $bookingItem->customers()->syncWithoutDetaching([
+                        $customer->id => [
+                            'team_id' => $booking->team_id,
+                            'is_lead' => (int) ($validated['is_lead'] ?? 0),
+                        ],
+                    ]);
+
+                    $validated['customer_id'] = $customer->id;
+                } else {
                     $customer->update([
                         'full_name' => $validated['full_name'],
                         'email_address' => $validated['email_address'],
                         'age' => $validated['age_id'],
                         'parent_id' => $validated['parent_id'],
                     ]);
-                } else {
-                    throw new \Exception("Customer not found: {$validated['customer_id']}");
                 }
                 //dd('here');
 
@@ -804,7 +848,16 @@ class BookingQuestionnaireController extends Controller
                 return $booking;
             });
 
-            return redirect()->route('booking-questionnaire.index');
+            $bookingItemId = collect($manifests['customer_manifests'] ?? [])->first()['booking_item_id'] ?? null;
+            $bookingDate = null;
+            if ($bookingItemId) {
+                $bookingItem = BookingItem::with('booking_inventory')->find($bookingItemId);
+                $bookingDate = $bookingItem?->booking_inventory?->date;
+            }
+
+            return redirect()->route('booking-questionnaire.index', array_filter([
+                'booking_date' => $bookingDate,
+            ]));
         } catch (\Throwable $e) {
             // Log the full error for debugging
             Log::error('Booking Questionnaire failed and rolled back', [
@@ -812,7 +865,7 @@ class BookingQuestionnaireController extends Controller
                 'trace' => $e->getTraceAsString(),
                 'input' => $validated,
             ]);
-            return back()->with([
+            return back()->withInput()->with([
                 'error' => 'Something went wrong while saving your booking. Please try again.',
             ]);
         }
@@ -847,6 +900,16 @@ class BookingQuestionnaireController extends Controller
                     'success' => false,
                     'error' => 'Booking not found',
                 ], 200);
+            }
+
+            $questionnaire = Questionnaire::where('service_id', $bookingItem->service_id)
+                ->where('season_id', $bookingItem->season_id)
+                ->first();
+            if (!$questionnaire && $bookingItem->season_id) {
+                $season = Season::find($bookingItem->season_id);
+                if ($season) {
+                    app(QuestionnaireSeeder::class)->seedForSeason($season);
+                }
             }
             //$booking = Booking::findOrFail($booking->id);
 

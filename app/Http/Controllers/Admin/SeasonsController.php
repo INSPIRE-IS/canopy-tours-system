@@ -15,6 +15,7 @@ use App\Models\File;
 use App\Models\SeasonField;
 use App\Models\SeasonFieldValue;
 use App\Models\Service;
+use App\Services\QuestionnaireSeeder;
 use Illuminate\Support\Facades\Validator;
 
 class SeasonsController extends Controller
@@ -54,6 +55,7 @@ class SeasonsController extends Controller
     {
         //dd($request->all());
         $season = Season::create($request->all());
+        app(QuestionnaireSeeder::class)->seedForSeason($season);
         //return redirect()->back()->with('success', 'Season created successfully');
 
         return redirect()->route('admin.seasons.index');
