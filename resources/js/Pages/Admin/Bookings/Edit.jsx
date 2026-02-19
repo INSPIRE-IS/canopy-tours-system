@@ -75,6 +75,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
 
     const [pricing, setPricing] = useState(null);
     const lastSlotWarningRef = useRef('');
+    const canOverrideCapacity = !!selectedService?.allow_internal_capacity_override;
     const hasSlotInteractionRef = useRef(false);
     const skipServiceResetRef = useRef(true);
     const skipBookingDateResetRef = useRef(true);
@@ -759,7 +760,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
             capacity: service?.capacity || 0,
             duration: service?.duration || 0,
             season_id: bookingItem?.season_id || '',
-            override_timeslots: !!bookingDetail?.is_override_time_slots,
+            override_timeslots: false,
             booking_date: bookingDate || '',
             start_time: bookingInventory?.inventory_time_slot_id || '',
             adults: bookingInventory?.adults ?? bookingItem?.pax_adults ?? '',
@@ -861,7 +862,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
                     setData(prev => ({
                         ...prev,
                         season_id: season.id,
-                        override_timeslots: season?.inventory?.allow_internal_override == 1 ? true : false || false,
+                        override_timeslots: false,
                         override_price: season?.allow_internal_price_override == 1 ? true : false || false,
                         override_rates: false,
                         adult: season?.rake_rate_adult || 0,
@@ -876,7 +877,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
                     setData(prev => ({
                         ...prev,
                         season_id: season.id,
-                        override_timeslots: season?.inventory?.allow_internal_override || false,
+                        override_timeslots: false,
                         ...baseRateUpdates,
                     }));
                 }
@@ -903,6 +904,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
             return;
         }
         if (!scheduleData?.days?.length) return;
+        if (!timeslots?.length) return;
 
         const day = findScheduleDay(data.booking_date, scheduleData.days);
         const resolvedTime = resolveTimeLabel(data.start_time, timeslots, scheduleData.schedule);
@@ -1453,6 +1455,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
                                         checked={data[key] || false}
                                         onChange={handleChange}
                                         errors={errors}
+                                        disabled={key === 'override_timeslots' ? !canOverrideCapacity : false}
                                     />
                                 ))}
                                 {/* <WhiteButton
