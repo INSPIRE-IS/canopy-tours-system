@@ -48,6 +48,7 @@ class BookingQuestionnaireController extends Controller
      */
     public function index(Request $request)
     {
+        // TODO: This index is currently public; consider auth-guarding it to avoid exposing bookings.
         $bookingDate = $request->query('booking_date');
         try {
             $bookingDate = $bookingDate ? Carbon::parse($bookingDate)->toDateString() : now()->toDateString();

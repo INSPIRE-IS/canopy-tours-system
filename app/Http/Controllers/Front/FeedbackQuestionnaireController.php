@@ -30,6 +30,8 @@ use App\Models\TypeConfirmation;
 use App\Models\TypeGroup;
 use App\Models\TypeReferral;
 use App\Models\User;
+use App\Models\Season;
+use App\Services\QuestionnaireSeeder;
 use App\Notifications\IndemnityFlaggedNotification;
 use Barryvdh\DomPDF\Facade\Pdf;
 use DB;
@@ -164,6 +166,16 @@ class FeedbackQuestionnaireController extends Controller
                     'success' => false,
                     'error' => 'Booking not found',
                 ], 200);
+            }
+
+            $questionnaire = Questionnaire::where('service_id', $bookingItem->service_id)
+                ->where('season_id', $bookingItem->season_id)
+                ->first();
+            if (!$questionnaire && $bookingItem->season_id) {
+                $season = Season::find($bookingItem->season_id);
+                if ($season) {
+                    app(QuestionnaireSeeder::class)->seedForSeason($season);
+                }
             }
             $questions = Question::whereHas('question_sites', function ($q) use ($bookingItem) {
                 $q->where('service_id', $bookingItem->service_id)
@@ -596,7 +608,16 @@ class FeedbackQuestionnaireController extends Controller
                 return $booking;
             });
             Log::info('feedback ' . var_export($validated, true));
-            return redirect()->route('front.welcome');
+            $bookingItemId = $validated['booking_item_id'] ?? null;
+            $bookingDate = null;
+            if ($bookingItemId) {
+                $bookingItem = BookingItem::with('booking_inventory')->find($bookingItemId);
+                $bookingDate = $bookingItem?->booking_inventory?->date;
+            }
+
+            return redirect()->route('front.feedback-questionnaire.index', array_filter([
+                'booking_date' => $bookingDate,
+            ]));
             //return redirect()->route('feedback-questionnaire.index');
         } catch (\Throwable $e) {
             // Log the full error for debugging
@@ -606,7 +627,7 @@ class FeedbackQuestionnaireController extends Controller
                 'trace' => $e->getTraceAsString(),
                 'input' => $validated,
             ]);
-            return back()->with([
+            return back()->withInput()->with([
                 'error' => 'Something went wrong while saving your booking. Please try again.',
             ]);
         }

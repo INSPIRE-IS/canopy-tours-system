@@ -1,6 +1,6 @@
 // resources/js/Pages/BookingLookup.jsx
 import React, { useState, useEffect } from 'react';
-import { Head, router, useForm } from '@inertiajs/react';
+import { Head, router, useForm, usePage } from '@inertiajs/react';
 import CustomButton from '@/Components/CustomButton';
 import CustomCheckboxQ from '@/Components/CustomCheckboxQ';
 import CustomInputText from '@/Components/CustomInputText';
@@ -13,6 +13,8 @@ import GreenButton from '@/Components/GreenButton';
 import axios from 'axios';
 
 export default function BookingLookup({ auth, booking, bookings, bookingItem, questions, leadGuides, arrivals, safetyBrifings, drive, areaKnowledge, comfortSafety }) {
+  const { props } = usePage();
+  const { old } = props;
   // console.log("auth", auth);
   const mode = 'edit';
   // console.log("booking", booking);
@@ -45,6 +47,24 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
 
   useEffect(() => {
     if (bookings?.customers?.length) {
+      if (old?.feedback?.length) {
+        const restored = old.feedback;
+        setData('feedback', restored);
+        const restoredAdults = restored
+          .filter(p => p.type === "adult" && p.full_name != "")
+          .map((p, i) => ({
+            id: typeof p.customer_id == 'number' ? p.customer_id : 0,
+            name: p.full_name || "Unnamed Adult",
+            is_feedback: p.is_feedback,
+            is_indemnity: p.is_indemnity,
+          }));
+        setAdults(restoredAdults);
+        const selectedIndex = restored.findIndex(p => p.index == 1);
+        if (selectedIndex >= 0) {
+          setSelected(selectedIndex);
+        }
+        return;
+      }
       // Map API data into form shape
       const mapped = bookings.customers.map((item, i) => {
         const { customer, manifest, questionnaire } = item;
