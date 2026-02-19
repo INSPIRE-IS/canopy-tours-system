@@ -2,6 +2,7 @@
 import CustomerToolsModal from '@/Components/CustomerToolsModal';
 import GuestEmailModal from '@/Components/GuestEmailModal';
 import BookingNotesModal from '@/Components/BookingNotesModal';
+import CheckInOptionsModal from '@/Components/CheckInOptionsModal';
 import Header from '@/Components/Header';
 import { icons } from '@/icons';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
@@ -66,6 +67,7 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
     const [confirmAction, setConfirmAction] = useState(null); // { type: 'booking' | 'slot', booking }
     const [slotRows, setSlotRows] = useState([]);
     const [viewDocsIndex, setViewDocsIndex] = useState(null);
+    const [checkInTarget, setCheckInTarget] = useState(null);
     const servicesRef = useRef();
     useEffect(() => {
         if (flash?.success) {
@@ -153,6 +155,20 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
         return selectedDate || today;
     };
 
+    const openCheckInOptions = (booking) => {
+        if (!booking?.booking_item_id || !booking?.reference) {
+            showToast('Booking item not found for check-in.', 'error');
+            return;
+        }
+        setCheckInTarget({
+            booking_item_id: booking.booking_item_id,
+            reference: booking.reference,
+            lead_name: booking.lead_name,
+            lead_phone: booking.lead_phone,
+            lead_email: booking.lead_email,
+        });
+    };
+
 
     function BookingToolClick(tool, booking) {
 
@@ -182,7 +198,7 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
 
     const CustomerToolClick = (tool, booking, customer) => {
         if (tool === 'check_in') {
-            router.get(route('booking-questionnaire.create', { reference: booking.reference }));
+            openCheckInOptions(booking);
         }
         if (tool === 'resend_invoice') {
             router.get(route('admin.invoices.resend-invoice', { booking_id: booking.id }));
@@ -220,10 +236,7 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
         //     router.get(route('admin.messenger.createTopic'));
         // }
         if (tool === 'check_in_progress') {
-            // router.get(route('admin.bookings.check_in_progress'));
-            router.get(route('booking-questionnaire.index', {
-                booking_date: getSelectedBookingDate()
-            }))
+            openCheckInOptions(booking);
         }
         if (tool === 'manifest_edit') {
             //router.get(route('admin.bookings.manifest_edit'));
@@ -584,7 +597,11 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                                 <img src="/assets/icons/plus.svg" alt="bookings" className="w-5 h-5" />
                                 <span className="text-btn-outline-gray">New Booking</span>
                             </button>
-                            <button onClick={() => router.get(route('booking-questionnaire.index', { booking_date: getSelectedBookingDate() }))} className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-red-gradient-overlay border-[#C65468] text-white shadow-inset-white cursor-pointer">
+                            <button
+                                type="button"
+                                onClick={() => router.get(route('booking-questionnaire.index', { booking_date: getSelectedBookingDate() }))}
+                                className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-red-gradient-overlay border-[#C65468] text-white shadow-inset-white cursor-pointer"
+                            >
                                 <img src="/assets/icons/plus.svg" alt="bookings" className="w-5 h-5" />
                                 <span className="text-btn-outline-gray">Check in</span>
                             </button>
@@ -952,6 +969,13 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                     customers={selectedManifests}
                     tot_adults='0'
                     tot_children='0'
+                />
+
+                <CheckInOptionsModal
+                    isOpen={!!checkInTarget}
+                    onClose={() => setCheckInTarget(null)}
+                    booking={checkInTarget}
+                    contextLabel="booking"
                 />
 
 

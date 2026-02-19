@@ -3,9 +3,10 @@ import axios from 'axios';
 import { set } from 'date-fns';
 import { useForm, usePage } from '@inertiajs/react';
 import InputText from './InputText';
+import PhoneInput from '@/Components/PhoneInput';
 import { useToast } from '../Context/ToastContext';
 
-export default function BookingModal({ isOpen, onClose, activity, slot, adults, children, promoCode, selectedPromo, pricePerAdult, pricePerChild, activityId, auth }) {
+export default function BookingModal({ isOpen, onClose, activity, slot, adults, children, promoCode, selectedPromo, pricePerAdult, pricePerChild, activityId, auth, countries = [] }) {
   const { showToast } = useToast();
   const { props } = usePage();
   const { flash } = props;
@@ -69,14 +70,7 @@ export default function BookingModal({ isOpen, onClose, activity, slot, adults, 
   //   setData({ ...data, [e.target.name]: e.target.value });
   // };
   const handleChange = (target, value) => {
-
-    // If the field is "phone", restrict to +, digits, and spaces only
-    if (target === "phone") {
-      value = value.replace(/[^0-9+ ]/g, ""); // remove all invalid characters
-    }
-
     setData(target, value);
-    //setData("name", e.target.value);
   };
 
   const handleConfirm = async () => {
@@ -130,7 +124,7 @@ export default function BookingModal({ isOpen, onClose, activity, slot, adults, 
             type="text"
             width="w-full"
             placeholder='John Doe'
-            height="h-[42px]"
+            height="h-[48px]"
             handleChange={handleChange}
             errors={errors}
             mode={mode}
@@ -143,24 +137,20 @@ export default function BookingModal({ isOpen, onClose, activity, slot, adults, 
             type="email"
             placeholder='example@gmail.com'
             width="w-full"
-            height="h-[42px]"
+            height="h-[48px]"
             handleChange={handleChange}
             errors={errors}
             mode={mode}
             required
           />
-          <InputText
-            title="Phone Number*"
-            field="phone"
+          <PhoneInput
+            label="Phone Number*"
+            name="phone"
             value={data.phone}
-            type="tel"
-            placeholder='+27 12 345 6789'
-            width="w-full"
-            height="h-[42px]"
-            handleChange={handleChange}
-            errors={errors}
-            mode={mode}
-            required
+            onChange={(val) => setData('phone', val)}
+            countries={countries}
+            error={errors.phone}
+            defaultCountryCode="27"
           />
         </div>
         <div className="flex justify-between mt-6">

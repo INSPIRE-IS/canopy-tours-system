@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Booking;
+use App\Models\BookingNote;
 use App\Models\BookingVoucher;
 use App\Models\Customer;
 use App\Models\Invoice;
@@ -43,10 +44,10 @@ class RendererService
                 'total' => $total,
             ];
         })->values()->toArray();
-        $invoiceNote = $invoice->items
-            ->map(fn($item) => $item->booking_inventory?->booking_item?->booking_fee?->invoice_note)
-            ->filter(fn($note) => !empty($note))
-            ->first();
+        $invoiceNote = BookingNote::where('booking_id', $booking->id)
+            ->where('type', 'invoice_note')
+            ->orderByDesc('created_at')
+            ->value('note');
         //dd($services);
         $amountExVat = $invoice->subtotal ?? $booking->grand_tot_due ?? 0;
         $vat = $invoice->vat ?? ($amountExVat * 0.15);

@@ -128,7 +128,10 @@ Route::get('front/booking-questionnaire/checkin', [BookingQuestionnaireControlle
     ->name('front.booking-questionnaire.checkin')
     ->middleware('signed'); // Laravel will reject any URL whose signature doesn’t match
 
-Route::resource('booking-questionnaire', BookingQuestionnaireController::class);
+Route::get('booking-questionnaire', [BookingQuestionnaireController::class, 'index'])
+    ->name('booking-questionnaire.index')
+    ->middleware(['auth', 'verified']);
+Route::resource('booking-questionnaire', BookingQuestionnaireController::class)->except(['index']);
 
 
 Route::get('front/feedback-questionnaire', [FeedbackQuestionnaireController::class, 'index'])->name('front.feedback-questionnaire.index');
@@ -256,6 +259,7 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['auth', 'v
     Route::post('/bookings/calculate-price', [BookingsController::class, 'calculate'])->name('booking.calculate');
     Route::post('/bookings/send-email', [BookingsController::class, 'sendEmail'])->name('bookings.send-email');
     Route::get('bookings/add/{booking}', [BookingsController::class, 'add'])->name('bookings.add');
+    Route::post('bookings/notes', [BookingsController::class, 'addNote'])->name('bookings.notes.store');
     Route::post('bookings/cancel-slot', [BookingsController::class, 'cancelSlot'])->name('bookings.cancel-slot');
     // Route::get('bookings/cancel-booking/{booking}', [BookingsController::class, 'cancelBooking'])->name('bookings.cancel-booking');
     Route::resource('bookings', BookingsController::class);

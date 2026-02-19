@@ -13,10 +13,11 @@ import CustomTimePicker from '@/Components/CustomTimePicker';
 import ManifestModal from './ManifestsModal';
 import { useToast } from '@/Context/ToastContext';
 import ManifestsModal from './ManifestsModal';
+import CheckInOptionsModal from '@/Components/CheckInOptionsModal';
 // import { useRoute } from 'ziggy-js';
 // import { Ziggy } from '@/ziggy'; // the generated file
 
-export default function Dashboard({ auth, booking, manifest, bookingItem, staff, lookups }) {
+export default function Dashboard({ auth, booking, manifest, bookingItem, staff, lookups, bookingNotes = [], bookingEmails = [] }) {
     // console.log("auth", auth);
     // console.log("booking", booking);
     // console.log("bookingItem", bookingItem);
@@ -37,6 +38,42 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalMode, setModalMode] = useState("create");
     const [total, setTotal] = useState(null);
+    const [checkInTarget, setCheckInTarget] = useState(null);
+    const [noteInput, setNoteInput] = useState('');
+    const [noteAuthorFilter, setNoteAuthorFilter] = useState('all');
+    const [noteLimit, setNoteLimit] = useState(5);
+    const [emailTypeFilter, setEmailTypeFilter] = useState('all');
+
+    const noteAuthorOptions = [
+        { id: 'all', name: 'All Authors' },
+        ...Array.from(
+            new Map(
+                (bookingNotes || [])
+                    .filter(n => n?.created_by)
+                    .map(n => [n.created_by, { id: n.created_by, name: n.created_by }])
+            ).values()
+        ),
+    ];
+
+    const filteredBookingNotes = (bookingNotes || []).filter((note) => {
+        return noteAuthorFilter === 'all' || note?.created_by === noteAuthorFilter;
+    });
+
+    const limitedBookingNotes = noteLimit === 'all'
+        ? filteredBookingNotes
+        : filteredBookingNotes.slice(0, Number(noteLimit));
+
+    const emailTypeOptions = [
+        { id: 'all', name: 'All Emails' },
+        { id: 'App\\Models\\Booking', name: 'Booking Emails' },
+        { id: 'App\\Models\\Invoice', name: 'Invoice Emails' },
+    ];
+
+    const filteredBookingEmails = (bookingEmails || []).filter((email) => {
+        if (emailTypeFilter === 'all') return true;
+        const resolvedType = (email?.auditable_type || 'App\\Models\\Booking').trim();
+        return resolvedType === emailTypeFilter;
+    });
     useEffect(() => {
         if (flash?.success) {
             showToast(flash.success, "success");
@@ -51,6 +88,9 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
         console.log("customers", bookingItem.customers);
         const lead = bookingItem?.customers.find(c => c?.pivot?.is_lead);
         const inventory = bookingItem?.booking_inventory;
+        const adultsCount = inventory?.adults ?? bookingItem?.pax_adults ?? 0;
+        const childrenCount = inventory?.children ?? bookingItem?.pax_children ?? 0;
+        const guidesCount = inventory?.guides ?? bookingItem?.pax_guides ?? 0;
 
         console.log("lead", lead);
         return {
@@ -60,7 +100,7 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
             lead_person: bookingItem?.customers.find(c => c?.pivot?.is_lead)?.full_name ?? '',
             lead_email: bookingItem?.customers.find(c => c?.pivot?.is_lead)?.email_address ?? '',
             lead_mobile: bookingItem?.customers.find(c => c?.pivot?.is_lead)?.contact_number ?? '',
-            lead_pax: 'A:' + inventory?.tot_adults + ' C:' + inventory?.tot_children + ' G:' + inventory?.tot_guides,
+            lead_pax: 'A:' + adultsCount + ' C:' + childrenCount + ' G:' + guidesCount,
             lead_nationality: bookingItem?.customers.find(c => c?.pivot?.is_lead)?.nationality_id ?? '',
             pickup_location: bookingItem?.booking_infos.find(c => c?.type_location_id == 1)?.location ?? '',
             pickup_time: bookingItem?.booking_infos.find(c => c?.type_location_id == 1)?.time ?? '',
@@ -154,7 +194,19 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                             <img src="/assets/icons/plus.svg" alt="bookings" className="w-5 h-5" />
                             <span className="text-btn-outline-gray">Check in</span>
                         </button>*/}
-                        <button onClick={() => router.get(route('booking-questionnaire.index'))} className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-red-gradient-overlay border-[#C65468] text-white shadow-inset-white cursor-pointer">
+                        <button
+                            type="button"
+                            onClick={() =>
+                                setCheckInTarget({
+                                    booking_item_id: bookingItem?.id,
+                                    reference: booking?.reference,
+                                    lead_name: data.lead_person,
+                                    lead_phone: data.lead_mobile,
+                                    lead_email: data.lead_email,
+                                })
+                            }
+                            className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-red-gradient-overlay border-[#C65468] text-white shadow-inset-white cursor-pointer"
+                        >
                             <img src="/assets/icons/plus.svg" alt="bookings" className="w-5 h-5" />
                             <span className="text-btn-outline-gray">Check in</span>
                         </button>
@@ -398,7 +450,15 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                                                                         width="w-[132.8px]"
                                                                         height="h-[31px]"
                                                                         className="mt-4"
-                                                                        onClick={() => router.get(route('booking-questionnaire.index'))}
+                                                                        onClick={() =>
+                                                                            setCheckInTarget({
+                                                                                booking_item_id: bookingItem?.id,
+                                                                                reference: booking?.reference,
+                                                                                lead_name: data.lead_person,
+                                                                                lead_phone: data.lead_mobile,
+                                                                                lead_email: data.lead_email,
+                                                                            })
+                                                                        }
                                                                     />
                                                                 </div>
                                                             </div>
@@ -632,44 +692,63 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                                                     {toggleComments ? icons.cheveron_down : icons.cheveron_up}
                                                 </span>
                                             </span> */}
+
                                         <div className="flex items-center justify-between w-full px-6 py-4 border-b border-gray-300">
                                             <span className="text-booking-card-heading ">Comments</span>
-                                            <div className="flex items-center gap-2">
+                                            <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-xs text-gray-500">Show</span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setNoteLimit(5)}
+                                                        className={`px-2 py-1 text-xs rounded ${noteLimit === 5 ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}
+                                                    >
+                                                        5
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setNoteLimit(10)}
+                                                        className={`px-2 py-1 text-xs rounded ${noteLimit === 10 ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}
+                                                    >
+                                                        10
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setNoteLimit('all')}
+                                                        className={`px-2 py-1 text-xs rounded ${noteLimit === 'all' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}
+                                                    >
+                                                        All
+                                                    </button>
+                                                </div>
                                                 <CustomSelect
-                                                    name="emails"
-                                                    width="w-[243px]"
-                                                    value={data.emails}
-                                                    showOption={false}
-                                                    onChange={(e) => { setData('emails', e.target.value); }}
-                                                    error={errors.emails}
-                                                    options={[
-                                                        { id: 1, name: "All Emails" },
-                                                        { id: 2, name: "Sent Emails" },
-                                                        { id: 3, name: "Received Emails" },
-                                                    ]}
+                                                    name="note_author"
+                                                    value={noteAuthorFilter}
+                                                    onChange={(e) => setNoteAuthorFilter(e.target.value)}
+                                                    error={errors.note_author}
+                                                    options={noteAuthorOptions}
                                                 />
+
                                             </div>
                                         </div>
-
                                         {toggleComments ? (
                                             <div className="flex flex-col w-full px-6 py-6 gap-2">
-                                                <div className="flex flex-col w-full px-6 py-6 gap-2">
-                                                    <div className="flex items-center justify-between w-full h-[43px] pl-[7px] pr-[7px] py-[7px] rounded-[6px]">
-                                                        <span className="text-booking-lbl-main-sub inline-flex items-center gap-2">To: Tour Operator</span>
-                                                        <WhiteButton
-                                                            title="Resend"
-                                                            textColor="text-[#4D81E7]"
-                                                            width="w-[91px]"
-                                                            height="h-[31px]"
-                                                            className="mt-4"
-                                                            onClick={() => handleSubmit(e)}
-                                                        />
+                                                {filteredBookingNotes.length === 0 ? (
+                                                    <div className="bg-gray-50 border border-gray-200 rounded-md p-4 text-gray-800 whitespace-pre-wrap">
+                                                        No booking notes found.
                                                     </div>
-                                                    <span className="w-full grid grid-cols-1 sm:grid-cols-2 gap-6">
-                                                        Booking confirmation sent to email@email.com
-                                                        2025-02-24 11:32
-                                                    </span>
-                                                </div>
+                                                ) : (
+                                                    <div className="space-y-3">
+                                                        {limitedBookingNotes.map((note) => (
+                                                            <div key={note.id} className="bg-gray-50 border border-gray-200 rounded-md p-4 text-gray-800 whitespace-pre-wrap">
+                                                                <div className="text-xs text-gray-500 mb-2">
+                                                                    {note.created_at || 'Unknown date'}
+                                                                    {note.created_by ? ` • ${note.created_by}` : ''}
+                                                                </div>
+                                                                <div>{note.note}</div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
 
                                                 <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-6">
                                                     {/* <button onClick={() => setToggleComments(!toggleComments)} className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] border-primary-14 text-primary-14 cursor-pointer">
@@ -689,40 +768,37 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                                             </div>
                                         ) : (
                                             <span className="flex flex-col w-full px-6 py-6 gap-2">
-
-
                                                 <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-6">
-
-                                                    <CustomSelect
-                                                        label="to"
-                                                        name="wholesaler_id"
-                                                        value={data.wholesaler_id}
-
-                                                        onChange={(e) => setData(e.target.name, e.target.value)}
-                                                        error={errors.wholesaler_id}
-                                                        options={staff}
-                                                    />
-                                                    <CustomInputText
-                                                        title="internal"
-                                                        name="consultant_mobile"
-                                                        value={data.consultant_mobile}
-                                                        height="h-[52px]"
-                                                        onChange={(e) => setData('consultant_mobile', e.target.value)}
-                                                        errors={errors}
+                                                    <CustomTextarea
+                                                        name="booking_note"
+                                                        value={noteInput}
+                                                        onChange={(e) => setNoteInput(e.target.value)}
+                                                        rows={4}
                                                     />
                                                 </div>
                                                 <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-6">
-                                                    <CustomInputText
-                                                        title="text"
-                                                        name="consultant_mobile"
-                                                        value={data.consultant_mobile}
-                                                        height="h-[52px]"
-                                                        onChange={(e) => setData('consultant_mobile', e.target.value)}
-                                                        errors={errors}
-                                                    />
-                                                </div>
-                                                <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-6">
-                                                    <button onClick={() => { }} className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-blue-gradient-overlay border-[#3863C6] text-white shadow-inset-white cursor-pointer">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            if (!noteInput.trim()) {
+                                                                showToast('Please enter a note.', 'error');
+                                                                return;
+                                                            }
+                                                            router.post(route('admin.bookings.notes.store'), {
+                                                                booking_id: booking?.id,
+                                                                booking_item_id: bookingItem?.id,
+                                                                note: noteInput,
+                                                            }, {
+                                                                onSuccess: () => {
+                                                                    setNoteInput('');
+                                                                    showToast('Booking note added.', 'success');
+                                                                    router.reload({ only: ['bookingNotes'] });
+                                                                    setToggleComments(true);
+                                                                },
+                                                            });
+                                                        }}
+                                                        className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-blue-gradient-overlay border-[#3863C6] text-white shadow-inset-white cursor-pointer"
+                                                    >
                                                         <img src="/assets/icons/plus.svg" alt="bookings" className="w-5 h-5" />
                                                         <span className="text-btn-outline-gray">Add</span>
                                                     </button>
@@ -800,41 +876,53 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                                 {/* Email Log */}
                                 <div className="overflow-hidden shadow-medium sm:rounded-lg">
                                     <div className="flex flex-col w-full">  {/* Remove items-center + justify-between here */}
-                                        <div className="flex items-center justify-between w-full px-6 py-4 border-b border-gray-300">
-                                            <span className="text-booking-card-heading ">Email Log</span>
-                                            <div className="flex items-center gap-2">
-                                                <CustomSelect
-                                                    name="emails"
-                                                    width="w-[243px]"
-                                                    value={data.emails}
-                                                    showOption={false}
-                                                    onChange={(e) => { setData('emails', e.target.value); }}
-                                                    error={errors.emails}
-                                                    options={[
-                                                        { id: 1, name: "All Emails" },
-                                                        { id: 2, name: "Sent Emails" },
-                                                        { id: 3, name: "Received Emails" },
-                                                    ]}
-                                                />
-                                            </div>
+                                <div className="flex items-center justify-between w-full px-6 py-4 border-b border-gray-300">
+                                    <span className="text-booking-card-heading ">Email Log</span>
+                                    <div className="flex items-center gap-2">
+                                        <CustomSelect
+                                            name="email_type_filter"
+                                            width="w-[200px]"
+                                            value={emailTypeFilter}
+                                            showOption={false}
+                                            onChange={(e) => { setEmailTypeFilter(e.target.value); }}
+                                            error={errors.email_type_filter}
+                                            options={emailTypeOptions}
+                                        />
+                                    </div>
+                                </div>
+                                <div className="flex flex-col w-full px-6 py-6 gap-2">
+                                    {filteredBookingEmails.length === 0 ? (
+                                        <div className="bg-gray-50 border border-gray-200 rounded-md p-4 text-gray-800 whitespace-pre-wrap">
+                                            No emails found.
                                         </div>
-                                        <div className="flex flex-col w-full px-6 py-6 gap-2">
-                                            <div className="flex items-center justify-between w-full h-[43px] pl-[7px] pr-[7px] py-[7px] rounded-[6px]">
-                                                <span className="text-booking-lbl-main-sub inline-flex items-center gap-2">To: Tour Operator</span>
-                                                <WhiteButton
-                                                    title="Resend"
-                                                    textColor="text-[#4D81E7]"
-                                                    width="w-[91px]"
-                                                    height="h-[31px]"
-                                                    className="mt-4"
-                                                    onClick={() => handleSubmit(e)}
-                                                />
-                                            </div>
-                                            <span className="w-full grid grid-cols-1 sm:grid-cols-2 gap-6">
-                                                Booking confirmation sent to email@email.com
-                                                2025-02-24 11:32
-                                            </span>
+                                    ) : (
+                                        <div className="space-y-3">
+                                            {filteredBookingEmails.map((email) => (
+                                                <div key={email.id} className="bg-gray-50 border border-gray-200 rounded-md p-4 text-gray-800">
+                                                    <div className="text-xs text-gray-500 mb-2">
+                                                        {email.sent_at || 'Unknown date'}
+                                                    </div>
+                                                    <div className="text-sm">
+                                                        <div><span className="font-semibold">To:</span> {email.receiver || '-'}</div>
+                                                        <div><span className="font-semibold">Subject:</span> {email.subject || '-'}</div>
+                                                    </div>
+                                                    {email.attachment_path && (
+                                                        <div className="mt-2">
+                                                            <a
+                                                                href={email.attachment_path}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="text-blue-600 hover:underline text-sm"
+                                                            >
+                                                                View attachment
+                                                            </a>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ))}
                                         </div>
+                                    )}
+                                </div>
                                     </div>
                                 </div>
                             </div>
@@ -849,6 +937,13 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                     customers={selectedManifests}
                     tot_adults='0'
                     tot_children='0'
+                />
+
+                <CheckInOptionsModal
+                    isOpen={!!checkInTarget}
+                    onClose={() => setCheckInTarget(null)}
+                    booking={checkInTarget}
+                    contextLabel="booking"
                 />
 
             </div>

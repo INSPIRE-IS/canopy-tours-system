@@ -17,7 +17,7 @@ import SlotSelect from '@/Components/SlotSelect';
 import { useToast } from '@/Context/ToastContext';
 
 
-export default function ActivitySchedulePage({ activity, auth, team, activityId, schedule, start_date, i_adults, i_children, view_mode, days }) {
+export default function ActivitySchedulePage({ activity, auth, team, activityId, schedule, start_date, i_adults, i_children, view_mode, days, countries = [] }) {
   console.log('activity', activity);
   console.log('activityId', activityId);
   console.log('start_date', start_date);
@@ -529,6 +529,7 @@ export default function ActivitySchedulePage({ activity, auth, team, activityId,
           pricePerChild={activity.rake_rate_child}
           activityId={activityId}
           auth={auth}
+          countries={countries}
         />
       )}
       {giftModal && (

@@ -18,6 +18,7 @@ import CustomTextarea from '@/Components/CustomTextarea';
 import OutlineButton from '@/Components/OutlineButton';
 import PromoModal from './PromoModal';
 import { useToast } from '@/Context/ToastContext';
+import PhoneInput from '@/Components/PhoneInput';
 
 const PRICING_MODES = {
     STANDARD: 'STANDARD',
@@ -26,7 +27,7 @@ const PRICING_MODES = {
     WHOLESALER: 'WHOLESALER',
 };
 
-export default function Dashboard({ auth, wholesalers = [], services = [], schedule, start_date, view_mode, days, type_affiliates, vouchers, discounts, wholesaler_rates, promos, lookups }) {
+export default function Dashboard({ auth, wholesalers = [], services = [], schedule, start_date, view_mode, days, type_affiliates, vouchers, discounts, wholesaler_rates, promos, lookups, countries = [] }) {
     //seasons = [],, adults, children, guides
     console.log('---------------auth----create------------ ', auth);
     console.log('---------------auth----vouchers------------ ', vouchers);
@@ -150,6 +151,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
             showToast(flash.error, "error");
         }
     }, [flash, showToast]);
+
     useEffect(() => {
         loadCalendar();
     }, [activityId, activityDate, view_mode, data.start_time, data.adults, data.children]);
@@ -1935,26 +1937,26 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                 id="lead_email"
                                 name="lead_email"
                                 value={data.lead_email}
+                                type="email"
 
                                 onChange={(e) => setData('lead_email', e.target.value)}
                                 errors={errors}
                             />
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <CustomInputText
-                                title="Lead Mobile"
-                                id="lead_mobile"
+                            <PhoneInput
+                                label="Lead Mobile"
                                 name="lead_mobile"
                                 value={data.lead_mobile}
-
-                                onChange={(e) => setData('lead_mobile', e.target.value)}
-                                errors={errors}
+                                onChange={(val) => setData('lead_mobile', val)}
+                                countries={countries}
+                                error={errors.lead_mobile}
+                                defaultCountryCode="27"
                             />
                             <CustomSelect
                                 label="Referral Source"
                                 name="referral_source"
                                 value={data.referral_source}
-
                                 onChange={(e) => { setData('referral_source', e.target.value); }}
                                 error={errors.referral_source}
                                 options={type_affiliates}

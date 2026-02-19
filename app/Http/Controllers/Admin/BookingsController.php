@@ -13,8 +13,11 @@ use App\Models\BookingFee;
 use App\Models\BookingInfo;
 use App\Models\BookingInventory;
 use App\Models\BookingItem;
+use App\Models\BookingNote;
 use App\Models\BookingPayment;
 use App\Models\Closeout;
+use App\Models\Email;
+use App\Models\Country;
 use App\Models\Customer;
 use App\Models\Discount;
 use App\Models\Inventory;
@@ -46,7 +49,6 @@ use App\Models\BoardingPassTemplate;
 use App\Models\BookingDiscount;
 use App\Models\BookingPricing;
 use App\Models\BookingVoucher;
-use App\Models\Email;
 use App\Models\File;
 use App\Models\GiftVoucher;
 use App\Models\Invoice;
@@ -158,6 +160,22 @@ class BookingsController extends Controller
                     'files' => $booking_item->booking?->files,
                 ];
 
+                $bookingNotes = BookingNote::with('creator:id,name')
+                    ->where('booking_id', $booking_item->booking_id)
+                    ->where('booking_item_id', $booking_item->id)
+                    ->where('type', 'booking_note')
+                    ->orderByDesc('created_at')
+                    ->get()
+                    ->map(function ($note) {
+                        return [
+                            'id' => $note->id,
+                            'note' => $note->note,
+                            'created_at' => $note->created_at?->format('Y-m-d H:i:s'),
+                            'created_by' => $note->creator?->name,
+                        ];
+                    });
+                $latestBookingNote = $bookingNotes->first()['note'] ?? null;
+
                 $info = [
                     'id' => $booking_item->booking->id,
                     'booking_item_id' => $booking_item->id,
@@ -181,7 +199,8 @@ class BookingsController extends Controller
                     'inventory_time_slot_id' => $booking_item->booking_inventory->inventory_time_slot_id,
                     'service_id' => $booking_item->service_id,
                     'season_id' => $booking_item->season_id,
-                    'booking_note' => $booking_item->booking_fee?->booking_note,
+                    'booking_note' => $latestBookingNote,
+                    'booking_notes' => $bookingNotes,
                 ];
                 return $info;
             } catch (\Throwable $e) {
@@ -268,6 +287,10 @@ class BookingsController extends Controller
             ->with('service')
             ->get();
         $lookups = LookupItem::where('is_default', true)->get();
+        $countries = Country::select('id', 'name', 'phonecode')
+            ->whereNotNull('phonecode')
+            ->orderBy('name')
+            ->get();
         return Inertia::render('Admin/Bookings/Create', [
             'wholesalers' => $wholesalers,
             'services' => $services,
@@ -291,6 +314,7 @@ class BookingsController extends Controller
             'wholesaler_rates' => $wholesaler_rates,
             'promos' => $promos,
             'lookups' => $lookups,
+            'countries' => $countries,
         ]);
     }
 
@@ -540,13 +564,11 @@ class BookingsController extends Controller
                     'tot_guides'     => $amount_guides,
                     'is_voucher'     => $validated['redeem_voucher'] ? 1 : 0,
                     'voucher_code'   => $validated['redeem_voucher'] ?? '',
-                    'invoice_note'   => $validated['invoice_note'] ?? '',
-                    'email_reminder' => $validated['email_reminder'] ?? '',
-                    'is_email_reminder' => $validated['email_reminder'] ? 1 : 0,
-                    'booking_note'   => $validated['booking_note'] ?? '',
                     'tot_amount'     => $amount,
                     'team_id'        => auth()->user()->team_id,
                 ]);
+
+                $this->createBookingNotes($booking, $booking_item, $validated);
 
                 $template = InvoiceTemplate::where('is_default', true)->firstOrFail();
                 $invoice = Invoice::create([
@@ -865,6 +887,10 @@ class BookingsController extends Controller
             ->with('service')
             ->get();
         $lookups = LookupItem::where('is_default', true)->get();
+        $countries = Country::select('id', 'name', 'phonecode')
+            ->whereNotNull('phonecode')
+            ->orderBy('name')
+            ->get();
 
         return Inertia::render('Admin/Bookings/Edit', [
             'wholesalers' => $wholesalers,
@@ -891,6 +917,7 @@ class BookingsController extends Controller
             'wholesaler_rates' => $wholesaler_rates,
             'promos' => $promos,
             'lookups' => $lookups,
+            'countries' => $countries,
         ]);
 
 
@@ -1130,10 +1157,6 @@ class BookingsController extends Controller
                     'tot_guides' => $amount_guides,
                     'is_voucher' => $validated['redeem_voucher'] ? 1 : 0,
                     'voucher_code' => $validated['redeem_voucher'] ?? '',
-                    'invoice_note' => $validated['invoice_note'] ?? '',
-                    'email_reminder' => $validated['email_reminder'] ?? '',
-                    'is_email_reminder' => $validated['email_reminder'] ? 1 : 0,
-                    'booking_note' => $validated['booking_note'] ?? '',
                     'tot_amount' => $amount,
                     'team_id' => auth()->user()->team_id,
                 ];
@@ -1142,6 +1165,8 @@ class BookingsController extends Controller
                 } else {
                     BookingFee::create($bookingFeeData);
                 }
+
+                $this->createBookingNotes($booking, $bookingItem, $validated);
 
                 if (is_array($validated['discount_lines']) && $validated['discount_lines'] != null) {
                     $booking_discount = BookingDiscount::updateOrCreate(
@@ -1890,6 +1915,49 @@ class BookingsController extends Controller
 
         // return view('admin.bookings.edit', compact('booking', 'customers', 'inventories', 'seasons', 'services', 'status_bookings', 'updated_bies', 'users'));
     }
+
+    private function createBookingNotes(Booking $booking, BookingItem $bookingItem, array $validated): void
+    {
+        $noteFields = [
+            'invoice_note' => 'invoice_note',
+            'email_reminder' => 'email_reminder',
+            'booking_note' => 'booking_note',
+        ];
+
+        foreach ($noteFields as $field => $type) {
+            $note = trim((string) ($validated[$field] ?? ''));
+            if ($note === '') {
+                continue;
+            }
+
+            BookingNote::create([
+                'booking_id' => $booking->id,
+                'booking_item_id' => $bookingItem->id,
+                'type' => $type,
+                'note' => $note,
+                'created_by_id' => auth()->id(),
+            ]);
+        }
+    }
+
+    public function addNote(Request $request)
+    {
+        $validated = $request->validate([
+            'booking_id' => 'required|integer',
+            'booking_item_id' => 'required|integer',
+            'note' => 'required|string',
+        ]);
+
+        BookingNote::create([
+            'booking_id' => $validated['booking_id'],
+            'booking_item_id' => $validated['booking_item_id'],
+            'type' => 'booking_note',
+            'note' => trim($validated['note']),
+            'created_by_id' => auth()->id(),
+        ]);
+
+        return back()->with('success', 'Booking note added.');
+    }
     public function updateOld(UpdateBookingRequest $request, Booking $booking)
     {
         //dd($request->all());
@@ -1983,6 +2051,23 @@ class BookingsController extends Controller
             ->skip(0)       // skip the first
             ->first();      // get the second
 
+        $bookingNotes = BookingNote::with('creator:id,name')
+            ->where('booking_id', $booking->id)
+            ->when($bookingItem?->id, function ($query, $bookingItemId) {
+                $query->where('booking_item_id', $bookingItemId);
+            })
+            ->where('type', 'booking_note')
+            ->orderByDesc('created_at')
+            ->get()
+            ->map(function ($note) {
+                return [
+                    'id' => $note->id,
+                    'note' => $note->note,
+                    'created_at' => $note->created_at?->format('Y-m-d H:i:s'),
+                    'created_by' => $note->creator?->name,
+                ];
+            });
+
         $manifest = $bookingItem->paxByBookingItem($bookingItem->id);
         //dd($manifest);
         $staff = User::with('roles:id,name')
@@ -2009,8 +2094,53 @@ class BookingsController extends Controller
         // });
         //dd($booking);
         $lookups = LookupItem::where('is_default', true)->get();
+        $invoiceIds = Invoice::where('booking_id', $booking->id)->pluck('id')->all();
+        $bookingEmails = Email::where(function ($query) use ($booking, $invoiceIds) {
+            $query->where(function ($sub) use ($booking) {
+                $sub->where('auditable_type', 'App\Models\Booking')
+                    ->where('auditable_id', $booking->id);
+            });
+            if (!empty($invoiceIds)) {
+                $query->orWhere(function ($sub) use ($invoiceIds) {
+                    $sub->where('auditable_type', 'App\Models\Invoice')
+                        ->whereIn('auditable_id', $invoiceIds);
+                });
+            }
+        })
+            ->orderByDesc('sent_at')
+            ->get()
+            ->map(function ($email) {
+                $sentAt = $email->sent_at;
+                if (is_string($sentAt)) {
+                    try {
+                        $sentAt = Carbon::parse($sentAt);
+                    } catch (\Throwable $e) {
+                        $sentAt = null;
+                    }
+                }
+                $attachmentUrl = $email->attachment_path
+                    ? Storage::disk('public')->url($email->attachment_path)
+                    : null;
+                return [
+                    'id' => $email->id,
+                    'sender' => $email->sender,
+                    'receiver' => $email->receiver,
+                    'subject' => $email->subject,
+                    'auditable_type' => $email->auditable_type,
+                    'sent_at' => $sentAt?->format('Y-m-d H:i:s'),
+                    'attachment_path' => $attachmentUrl,
+                ];
+            });
 
-        return Inertia::render('Admin/Bookings/Add', ['booking' => $booking, 'manifest' => $manifest, 'bookingItem' => $bookingItem, 'staff' => $staff, 'lookups' => $lookups]);
+        return Inertia::render('Admin/Bookings/Add', [
+            'booking' => $booking,
+            'manifest' => $manifest,
+            'bookingItem' => $bookingItem,
+            'staff' => $staff,
+            'lookups' => $lookups,
+            'bookingNotes' => $bookingNotes,
+            'bookingEmails' => $bookingEmails,
+        ]);
         // $users = User::pluck('name', 'id')->prepend(trans('global.pleaseSelect'), '');
 
         // $status_bookings = StatusBooking::pluck('name', 'id')->prepend(trans('global.pleaseSelect'), '');

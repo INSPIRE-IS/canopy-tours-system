@@ -10,6 +10,7 @@ use App\Models\BookingInventory;
 use App\Models\BookingItem;
 use App\Models\BookingPayment;
 use App\Models\Closeout;
+use App\Models\Country;
 use App\Models\Customer;
 use App\Models\CustomerManifest;
 use App\Models\GiftVoucher;
@@ -204,6 +205,10 @@ class ActivityController extends Controller
         };
         $endDate = (clone $startDate)->addDays($days - 1);
         $team = Team::select('id', 'name', 'description', 'color')->with('file_image', 'file_logo')->find($season->team_id);
+        $countries = Country::select('id', 'name', 'phonecode')
+            ->whereNotNull('phonecode')
+            ->orderBy('name')
+            ->get();
 
         return Inertia::render('Activities', [
             'canLogin' => Route::has('login'),
@@ -225,6 +230,7 @@ class ActivityController extends Controller
             'start_date' => $request->input('start_date', now()),
             'availableTimes' => [],
             'team' => $team,
+            'countries' => $countries,
         ]);
     }
 

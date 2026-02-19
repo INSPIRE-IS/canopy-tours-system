@@ -2978,16 +2978,19 @@ class SeedCoreData extends Command
 
 
                 BookingPayment::updateOrCreate(['id' => $bookingPayment['id']], $bookingPayment);
-        app(QuestionnaireSeeder::class)->seedAll();
-        $this->info('Questionnaire defaults seeded successfully.');
+                app(QuestionnaireSeeder::class)->seedAll();
+                $this->info('Questionnaire defaults seeded successfully.');
 
-        //    booking_id: booking.id,
-        //     booking_item_id: bookingItem.id,
-        //     team_id: booking?.team_id,
-
-
+                //    booking_id: booking.id,
+                //     booking_item_id: bookingItem.id,
+                //     team_id: booking?.team_id,
 
 
-        // php artisan seed:core-data
+
+
+                // php artisan seed:core-data
+            }
+        }
+        $this->info('Core data seeded successfully.');
     }
 }
