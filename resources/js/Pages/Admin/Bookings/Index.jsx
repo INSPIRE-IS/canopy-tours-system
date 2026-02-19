@@ -14,7 +14,7 @@ import ViewBookingModal from './ViewBookingModal';
 import NavSelect from '@/Components/NavSelect';
 import DatePicker from '@/Components/DatePicker';
 import WhiteButton from '@/Components/WhiteButton';
-import { endOfDay, endOfWeek, format, isSameDay, isValid, isWithinInterval, parseISO, startOfDay, startOfWeek } from 'date-fns';
+import { addDays, addSeconds, endOfDay, endOfWeek, format, isSameDay, isValid, isWithinInterval, parse, parseISO, startOfDay, startOfWeek } from 'date-fns';
 import ConfirmModal from '@/Components/ConfirmModal';
 import { useToast } from '@/Context/ToastContext';
 import CustomDatePicker from '@/Components/CustomDatePicker';
@@ -33,8 +33,7 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
     console.log("bookings", bookings)
     const [filteredBookings, setFilteredBookings] = useState(bookings);
     const [expanded, setExpanded] = useState(null); // track which booking is expanded
-    const [toolsCustomer, setToolsCustomer] = useState(null); // null or { id: ..., name: ... }
-    const [customerToolsTarget, setCustomerToolsTarget] = useState(null); // { customer, position }
+    const [customerToolsTarget, setCustomerToolsTarget] = useState(null); // { customer, booking, position }
     const [bookingToolsTarget, setBookingToolsTarget] = useState(null); // { customer, position }
     const [guestEmailTarget, setGuestEmailTarget] = useState(null); // { customer, position }
     const [bookingNotesTarget, setBookingNotesTarget] = useState(null);
@@ -64,6 +63,8 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
     });
     const [showServices, setShowServices] = useState(false);
     const [confirmOpen, setConfirmOpen] = useState(false);
+    const [confirmAction, setConfirmAction] = useState(null); // { type: 'booking' | 'slot', booking }
+    const [slotRows, setSlotRows] = useState([]);
     const [viewDocsIndex, setViewDocsIndex] = useState(null);
     const servicesRef = useRef();
     useEffect(() => {
@@ -74,22 +75,6 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
             showToast(flash.error, "error");
         }
     }, [flash, showToast]);
-    const openCustomerToolsModal = (event, index, booking, customer) => {
-        event.preventDefault();
-        console.log("customer----------tool-------- ", customer)
-
-        const rect = event.target.getBoundingClientRect();
-        setCustomerToolsTarget({
-            index,
-            booking,
-            customer,
-            position: {
-                top: rect.top + window.scrollY + 30, // offset below the button
-                left: rect.left + window.scrollX,
-            }
-        });
-    };
-
     const openBookingToolsModal = (event, booking) => {
         event.preventDefault();
         console.log("booking----------tool-------- ", booking)
@@ -103,11 +88,61 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
             }
         });
     };
+    const openCustomerToolsModal = (event, booking, customer, indexKey) => {
+        event.preventDefault();
 
-    const handleBookingDelete = () => {
-        router.delete(route('admin.bookings.destroy', selectedBooking.id), {
-            onSuccess: () => { setSelectedBooking(null); router.visit(route('admin.bookings.index')); },
-            onError: () => { setSelectedBooking(null); router.visit(route('admin.bookings.index')); }
+        const rect = event.target.getBoundingClientRect();
+        setCustomerToolsTarget({
+            booking,
+            customer,
+            indexKey,
+            position: {
+                top: rect.top + window.scrollY + 30,
+                left: rect.left + window.scrollX,
+            }
+        });
+    };
+
+    const handleConfirmCancel = () => {
+        if (!confirmAction?.booking) {
+            setConfirmOpen(false);
+            return;
+        }
+
+        if (confirmAction.type === 'slot') {
+            const payload = {
+                booking_date: confirmAction.booking.booking_date,
+                inventory_time_slot_id: confirmAction.booking.inventory_time_slot_id,
+                service_id: confirmAction.booking.service_id,
+            };
+            router.post(route('admin.bookings.cancel-slot'), payload, {
+                onSuccess: () => {
+                    setConfirmAction(null);
+                    setConfirmOpen(false);
+                    setSelectedBooking(null);
+                    router.visit(route('admin.bookings.index'));
+                },
+                onError: () => {
+                    setConfirmAction(null);
+                    setConfirmOpen(false);
+                    setSelectedBooking(null);
+                }
+            });
+            return;
+        }
+
+        router.delete(route('admin.bookings.destroy', confirmAction.booking.id), {
+            onSuccess: () => {
+                setConfirmAction(null);
+                setConfirmOpen(false);
+                setSelectedBooking(null);
+                router.visit(route('admin.bookings.index'));
+            },
+            onError: () => {
+                setConfirmAction(null);
+                setConfirmOpen(false);
+                setSelectedBooking(null);
+            }
         });
     };
 
@@ -122,13 +157,57 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
     function BookingToolClick(tool, booking) {
 
         console.log("-------tool clicked-------", tool);
-        if (tool === 'edit_booking') {
-            router.get(route('admin.bookings.edit', booking.id));
+
+        if (tool === 'remove_resource') {
+            router.get(route('admin.bookings.remove_resource'));
         }
         if (tool === 'edit_timeslot') {
             //router.get(route('admin.bookings.edit', booking.id));
             setSelectedBooking(booking);
             setIsEditTimeSlotModalOpen(true);
+        }
+
+        if (tool === 'cancel_bookings') {
+            setConfirmOpen(true);
+            setSelectedBooking(booking);
+            setConfirmAction({ type: 'slot', booking });
+        }
+    };
+
+    const ViewBookingClick = (booking) => {
+        //router.get(route('admin.bookings.edit', booking.id));
+        setSelectedBooking(booking);
+        setIsViewBookingModalOpen(true);
+    };
+
+    const CustomerToolClick = (tool, booking, customer) => {
+        if (tool === 'check_in') {
+            router.get(route('booking-questionnaire.create', { reference: booking.reference }));
+        }
+        if (tool === 'resend_invoice') {
+            router.get(route('admin.invoices.resend-invoice', { booking_id: booking.id }));
+        }
+        if (tool === 'manifest') {
+            setSelectedManifests(booking?.customers);
+            setSelectedManifest(customer);
+            setIsManifestModalOpen(true);
+        }
+        if (tool === 'customer_invoice') {
+            if (!customer?.files || customer.files.length === 0) {
+                prompt('No invoice found');
+                return;
+            }
+
+            const file = customer.files.find(f => f.table_name == 'invoices');
+            if (!file) {
+                prompt('No invoice found');
+                return;
+            }
+            const fileUrl = `${file.path}`;
+            window.open(fileUrl, '_blank', 'noopener,noreferrer');
+        }
+        if (tool === 'edit_booking') {
+            router.get(route('admin.bookings.edit', booking.id));
         }
         if (tool === 'message_guest') {
             setGuestEmailTarget(booking);
@@ -151,63 +230,46 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
             setSelectedManifests(booking.customers);
             setIsManifestsModalOpen(true);
         }
-        if (tool === 'remove_resource') {
-            router.get(route('admin.bookings.remove_resource'));
-        }
         if (tool === 'cancel_booking') {
             setConfirmOpen(true);
             setSelectedBooking(booking);
+            setConfirmAction({ type: 'booking', booking });
         }
     };
 
-    const ViewBookingClick = (booking) => {
-        //router.get(route('admin.bookings.edit', booking.id));
-        setSelectedBooking(booking);
-        setIsViewBookingModalOpen(true);
+    const getTimeRange = (startTime, duration) => {
+        if (!startTime || !duration) {
+            return { start: null, end: null };
+        }
+
+        const start = parse(startTime, 'HH:mm:ss', new Date());
+        const [hours, minutes, seconds] = duration.split(':').map((v) => Number(v || 0));
+        const totalSeconds = (hours * 3600) + (minutes * 60) + seconds;
+        const end = addSeconds(start, totalSeconds);
+        return {
+            start: format(start, 'HH:mm'),
+            end: format(end, 'HH:mm'),
+        };
     };
 
-    const CustomerToolClick = (tool, index, booking, customer) => {
-        // console.log("-------tool customer clicked-------", tool);
-        // console.log("-------tool customer clicked-------", index);
-        console.log("-------tool customer clicked-------", customer);
-        //const booking = bookings[index];
-        //console.log("-------tool booking clicked-------", booking);
-        //const bookings = bookings[0];
-        //console.log("-------tool customers clicked-------", customers);
-        if (tool === 'check_in') {
-            router.get(route('booking-questionnaire.create', { reference: booking.reference }));
-        }
-        // if (tool === 'view_invoice') {
-        //     router.get(route('admin.bookings.send_invoice'));
-        // }
-        if (tool === 'resend_invoice') {
-            router.get(route('admin.invoices.resend-invoice', { booking_id: booking.id }));
-        }
-        if (tool === 'manifest') {
-            setSelectedManifests(booking?.customers);
-            setSelectedManifest(customer);
-            setIsManifestModalOpen(true);
-        }
-        if (tool === 'customer_invoice') {
-            if (customer.files.length == 0) {
-                prompt('No invoice found');
-                return;
-            }
+    const formatTimeValue = (timeStr) => {
+        if (!timeStr) return null;
+        return timeStr.slice(0, 5);
+    };
 
-            const file = customer.files.find(f => f.table_name == 'invoices');
-            if (!file) {
-                prompt('No invoice found');
-                return;
-            }
-            const fileUrl = `${file.path}`;
-            window.open(fileUrl, '_blank', 'noopener,noreferrer');
-        }
-        // if (tool === 'print_ticket') {
-        //     router.get(route('admin.bookings.print_ticket'));
-        // }
-        // if (tool === 'voucher') {
-        //     router.get(route('admin.bookings.voucher'));
-        // }
+    const timeToMinutes = (timeStr) => {
+        if (!timeStr) return Number.MAX_SAFE_INTEGER;
+        const [hours, minutes] = timeStr.split(':').map((v) => Number(v || 0));
+        return (hours * 60) + minutes;
+    };
+
+    const isDateWithinSeason = (dateStr, season) => {
+        if (!dateStr || !season?.start_date || !season?.end_date) return false;
+        const date = parseISO(dateStr);
+        const start = parseISO(season.start_date);
+        const end = parseISO(season.end_date);
+        if (!isValid(date) || !isValid(start) || !isValid(end)) return false;
+        return isWithinInterval(date, { start: startOfDay(start), end: endOfDay(end) });
     };
 
     const handleExportCSV = (bookings) => {
@@ -352,9 +414,82 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
         return next;
     };
 
+    const buildSlotRows = () => {
+        const items = Array.isArray(filteredBookings) ? filteredBookings : [];
+        const grouped = new Map();
+
+        items.forEach((item) => {
+            const key = `${item.booking_date}|${item.inventory_time_slot_id}|${item.service_id}`;
+            const existing = grouped.get(key) || {
+                key,
+                booking_date: item.booking_date,
+                inventory_time_slot_id: item.inventory_time_slot_id,
+                service_id: item.service_id,
+                service: item.service,
+                time_start: item.time_start,
+                time_end: item.time_end,
+                totalPax: 0,
+                maxPax: item.maxPax ?? 0,
+                totalPrice: 0,
+                totalPaid: 0,
+                totalDue: 0,
+                bookings: [],
+            };
+
+            existing.totalPax += Number(item.bookingPax || 0);
+            existing.totalPrice += Number(item.price || 0);
+            existing.totalPaid += Number(item.paid || 0);
+            existing.totalDue += Number(item.due || 0);
+            existing.bookings.push(item);
+            grouped.set(key, existing);
+        });
+
+        if (viewMode === VIEW_MODES.DAY) {
+            const day = selectedDate || today;
+            services?.forEach((service) => {
+                const activeSeason = service?.seasons?.find((season) => isDateWithinSeason(day, season));
+                if (!activeSeason) return;
+                const slots = activeSeason?.inventory?.inventory_time_slots || [];
+                slots.forEach((slot) => {
+                    const key = `${day}|${slot.id}|${service.id}`;
+                    if (grouped.has(key)) return;
+                    const { start, end } = getTimeRange(slot.start_time, service.duration);
+                    grouped.set(key, {
+                        key,
+                        booking_date: day,
+                        inventory_time_slot_id: slot.id,
+                        service_id: service.id,
+                        service: service.name,
+                        time_start: start,
+                        time_end: end,
+                        totalPax: 0,
+                        maxPax: service.capacity ?? 0,
+                        totalPrice: 0,
+                        totalPaid: 0,
+                        totalDue: 0,
+                        bookings: [],
+                    });
+                });
+            });
+        }
+
+        const rows = Array.from(grouped.values());
+        rows.sort((a, b) => {
+            const aTime = timeToMinutes(a.time_start);
+            const bTime = timeToMinutes(b.time_start);
+            if (aTime !== bTime) return aTime - bTime;
+            return (a.service || '').localeCompare(b.service || '');
+        });
+        return rows;
+    };
+
     useEffect(() => {
         setFilteredBookings(applyFilters());
     }, [bookings, selectedServiceId, viewMode, selectedDate, rangeStart, rangeEnd]);
+
+    useEffect(() => {
+        setSlotRows(buildSlotRows());
+    }, [filteredBookings, services, viewMode, selectedDate]);
 
     useEffect(() => {
         sessionStorage.setItem('bookings.selectedDate', selectedDate || '');
@@ -560,137 +695,176 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100">
-                                    {filteredBookings?.map((item, i) => {
-                                        console.log('----------item----- ', item);
-
-
+                                    {slotRows?.map((row, i) => {
+                                        const startLabel = formatTimeValue(row.time_start);
+                                        const endLabel = formatTimeValue(row.time_end);
+                                        const timeLabel = startLabel && endLabel
+                                            ? `${startLabel} - ${endLabel}`
+                                            : 'Time N/A';
+                                        const nextRow = slotRows?.[i + 1];
+                                        const isLastInTimeGroup = !nextRow || formatTimeValue(nextRow.time_start) !== startLabel;
                                         return (
-                                            <React.Fragment key={i}>
-                                                {/* Main Booking Row */}
+                                            <React.Fragment key={row.key}>
                                                 <tr className="hover:bg-gray-50">
                                                     <td className="w-[164px] p-3">
                                                         <div className="flex justify-between items-center gap-2">
                                                             <div className="flex items-center gap-2">
                                                                 <span className="w-5 h-5 block border border-gray-500 rounded-md"></span>
-                                                                {item?.time}
+                                                                {timeLabel}
                                                             </div>
                                                             <img
-                                                                src={`/assets/icons/${expanded === i ? 'arrow-down' : 'arrow-left'}.svg`}
+                                                                src={`/assets/icons/${expanded === row.key ? 'arrow-down' : 'arrow-left'}.svg`}
                                                                 alt="toggle"
                                                                 className="w-5 h-5 cursor-pointer"
-                                                                onClick={() => setExpanded(expanded === i ? null : i)}
+                                                                onClick={() => setExpanded(expanded === row.key ? null : row.key)}
                                                             />
                                                         </div>
                                                     </td>
-                                                    <td className="w-[95px] p-3">{item?.bookingPax} ({item?.maxPax})</td>
-                                                    <td className="w-[268px] p-3">{item?.service}</td>
-                                                    <td className="w-[132px] p-3">R{Number(item?.price || 0).toFixed(2)}</td>
-                                                    <td className="w-[111px] p-3">R{Number(item?.paid || 0).toFixed(2)}</td>
+                                                    <td className="w-[95px] p-3">{row.totalPax} ({row.maxPax})</td>
+                                                    <td className="w-[268px] p-3">{row.service}</td>
+                                                    <td className="w-[132px] p-3">R{Number(row.totalPrice || 0).toFixed(2)}</td>
+                                                    <td className="w-[111px] p-3">R{Number(row.totalPaid || 0).toFixed(2)}</td>
                                                     <td className="w-[107px] p-3">
                                                         <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium 
-                                                        ${item?.dueStatus ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`}>
-                                                            - {Number(item?.due || 0) === 0 ? 'R0.00' : `R${Number(item?.due || 0).toFixed(2)}`}
+                                                        ${row.totalDue > 0 ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`}>
+                                                            - {Number(row.totalDue || 0) === 0 ? 'R0.00' : `R${Number(row.totalDue || 0).toFixed(2)}`}
                                                         </span>
                                                     </td>
                                                     <td className="w-[185px] p-3 flex gap-2">
-                                                        {expanded === i ? (
-                                                            // <button onClick={() => router.get(route('admin.bookings.edit', item?.id))} className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border border-primary-14 text-primary-14 cursor-pointer"></button>
-                                                            <button onClick={() => ViewBookingClick(item)} className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border border-primary-14 text-primary-14 cursor-pointer">
-                                                                {icons.eye}
-                                                                <span className="text-btn-outline-gray">View Booking</span>
+                                                        {Number(row.totalPax || 0) < Number(row.maxPax || 0) && (
+                                                            <button
+                                                                type='button'
+                                                                onClick={() => router.get(route('admin.bookings.create', {
+                                                                    service_id: row.service_id,
+                                                                    booking_date: row.booking_date,
+                                                                    start_time: row.inventory_time_slot_id,
+                                                                    view_mode: 'day',
+                                                                    start_date: row.booking_date,
+                                                                }))}
+                                                                className="btn-tool"
+                                                            >
+                                                                {icons.plus_alt} Add
                                                             </button>
-                                                        ) : (
-                                                            <>
-                                                                <button type='button' onClick={() => router.get(route('admin.bookings.add', item?.id))} className="btn-tool">{icons.plus_alt} Add</button>
-                                                                <button type='button' onClick={(e) => openBookingToolsModal(e, item)} className="btn-tool">{icons.tools} Tools</button>
-                                                            </>
                                                         )}
-
+                                                        {row.bookings.length > 0 && (
+                                                            <button type='button' onClick={(e) => openBookingToolsModal(e, row.bookings[0])} className="btn-tool">{icons.tools} Tools</button>
+                                                        )}
                                                     </td>
                                                 </tr>
 
-                                                {/* Expanded Customer Rows */}
-                                                {expanded === i && (
-                                                    item.customers && item.customers.length > 0 ? (
-                                                        item.customers.map((customer, index) => (
-                                                            <tr key={index} className="bg-gray-50">
-                                                                <td className="w-[164px] p-3">
-                                                                    {item.reference}<br />
-                                                                    Notes: {customer?.notes || 'None'}
-                                                                </td>
-                                                                <td className="w-[95px] p-3">{index + 1}</td>
-                                                                <td className="w-[268px] p-3">
-                                                                    <div className="text-sm text-gray-800 font-medium">{customer.full_name ?? 'Unknown Customer'}</div>
-                                                                    <div className="text-sm text-gray-600">{customer.email_address ?? 'Unknown Email'} | {customer.contact_number ?? 'Unknown Phone'}</div>
-                                                                    <div className="text-sm text-gray-600 capitalize">{customer.type} Age: {customer?.age || 'Unknown Age'}</div>
-                                                                </td>
-                                                                <td className="w-[132px] p-3">R{Number(customer?.price || 0).toFixed(2)}</td>
-                                                                <td className="w-[111px] p-3">R{Number(customer?.paid || 0).toFixed(2)}</td>
-                                                                <td className="w-[107px] p-3">
-                                                                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${customer.due === 0 ? 'bg-blue-100 text-blue-600'
-                                                                        : customer.dueStatus === 'Normal' ? 'bg-orange-100 text-orange-600'
-                                                                            : 'bg-red-100 text-red-600'
-                                                                        }`}>
-                                                                        - {Number(customer?.due || 0) === 0 ? 'R0.00' : customer.dueStatus === 'Normal' ? 'Normal' : `R${Number(customer?.due || 0).toFixed(2)}`}
-                                                                    </span>
-                                                                </td>
-                                                                <td className="flex flex-col w-[120px] p-3  gap-2">
-                                                                    <div
-                                                                        className="relative"
-                                                                        onClick={() =>
-                                                                            setViewDocsIndex(viewDocsIndex === index ? null : index)
-                                                                        }
-                                                                    >
-                                                                        <button type='button' className="btn-tool">{icons.docs} Docs</button>
-                                                                        <div>
-                                                                            {viewDocsIndex === index && (
-                                                                                <div
-                                                                                    className="absolute right-0 mt-3 w-72 bg-white border border-gray-200 rounded-2xl shadow-lg z-50 overflow-hidden"
-                                                                                >
-                                                                                    {/* <div className="p-3 border-b font-semibold text-gray-700">Alerts</div> */}
-                                                                                    <div className="flex justify-between items-center mb-2">
-                                                                                        <h3 className="text-tool-card-title">Docs {index + 1}</h3>
-                                                                                        <button type='button'
-                                                                                            onClick={(e) => {
-                                                                                                e.stopPropagation();
-                                                                                                setViewDocsIndex(null);
-                                                                                            }}
-                                                                                            className="text-gray-400 hover:text-gray-600 text-sm">{icons.close}</button>
-                                                                                    </div>
+                                                {expanded === row.key && (
+                                                    row.bookings.length > 0 ? (
+                                                        <>
+                                                            {row.bookings.map((booking, index) => (
+                                                                <tr key={`${row.key}-${index}`} className="bg-gray-50">
+                                                                    <td className="w-[164px] p-3">
+                                                                        <Link
+                                                                            href={route('admin.bookings.add', booking.id)}
+                                                                            className="text-blue-600 hover:underline"
+                                                                        >
+                                                                            {booking.reference}
+                                                                        </Link>
+                                                                    </td>
+                                                                    <td className="w-[95px] p-3">{booking.bookingPax}</td>
+                                                                    <td className="w-[268px] p-3">
+                                                                        <div className="text-sm text-gray-800 font-medium">{booking.lead_name ?? 'Unknown Lead'}</div>
+                                                                        <div className="text-sm text-gray-600">{booking.lead_phone ?? 'Unknown Phone'}</div>
+                                                                    </td>
+                                                                    <td className="w-[132px] p-3">R{Number(booking.price || 0).toFixed(2)}</td>
+                                                                    <td className="w-[111px] p-3">R{Number(booking.paid || 0).toFixed(2)}</td>
+                                                                    <td className="w-[107px] p-3">
+                                                                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${booking.due > 0 ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`}>
+                                                                            - {Number(booking.due || 0) === 0 ? 'R0.00' : `R${Number(booking.due || 0).toFixed(2)}`}
+                                                                        </span>
+                                                                    </td>
+                                                                    <td className="w-[185px] p-3">
+                                                                        <div className="flex flex-col lg:flex-row lg:items-center gap-2">
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => router.get(route('admin.bookings.add', booking.id))}
+                                                                                className="btn-tool"
+                                                                            >
+                                                                                {icons.eye} View
+                                                                            </button>
+                                                                            <div
+                                                                                className="relative"
+                                                                                onClick={() =>
+                                                                                    setViewDocsIndex(viewDocsIndex === `${row.key}-${index}` ? null : `${row.key}-${index}`)
+                                                                                }
+                                                                            >
+                                                                                <button type='button' className="btn-tool">{icons.docs} Docs</button>
+                                                                                <div>
+                                                                                    {viewDocsIndex === `${row.key}-${index}` && (
+                                                                                        <div
+                                                                                            className="absolute right-0 mt-3 w-72 bg-white border border-gray-200 rounded-2xl shadow-lg z-50 overflow-hidden"
+                                                                                        >
+                                                                                            <div className="flex justify-between items-center mb-2">
+                                                                                                <h3 className="text-tool-card-title">Docs</h3>
+                                                                                                <button type='button'
+                                                                                                    onClick={(e) => {
+                                                                                                        e.stopPropagation();
+                                                                                                        setViewDocsIndex(null);
+                                                                                                    }}
+                                                                                                    className="text-gray-400 hover:text-gray-600 text-sm">{icons.close}</button>
+                                                                                            </div>
 
-                                                                                    <div className="max-h-64 overflow-y-auto">
-                                                                                        {customer?.files?.length > 0 ? (
-                                                                                            customer.files.map((file) => (
-                                                                                                <a
-                                                                                                    key={file.id}
-                                                                                                    href={file.path}
-                                                                                                    target="_blank"
-                                                                                                    rel="noopener noreferrer"
-                                                                                                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                                                                                                >
-                                                                                                    {file.file_name}
-                                                                                                </a>
-                                                                                            ))
-                                                                                        ) : (
-                                                                                            <p className="p-4 text-gray-500 text-sm">No documents uploaded.</p>
-                                                                                        )}
-                                                                                    </div>
+                                                                                            <div className="max-h-64 overflow-y-auto">
+                                                                                                {booking?.customers?.[0]?.files?.length > 0 ? (
+                                                                                                    booking.customers[0].files.map((file) => (
+                                                                                                        <a
+                                                                                                            key={file.id}
+                                                                                                            href={file.path}
+                                                                                                            target="_blank"
+                                                                                                            rel="noopener noreferrer"
+                                                                                                            className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                                                                                        >
+                                                                                                            {file.file_name}
+                                                                                                        </a>
+                                                                                                    ))
+                                                                                                ) : (
+                                                                                                    <p className="p-4 text-gray-500 text-sm">No documents uploaded.</p>
+                                                                                                )}
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    )}
                                                                                 </div>
-                                                                            )}
+                                                                            </div>
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={(e) => openCustomerToolsModal(e, booking, booking?.customers?.[0], `${row.key}-${index}`)}
+                                                                                className="btn-tool"
+                                                                            >
+                                                                                {icons.tools} Tools
+                                                                            </button>
                                                                         </div>
-                                                                    </div>
-                                                                    <button type='button' onClick={(e) => openCustomerToolsModal(e, index, item, customer)} className="btn-tool">{icons.tools} Tools</button>
-                                                                </td>
+                                                                    </td>
+                                                                </tr>
+                                                            ))}
+                                                            <tr className="bg-gray-50">
+                                                                <td className="w-[164px] p-3 font-semibold">Totals:</td>
+                                                                <td className="w-[95px] p-3 font-semibold">{row.totalPax}</td>
+                                                                <td className="w-[268px] p-3"></td>
+                                                                <td className="w-[132px] p-3 font-semibold">R{Number(row.totalPrice || 0).toFixed(2)}</td>
+                                                                <td className="w-[111px] p-3 font-semibold">R{Number(row.totalPaid || 0).toFixed(2)}</td>
+                                                                <td className="w-[107px] p-3 font-semibold">R{Number(row.totalDue || 0).toFixed(2)}</td>
+                                                                <td className="w-[185px] p-3"></td>
                                                             </tr>
-                                                        ))
+                                                        </>
                                                     ) : (
                                                         <tr className="bg-gray-50">
-                                                            <td colSpan={7} className="p-4 text-sm text-gray-500">No customers assigned.</td>
+                                                            <td colSpan={7} className="p-4 text-sm text-gray-500">No bookings in this slot.</td>
                                                         </tr>
                                                     )
                                                 )}
+                                                {isLastInTimeGroup && (
+                                                    <tr className="bg-white">
+                                                        <td colSpan={7} className="p-0">
+                                                            <div className="border-b-2 border-gray-200 mt-2"></div>
+                                                        </td>
+                                                    </tr>
+                                                )}
                                             </React.Fragment>
-                                        )
+                                        );
                                     })}
                                 </tbody>
                             </table>
@@ -710,21 +884,28 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
 
                 {customerToolsTarget && (
                     <CustomerToolsModal
-                        index={customerToolsTarget.index}
+                        index={customerToolsTarget.indexKey}
                         booking={customerToolsTarget.booking}
                         customer={customerToolsTarget.customer}
                         position={customerToolsTarget.position}
                         onClose={() => setCustomerToolsTarget(null)}
-                        CustomerToolClick={CustomerToolClick}
+                        CustomerToolClick={(tool, _index, booking, customer) => CustomerToolClick(tool, booking, customer)}
                     />
                 )}
+
                 {confirmOpen && (
                     <ConfirmModal
-                        title="Cancel this booking?"
-                        message="This action cannot be undone."
+                        title={confirmAction?.type === 'slot' ? 'Cancel all bookings in this slot?' : 'Cancel this booking?'}
+                        message={confirmAction?.type === 'slot'
+                            ? 'This will cancel all bookings for this date, time slot, and service.'
+                            : 'This action cannot be undone.'}
                         confirmText="Yes, cancel"
                         cancelText="Keep Booking"
-                        onConfirm={handleBookingDelete}
+                        onConfirm={handleConfirmCancel}
+                        onClose={() => {
+                            setConfirmOpen(false);
+                            setConfirmAction(null);
+                        }}
                     />
                 )}
                 <ViewBookingModal
@@ -778,3 +959,10 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
         </AuthenticatedLayout>
     );
 }
+
+
+
+
+
+
+

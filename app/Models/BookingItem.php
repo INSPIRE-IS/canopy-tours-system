@@ -245,10 +245,9 @@ class BookingItem extends Model
                 $tot_paid = $tot_paid - $price;
             }
             //$paid  = $customer->pivot->paid ?? 0;
-            $bookingItemId = $customer->pivot->booking_item_id ?? null;
             $paxList->push([
                 'reference' => $this->booking->reference ?? null,
-                'booking_item_id'  => $bookingItemId,
+                'booking_item_id'  => $this->id,
                 'type'              => $type,
                 'customer_id'       => $customer->id,
                 'full_name'         => $customer->full_name,
@@ -307,7 +306,7 @@ class BookingItem extends Model
                 logger()->info('**********pax type****new*********** ', [$type]);
                 $paxList->push([
                     'reference' => $this->booking->reference ?? null,
-                    'booking_item_id'  => $bookingItemId,
+                    'booking_item_id'  => $this->id,
                     'type'      => $type,
                     'customer_id' => null,
                     'full_name'      => null,

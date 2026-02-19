@@ -74,6 +74,9 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
 
     const [pricing, setPricing] = useState(null);
     const lastSlotWarningRef = useRef('');
+    const canOverrideCapacity = !!selectedService?.allow_internal_capacity_override;
+    const prefillsRef = useRef(null);
+    const prevServiceIdRef = useRef(null);
 
     // console.log('schedule ',schedule);
     const { data, setData, post, processing, errors } = useForm({
@@ -150,6 +153,47 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
     useEffect(() => {
         loadCalendar();
     }, [activityId, activityDate, view_mode, data.start_time, data.adults, data.children]);
+
+    useEffect(() => {
+        if (prefillsRef.current) return;
+        const params = new URLSearchParams(window.location.search);
+        const serviceId = params.get('service_id');
+        const bookingDate = params.get('booking_date');
+        const startTime = params.get('start_time');
+
+        prefillsRef.current = { serviceId, bookingDate, startTime };
+
+        if (serviceId) {
+            setData('service_id', serviceId);
+        }
+        if (bookingDate) {
+            setData('booking_date', bookingDate);
+        }
+        if (startTime) {
+            setData('start_time', startTime);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (!prefillsRef.current) return;
+        if (data.service_id) return;
+        const { serviceId } = prefillsRef.current;
+        if (!serviceId) return;
+        if ((services || []).some(s => String(s.id) === String(serviceId))) {
+            setData('service_id', serviceId);
+        }
+    }, [services, data.service_id]);
+
+    useEffect(() => {
+        if (!prefillsRef.current) return;
+        if (data.start_time) return;
+        if (!timeslots?.length) return;
+        const { startTime } = prefillsRef.current;
+        if (!startTime) return;
+        if (timeslots.some(s => String(s.id) === String(startTime))) {
+            setData('start_time', startTime);
+        }
+    }, [timeslots, data.start_time]);
 
 
     const loadCalendar = async () => {
@@ -482,6 +526,8 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
             setDiscountList([]);
             setPromoList([]);
         }
+        const isServiceCleared = !data.service_id;
+        const isServiceChanged = prevServiceIdRef.current && String(prevServiceIdRef.current) !== String(data.service_id);
         if (!data.wholesaler_id && !data.is_wholesaler) {
             setData(prev => ({
                 ...prev,
@@ -489,7 +535,6 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                 capacity: service?.capacity || 0,
                 duration: service?.duration || 0,
                 season_id: null,
-                booking_date: null,
                 override_price: false,
                 override_rates: false,
                 override_timeslots: false,
@@ -504,9 +549,11 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                 rate_per_guide: 0,
             }));
             setSelectedSeason(null);
-            setActivityId(null);
-            setActivityDate(() => new Date(start_date));
-            setTimeslots([]);
+            if (isServiceCleared) {
+                setActivityId(null);
+                setActivityDate(() => new Date(start_date));
+                setTimeslots([]);
+            }
         } else {
             setData(prev => ({
                 ...prev,
@@ -514,16 +561,26 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                 capacity: service?.capacity || 0,
                 duration: service?.duration || 0,
                 season_id: null,
-                booking_date: null,
                 override_price: false,
                 override_rates: false,
                 override_timeslots: false,
             }));
             setSelectedSeason(null);
-            setActivityId(null);
-            setActivityDate(() => new Date(start_date));
-            setTimeslots([]);
+            if (isServiceCleared) {
+                setActivityId(null);
+                setActivityDate(() => new Date(start_date));
+                setTimeslots([]);
+            }
         }
+        if (isServiceChanged) {
+            setData(prev => ({
+                ...prev,
+                start_time: '',
+                selected_slot: [],
+            }));
+            setSelectedSlot(null);
+        }
+        prevServiceIdRef.current = data.service_id || null;
 
     }, [data.service_id]);
 
@@ -708,7 +765,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                     setData(prev => ({
                         ...prev,
                         season_id: season.id,
-                        override_timeslots: season?.inventory?.allow_internal_override == 1 ? true : false || false,
+                        override_timeslots: false,
                         override_price: season?.allow_internal_price_override == 1 ? true : false || false,
                         override_rates: false,
                         adult: season?.rake_rate_adult || 0,
@@ -725,7 +782,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                     setData(prev => ({
                         ...prev,
                         season_id: season.id,
-                        override_timeslots: season?.inventory?.allow_internal_override || false,
+                        override_timeslots: false,
                     }));
                 }
                 console.log('-------------------------data-------------------------');
@@ -740,7 +797,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
             }
         }
 
-    }, [data.booking_date]);
+    }, [data.booking_date, seasons]);
 
     useEffect(() => {
         if (!data.booking_date || !data.start_time || Number(data.start_time) === 0) {
@@ -751,6 +808,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
             return;
         }
         if (!scheduleData?.days?.length) return;
+        if (!timeslots?.length) return;
 
         const day = findScheduleDay(data.booking_date, scheduleData.days);
         const resolvedTime = resolveTimeLabel(data.start_time, timeslots, scheduleData.schedule);
@@ -1297,6 +1355,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                         checked={data[key] || false}
                                         onChange={handleChange}
                                         errors={errors}
+                                        disabled={key === 'override_timeslots' ? !canOverrideCapacity : false}
                                     />
                                 ))}
                                 {/* <WhiteButton

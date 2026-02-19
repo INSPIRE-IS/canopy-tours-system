@@ -124,10 +124,17 @@ class ServiceCalendarBuilder
 
                 // once we have the booking data, we can calculate the remaining slots
                 if (true) {
-                    $dateTimeStr = $dateStr . '_' . $timeSlot;
+                    $dateTimeStr = $dateStr . '_' . $timeSlot->start_time;
                     $booked = $bookingData[$dateTimeStr]->total ?? 0;
                     $remaining = $service->capacity - $booked;
-                    if ($remaining < $totalRequested) {
+                    if ($remaining <= 0) {
+                        $row['days'][$label] = [
+                            'date' => $dateStr,
+                            'slots' => $remaining,
+                            'status' => 'full',
+                            'note' => 'Fully booked',
+                        ];
+                    } elseif ($remaining < $totalRequested) {
                         $row['days'][$label] = [
                             'date' => $dateStr,
                             'slots' => $remaining,

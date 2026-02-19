@@ -38,8 +38,10 @@ class Invoice extends Model
             $year = now()->format('Y');
 
             // Find the last invoice for this year
-            $lastInvoice = self::whereYear('created_at', $year)
+            $lastInvoice = self::withTrashed()
+                ->whereYear('created_at', $year)
                 ->orderBy('id', 'desc')
+                ->lockForUpdate()
                 ->first();
 
             $nextNumber = $lastInvoice

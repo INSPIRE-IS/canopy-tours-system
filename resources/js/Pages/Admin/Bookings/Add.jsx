@@ -361,9 +361,10 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                                         </span>
                                         {toggleManifest && (
                                             <div className="flex flex-col w-full  gap-2 ">
-                                                {bookingItem?.customer_manifests?.map((manifest, i) => {
+                                                {(bookingItem?.customer_manifests?.length ? bookingItem.customer_manifests : (manifest || [])).map((manifest, i) => {
+                                                    const manifestCustomer = manifest?.customer || {};
                                                     const isIndemnity = manifest?.is_indemnity;
-                                                    const isCheckedIn = manifest?.customer?.booking_questionnaire != null;
+                                                    const isCheckedIn = manifestCustomer?.booking_questionnaire != null;
                                                     const manifest_id = (i + 1) + '(' + (i + 1) + ')';
                                                     console.log('manifest', manifest);
                                                     return (
@@ -380,7 +381,7 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                                                                     <CustomInputText
                                                                         title="Email"
                                                                         name="customer_email"
-                                                                        value={manifest.customer.email_address}
+                                                                        value={manifestCustomer?.email_address || manifest?.email_address || ''}
                                                                         height="h-[48px]"
                                                                         type="email"
                                                                         mode="view"
@@ -406,7 +407,7 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                                                                     <CustomInputText
                                                                         title="Position"
                                                                         name="customer_position"
-                                                                        value={manifest.position}
+                                                                        value={manifest?.position || ''}
                                                                         height="h-[48px]"
                                                                         width="w-[61px]"
                                                                         type="text"
@@ -419,7 +420,7 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                                                                     <CustomInputText
                                                                         title="Notes"
                                                                         name="customer_notes"
-                                                                        value={manifest.notes}
+                                                                        value={manifest?.notes || ''}
                                                                         height="h-[48px]"
                                                                         type="email"
                                                                         mode="view"
@@ -430,7 +431,7 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                                                                 <div className='basis-[20%] pt-1 space-y-[15px]' >
                                                                     <div className="flex gap-4">
                                                                         <span className="text-booking-card-manifest-lbl w-[69px]">Indemnity</span>
-                                                                        {manifest.customer?.booking_questionnaire != null ? (
+                                                                        {manifestCustomer?.booking_questionnaire != null ? (
                                                                             <span className="text-booking-card-manifest-yes px-[9px] bg-[#00FF044D] rounded-[6px] border border-gray-300">Yes</span>
                                                                         ) : (
                                                                             <span className="text-booking-card-manifest-no px-[9px] bg-[#FCE4DF4D] rounded-[6px] border border-gray-300">No</span>
@@ -438,7 +439,7 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                                                                     </div>
                                                                     <div className="flex gap-4">
                                                                         <span className="text-booking-card-manifest-lbl w-[69px]">Checked-in</span>
-                                                                        {manifest?.customer ? (
+                                                                        {manifestCustomer?.id ? (
                                                                             <span className="text-booking-card-manifest-yes px-[9px] bg-[#00FF044D] rounded-[6px] border border-gray-300">Yes</span>
                                                                         ) : (
                                                                             <span className="text-booking-card-manifest-no px-[9px] bg-[#FCE4DF4D] rounded-[6px] border border-gray-300">No</span>

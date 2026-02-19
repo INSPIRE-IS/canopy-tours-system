@@ -37,7 +37,18 @@ export default function CustomerToolsModal({ index, booking, customer, position,
                     <button type='button' onClick={() => CustomerToolClick('check_in', index, booking, customer)} className="btn-tool">{icons.check_in} Check-In</button>
                     <button type='button' onClick={() => CustomerToolClick('customer_invoice', index, booking, customer)} className="btn-tool">{icons.customer_invoice} Customer Invoice</button>
                     <button type='button' onClick={() => CustomerToolClick('resend_invoice', index, booking, customer)} className="btn-tool">{icons.resend_invoice} Resend Invoice</button>
-                    <button type='button' onClick={() => CustomerToolClick('manifest', index, booking, customer)} className="btn-tool">{icons.manifest} Manifest</button>
+                    {/* <button type='button' onClick={() => CustomerToolClick('manifest', index, booking, customer)} className="btn-tool">{icons.manifest} Manifest</button> */}
+                    <button type='button' onClick={() => CustomerToolClick('edit_booking', index, booking, customer)} className="btn-tool">{icons.edit_timeslot} Edit Booking</button>
+
+                    <button type='button' onClick={() => CustomerToolClick('message_guest', index, booking, customer)} className="btn-tool">{icons.message} Message Guests</button>
+                    <button type='button' onClick={() => CustomerToolClick('booking_notes', index, booking, customer)} className="btn-tool">{icons.notes} Booking Note</button>
+                    {/* <button type="button" onClick={() => router.get(route('admin.messenger.createTopic'))} className="btn-tool">{icons.message} Message Staff</button> */}
+                    {/* <button type="button" onClick={() => BookingToolClick('message_staff', booking)} className="btn-tool">{icons.message} Message Staff</button> */}
+                    {/* <button type="button" onClick={() => BookingToolClick('check_in_progress', booking)} className="btn-tool">{icons.check_in_progress} Check-In Progress</button> */}
+                    {/* <button type="button" onClick={() => BookingToolClick('manifest_edit', booking)} className="btn-tool">{icons.manifest_edit} Edit Manifest</button> */}
+                    <button type="button" onClick={() => CustomerToolClick('cancel_booking', index, booking, customer)} className="btn-tool-red">{icons.cancel_all_bookings} Cancel Booking</button>
+                    {/* <button type="button" onClick={() => BookingToolClick('remove_resource', booking)} className="btn-tool">{icons.remove_resource} Remove Resources</button> */}
+
                     {/* <button type='button' onClick={() => CustomerToolClick('customer_invoice', index, booking, customer)} className="btn-tool">{icons.customer_invoice} Customer Invoice</button>
                      <button type='button' onClick={() => CustomerToolClick('print_ticket', index, booking, customer)} className="btn-tool">{icons.print_ticket} Print Ticket</button>
                     <button type='button' onClick={() => CustomerToolClick('voucher', index, booking, customer)} className="btn-tool">{icons.voucher} Voucher</button> */}

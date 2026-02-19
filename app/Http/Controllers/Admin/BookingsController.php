@@ -61,9 +61,35 @@ use Spatie\Browsershot\Browsershot;
 
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 
 class BookingsController extends Controller
 {
+    private function validateSlotCapacity($service, string $bookingDate, int $inventoryTimeSlotId, int $requestedPax, int $teamId, ?int $excludeBookingItemId = null): void
+    {
+        if (!$service || $service->capacity === null) {
+            return;
+        }
+
+        $bookedQuery = BookingInventory::whereDate('date', $bookingDate)
+            ->where('inventory_time_slot_id', $inventoryTimeSlotId)
+            ->whereHas('booking_item', function ($query) use ($service, $teamId, $excludeBookingItemId) {
+                $query->where('service_id', $service->id)
+                    ->where('team_id', $teamId);
+                if ($excludeBookingItemId) {
+                    $query->where('id', '!=', $excludeBookingItemId);
+                }
+            });
+
+        $booked = (int) $bookedQuery->sum('pax');
+        $remaining = (int) $service->capacity - $booked;
+
+        if ($remaining < $requestedPax) {
+            throw ValidationException::withMessages([
+                'start_time' => "Selected time slot does not have enough capacity. Available capacity: {$remaining}.",
+            ]);
+        }
+    }
     public function index()
     {
 
@@ -86,6 +112,9 @@ class BookingsController extends Controller
             'booking_detail',
             'booking_fee',
             'booking_inventory',
+            'booking_inventory.inventory_time_slot',
+            'service',
+            'season',
         ])
             ->where('team_id', auth()->user()->team_id)
             ->get();
@@ -96,21 +125,22 @@ class BookingsController extends Controller
 
         $formatted = $booking_items->map(function ($booking_item) use ($vatMultiplier) {
             try {
-                //dd($booking_item);
                 $price = $booking_item?->booking_fee->tot_amount;
                 $paid = $booking_item?->booking_fee->tot_paid;
                 $due = $price - $paid;
-                $service = Service::find($booking_item->service_id);
-                $season = Season::find($booking_item->season_id);
-                $timeSlot = InventoryTimeSlot::find($booking_item->booking_inventory->inventory_time_slot_id);
+                $service = $booking_item->service ?? Service::find($booking_item->service_id);
+                $timeSlot = $booking_item->booking_inventory?->inventory_time_slot
+                    ?? InventoryTimeSlot::find($booking_item->booking_inventory?->inventory_time_slot_id);
 
-                $time = $timeSlot->start_time;
-                $start_time = Carbon::parse($time);
+                $start_time = $timeSlot?->start_time ? Carbon::parse($timeSlot->start_time) : null;
 
-                list($hours, $minutes, $seconds) = explode(':', $service->duration);
-                $end_time = $start_time->copy()->addHours($hours)->addMinutes($minutes)->addSeconds($seconds);
+                if ($start_time && $service?->duration) {
+                    list($hours, $minutes, $seconds) = explode(':', $service->duration);
+                    $end_time = $start_time->copy()->addHours($hours)->addMinutes($minutes)->addSeconds($seconds);
+                } else {
+                    $end_time = null;
+                }
 
-                $customers = $booking_item->paxWithCustomers();
                 $leadCustomer = $booking_item->customers->firstWhere('pivot.is_lead', 1);
                 if (!$leadCustomer && $booking_item->booking?->customer_id) {
                     $leadCustomer = Customer::find($booking_item->booking->customer_id);
@@ -118,103 +148,33 @@ class BookingsController extends Controller
                 $leadName = $leadCustomer?->full_name ?? $booking_item->booking->lead_name ?? 'Test Customer';
                 $leadEmail = $leadCustomer?->email_address ?? '';
                 $leadPhone = $leadCustomer?->contact_number ?: 'Test Phone';
+                $leadRow = [
+                    'customer_id' => $leadCustomer?->id,
+                    'full_name' => $leadName,
+                    'email_address' => $leadEmail,
+                    'contact_number' => $leadPhone,
+                    'type' => 'adult',
+                    'is_lead' => true,
+                    'files' => $booking_item->booking?->files,
+                ];
 
-                $leadIndex = $customers->search(fn($c) => ($c['is_lead'] ?? false) === true);
-                if ($leadIndex === false) {
-                    $matchIndex = $customers->search(function ($c) use ($leadCustomer, $leadEmail, $leadPhone, $leadName) {
-                        if ($leadCustomer && !empty($c['customer_id']) && (int) $c['customer_id'] === (int) $leadCustomer->id) {
-                            return true;
-                        }
-                        if (!empty($leadEmail) && !empty($c['email_address']) && strtolower($c['email_address']) === strtolower($leadEmail)) {
-                            return true;
-                        }
-                        if (!empty($leadPhone) && !empty($c['contact_number']) && $c['contact_number'] === $leadPhone) {
-                            return true;
-                        }
-                        if (!empty($leadName) && !empty($c['full_name']) && $c['full_name'] === $leadName) {
-                            return true;
-                        }
-                        return false;
-                    });
-
-                    if ($matchIndex !== false) {
-                        $leadRow = $customers[$matchIndex];
-                        $leadRow['is_lead'] = true;
-                        if (empty($leadRow['full_name'])) {
-                            $leadRow['full_name'] = $leadName;
-                        }
-                        if (empty($leadRow['email_address'])) {
-                            $leadRow['email_address'] = $leadEmail;
-                        }
-                        if (empty($leadRow['contact_number'])) {
-                            $leadRow['contact_number'] = $leadPhone;
-                            Log::warning('Lead customer missing contact number; using fallback.', [
-                                'booking_id' => $booking_item->booking->id ?? null,
-                                'booking_item_id' => $booking_item->id ?? null,
-                                'customer_id' => $leadRow['customer_id'] ?? null,
-                            ]);
-                        }
-                        $customers[$matchIndex] = $leadRow;
-                    } else {
-                        $customers->prepend([
-                            'reference' => $booking_item->booking->reference ?? null,
-                            'booking_item_id'  => $booking_item->id ?? null,
-                            'type'              => 'adult',
-                            'customer_id'       => $leadCustomer?->id,
-                            'full_name'         => $leadName,
-                            'email_address'     => $leadEmail,
-                            'contact_number'    => $leadPhone,
-                            'age'               => null,
-                            'parent_id'         => null,
-                            'notes'             => null,
-                            'is_indemnity'      => null,
-                            'position'          => null,
-                            'price'             => null,
-                            'paid'              => null,
-                            'due'               => null,
-                            'files'             => $booking_item->booking?->files,
-                            'discount'          => null,
-                            'is_lead'           => true,
-                            'team_id'           => $booking_item->booking?->team_id,
-                            'source'            => 'fallback',
-                        ]);
-                        Log::warning('Lead customer missing from booking item customers; using fallback.', [
-                            'booking_id' => $booking_item->booking->id ?? null,
-                            'booking_item_id' => $booking_item->id ?? null,
-                            'customer_id' => $booking_item->booking?->customer_id ?? null,
-                        ]);
-                    }
-                } else {
-                    $leadRow = $customers[$leadIndex];
-                    if (empty($leadRow['full_name'])) {
-                        $leadRow['full_name'] = $leadName;
-                    }
-                    if (empty($leadRow['email_address'])) {
-                        $leadRow['email_address'] = $leadEmail;
-                    }
-                    if (empty($leadRow['contact_number'])) {
-                        $leadRow['contact_number'] = $leadPhone;
-                        Log::warning('Lead customer missing contact number; using fallback.', [
-                            'booking_id' => $booking_item->booking->id ?? null,
-                            'booking_item_id' => $booking_item->id ?? null,
-                            'customer_id' => $leadRow['customer_id'] ?? null,
-                        ]);
-                    }
-                    $customers[$leadIndex] = $leadRow;
-                }
                 $info = [
                     'id' => $booking_item->booking->id,
+                    'booking_item_id' => $booking_item->id,
                     'reference' => $booking_item->booking->reference,
-                    'lead_name' => $booking_item->booking->lead_name,
-                    'lead_id' => $booking_item->booking->customer_id,
+                    'lead_name' => $leadName,
+                    'lead_email' => $leadEmail,
+                    'lead_phone' => $leadPhone,
+                    'lead_id' => $leadCustomer?->id ?? $booking_item->booking->customer_id,
                     'bookingPax' => $booking_item->booking_inventory->pax, // $booking->customers->count(),
                     'maxPax' => $service->capacity, // $booking->customers->count(),
                     'service' => $booking_item->service->name,
-                    'time' => $start_time->format('H:i:s') . ' ' . $end_time->format('H:i:s'), // optional($booking->booking_inventory)->inventory_time_slot_id ?? '' . ' - ' . optional($booking->booking_inventory)->inventory_time_slot_id ?? '',
+                    'time_start' => $start_time?->format('H:i:s'),
+                    'time_end' => $end_time?->format('H:i:s'),
                     'price' => round($price ?? 0, 2),
                     'paid' =>  round($paid ?? 0, 2),
                     'due' =>  round($due ?? 0, 2),
-                    'customers' => $customers,
+                    'customers' => [$leadRow],
                     'dueStatus' => $due > 0 ? true : false,
                     'due_date' => $booking_item->booking->due_date,
                     'booking_date' => $booking_item->booking_inventory->date,
@@ -390,6 +350,7 @@ class BookingsController extends Controller
                 $selected_slot = $validated['selected_slot'];
                 //dd($selected_slot['date']);
                 $season = Season::findOrFail($season_id);
+                $service = Service::findOrFail($season->service_id);
                 $inventory = Inventory::where('season_id', $season->id)->first();
                 //$FullNameOfDay = Carbon::parse($validated['date'])->format('l'); // e.g., Monday
                 //$ShortNameOfDay = Carbon::parse($validated['date'])->format('D'); // e.g., Mon
@@ -415,6 +376,17 @@ class BookingsController extends Controller
                 $amount_children = (int) ($validated['rate_per_child'] ?? 0) * $childrenCount;
                 $guidesCount = (int) ($validated['guides'] ?? 0);
                 $amount_guides = (int) ($validated['rate_per_guide'] ?? 0) * $guidesCount;
+                $requestedPax = $adultsCount + $childrenCount;
+                $canOverrideCapacity = !empty($validated['override_timeslots']) && (bool) $service->allow_internal_capacity_override;
+                if (!$canOverrideCapacity && $inventoryTimeSlot) {
+                    $this->validateSlotCapacity(
+                        $service,
+                        $validated['booking_date'],
+                        $inventoryTimeSlot->id,
+                        $requestedPax,
+                        auth()->user()->team_id
+                    );
+                }
                 // TODO figure out why we changed to only amount below that seems like a bad idea
                 $amount = $amount_adults + $amount_children + $amount_guides;
                 // $amount = (int) ($validated['adult'] ?? 0) + (int) ($validated['child'] ?? 0) + (int) ($validated['guide'] ?? 0);
@@ -785,8 +757,9 @@ class BookingsController extends Controller
             // return Inertia::location(route('admin.booking_payments.create') . '?booking_id=' . $booking->id);
             // return Inertia::location(route('admin.booking_payments.edit', $booking->id));
             // return redirect()->route('admin.booking_payments.edit', ['booking' => $booking->id]);
+        } catch (ValidationException $e) {
+            return back()->withErrors($e->errors())->withInput();
         } catch (\Throwable $e) {
-            // Log the full error for debugging
             Log::error('Booking failed and rolled back', [
                 'message' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
@@ -794,7 +767,7 @@ class BookingsController extends Controller
             ]);
             return back()->with([
                 'error' => 'Something went wrong while saving your booking. Please try again.',
-            ]);
+            ])->withInput();
             // return response()->json([
             //     'success' => false,
             //     'error' => 'Something went wrong while saving your booking. Please try again.',
@@ -1000,6 +973,7 @@ class BookingsController extends Controller
                 $bookingDate = $validated['booking_date'];
 
                 $season = Season::findOrFail($validated['season_id']);
+                $service = Service::findOrFail($season->service_id);
                 $inventory = Inventory::where('season_id', $season->id)->first();
                 if (!$inventory) {
                     abort(404, 'This season has no inventory.');
@@ -1021,6 +995,18 @@ class BookingsController extends Controller
                 $amount_adults = (int) ($validated['rate_per_adult'] ?? 0) * $adultsCount;
                 $amount_children = (int) ($validated['rate_per_child'] ?? 0) * $childrenCount;
                 $amount_guides = (int) ($validated['rate_per_guide'] ?? 0) * $guidesCount;
+                $requestedPax = $adultsCount + $childrenCount;
+                $canOverrideCapacity = !empty($validated['override_timeslots']) && (bool) $service->allow_internal_capacity_override;
+                if (!$canOverrideCapacity && $inventoryTimeSlot) {
+                    $this->validateSlotCapacity(
+                        $service,
+                        $bookingDate,
+                        $inventoryTimeSlot->id,
+                        $requestedPax,
+                        auth()->user()->team_id,
+                        $bookingItem->id
+                    );
+                }
                 $amount = $amount_adults + $amount_children + $amount_guides;
 
                 $customer = Customer::firstOrCreate(
@@ -1392,6 +1378,8 @@ class BookingsController extends Controller
             return redirect()
                 ->route('admin.bookings.index')
                 ->with('success', "Booking {$booking->reference} updated successfully.");
+        } catch (ValidationException $e) {
+            return back()->withErrors($e->errors())->withInput();
         } catch (\Throwable $e) {
             Log::error('Booking update failed and rolled back', [
                 'message' => $e->getMessage(),
@@ -1401,7 +1389,7 @@ class BookingsController extends Controller
 
             return back()->with([
                 'error' => 'Something went wrong while updating this booking. Please try again.',
-            ]);
+            ])->withInput();
         }
     }
 
@@ -2063,6 +2051,45 @@ class BookingsController extends Controller
         $booking->delete();
 
         return back();
+    }
+
+    public function cancelSlot(Request $request)
+    {
+        $validated = $request->validate([
+            'booking_date' => 'required|date',
+            'inventory_time_slot_id' => 'required|integer',
+            'service_id' => 'required|integer',
+        ]);
+
+        $items = BookingItem::with('booking')
+            ->where('team_id', auth()->user()->team_id)
+            ->where('service_id', $validated['service_id'])
+            ->whereHas('booking_inventory', function ($query) use ($validated) {
+                $query->whereDate('date', $validated['booking_date'])
+                    ->where('inventory_time_slot_id', $validated['inventory_time_slot_id']);
+            })
+            ->get();
+
+        if ($items->isEmpty()) {
+            return back()->with('error', 'No bookings found for that slot.');
+        }
+
+        $bookingIds = $items->pluck('booking_id')->unique()->values();
+
+        DB::transaction(function () use ($items, $bookingIds) {
+            foreach ($items as $item) {
+                $item->delete();
+            }
+
+            $bookings = Booking::whereIn('id', $bookingIds)->get();
+            foreach ($bookings as $booking) {
+                if ($booking->booking_items()->count() === 0) {
+                    $booking->delete();
+                }
+            }
+        });
+
+        return back()->with('success', 'Bookings cancelled for that slot.');
     }
 
     public function sendEmail(Request $request)
