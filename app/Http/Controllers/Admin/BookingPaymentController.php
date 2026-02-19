@@ -22,6 +22,7 @@ use App\Models\Team;
 use App\Models\TypePayment;
 use App\Models\TypePayOption;
 use App\Models\User;
+use App\Models\AuditLog;
 use Barryvdh\DomPDF\Facade\Pdf;
 use File;
 use Gate;
@@ -142,6 +143,19 @@ class BookingPaymentController extends Controller
                 $booking->update([
                     'status_payment_id' => 2, // paid
                     'tot_paid' => $bookingPayment->ex_vat_amount,
+                ]);
+
+                AuditLog::create([
+                    'description' => 'Payment recorded (admin)',
+                    'subject_id' => $booking->id,
+                    'subject_type' => Booking::class,
+                    'user_id' => auth()->id(),
+                    'properties' => json_encode([
+                        'payment_id' => $bookingPayment->id,
+                        'amount' => $bookingPayment->ex_vat_amount,
+                        'method' => 'admin',
+                    ]),
+                    'host' => request()->ip(),
                 ]);
                 //TODO update booking item with payment amount if this is a multiple booking activity
                 $balance = $bookingPayment->ex_vat_amount;
@@ -368,7 +382,7 @@ class BookingPaymentController extends Controller
         DB::transaction(function () use ($booking, $vatRate, $payOnlineOptionId, $cardPaymentId, $gatewayId, $amountDue) {
             $booking->loadMissing('booking_items.booking_fees');
 
-            BookingPayment::updateOrCreate(
+            $payment = BookingPayment::updateOrCreate(
                 ['booking_id' => $booking->id],
                 [
                     'payment_date' => now(),
@@ -393,6 +407,19 @@ class BookingPaymentController extends Controller
             $booking->update([
                 'status_payment_id' => 2,
                 'tot_paid' => $booking->grand_tot_due,
+            ]);
+
+            AuditLog::create([
+                'description' => 'Payment recorded (admin simulated)',
+                'subject_id' => $booking->id,
+                'subject_type' => Booking::class,
+                'user_id' => auth()->id(),
+                'properties' => json_encode([
+                    'payment_id' => $payment?->id,
+                    'amount' => $amountDue,
+                    'method' => 'admin_simulated',
+                ]),
+                'host' => request()->ip(),
             ]);
 
             $booking->booking_items->each(function ($item) {
@@ -442,6 +469,18 @@ class BookingPaymentController extends Controller
             'auditable_type' => 'App\Models\Booking',
             'auditable_id'   => $booking->id,
             'team_id'        => $booking->team_id,
+        ]);
+
+        AuditLog::create([
+            'description' => 'Email sent (pay link)',
+            'subject_id' => $booking->id,
+            'subject_type' => Booking::class,
+            'user_id' => auth()->id(),
+            'properties' => json_encode([
+                'receiver' => $customer->email_address,
+                'subject' => $subject,
+            ]),
+            'host' => request()->ip(),
         ]);
 
         Mail::to($customer->email_address)->send(new MessageGuestMail($subject, $content));

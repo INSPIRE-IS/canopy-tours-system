@@ -8,6 +8,7 @@ use App\Models\Booking;
 use App\Models\BookingVoucher;
 use App\Models\Customer;
 use App\Models\Email;
+use App\Models\AuditLog;
 use App\Models\Invoice;
 use App\Models\InvoiceTemplate;
 use App\Services\RendererService;
@@ -221,6 +222,19 @@ class InvoiceController extends Controller
                 'auditable_type' => 'App\Models\Invoice',
                 'auditable_id'   => $invoice->id,
                 'team_id'        => $invoice->team_id,
+            ]);
+            AuditLog::create([
+                'description' => 'Email sent (invoice resend)',
+                'subject_id' => $booking->id,
+                'subject_type' => Booking::class,
+                'user_id' => auth()->id(),
+                'properties' => json_encode([
+                    'invoice_id' => $invoice->id,
+                    'receiver' => $customer->email_address,
+                    'subject' => 'Invoice ' . $data['invoice']['number'],
+                    'attachment' => $invoiceFilename,
+                ]),
+                'host' => request()->ip(),
             ]);
             File::create([
                 'team_id'      => $invoice->team_id,

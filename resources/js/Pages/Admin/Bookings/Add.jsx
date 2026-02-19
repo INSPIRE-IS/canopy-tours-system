@@ -17,7 +17,7 @@ import CheckInOptionsModal from '@/Components/CheckInOptionsModal';
 // import { useRoute } from 'ziggy-js';
 // import { Ziggy } from '@/ziggy'; // the generated file
 
-export default function Dashboard({ auth, booking, manifest, bookingItem, staff, lookups, bookingNotes = [], bookingEmails = [] }) {
+export default function Dashboard({ auth, booking, manifest, bookingItem, staff, lookups, bookingNotes = [], bookingEmails = [], bookingAuditLogs = [] }) {
     // console.log("auth", auth);
     // console.log("booking", booking);
     // console.log("bookingItem", bookingItem);
@@ -923,6 +923,38 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                                         </div>
                                     )}
                                 </div>
+                                    </div>
+                                </div>
+                                {/* Audit Logs */}
+                                <div className="overflow-hidden shadow-medium sm:rounded-lg">
+                                    <div className="flex flex-col w-full">
+                                        <div className="flex items-center justify-between w-full px-6 py-4 border-b border-gray-300">
+                                            <span className="text-booking-card-heading ">Audit Logs</span>
+                                        </div>
+                                        <div className="flex flex-col w-full px-6 py-6 gap-2">
+                                            {bookingAuditLogs.length === 0 ? (
+                                                <div className="bg-gray-50 border border-gray-200 rounded-md p-4 text-gray-800 whitespace-pre-wrap">
+                                                    No audit logs found.
+                                                </div>
+                                            ) : (
+                                                <div className="space-y-3">
+                                                    {bookingAuditLogs.map((log) => (
+                                                        <div key={log.id} className="bg-gray-50 border border-gray-200 rounded-md p-4 text-gray-800">
+                                                            <div className="text-xs text-gray-500 mb-2">
+                                                                {log.created_at || 'Unknown date'}
+                                                                {log.user ? ` • ${log.user}` : ''}
+                                                            </div>
+                                                            <div className="text-sm">
+                                                                <div>{log.description}</div>
+                                                                {log.host && (
+                                                                    <div className="text-xs text-gray-500 mt-1">Host: {log.host}</div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                             </div>

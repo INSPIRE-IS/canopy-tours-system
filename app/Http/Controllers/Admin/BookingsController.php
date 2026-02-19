@@ -17,6 +17,7 @@ use App\Models\BookingNote;
 use App\Models\BookingPayment;
 use App\Models\Closeout;
 use App\Models\Email;
+use App\Models\AuditLog;
 use App\Models\Country;
 use App\Models\Customer;
 use App\Models\Discount;
@@ -90,6 +91,28 @@ class BookingsController extends Controller
             throw ValidationException::withMessages([
                 'start_time' => "Selected time slot does not have enough capacity. Available capacity: {$remaining}.",
             ]);
+        }
+    }
+
+    private function logAudit(string $description, Booking $booking, ?BookingItem $bookingItem = null, array $properties = []): void
+    {
+        $payload = [
+            'description' => $description,
+            'user_id' => auth()->id(),
+            'properties' => json_encode($properties),
+            'host' => request()->ip(),
+        ];
+
+        AuditLog::create(array_merge($payload, [
+            'subject_type' => Booking::class,
+            'subject_id' => $booking->id,
+        ]));
+
+        if ($bookingItem) {
+            AuditLog::create(array_merge($payload, [
+                'subject_type' => BookingItem::class,
+                'subject_id' => $bookingItem->id,
+            ]));
         }
     }
     public function index()
@@ -569,6 +592,11 @@ class BookingsController extends Controller
                 ]);
 
                 $this->createBookingNotes($booking, $booking_item, $validated);
+                $this->logAudit('Booking created', $booking, $booking_item, [
+                    'service_id' => $booking_item->service_id,
+                    'season_id' => $booking_item->season_id,
+                    'amount' => $amount,
+                ]);
 
                 $template = InvoiceTemplate::where('is_default', true)->firstOrFail();
                 $invoice = Invoice::create([
@@ -638,6 +666,11 @@ class BookingsController extends Controller
                     'auditable_id'   => $booking->id,
                     'team_id'        => auth()->user()->team_id,
                 ]);
+                $this->logAudit('Email sent (invoice)', $booking, $booking_item, [
+                    'subject' => 'Invoice ' . $data['invoice']['number'],
+                    'receiver' => $validated['lead_email'],
+                    'attachment' => $invoiceFilename,
+                ]);
                 File::create([
                     'team_id'      => $invoice->team_id,
                     'table_name'   => 'invoices',
@@ -703,6 +736,14 @@ class BookingsController extends Controller
                     'auditable_type' => BookingItem::class,
                     'auditable_id'   => $bookingItem->id,
                     'team_id'        => $bookingItem->team_id,
+                ]);
+                $this->logAudit('Email sent (boarding pass)', $booking, $bookingItem, [
+                    'receiver' => $customer->email_address,
+                    'attachment' => $fileName,
+                ]);
+                $this->logAudit('Email sent (boarding pass)', $booking, $booking_item, [
+                    'receiver' => $customer->email_address,
+                    'attachment' => $fileName,
                 ]);
                 File::create([
                     'team_id'      => $bookingItem->team_id,
@@ -1167,6 +1208,11 @@ class BookingsController extends Controller
                 }
 
                 $this->createBookingNotes($booking, $bookingItem, $validated);
+                $this->logAudit('Booking updated', $booking, $bookingItem, [
+                    'service_id' => $bookingItem->service_id,
+                    'season_id' => $bookingItem->season_id,
+                    'amount' => $amount,
+                ]);
 
                 if (is_array($validated['discount_lines']) && $validated['discount_lines'] != null) {
                     $booking_discount = BookingDiscount::updateOrCreate(
@@ -1274,6 +1320,11 @@ class BookingsController extends Controller
                     'auditable_type' => 'App\Models\Booking',
                     'auditable_id'   => $booking->id,
                     'team_id'        => auth()->user()->team_id,
+                ]);
+                $this->logAudit('Email sent (invoice)', $booking, $bookingItem, [
+                    'subject' => 'Invoice ' . $data['invoice']['number'],
+                    'receiver' => $validated['lead_email'],
+                    'attachment' => $invoiceFilename,
                 ]);
                 File::create([
                     'team_id'      => $invoice->team_id,
@@ -1956,6 +2007,14 @@ class BookingsController extends Controller
             'created_by_id' => auth()->id(),
         ]);
 
+        $booking = Booking::find($validated['booking_id']);
+        $bookingItem = BookingItem::find($validated['booking_item_id']);
+        if ($booking) {
+            $this->logAudit('Booking note added', $booking, $bookingItem, [
+                'note' => trim($validated['note']),
+            ]);
+        }
+
         return back()->with('success', 'Booking note added.');
     }
     public function updateOld(UpdateBookingRequest $request, Booking $booking)
@@ -2132,6 +2191,35 @@ class BookingsController extends Controller
                 ];
             });
 
+        $auditLogsQuery = AuditLog::query()
+            ->where(function ($query) use ($booking, $bookingItem) {
+                $query->where(function ($sub) use ($booking) {
+                    $sub->where('subject_type', 'App\Models\Booking')
+                        ->where('subject_id', $booking->id);
+                });
+                if ($bookingItem?->id) {
+                    $query->orWhere(function ($sub) use ($bookingItem) {
+                        $sub->where('subject_type', 'App\Models\BookingItem')
+                            ->where('subject_id', $bookingItem->id);
+                    });
+                }
+            })
+            ->orderByDesc('created_at');
+
+        $auditLogs = $auditLogsQuery->get()
+            ->map(function ($log) {
+                $userName = User::where('id', $log->user_id)->value('name');
+                return [
+                    'id' => $log->id,
+                    'description' => $log->description,
+                    'subject_type' => $log->subject_type,
+                    'subject_id' => $log->subject_id,
+                    'user' => $userName,
+                    'host' => $log->host,
+                    'created_at' => $log->created_at?->format('Y-m-d H:i:s'),
+                ];
+            });
+
         return Inertia::render('Admin/Bookings/Add', [
             'booking' => $booking,
             'manifest' => $manifest,
@@ -2140,6 +2228,7 @@ class BookingsController extends Controller
             'lookups' => $lookups,
             'bookingNotes' => $bookingNotes,
             'bookingEmails' => $bookingEmails,
+            'bookingAuditLogs' => $auditLogs,
         ]);
         // $users = User::pluck('name', 'id')->prepend(trans('global.pleaseSelect'), '');
 
@@ -2173,6 +2262,9 @@ class BookingsController extends Controller
     public function destroy(Booking $booking)
     {
         // abort_if(Gate::denies('booking_delete'), Response::HTTP_FORBIDDEN, '403 Forbidden');
+        $this->logAudit('Booking cancelled', $booking, $booking->booking_items->first(), [
+            'reason' => 'manual',
+        ]);
         $booking_items = $booking->booking_items;
         foreach ($booking_items as $item) {
             $item->delete();
@@ -2205,6 +2297,18 @@ class BookingsController extends Controller
         }
 
         $bookingIds = $items->pluck('booking_id')->unique()->values();
+
+        $bookingsForAudit = Booking::whereIn('id', $bookingIds)->get()->keyBy('id');
+        foreach ($items as $item) {
+            $booking = $bookingsForAudit->get($item->booking_id);
+            if ($booking) {
+                $this->logAudit('Booking cancelled (slot)', $booking, $item, [
+                    'booking_date' => $validated['booking_date'],
+                    'inventory_time_slot_id' => $validated['inventory_time_slot_id'],
+                    'service_id' => $validated['service_id'],
+                ]);
+            }
+        }
 
         DB::transaction(function () use ($items, $bookingIds) {
             foreach ($items as $item) {
@@ -2251,6 +2355,10 @@ class BookingsController extends Controller
             'auditable_type' => 'App\Models\Booking',
             'auditable_id'   => $booking->id,
             'team_id'        => auth()->user()->team_id,
+        ]);
+        $this->logAudit('Email sent (manual)', $booking, null, [
+            'subject' => $subject,
+            'receiver' => $recipient,
         ]);
 
         Mail::to($recipient)->send(new MessageGuestMail($subject, $content));

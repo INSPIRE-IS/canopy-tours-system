@@ -18,6 +18,7 @@ use App\Models\BookingVoucher;
 use App\Models\InvoiceTemplate;
 use App\Models\LookupItem;
 use App\Models\Team;
+use App\Models\AuditLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
@@ -130,6 +131,19 @@ class PaymentController extends Controller
                         ]
                     );
 
+                    AuditLog::create([
+                        'description' => 'Payment recorded (simulated)',
+                        'subject_id' => $booking->id,
+                        'subject_type' => Booking::class,
+                        'user_id' => null,
+                        'properties' => json_encode([
+                            'payment_id' => $payment?->id,
+                            'amount' => $booking->grand_tot_due,
+                            'method' => 'simulated',
+                        ]),
+                        'host' => request()->ip(),
+                    ]);
+
                     $grandTot = $booking->grand_tot_due;
                     foreach ($booking->booking_items as $item) {
                         $fee = $item->booking_fee;
@@ -191,6 +205,19 @@ class PaymentController extends Controller
                         'auditable_id'   => $invoice->id,
                         'team_id'        => $invoice->team_id,
                     ]);
+                    AuditLog::create([
+                        'description' => 'Email sent (invoice payment)',
+                        'subject_id' => $booking->id,
+                        'subject_type' => Booking::class,
+                        'user_id' => null,
+                        'properties' => json_encode([
+                            'invoice_id' => $invoice->id,
+                            'receiver' => $customer->email_address,
+                            'subject' => 'Invoice ' . $data['invoice']['number'],
+                            'attachment' => $invoiceFilename,
+                        ]),
+                        'host' => request()->ip(),
+                    ]);
                     File::create([
                         'team_id'      => $invoice->team_id,
                         'table_name'   => 'invoices',
@@ -245,6 +272,18 @@ class PaymentController extends Controller
                         'auditable_type' => BookingItem::class,
                         'auditable_id'   => $bookingItem->id,
                         'team_id'        => $bookingItem->team_id,
+                    ]);
+                    AuditLog::create([
+                        'description' => 'Email sent (boarding pass payment)',
+                        'subject_id' => $booking->id,
+                        'subject_type' => Booking::class,
+                        'user_id' => null,
+                        'properties' => json_encode([
+                            'booking_item_id' => $bookingItem->id,
+                            'receiver' => $customer->email_address,
+                            'attachment' => $fileName,
+                        ]),
+                        'host' => request()->ip(),
                     ]);
                     File::create([
                         'team_id'      => $bookingItem->team_id,
@@ -396,6 +435,19 @@ class PaymentController extends Controller
             ];
             //dd($detail);
             $payment = BookingPayment::updateOrCreate(['booking_id' => $booking->id,], $detail);
+            AuditLog::create([
+                'description' => 'Payment intent recorded (offline)',
+                'subject_id' => $booking->id,
+                'subject_type' => Booking::class,
+                'user_id' => null,
+                'properties' => json_encode([
+                    'payment_id' => $payment?->id,
+                    'amount' => $booking->grand_tot_due,
+                    'method' => 'offline',
+                    'proof' => $filePath,
+                ]),
+                'host' => request()->ip(),
+            ]);
             return redirect()->route('front.payment.review', $booking)->with('success', 'Offline payment intent saved.');
         } else if ($type === 'voucher') {
             $voucher = GiftVoucher::findOrFail($request->gift_id);
