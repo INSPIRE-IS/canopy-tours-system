@@ -9,10 +9,7 @@ export default function ReviewPayment({ auth, booking, lookups }) {
   //const { props, booking } = usePage();
   console.log('auth ', auth);
   console.log('booking ', booking);
-  const [file, setFile] = useState(null);
-  const [method, setMethod] = useState('payfast'); // 'payfast' or 'offline'
   const [submitting, setSubmitting] = useState(false);
-  const [offlineNote, setOfflineNote] = useState('');
   const [teamId, setTeamId] = useState(booking.team_id);
   const totalDue = Number(booking?.grand_tot_due || 0);
   const vatRate = Number(lookups?.rate || 0);
@@ -60,28 +57,6 @@ export default function ReviewPayment({ auth, booking, lookups }) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-
-  const handleOfflineSubmit = async () => {
-    setSubmitting(true);
-    const formData = new FormData();
-
-    formData.append('booking_id', booking.id);
-    formData.append('note', offlineNote);
-    formData.append('method', 'offline');
-    formData.append('type', 'booking');
-    if (file) formData.append('proof', file);
-
-    try {
-      await axios.post(route('front.payment.offline'), formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      window.location.reload(); // or redirect to thank-you
-    } catch (error) {
-      console.error('Upload failed:', error);
-    } finally {
-      setSubmitting(false);
-    }
-  };
 
   const handleDownload = async () => {
     setSubmitting(true);
@@ -131,95 +106,43 @@ export default function ReviewPayment({ auth, booking, lookups }) {
           </div>
 
           <div>
-            <h2 className="font-semibold mb-2">Select Payment Method</h2>
-            <div className="space-x-4">
-              <label>
-                <input
-                  type="radio"
-                  name="method"
-                  value="payfast"
-                  checked={method === 'payfast'}
-                  onChange={() => setMethod('payfast')}
-                />{' '}
-                Pay Online (Simulated)
-              </label>
-
-              <label>
-                <input
-                  type="radio"
-                  name="method"
-                  value="offline"
-                  checked={method === 'offline'}
-                  onChange={() => setMethod('offline')}
-                />{' '}
-                Pay Offline (e.g. Cash / EFT)
-              </label>
-            </div>
+            <h2 className="font-semibold mb-2">Payment Method</h2>
+            <p>Pay Online (Simulated)</p>
           </div>
 
-          {method === 'offline' && (
-            <div>
-              <h3 className="font-medium mb-1">Payment Note</h3>
-              <textarea
-                className="border p-2 w-full rounded"
-                rows="3"
-                value={offlineNote}
-                onChange={(e) => setOfflineNote(e.target.value)}
-              ></textarea>
+          <div className="flex justify-center gap-4">
+            <button
+              onClick={handlePayFast}
+              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+            >
+              Continue to Payment
+            </button>
+            <a
+              href={route('front.invoices.download', booking.id)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700"
+            >
+              Proforma Invoice
+            </a>
+            <a
+              href={route('front.details.download', booking.id)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700"
+            >
+              Activity
+            </a>
 
-              <h3 className="font-medium mt-4 mb-1">Upload Proof of Payment</h3>
-              <input
-                type="file"
-                onChange={(e) => setFile(e.target.files[0])}
-                accept=".jpg,.jpeg,.png,.pdf"
-                className="border p-2 rounded w-full"
-              />
+            {/* <button
+              onClick={handleDownload}
+              className="mt-4 px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700"
+              disabled={submitting}
+            >
+              {submitting ? 'Downloading...' : 'Download Invoice PDF'}
+            </button> */}
 
-              <button
-                onClick={handleOfflineSubmit}
-                className="mt-4 px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700"
-                disabled={submitting}
-              >
-                {submitting ? 'Submitting...' : 'Submit Offline Payment'}
-              </button>
-            </div>
-          )}
-
-          {method === 'payfast' && (
-            <div className="flex justify-center gap-4">
-              <button
-                onClick={handlePayFast}
-                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-              >
-                Continue to Payment
-              </button>
-              <a
-                href={route('front.invoices.download', booking.id)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700"
-              >
-                Proforma Invoice
-              </a>
-              <a
-                href={route('front.details.download', booking.id)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700"
-              >
-                Activity
-              </a>
-
-              {/* <button
-                onClick={handleDownload}
-                className="mt-4 px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700"
-                disabled={submitting}
-              >
-                {submitting ? 'Downloading...' : 'Download Invoice PDF'}
-              </button> */}
-
-            </div>
-          )}
+          </div>
         </div>
       </div>
 
