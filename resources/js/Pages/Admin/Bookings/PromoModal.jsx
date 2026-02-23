@@ -68,7 +68,7 @@ const PromoModal = ({ isOpen, onClose, serviceId, bookingDate, onSelect }) => {
                 if (promo.status === "active" && promo.is_valid) {
                   color = "bg-blue-200 hover:bg-blue-300 cursor-pointer";
                 } else if (promo.status === "upcoming") {
-                  color = "bg-yellow-200 opacity-75 cursor-wait";
+                  color = "bg-gray-200 opacity-75 cursor-not-allowed";
                 } else if (promo.status === "expired") {
                   color = "bg-red-200 opacity-75 cursor-not-allowed";
                 }

@@ -6,6 +6,7 @@ use App\Traits\MultiTenantModelTrait;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Models\Season;
 
 class Promotion extends Model
 {
@@ -116,9 +117,16 @@ class Promotion extends Model
             return ['status' => false, 'message' => 'activity in valid'];
         }
 
+        $season = Season::find($activityId);
+        $serviceId = $season?->service_id ?? $activityId;
+
         // 3. Service must match
-        if ($this->service_id != $activityId) {
+        if ($this->service_id != $serviceId) {
             return ['status' => false, 'message' => 'service in valid'];
+        }
+
+        if ($this->season_id && $season && $this->season_id != $season->id) {
+            return ['status' => false, 'message' => 'season in valid'];
         }
 
         // 4. promo day time slot must match

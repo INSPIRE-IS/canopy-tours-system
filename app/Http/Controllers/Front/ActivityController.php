@@ -349,14 +349,23 @@ class ActivityController extends Controller
             return response()->json(['status' => false, 'promo' => 'activity in valid']);;
         }
 
+        $season = Season::find($activityId);
+        if (!$season) {
+            return response()->json(['status' => false, 'promo' => 'season in valid']);
+        }
+
         // 3. Service must match
-        if ($promo->service_id != $activityId) {
+        if ($promo->service_id != $season->service_id) {
             return response()->json(['status' => false, 'promo' => 'service in valid']);;
+        }
+
+        if ($promo->season_id && $promo->season_id != $season->id) {
+            return response()->json(['status' => false, 'promo' => 'season in valid']);
         }
 
         // 4. promo day time slot must match
         if ($promo->promo_day_time_slots->isNotEmpty()) {
-            $inventory = Inventory::with(['inventory_time_slots'])->where('season_id', $promo->season_id)->first();
+            $inventory = Inventory::with(['inventory_time_slots'])->where('season_id', $season->id)->first();
             $timeSlot = $inventory->inventory_time_slots?->where('start_time', $slotTime)->first();
             logger()->info('time slot ', [$timeSlot]);
 

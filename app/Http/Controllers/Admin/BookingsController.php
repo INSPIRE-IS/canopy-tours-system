@@ -306,9 +306,6 @@ class BookingsController extends Controller
             ->with('service', 'season', 'wholesaler')
             ->get();
         $promos = Promotion::select('id', 'name', 'promo_code', 'type', 'value', 'service_id', 'booking_start_date', 'booking_end_date', 'activity_start_date', 'activity_end_date')
-            ->where('booking_start_date', '<=', $today)
-            ->where('booking_end_date', '>=', $today)
-            ->where('internal_use_only', false)
             ->with('service')
             ->get();
         $lookups = LookupItem::where('is_default', true)->get();
@@ -316,6 +313,10 @@ class BookingsController extends Controller
             ->whereNotNull('phonecode')
             ->orderBy('name')
             ->get();
+        $this->logPromoDiscountVisibility(
+            $request->input('service_id') ? (int) $request->input('service_id') : null,
+            'booking_create'
+        );
         return Inertia::render('Admin/Bookings/Create', [
             'wholesalers' => $wholesalers,
             'services' => $services,
@@ -946,9 +947,6 @@ class BookingsController extends Controller
         $discounts = Discount::select('id', 'name', 'applies_to', 'percent_off')->with('services')->get();
         $wholesaler_rates = WholesalerRate::select('id', 'wholesaler_id', 'season_id', 'price_adult', 'price_child', 'price_guide')->with('season', 'wholesaler')->get();
         $promos = Promotion::select('id', 'name', 'promo_code', 'type', 'value', 'service_id', 'booking_start_date', 'booking_end_date', 'activity_start_date', 'activity_end_date')
-            ->where('booking_start_date', '<=', $today)
-            ->where('booking_end_date', '>=', $today)
-            ->where('internal_use_only', false)
             ->with('service')
             ->get();
         $lookups = LookupItem::where('is_default', true)->get();
@@ -956,6 +954,10 @@ class BookingsController extends Controller
             ->whereNotNull('phonecode')
             ->orderBy('name')
             ->get();
+        $this->logPromoDiscountVisibility(
+            $currentServiceId ? (int) $currentServiceId : null,
+            'booking_edit'
+        );
 
         return Inertia::render('Admin/Bookings/Edit', [
             'wholesalers' => $wholesalers,
@@ -1984,6 +1986,88 @@ class BookingsController extends Controller
             $user->alerts()->attach($alert->id);
         }
     }
+
+    protected function logPromoDiscountVisibility(?int $serviceId, string $context): void
+    {
+        if (!config('app.debug') || !$serviceId) {
+            return;
+        }
+
+        $today = now()->toDateString();
+
+        $promos = Promotion::select(
+            'id',
+            'name',
+            'promo_code',
+            'service_id',
+            'internal_use_only',
+            'booking_start_date',
+            'booking_end_date'
+        )->get();
+
+        foreach ($promos as $promo) {
+            $reasons = [];
+            if (empty($promo->service_id)) {
+                $reasons[] = 'missing_service_id';
+            } elseif ((int) $promo->service_id !== (int) $serviceId) {
+                $reasons[] = 'service_mismatch';
+            }
+            $bookingWindowStatus = 'unknown';
+            if ($promo->booking_start_date && $promo->booking_end_date) {
+                if ($promo->booking_start_date > $today) {
+                    $bookingWindowStatus = 'upcoming';
+                } elseif ($promo->booking_end_date < $today) {
+                    $bookingWindowStatus = 'expired';
+                } else {
+                    $bookingWindowStatus = 'active';
+                }
+            }
+
+            Log::info('Promo visibility debug', [
+                'context' => $context,
+                'service_id' => $serviceId,
+                'promo_id' => $promo->id,
+                'promo_code' => $promo->promo_code,
+                'promo_name' => $promo->name,
+                'promo_service_id' => $promo->service_id,
+                'internal_use_only' => (bool) $promo->internal_use_only,
+                'booking_window' => [
+                    'start' => $promo->booking_start_date,
+                    'end' => $promo->booking_end_date,
+                ],
+                'booking_window_status' => $bookingWindowStatus,
+                'admin_status' => empty($reasons) ? 'included' : 'excluded',
+                'admin_reasons' => $reasons,
+            ]);
+        }
+
+        $discounts = Discount::with('services:id')
+            ->select('id', 'name', 'applies_to')
+            ->get();
+
+        foreach ($discounts as $discount) {
+            $serviceIds = $discount->services->pluck('id')->map(fn($id) => (int) $id)->all();
+            $reasons = [];
+            if (empty($serviceIds)) {
+                $reasons[] = 'no_services';
+            }
+            if (!empty($serviceIds) && !in_array((int) $serviceId, $serviceIds, true)) {
+                $reasons[] = 'service_mismatch';
+            }
+
+            Log::info('Discount visibility debug', [
+                'context' => $context,
+                'service_id' => $serviceId,
+                'discount_id' => $discount->id,
+                'discount_name' => $discount->name,
+                'applies_to' => $discount->applies_to,
+                'discount_service_ids' => $serviceIds,
+                'status' => empty($reasons) ? 'included' : 'excluded',
+                'reasons' => $reasons,
+            ]);
+        }
+    }
+
     public function editOld(Request $request, Booking $booking)
     {
         //abort_if(Gate::denies('booking_edit'), Response::HTTP_FORBIDDEN, '403 Forbidden');
