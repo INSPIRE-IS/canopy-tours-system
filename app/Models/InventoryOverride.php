@@ -24,6 +24,8 @@ class InventoryOverride extends Model
     ];
 
     protected $fillable = [
+        'service_id',
+        'season_id',
         'inventory_id',
         'date',
         'time',

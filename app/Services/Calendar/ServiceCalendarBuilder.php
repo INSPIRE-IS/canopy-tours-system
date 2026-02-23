@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Log;
 
 class ServiceCalendarBuilder
 {
-    public static function build($inventory, $season, $service, $bookingData, $startDate, $endDate, $totalRequested, $startTime = null)
+    public static function build($inventory, $season, $service, $bookingData, $startDate, $endDate, $totalRequested, $startTime = null, $currentBooking = null)
     {
 
         $lockoutHours = $inventory->slot_cutoff_hours ?? 0; // 0 = no lockout, 3 = 3h, 4 = 4h, etc
@@ -26,7 +26,7 @@ class ServiceCalendarBuilder
             //->pluck('start_time')
             ->unique()->sort();
         logger()->info("$serviceId, $seasonId, $startDate, $endDate");
-        $calendar = self::initCalendar($season, $service, $bookingData, $startDate, $endDate, $totalRequested, $allowedDays, $timeSlots, $lockoutHours);
+        $calendar = self::initCalendar($season, $service, $bookingData, $startDate, $endDate, $totalRequested, $allowedDays, $timeSlots, $lockoutHours, $currentBooking);
 
         // Apply Closeouts
         $calendar = ServiceCloseoutCalendarBuilder::apply(
@@ -55,7 +55,7 @@ class ServiceCalendarBuilder
         return $calendar;
     }
 
-    protected static function initCalendar($season, $service, $bookingData, $startDate, $endDate, $totalRequested, $allowedDays, $timeSlots, $lockoutHours)
+    protected static function initCalendar($season, $service, $bookingData, $startDate, $endDate, $totalRequested, $allowedDays, $timeSlots, $lockoutHours, $currentBooking = null)
     {
         $calendar = [];
         foreach ($timeSlots as $timeSlot) {
@@ -127,14 +127,23 @@ class ServiceCalendarBuilder
                     $dateTimeStr = $dateStr . '_' . $timeSlot->start_time;
                     $booked = $bookingData[$dateTimeStr]->total ?? 0;
                     $remaining = $service->capacity - $booked;
-                    if ($remaining <= 0) {
+                    $effectiveRemaining = $remaining;
+                    if (is_array($currentBooking)) {
+                        $currentDate = $currentBooking['date'] ?? null;
+                        $currentTime = $currentBooking['time'] ?? null;
+                        $currentPax = (int) ($currentBooking['pax'] ?? 0);
+                        if ($currentDate === $dateStr && $currentTime === $timeSlot->start_time) {
+                            $effectiveRemaining = $remaining + $currentPax;
+                        }
+                    }
+                    if ($effectiveRemaining <= 0) {
                         $row['days'][$label] = [
                             'date' => $dateStr,
                             'slots' => $remaining,
                             'status' => 'full',
                             'note' => 'Fully booked',
                         ];
-                    } elseif ($remaining < $totalRequested) {
+                    } elseif ($effectiveRemaining < $totalRequested) {
                         $row['days'][$label] = [
                             'date' => $dateStr,
                             'slots' => $remaining,

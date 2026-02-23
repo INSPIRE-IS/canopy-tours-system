@@ -52,10 +52,11 @@ export default function PhoneInput({
     const [countryCode, setCountryCode] = useState(resolvedDefault);
     const [localNumber, setLocalNumber] = useState('');
     const initializedRef = useRef(false);
+    const lastEmittedRef = useRef(value ?? '');
 
     useEffect(() => {
-        if (initializedRef.current) return;
         if (!phonecodeOptions.length) return;
+        if (initializedRef.current && value === lastEmittedRef.current) return;
         const parsed = splitPhoneNumber(value, phonecodeOptions, resolvedDefault);
         setCountryCode(parsed.code || resolvedDefault);
         setLocalNumber(parsed.local || '');
@@ -67,6 +68,7 @@ export default function PhoneInput({
         const local = (localNumber || '').replace(/\D/g, '').replace(/^0+/, '');
         if (!local) {
             if (value) {
+                lastEmittedRef.current = '';
                 onChange?.('');
             }
             return;
@@ -74,6 +76,7 @@ export default function PhoneInput({
         const code = countryCode || resolvedDefault;
         const formatted = code ? `+${code}${local}` : local;
         if (value !== formatted) {
+            lastEmittedRef.current = formatted;
             onChange?.(formatted);
         }
     }, [countryCode, localNumber, resolvedDefault, value, onChange]);

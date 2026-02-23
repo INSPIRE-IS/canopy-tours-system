@@ -14,6 +14,10 @@ export default function ReviewPayment({ auth, booking, lookups }) {
   const [submitting, setSubmitting] = useState(false);
   const [offlineNote, setOfflineNote] = useState('');
   const [teamId, setTeamId] = useState(booking.team_id);
+  const totalDue = Number(booking?.grand_tot_due || 0);
+  const vatRate = Number(lookups?.rate || 0);
+  const vatMultiplier = vatRate > 0 ? (1 + (vatRate / 100)) : (1 + Number(lookups?.multiplier || 0));
+  const amountExVat = totalDue > 0 ? (totalDue / vatMultiplier) : 0;
 
 
 
@@ -121,9 +125,9 @@ export default function ReviewPayment({ auth, booking, lookups }) {
             <p className='flex w-auto'><strong className='w-[200px] capitalize'>Name:</strong> {booking.lead_name}</p>
             <p className='flex w-auto'><strong className='w-[200px] capitalize'>Due Date:</strong> {booking.due_date}</p>
             <p className='flex w-auto'><strong className='w-[200px] capitalize'>Refererence:</strong> {booking.reference}</p>
-            <p className='flex w-auto'><strong className='w-[200px] capitalize'>Amount:</strong> R{Number(booking.grand_tot_due).toFixed(2)}</p>
-            <p className='flex w-auto'><strong className='w-[200px] capitalize'>VAT:</strong> {Number(lookups.rate).toFixed(2)}%</p>
-            <p className='flex w-auto'><strong className='w-[200px] capitalize'>VAT Amount:</strong> R{Number(booking.grand_tot_due * lookups.multiplier).toFixed(2)}</p>
+            <p className='flex w-auto'><strong className='w-[200px] capitalize'>Amount:</strong> R{amountExVat.toFixed(2)}</p>
+            <p className='flex w-auto'><strong className='w-[200px] capitalize'>VAT:</strong> {vatRate.toFixed(2)}%</p>
+            <p className='flex w-auto'><strong className='w-[200px] capitalize'>VAT Amount:</strong> R{totalDue.toFixed(2)}</p>
           </div>
 
           <div>

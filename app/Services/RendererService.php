@@ -49,12 +49,11 @@ class RendererService
             ->orderByDesc('created_at')
             ->value('note');
         //dd($services);
-        $amountExVat = $invoice->subtotal ?? $booking->grand_tot_due ?? 0;
-        $vat = $invoice->vat ?? ($amountExVat * 0.15);
-        $vatAmount = $invoice->total ?? ($amountExVat + $vat);
-        $vatMultiplier = $amountExVat > 0 ? ($vatAmount / $amountExVat) : 1;
-        $amountPaid = ($booking->tot_paid ?? 0) * $vatMultiplier;
-        $balanceDue = max(0, $vatAmount - $amountPaid);
+        $amountTotal = $invoice->total ?? $booking->grand_tot_due ?? 0;
+        $amountExVat = round(($amountTotal / 1.15), 2);
+        $vat = round(($amountTotal - $amountExVat), 2);
+        $amountPaid = ($booking->tot_paid ?? 0) * 1.15;
+        $balanceDue = max(0, $amountTotal - $amountPaid);
 
         $data = [
             'site' => [
@@ -81,7 +80,7 @@ class RendererService
             'file_logo' => $booking->team->file_logo?->path ?? asset('images/logo.png'),
             'amount_ex_vat' => $amountExVat,
             'vat'           => $vat,
-            'vat_amount'    => $vatAmount,
+            'vat_amount'    => $amountTotal,
             'amount_paid'   => $amountPaid,
             'balance_due'   => $balanceDue,
             'notes'         => $invoiceNote ?: 'Please pay within 7 days.',

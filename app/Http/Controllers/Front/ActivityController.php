@@ -282,7 +282,11 @@ class ActivityController extends Controller
             ->leftJoin('type_days as td', 'td.id', '=', 'itd.type_day_id')
             ->leftJoin('inventory_time_slots as its', 'its.id', '=', 'bi.inventory_time_slot_id')
             ->leftJoin('inventory_overrides as io', 'io.id', '=', 'bi.inventory_override_id')
-            ->where('items.inventory_id', $activityId)
+            ->where('items.inventory_id', $inventory->id)
+            ->where('items.team_id', $season->team_id)
+            ->whereNull('b.deleted_at')
+            ->whereNull('items.deleted_at')
+            ->whereNull('bi.deleted_at')
             ->whereBetween('bi.date', [$startDate->toDateString(), $endDate->toDateString()])
             ->select([
                 'bi.date',
@@ -671,6 +675,8 @@ class ActivityController extends Controller
                 ]);
                 $template = InvoiceTemplate::where('is_default', true)->where('type_invoice_id', 1)->first();
                 $invoice = Invoice::where('booking_id', $booking->id)->where('team_id', $season->team_id)->first();
+                $amountExVat = round(($amount / 1.15), 2);
+                $vatAmount = round(($amount - $amountExVat), 2);
                 if (!$invoice) {
                     $invoice = Invoice::create(
                         [
@@ -678,9 +684,9 @@ class ActivityController extends Controller
                             'gift_voucher_id'    => null,
                             'invoice_date'   => $booking->due_date,
                             'due_date'       => $booking->due_date,
-                            'subtotal'       => $amount,
-                            'vat'            => $amount * 0.15,
-                            'total'          => $amount * 1.15,
+                            'subtotal'       => $amountExVat,
+                            'vat'            => $vatAmount,
+                            'total'          => $amount,
                             'status'         => 'draft',
                             'invoice_template_id'    => $template->id,
                             'team_id'        => $season->team_id,
@@ -689,9 +695,9 @@ class ActivityController extends Controller
                     );
                 } else {
                     $invoice->update([
-                        'subtotal'       => $invoice ? $invoice->subtotal + $amount : $amount,
-                        'vat'            => $invoice ? $invoice->vat + $amount * 0.15 : $amount * 0.15,
-                        'total'          => $invoice ? $invoice->total + $amount * 1.15 : $amount * 1.15,
+                        'subtotal'       => $invoice ? $invoice->subtotal + $amountExVat : $amountExVat,
+                        'vat'            => $invoice ? $invoice->vat + $vatAmount : $vatAmount,
+                        'total'          => $invoice ? $invoice->total + $amount : $amount,
                     ]);
                 }
 

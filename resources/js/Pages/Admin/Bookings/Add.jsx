@@ -301,7 +301,15 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                             className="mt-4"
                             onClick={() => {
                                 if (!booking?.id) return;
-                                window.open(route('admin.details.download', { booking: booking.id }), '_blank', 'noopener,noreferrer');
+                                const passFile = (booking?.files || [])
+                                    .filter(file => Number(file?.type_file_id) === 6)
+                                    .sort((a, b) => (a?.id ?? 0) - (b?.id ?? 0))
+                                    .pop();
+                                if (!passFile?.path) {
+                                    window.open(route('admin.details.download', { booking: booking.id }), '_blank', 'noopener,noreferrer');
+                                    return;
+                                }
+                                window.open(passFile.path, '_blank', 'noopener,noreferrer');
                             }}
                         />
 

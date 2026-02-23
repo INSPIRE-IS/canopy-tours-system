@@ -286,7 +286,7 @@ export default function ActivitySchedulePage({ activity, auth, team, activityId,
               {/* Inventory Calendar Table */}
               <section className="md:col-span-3 bg-white shadow rounded-xl p-6 hidden sm:block">
                 <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-semibold">Available Inventory</h3>
+                  <h3 className="text-lg font-semibold">Available Inventory <small>(Time Slot/s click on a slot to book)</small></h3>
                   <div className="flex gap-2">
                     {/* {['day', 'week', 'month'].map((mode) => (
                       <Button

@@ -25,6 +25,7 @@ const PRICING_MODES = {
     DISCOUNT: 'DISCOUNT',
     PROMO: 'PROMO',
     WHOLESALER: 'WHOLESALER',
+    OVERRIDE: 'OVERRIDE',
 };
 
 export default function Dashboard({ auth, wholesalers = [], services = [], schedule, start_date, view_mode, days, type_affiliates, vouchers, discounts, wholesaler_rates, promos, lookups, countries = [] }) {
@@ -76,6 +77,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
     const [pricing, setPricing] = useState(null);
     const lastSlotWarningRef = useRef('');
     const canOverrideCapacity = !!selectedService?.allow_internal_capacity_override;
+    const canOverrideRates = !!selectedSeason?.allow_internal_price_override;
     const prefillsRef = useRef(null);
     const prevServiceIdRef = useRef(null);
 
@@ -103,9 +105,9 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
         booking_date: '',
         start_time: '',
         end_time: '',
-        adults: '',
-        children: '',
-        guides: '',
+        adults: 0,
+        children: 0,
+        guides: 0,
         adult: 0,
         child: 0,
         guide: 0,
@@ -240,7 +242,9 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
     const hasPromo = !!promoCode;
     const hasDiscountSelection = !!discountId;
     const hasDiscounts = (data.discount_lines?.length || 0) > 0 || paxGroups.some(g => g.discount_id) || hasDiscountSelection;
-    const computedMode = data.is_wholesaler || data.wholesaler_id
+    const computedMode = data.override_rates
+        ? PRICING_MODES.OVERRIDE
+        : (data.is_wholesaler || data.wholesaler_id)
         ? PRICING_MODES.WHOLESALER
         : hasPromo
             ? PRICING_MODES.PROMO
@@ -267,7 +271,9 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
             let rate_per_child = data?.rate_per_child || 0;
             let rate_per_guide = data?.rate_per_guide || 0;
 
-            const shouldAutoTotal = computedMode === PRICING_MODES.STANDARD || computedMode === PRICING_MODES.WHOLESALER;
+            const shouldAutoTotal = computedMode === PRICING_MODES.STANDARD
+                || computedMode === PRICING_MODES.WHOLESALER
+                || computedMode === PRICING_MODES.OVERRIDE;
             if (shouldAutoTotal) {
                 const adult_total = (parseFloat(data.adults || 0) * parseFloat(rate_per_adult));
                 const child_total = (parseFloat(data.children || 0) * parseFloat(rate_per_child));
@@ -321,6 +327,16 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
         }
 
         switch (computedMode) {
+            case PRICING_MODES.OVERRIDE:
+                if (data.is_wholesaler) {
+                    setData('is_wholesaler', false);
+                    setData('wholesaler_id', '');
+                    setWholesalerApplied(false);
+                }
+                setShowDiscount(false);
+                setShowPromo(false);
+                setShowWholesaler(false);
+                break;
             case PRICING_MODES.WHOLESALER:
                 if (hasPromo || hasDiscounts) {
                     resetPromoDiscountAndRates();
@@ -374,7 +390,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
         const promo_code = type === 'promo' ? (promoCode || null) : null;
         const pax_groups = paxGroupsOverride || paxGroups || (alert('Please select a pax group'));
         if (!selectedService || !selectedSeason || !data.booking_date || !data.start_time) return;
-        if (Number(data.adults || 0) < 1) return;
+        if ((Number(data.adults || 0) + Number(data.children || 0)) < 1) return;
 
         if (type === 'saler') {
             setWholesalerApplied(true);
@@ -675,6 +691,34 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
         }
     };
 
+    const clearPricingForOverride = () => {
+        setPromoCode(null);
+        setDiscountId(null);
+        setDiscountPax(null);
+        setPromoModalOpen(false);
+        setPricing(null);
+        setShowDiscount(false);
+        setShowPromo(false);
+        setShowWholesaler(false);
+        setWholesalerApplied(false);
+        setData(prev => ({
+            ...prev,
+            promoCode: null,
+            discount_lines: [],
+            is_wholesaler: false,
+            wholesaler_id: '',
+        }));
+        const adultCount = parseInt(data.adults || 0);
+        const childCount = parseInt(data.children || 0);
+        const guideCount = parseInt(data.guides || 0);
+        const baseRates = {
+            adult: Number(data.rate_per_adult || 0),
+            child: Number(data.rate_per_child || 0),
+            guide: Number(data.rate_per_guide || 0),
+        };
+        setPaxGroups(buildBasePaxGroups(adultCount, childCount, guideCount, baseRates));
+    };
+
     const handleResetToRack = () => {
         if (data.is_wholesaler || data.wholesaler_id) {
             setData('is_wholesaler', false);
@@ -686,6 +730,26 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
 
     const handleChange = (target, value) => {
         console.log('target, value', target, value);
+        if (target && typeof target === 'object' && target.target) {
+            const { name, type, checked, value: inputValue } = target.target;
+            return handleChange(name, type === 'checkbox' ? checked : inputValue);
+        }
+        if (target === 'override_rates') {
+            const nextValue = !!value;
+            if (nextValue && !canOverrideRates) {
+                showToast('Override rates are not allowed for this season.', 'error');
+                setData('override_rates', false);
+                return;
+            }
+            setData('override_rates', nextValue);
+            if (nextValue) {
+                clearPricingForOverride();
+            } else {
+                setData('override_reason', '');
+                resetPromoDiscountAndRates();
+            }
+            return;
+        }
         if (target === 'adults') {
             setData('adults', value === '' ? '' : value);
             return;
@@ -854,6 +918,10 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
 
     const handleSubmit = (e) => {
         e.preventDefault();
+        if ((Number(data.adults || 0) + Number(data.children || 0)) < 1) {
+            showToast('Please add at least 1 adult or 1 child.', 'info');
+            return;
+        }
         post(route('admin.bookings.store'));
     };
 
@@ -1286,7 +1354,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                             id="adults"
                             name="adults"
                             type='number'
-                            min="1"
+                            min="0"
                             value={data.adults}
                             onChange={(e) => { handleChange(e.target.name, e.target.value) }}
                             errors={errors}
@@ -1382,8 +1450,9 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                         label="Override Rates"
                                         name="override_rates"
                                         checked={data.override_rates || false}
+                                        disabled={!canOverrideRates}
 
-                                        onChange={(e) => { handleChange(e.target.name, e.target.value) }}
+                                        onChange={handleChange}
                                         errors={errors}
                                     />
                                     <div className="flex items-center w-full  gap-4">
@@ -1393,7 +1462,8 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                             name="override_reason"
                                             type='text'
                                             width='w-[100%]'
-                                            required
+                                            required={data.override_rates}
+                                            disabled={!data.override_rates}
                                             value={data.override_reason || ''}
 
                                             onChange={(e) => { handleChange(e.target.name, e.target.value) }}

@@ -7,6 +7,7 @@ use App\Http\Requests\MassDestroyBookingRequest;
 use App\Http\Requests\StoreBookingRequest;
 use App\Http\Requests\UpdateBookingRequest;
 use App\Mail\BookingMail;
+use App\Models\Alert;
 use App\Models\Booking;
 use App\Models\BookingDetail;
 use App\Models\BookingFee;
@@ -56,6 +57,7 @@ use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use App\Models\InvoiceTemplate;
 use App\Models\Team;
+use App\Models\TypeAlert;
 use App\Models\TypeBooking;
 use App\Models\LookupItem;
 use App\Services\RendererService;
@@ -367,13 +369,14 @@ class BookingsController extends Controller
             'web_booking' => 'boolean', //   "web_booking" => "true"
             'include_media' => 'boolean', //   "videos_photos" => "true"
             'override_timeslots' => 'boolean', //   "override_timeslots" => "true"
+            'override_rates' => 'boolean',
             'exclusive_resource' => 'boolean', //   "exclusive_resource" => "true"
 
             'invoice_note' => 'string|nullable', //   "invoice_note" => "Add Invoice Note"
             'email_reminder' => 'string|nullable', //   "email_reminder" => "Add Email Reminder"
             'booking_note' => 'string|nullable', //   "booking_note" => "Add Booking Note"
 
-            'adults' => 'required|integer|min:1', //   "adults" => "1"
+            'adults' => 'required|integer|min:0', //   "adults" => "1"
             'children' => 'nullable|integer|min:0', //   "children" => "2"      
             'guides' => 'nullable|integer|min:0', //   "guides" => "2"
             'adult' => 'integer|nullable',
@@ -382,6 +385,7 @@ class BookingsController extends Controller
             'rate_per_adult' => 'integer|nullable',
             'rate_per_child' => 'integer|nullable',
             'rate_per_guide' => 'integer|nullable',
+            'override_reason' => 'required_if:override_rates,1|nullable|string',
 
             'is_wholesaler' => 'boolean', //   "is_wholesaler" => "true"
             'wholesaler_id' => 'integer|nullable', //   "wholesaler_id" => "1"
@@ -398,6 +402,18 @@ class BookingsController extends Controller
                 //dd($selected_slot['date']);
                 $season = Season::findOrFail($season_id);
                 $service = Service::findOrFail($season->service_id);
+                $overrideRates = !empty($validated['override_rates']);
+                if ($overrideRates && !(bool) $season->allow_internal_price_override) {
+                    throw ValidationException::withMessages([
+                        'override_rates' => 'Override rates are not allowed for this season.',
+                    ]);
+                }
+                if ($overrideRates) {
+                    $validated['promoCode'] = null;
+                    $validated['discount_lines'] = [];
+                    $validated['wholesaler_id'] = null;
+                    $validated['is_wholesaler'] = false;
+                }
                 $inventory = Inventory::where('season_id', $season->id)->first();
                 //$FullNameOfDay = Carbon::parse($validated['date'])->format('l'); // e.g., Monday
                 //$ShortNameOfDay = Carbon::parse($validated['date'])->format('D'); // e.g., Mon
@@ -547,20 +563,23 @@ class BookingsController extends Controller
                         'team_id'        => auth()->user()->team_id,
                     ]);
                 }
-                //TODO add modal to capture and update inventory overrides
-                if (false) { // $validated['override_timeslots']
-                    InventoryOverride::create([
-                        'inventory_id'     => $inventory->id,
-                        'date'           => $validated['overide_date'],
-                        'time'           => $validated['overide_time'],
-                        'capacity' => $validated['overide_capacity'],
-                        'price_adult' => $validated['overide_adult'],
-                        'price_child' => $validated['overide_child'],
-                        'price_guide' => $validated['overide_guide'],
+                $inventoryOverride = null;
+                if ($overrideRates) {
+                    $overrideTime = $inventoryTimeSlot?->start_time ?? ($selected_slot['time'] ?? '00:00:00');
+                    $inventoryOverride = InventoryOverride::create([
+                        'service_id' => $season->service_id,
+                        'season_id' => $season->id,
+                        'inventory_id' => $inventory->id,
+                        'date' => $validated['booking_date'],
+                        'time' => $overrideTime,
+                        'capacity_override' => (int) ($service->capacity ?? 0),
+                        'price_adult' => (float) ($validated['rate_per_adult'] ?? 0),
+                        'price_child' => (float) ($validated['rate_per_child'] ?? 0),
+                        'price_guide' => (float) ($validated['rate_per_guide'] ?? 0),
                         'note' => $validated['override_reason'] ?? '',
-                        'created_by_id'     => $validated['user_id'],
-                        'updated_by_id'     => $validated['user_id'],
-                        'team_id'        => auth()->user()->team_id,
+                        'created_by_id' => auth()->id(),
+                        'updated_by_id' => auth()->id(),
+                        'team_id' => auth()->user()->team_id,
                     ]);
                 }
 
@@ -575,7 +594,7 @@ class BookingsController extends Controller
                     'date'           => $validated['booking_date'],
                     'inventory_type_day_id' => $isoNameOfDay,
                     'inventory_time_slot_id' => $inventoryTimeSlot->id,
-                    'inventory_override_id' => null, // $validated['override_timeslots'] ? $inventoryOverride->id : null,
+                    'inventory_override_id' => $overrideRates ? $inventoryOverride?->id : null,
                     'team_id'        => auth()->user()->team_id,
                 ]);
                 // TODO add logic for creating and validating a voucher code
@@ -596,17 +615,21 @@ class BookingsController extends Controller
                     'service_id' => $booking_item->service_id,
                     'season_id' => $booking_item->season_id,
                     'amount' => $amount,
+                    'override_rates' => $overrideRates,
+                    'override_reason' => $validated['override_reason'] ?? null,
                 ]);
 
                 $template = InvoiceTemplate::where('is_default', true)->firstOrFail();
+                $amountExVat = round(($amount / 1.15), 2);
+                $vatAmount = round(($amount - $amountExVat), 2);
                 $invoice = Invoice::create([
                     'booking_id'     => $booking->id,
                     'gift_voucher_id'    => null,
                     'invoice_date'   => $validated['booking_date'],
                     'due_date'       => $validated['booking_date'],
-                    'subtotal'       => $amount,
-                    'vat'            => $amount * 0.15,
-                    'total'          => $amount * 1.15,
+                    'subtotal'       => $amountExVat,
+                    'vat'            => $vatAmount,
+                    'total'          => $amount,
                     'status'         => 'draft',
                     'invoice_template_id'    => $template->id,
                     'team_id'        => auth()->user()->team_id,
@@ -699,13 +722,11 @@ class BookingsController extends Controller
                 $passData = $this->getPassDetails($bookingItem);
                 $html = view('pdfs.boarding-pass', ['data' => $passData])->render();
                 $dir = "pass/{$bookingItem->id}";
-
                 $fileName = "{$dir}/boarding_pass_{$bookingItem->id}.pdf";
-                $fullPath = storage_path("app/{$fileName}");
-                if (!is_dir(dirname($fullPath))) {
-                    mkdir(dirname($fullPath), 0755, true);
-                }
-                if (!file_exists($fullPath)) {
+                $disk = Storage::disk('public');
+                $fullPath = $disk->path($fileName);
+                if (!$disk->exists($fileName)) {
+                    $disk->makeDirectory($dir);
                     $chromePath = config('browsershot.chrome_path');
                     if (empty($chromePath)) {
                         Log::warning('Browsershot chrome path not resolved; using default detection.', [
@@ -851,7 +872,9 @@ class BookingsController extends Controller
 
         $booking->load([
             'booking_payments', // :id,booking_id,amount
-        ])->get();
+            'booking_discounts.booking_discount_items.discount',
+            'customer',
+        ]);
 
         $booking_items = BookingItem::with([
             'service',
@@ -864,6 +887,7 @@ class BookingsController extends Controller
             'booking_detail', //:id,booking_id ,start_time,end_time
             'booking_fee', //:id,booking_id,tot_amount
             'booking_inventory', // :id,booking_id,inventory_id
+            'booking_inventory.inventory_override',
             'booking_staff', // :id,booking_id,user_id
             'booking_staff.user', // :id,name,email,contact_number
         ])->where('booking_id', $booking->id)->first();
@@ -1007,13 +1031,14 @@ class BookingsController extends Controller
             'web_booking' => 'boolean',
             'include_media' => 'boolean',
             'override_timeslots' => 'boolean',
+            'override_rates' => 'boolean',
             'exclusive_resource' => 'boolean',
 
             'invoice_note' => 'string|nullable',
             'email_reminder' => 'string|nullable',
             'booking_note' => 'string|nullable',
 
-            'adults' => 'required|integer|min:1',
+            'adults' => 'required|integer|min:0',
             'children' => 'nullable|integer|min:0',
             'guides' => 'nullable|integer|min:0',
             'adult' => 'integer|nullable',
@@ -1022,6 +1047,7 @@ class BookingsController extends Controller
             'rate_per_adult' => 'integer|nullable',
             'rate_per_child' => 'integer|nullable',
             'rate_per_guide' => 'integer|nullable',
+            'override_reason' => 'required_if:override_rates,1|nullable|string',
 
             'is_wholesaler' => 'boolean',
             'wholesaler_id' => 'integer|nullable',
@@ -1042,6 +1068,18 @@ class BookingsController extends Controller
 
                 $season = Season::findOrFail($validated['season_id']);
                 $service = Service::findOrFail($season->service_id);
+                $overrideRates = !empty($validated['override_rates']);
+                if ($overrideRates && !(bool) $season->allow_internal_price_override) {
+                    throw ValidationException::withMessages([
+                        'override_rates' => 'Override rates are not allowed for this season.',
+                    ]);
+                }
+                if ($overrideRates) {
+                    $validated['promoCode'] = null;
+                    $validated['discount_lines'] = [];
+                    $validated['wholesaler_id'] = null;
+                    $validated['is_wholesaler'] = false;
+                }
                 $inventory = Inventory::where('season_id', $season->id)->first();
                 if (!$inventory) {
                     abort(404, 'This season has no inventory.');
@@ -1059,6 +1097,16 @@ class BookingsController extends Controller
 
                 $adultsCount = (int) ($validated['adults'] ?? 0);
                 $childrenCount = (int) ($validated['children'] ?? 0);
+                if (($adultsCount + $childrenCount) < 1) {
+                    throw ValidationException::withMessages([
+                        'adults' => 'At least one adult or child is required.',
+                    ]);
+                }
+                if (($adultsCount + $childrenCount) < 1) {
+                    throw ValidationException::withMessages([
+                        'adults' => 'At least one adult or child is required.',
+                    ]);
+                }
                 $guidesCount = (int) ($validated['guides'] ?? 0);
                 $amount_adults = (int) ($validated['rate_per_adult'] ?? 0) * $adultsCount;
                 $amount_children = (int) ($validated['rate_per_child'] ?? 0) * $childrenCount;
@@ -1076,6 +1124,37 @@ class BookingsController extends Controller
                     );
                 }
                 $amount = $amount_adults + $amount_children + $amount_guides;
+
+                $inventoryOverride = null;
+                if ($overrideRates) {
+                    $overrideTime = $inventoryTimeSlot?->start_time ?? ($selectedSlot['time'] ?? '00:00:00');
+                    $overridePayload = [
+                        'service_id' => $season->service_id,
+                        'season_id' => $season->id,
+                        'inventory_id' => $inventory->id,
+                        'date' => $bookingDate,
+                        'time' => $overrideTime,
+                        'capacity_override' => (int) ($service->capacity ?? 0),
+                        'price_adult' => (float) ($validated['rate_per_adult'] ?? 0),
+                        'price_child' => (float) ($validated['rate_per_child'] ?? 0),
+                        'price_guide' => (float) ($validated['rate_per_guide'] ?? 0),
+                        'note' => $validated['override_reason'] ?? '',
+                        'updated_by_id' => auth()->id(),
+                        'team_id' => auth()->user()->team_id,
+                    ];
+                    $existingOverrideId = $bookingItem->booking_inventory?->inventory_override_id;
+                    if ($existingOverrideId) {
+                        $inventoryOverride = InventoryOverride::find($existingOverrideId);
+                        if ($inventoryOverride) {
+                            $inventoryOverride->update($overridePayload);
+                        }
+                    }
+                    if (!$inventoryOverride) {
+                        $inventoryOverride = InventoryOverride::create(array_merge($overridePayload, [
+                            'created_by_id' => auth()->id(),
+                        ]));
+                    }
+                }
 
                 $customer = Customer::firstOrCreate(
                     [
@@ -1180,7 +1259,7 @@ class BookingsController extends Controller
                     'date' => $bookingDate,
                     'inventory_type_day_id' => $isoNameOfDay,
                     'inventory_time_slot_id' => $inventoryTimeSlot?->id,
-                    'inventory_override_id' => null,
+                    'inventory_override_id' => $overrideRates ? $inventoryOverride?->id : null,
                     'team_id' => auth()->user()->team_id,
                 ];
                 if ($bookingItem->booking_inventory) {
@@ -1260,14 +1339,16 @@ class BookingsController extends Controller
                     ->delete();
 
                 $template = InvoiceTemplate::where('is_default', true)->firstOrFail();
+                $amountExVat = round(($amount / 1.15), 2);
+                $vatAmount = round(($amount - $amountExVat), 2);
                 $invoice = Invoice::create([
                     'booking_id'     => $booking->id,
                     'gift_voucher_id'    => null,
                     'invoice_date'   => $bookingDate,
                     'due_date'       => $bookingDate,
-                    'subtotal'       => $amount,
-                    'vat'            => $amount * 0.15,
-                    'total'          => $amount * 1.15,
+                    'subtotal'       => $amountExVat,
+                    'vat'            => $vatAmount,
+                    'total'          => $amount,
                     'status'         => 'draft',
                     'invoice_template_id'    => $template->id,
                     'team_id'        => auth()->user()->team_id,
@@ -1350,28 +1431,28 @@ class BookingsController extends Controller
                 $passData = $this->getPassDetails($bookingItem);
                 $html = view('pdfs.boarding-pass', ['data' => $passData])->render();
                 $dir = "pass/{$bookingItem->id}";
-
                 $fileName = "{$dir}/boarding_pass_{$bookingItem->id}.pdf";
-                $fullPath = storage_path("app/{$fileName}");
-                if (!is_dir(dirname($fullPath))) {
-                    mkdir(dirname($fullPath), 0755, true);
+                $disk = Storage::disk('public');
+                $fullPath = $disk->path($fileName);
+                if (!$disk->exists($fileName)) {
+                    $disk->makeDirectory($dir);
+                    $chromePath = config('browsershot.chrome_path');
+                    if (empty($chromePath)) {
+                        Log::warning('Browsershot chrome path not resolved; using default detection.', [
+                            'env_path' => env('BROWSERSHOT_CHROME_PATH'),
+                        ]);
+                    }
+                    $shot = Browsershot::html($html);
+                    if (!empty($chromePath)) {
+                        $shot->setChromePath($chromePath);
+                    }
+                    $shot->format('A4')
+                        ->showBackground()
+                        ->margins(0, 0, 0, 0)
+                        ->scale(1.0)
+                        ->timeout(60000)
+                        ->save($fullPath);
                 }
-                $chromePath = config('browsershot.chrome_path');
-                if (empty($chromePath)) {
-                    Log::warning('Browsershot chrome path not resolved; using default detection.', [
-                        'env_path' => env('BROWSERSHOT_CHROME_PATH'),
-                    ]);
-                }
-                $shot = Browsershot::html($html);
-                if (!empty($chromePath)) {
-                    $shot->setChromePath($chromePath);
-                }
-                $shot->format('A4')
-                    ->showBackground()
-                    ->margins(0, 0, 0, 0)
-                    ->scale(1.0)
-                    ->timeout(60000)
-                    ->save($fullPath);
 
                 Email::create([
                     'sender'         => config('mail.from.address'),
@@ -1510,6 +1591,22 @@ class BookingsController extends Controller
                 ->orderByRaw('season_id is null')
                 ->orderByRaw('service_id is null')
                 ->first();
+
+            if (!$template && !$serviceId && !$seasonId) {
+                $template = BoardingPassTemplate::with(['sections' => function ($query) {
+                    $query->where('is_active', true)->orderBy('sort_order');
+                }])
+                    ->where('team_id', $teamId)
+                    ->where('is_active', true)
+                    ->whereNull('service_id')
+                    ->whereNull('season_id')
+                    ->where('is_default', true)
+                    ->first();
+            }
+
+            if (!$template && !$serviceId && !$seasonId) {
+                $this->alertMissingBoardingPassTemplate($teamId, $bookingItem);
+            }
         }
 
         if ($template) {
@@ -1844,6 +1941,49 @@ class BookingsController extends Controller
                 return $basePassData;
         }
     }
+
+    protected function alertMissingBoardingPassTemplate(int $teamId, BookingItem $bookingItem): void
+    {
+        $typeAlert = TypeAlert::firstOrCreate(
+            ['slug' => 'boarding_pass_template_missing'],
+            ['name' => 'Boarding Pass Template Missing']
+        );
+
+        $alertText = sprintf(
+            'Boarding pass template missing (team %d, booking %d, item %d).',
+            $teamId,
+            $bookingItem->booking_id ?? 0,
+            $bookingItem->id ?? 0
+        );
+
+        $alreadyAlerted = Alert::where('team_id', $teamId)
+            ->where('type_alert_id', $typeAlert->id)
+            ->where('alert_text', $alertText)
+            ->whereDate('created_at', now()->toDateString())
+            ->exists();
+
+        if ($alreadyAlerted) {
+            return;
+        }
+
+        $alert = Alert::create([
+            'alert_text' => $alertText,
+            'alert_link' => route('admin.boardingpass.index'),
+            'type_alert_id' => $typeAlert->id,
+            'team_id' => $teamId,
+        ]);
+
+        $users = User::where('team_id', $teamId)
+            ->whereHas('roles', function ($query) {
+                $query->whereIn('name', ['Manager', 'Consultant']);
+            })
+            ->with('roles')
+            ->get();
+
+        foreach ($users as $user) {
+            $user->alerts()->attach($alert->id);
+        }
+    }
     public function editOld(Request $request, Booking $booking)
     {
         //abort_if(Gate::denies('booking_edit'), Response::HTTP_FORBIDDEN, '403 Forbidden');
@@ -1864,6 +2004,7 @@ class BookingsController extends Controller
             'booking_detail', //:id,booking_id ,start_time,end_time
             'booking_fee', //:id,booking_id,tot_amount
             'booking_inventory', // :id,booking_id,inventory_id
+            'booking_inventory.inventory_time_slot',
             'booking_staff', // :id,booking_id,user_id
             'booking_staff.user', // :id,name,email,contact_number
         ])->where('booking_id', $booking->id)->first();
@@ -2375,6 +2516,9 @@ class BookingsController extends Controller
         $viewMode != 'day' ? $startDate->addDays(-2) : $startDate;
         $startTime = $request->input('start_time');
         $totalRequested = (int) $request->input('adults', 0) + (int) $request->input('children', 0);
+        if ($request->boolean('ignore_requested_pax')) {
+            $totalRequested = 0;
+        }
 
         $days = match ($viewMode) {
             'day'   => 1,
@@ -2404,14 +2548,18 @@ class BookingsController extends Controller
         }
 
         // booking data
-        $bookingData = DB::table('bookings as b')
+        $rawBookingData = DB::table('bookings as b')
             ->leftJoin('booking_items as items', 'items.booking_id', '=', 'b.id')
             ->leftJoin('booking_inventories as bi', 'bi.booking_item_id', '=', 'items.id')
             ->leftJoin('inventory_type_days as itd', 'itd.id', '=', 'bi.inventory_type_day_id')
             ->leftJoin('type_days as td', 'td.id', '=', 'itd.type_day_id')
             ->leftJoin('inventory_time_slots as its', 'its.id', '=', 'bi.inventory_time_slot_id')
             ->leftJoin('inventory_overrides as io', 'io.id', '=', 'bi.inventory_override_id')
-            ->where('items.inventory_id', $activityId)
+            ->where('items.inventory_id', $inventory->id)
+            ->where('items.team_id', auth()->user()->team_id)
+            ->whereNull('b.deleted_at')
+            ->whereNull('items.deleted_at')
+            ->whereNull('bi.deleted_at')
             ->whereBetween('bi.date', [$startDate->toDateString(), $endDate->toDateString()])
             ->select([
                 'bi.date',
@@ -2420,15 +2568,41 @@ class BookingsController extends Controller
                 DB::raw('SUM(bi.pax) as total')
             ])
             ->groupBy('bi.date', 'td.name', 'its.start_time')
-            ->get()
-            ->keyBy(fn($row) => $row->date . '_' . $row->time);
+            ->get();
+
+        $bookingData = $rawBookingData->keyBy(fn($row) => $row->date . '_' . $row->time);
+
+        if (config('app.debug')) {
+            Log::info('Calendar capacity debug', [
+                'activity_id' => $activityId,
+                'inventory_id' => $inventory->id,
+                'season_id' => $season->id,
+                'service_id' => $service->id,
+                'start_date' => $startDate->toDateString(),
+                'end_date' => $endDate->toDateString(),
+                'start_time_param' => $startTime,
+                'totals_at_10' => $rawBookingData
+                    ->filter(fn($row) => $row->time === '10:00:00')
+                    ->values()
+                    ->all(),
+                'totals_all' => $rawBookingData->values()->all(),
+            ]);
+        }
 
         // allowed days from inventory
 
 
         // build schedule (still extendable with promo/closeout)
+        $currentBooking = null;
+        if ($request->filled('current_booking_date') && $request->filled('current_booking_time')) {
+            $currentBooking = [
+                'date' => $request->input('current_booking_date'),
+                'time' => $request->input('current_booking_time'),
+                'pax' => (int) $request->input('current_booking_pax', 0),
+            ];
+        }
         $schedule = app(\App\Services\Calendar\ServiceCalendarBuilder::class)
-            ->build($inventory, $season, $service, $bookingData, $startDate, $endDate, $totalRequested, $startTime);
+            ->build($inventory, $season, $service, $bookingData, $startDate, $endDate, $totalRequested, $startTime, $currentBooking);
 
         return response()->json([
             'schedule' => $schedule,
@@ -2473,6 +2647,7 @@ class BookingsController extends Controller
 
         if (true) {
             //DB::enableQueryLog();
+            $excludeBookingItemId = $request->input('booking_item_id');
             $bookingData = DB::table('bookings as b')
                 ->leftJoin('booking_inventories as bi', 'bi.booking_id', '=', 'b.id')
                 ->leftJoin('inventory_type_days as itd', 'itd.id', '=', 'bi.inventory_type_day_id')
@@ -2480,6 +2655,9 @@ class BookingsController extends Controller
                 ->leftJoin('inventory_time_slots as its', 'its.id', '=', 'bi.inventory_time_slot_id')
                 ->leftJoin('inventory_overrides as io', 'io.id', '=', 'bi.inventory_override_id')
                 ->where('b.inventory_id', $activityId)
+                ->where('b.team_id', auth()->user()->team_id)
+                ->whereNull('b.deleted_at')
+                ->whereNull('bi.deleted_at')
                 ->whereBetween('bi.date', [$startDate->toDateString(), $endDate->toDateString()])
                 ->select([
                     'bi.date',
@@ -3182,13 +3360,14 @@ class BookingsController extends Controller
         $dir = "pass/{$bookingItem->id}";
         $random = rand(1, 100);
         $file = "{$dir}/boarding_pass_{$random}{$bookingItem->id}.pdf";
-        $fullPath = storage_path("app/{$file}");
+        $disk = Storage::disk('public');
+        $fullPath = $disk->path($file);
         Log::info('boarding pass ' . var_export($fullPath, true));
         Log::info('boarding pass ' . var_export($file, true));
         Log::info('boarding pass ' . var_export($dir, true));
 
-        if (!Storage::disk('local')->exists($file)) {
-            Storage::disk('local')->makeDirectory($dir);
+        if (!$disk->exists($file)) {
+            $disk->makeDirectory($dir);
 
             $chromePath = config('browsershot.chrome_path');
             if (empty($chromePath)) {

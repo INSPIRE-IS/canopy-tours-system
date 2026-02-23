@@ -18,6 +18,7 @@ use App\Models\BookingVoucher;
 use App\Models\InvoiceTemplate;
 use App\Models\LookupItem;
 use App\Models\Team;
+use App\Models\TypeAlert;
 use App\Models\AuditLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
@@ -109,16 +110,24 @@ class PaymentController extends Controller
                         'tot_paid' => $booking->grand_tot_due,
                     ]);
 
+                    $totalDue = (float) $booking->grand_tot_due;
+                    $vatRateValue = (float) ($vatRate->rate ?? 0);
+                    $vatMultiplier = $vatRateValue > 0
+                        ? (1 + ($vatRateValue / 100))
+                        : (1 + (float) ($vatRate->multiplier ?? 0));
+                    $amountExVat = $vatMultiplier > 0 ? round($totalDue / $vatMultiplier, 2) : $totalDue;
+                    $vatAmount = round($totalDue - $amountExVat, 2);
+
                     $payment = BookingPayment::updateOrCreate(
                         ['booking_id' => $booking->id,],
                         [
                             'type_pay_option_id'   => 2,     // or 'Pay Offline'
                             'type_payment_id' => 3, // credit card
                             'status_payment_id' => 2,  // 'paid', 'failed', 'cancelled'
-                            'ex_vat_amount'         => $booking->grand_tot_due, // full amount due or partial
+                            'ex_vat_amount'         => $amountExVat, // total excl VAT
                             'lookup_item_id' => $vatRate->id,
                             'vat' => $vatRate->rate,
-                            'vat_amount' => ($booking->grand_tot_due * $vatRate->multiplier),
+                            'vat_amount' => $vatAmount,
                             'reference'      => $booking->reference, // Str::uuid(),      // can be order ref or external tx
                             'gateway_id'        => 1,        // PayFast
                             'meta'           => json_encode(['ip' => request()->ip()]),
@@ -234,13 +243,11 @@ class PaymentController extends Controller
                     // dd($data);
                     $html = view('pdfs.boarding-pass', ['data' => $data])->render();
                     $dir = "pass/{$bookingItem->id}";
-
                     $fileName = "{$dir}/boarding_pass_{$bookingItem->id}.pdf";
-                    $fullPath = storage_path("app/{$fileName}");
-                    if (!is_dir(dirname($fullPath))) {
-                        mkdir(dirname($fullPath), 0755, true);
-                    }
-                    if (!file_exists($fullPath)) {
+                    $disk = Storage::disk('public');
+                    $fullPath = $disk->path($fileName);
+                    if (!$disk->exists($fileName)) {
+                        $disk->makeDirectory($dir);
                         $chromePath = config('browsershot.chrome_path');
                         if (empty($chromePath)) {
                             Log::warning('Browsershot chrome path not resolved; using default detection.', [
@@ -587,13 +594,14 @@ class PaymentController extends Controller
         $dir = "pass/{$bookingItem->id}";
         $random = rand(1, 100);
         $file = "{$dir}/boarding_pass_{$random}{$bookingItem->id}.pdf";
-        $fullPath = storage_path("app/{$file}");
+        $disk = Storage::disk('public');
+        $fullPath = $disk->path($file);
         Log::info('boarding pass ' . var_export($fullPath, true));
         Log::info('boarding pass ' . var_export($file, true));
         Log::info('boarding pass ' . var_export($dir, true));
 
-        if (!Storage::disk('local')->exists($file)) {
-            Storage::disk('local')->makeDirectory($dir);
+        if (!$disk->exists($file)) {
+            $disk->makeDirectory($dir);
 
             $chromePath = config('browsershot.chrome_path');
             if (empty($chromePath)) {
@@ -661,6 +669,22 @@ class PaymentController extends Controller
                 ->orderByRaw('season_id is null')
                 ->orderByRaw('service_id is null')
                 ->first();
+
+            if (!$template && !$serviceId && !$seasonId) {
+                $template = BoardingPassTemplate::with(['sections' => function ($query) {
+                    $query->where('is_active', true)->orderBy('sort_order');
+                }])
+                    ->where('team_id', $teamId)
+                    ->where('is_active', true)
+                    ->whereNull('service_id')
+                    ->whereNull('season_id')
+                    ->where('is_default', true)
+                    ->first();
+            }
+
+            if (!$template && !$serviceId && !$seasonId) {
+                $this->alertMissingBoardingPassTemplate($teamId, $bookingItem);
+            }
         }
 
         if ($template) {
@@ -1140,6 +1164,49 @@ class PaymentController extends Controller
         }
     }
 
+    protected function alertMissingBoardingPassTemplate(int $teamId, BookingItem $bookingItem): void
+    {
+        $typeAlert = TypeAlert::firstOrCreate(
+            ['slug' => 'boarding_pass_template_missing'],
+            ['name' => 'Boarding Pass Template Missing']
+        );
+
+        $alertText = sprintf(
+            'Boarding pass template missing (team %d, booking %d, item %d).',
+            $teamId,
+            $bookingItem->booking_id ?? 0,
+            $bookingItem->id ?? 0
+        );
+
+        $alreadyAlerted = Alert::where('team_id', $teamId)
+            ->where('type_alert_id', $typeAlert->id)
+            ->where('alert_text', $alertText)
+            ->whereDate('created_at', now()->toDateString())
+            ->exists();
+
+        if ($alreadyAlerted) {
+            return;
+        }
+
+        $alert = Alert::create([
+            'alert_text' => $alertText,
+            'alert_link' => route('admin.boardingpass.index'),
+            'type_alert_id' => $typeAlert->id,
+            'team_id' => $teamId,
+        ]);
+
+        $users = User::where('team_id', $teamId)
+            ->whereHas('roles', function ($query) {
+                $query->whereIn('name', ['Manager', 'Consultant']);
+            })
+            ->with('roles')
+            ->get();
+
+        foreach ($users as $user) {
+            $user->alerts()->attach($alert->id);
+        }
+    }
+
     public function invoiceDownload1(Booking $booking)
     {
         //dd($booking);
@@ -1212,11 +1279,11 @@ class PaymentController extends Controller
             ],
             'services' => $services,
             'file_logo' => $booking->team->file_logo->path,
-            'amount_ex_vat' => $booking->grand_tot_due,
-            'vat'           => $booking->grand_tot_due * 0.15,
-            'vat_amount'    => $booking->grand_tot_due * 1.15,
-            'amount_paid'   => $booking->tot_paid,
-            'balance_due'   => ($booking->grand_tot_due * 1.15) - $booking->tot_paid,
+            'amount_ex_vat' => round(($booking->grand_tot_due / 1.15), 2),
+            'vat'           => round(($booking->grand_tot_due - ($booking->grand_tot_due / 1.15)), 2),
+            'vat_amount'    => $booking->grand_tot_due,
+            'amount_paid'   => ($booking->tot_paid ?? 0) * 1.15,
+            'balance_due'   => $booking->grand_tot_due - (($booking->tot_paid ?? 0) * 1.15),
             'notes'         => 'Please pay within 7 days.',
             'bank' => [
                 'owner' => $site->account_owner,

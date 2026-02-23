@@ -26,24 +26,30 @@ export default function HomePage({ activities, auth, teams, team_id, team }) {
 
 
   useEffect(() => {
-    console.log('team_id', team_id);
-    if (teamId != 0) {
-      setTeamId(team_id);
-      localStorage.setItem('preferred_team_id', team_id);
+    const explicitTeamId = Number(team_id || 0);
+    if (explicitTeamId > 0) {
+      setTeamId(explicitTeamId);
+      localStorage.setItem('preferred_team_id', String(explicitTeamId));
       return;
     }
-    const savedTeamId = localStorage.getItem('preferred_team_id');
-    console.log('savedTeamId', savedTeamId);
-    if (savedTeamId == null || savedTeamId == "undefined" || savedTeamId == 0) {
-      // Ask for location or show modal
-      // For now, show modal with team select
-      setShowLocationModal(true);
-    } else {
-      // Redirect to page with team_id
-      //localStorage.setItem('preferred_team_id', savedTeamId);
+
+    const savedTeamId = Number(localStorage.getItem('preferred_team_id') || 0);
+    if (savedTeamId > 0) {
       router.get(route('front.welcome', { team_id: savedTeamId }));
+      return;
     }
-  }, []);
+
+    if ((teams || []).length === 1) {
+      const onlyTeamId = teams[0]?.id;
+      if (onlyTeamId) {
+        localStorage.setItem('preferred_team_id', String(onlyTeamId));
+        router.get(route('front.welcome', { team_id: onlyTeamId }));
+        return;
+      }
+    }
+
+    setShowLocationModal(true);
+  }, [team_id, teams]);
 
 
   useEffect(() => {
