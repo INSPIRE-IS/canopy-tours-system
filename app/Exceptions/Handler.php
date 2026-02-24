@@ -2,8 +2,10 @@
 
 namespace App\Exceptions;
 
+use App\Models\BookingItem;
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
 use Illuminate\Routing\Exceptions\InvalidSignatureException;
+use Illuminate\Support\Carbon;
 use Inertia\Inertia;
 use Throwable;
 
@@ -34,14 +36,31 @@ class Handler extends ExceptionHandler
     {
         //dd($exception);
         if ($exception instanceof InvalidSignatureException) {
-            // Redirect to a friendly page or Inertia route
-            // return Inertia::view('/front/welcome', [
-            //     'message' => 'Your check-in link has expired. Please restart the process.'
-            // ]);
+            if ($request->is('front/booking-questionnaire/checkin')) {
+                $bookingItemId = $request->query('booking_item_id');
+                $activityDate = null;
+                $activityOver = false;
+
+                if ($bookingItemId) {
+                    $bookingItem = BookingItem::with('booking_inventory')->find($bookingItemId);
+                    $activityDate = optional($bookingItem?->booking_inventory)->date;
+                    if ($activityDate) {
+                        $activityOver = Carbon::parse($activityDate)->endOfDay()->isPast();
+                    }
+                }
+
+                $message = $activityOver
+                    ? 'This check-in link has expired and the activity has already passed.'
+                    : 'This check-in link has expired. Please contact your booking agent for a new link.';
+
+                return Inertia::render('Front/BookingQuestionnaire/Expired', [
+                    'message' => $message,
+                    'activityDate' => $activityDate,
+                    'activityOver' => $activityOver,
+                ]);
+            }
+
             return redirect()->route('booking-questionnaire.index');
-            // Or redirect to another route
-            // return redirect()->route('front.booking-questionnaire.start')
-            //     ->with('error', 'Your check-in link has expired. Please restart the process.');
         }
 
         return parent::render($request, $exception);

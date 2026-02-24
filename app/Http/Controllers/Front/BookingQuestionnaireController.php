@@ -404,10 +404,27 @@ class BookingQuestionnaireController extends Controller
                 'bookings' => $formatted,
             ]);
         } catch (InvalidSignatureException $e) {
-            // return Inertia::render('Front/BookingQuestionnaire/Expired', [
-            //     'message' => 'Your check-in link has expired. Please restart the process.'
-            // ]);
-            return redirect()->route('booking-questionnaire.index');
+            $bookingItemId = $request->query('booking_item_id');
+            $activityDate = null;
+            $activityOver = false;
+
+            if ($bookingItemId) {
+                $bookingItem = BookingItem::with('booking_inventory')->find($bookingItemId);
+                $activityDate = optional($bookingItem?->booking_inventory)->date;
+                if ($activityDate) {
+                    $activityOver = Carbon::parse($activityDate)->endOfDay()->isPast();
+                }
+            }
+
+            $message = $activityOver
+                ? 'This check-in link has expired and the activity has already passed.'
+                : 'This check-in link has expired. Please contact your booking agent for a new link.';
+
+            return Inertia::render('Front/BookingQuestionnaire/Expired', [
+                'message' => $message,
+                'activityDate' => $activityDate,
+                'activityOver' => $activityOver,
+            ]);
         }
     }
 

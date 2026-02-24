@@ -6,192 +6,201 @@
 
 @layer components {
 
-    .text-welcome-card-header {
-      @apply text-[#161618] font-poppins font-normal leading-[130%] text-[12px];
-    }
-
-
-    .text-secondary-500 {
-      @apply text-[#44444A] font-geist font-medium leading-[150%] text-[12px] tracking-[-0.24px];
-    }
-  
-    .text-heading-lg {
-      @apply text-black font-geist font-bold text-[24px] leading-[120%] tracking-[-0.5px];
-    }
-  
-    .text-body-sm {
-      @apply text-[#8C8C95] font-geist text-[12px] leading-[150%] tracking-[-0.24px];
-    }
-
-    .text-entity-logo {
-      @apply text-primary-3 font-geist text-[110px] font-bold leading-[150%] tracking-[-0.32px];
-    }
-
-    .text-entity-name {
-      @apply text-secondary-700 font-geist text-[14px] font-semibold leading-[150%] tracking-[-0.28px];
-    }
-
-    .text-menu-heading {
-        @apply text-[#44444A] font-geist text-[12px] font-medium leading-[150%] tracking-[-0.24px];
-    }
-
-    .text-menu-subheading {
-        @apply text-[#44444A] font-geist text-[12px] font-normal leading-[150%] tracking-[-0.24px];
-    }
-
-    .text-breadcrum-entity {
-      @apply text-[#000] font-geist text-[8px] font-medium leading-[150%] tracking-[-0.16px];
-    }
-
-    .text-breadcrum-title {
-      @apply text-[#161618] font-geist text-[8px] font-medium leading-[150%] tracking-[-0.16px];
-    }
-
-    .text-alert {
-      @apply text-[#FFFFFF] font-geist text-[14px] font-normal leading-[140%] tracking-[-0.16px];
-    }
-
-    .text-btn-gray {
-      @apply text-[#8C8C95] font-geist text-[12px] font-medium leading-[150%] tracking-[-0.24px];
-    }
-
-    .text-btn-black {
-      @apply text-[#000000] font-geist text-[12px] font-medium leading-[150%] tracking-[-0.24px];
-    }
-
-    .text-btn-white {
-      @apply text-[#161618] font-geist text-[12px] font-semibold leading-[100%] tracking-[-0.2px];
-    }
-
-
-    .text-btn-cal {
-      @apply text-[#161618] font-geist text-[12px] font-semibold tracking-[-0.24px];
-    }
-
-    .text-btn-green {
-      @apply text-[#FFFFFF] font-geist text-[16px] font-semibold leading-[150%] tracking-[-0.32px];
-    }
-
-    .text-checkbox-lbl {
-      @apply text-[#5B5A64] font-geist text-[12px] font-normal tracking-[-0.12px];
-    }
-
-    .text-welcome-card-title {
-      @apply text-[#231F20] font-geist text-[24px] font-semibold leading-[120%] tracking-[-0.96px];
-    }
-    .text-welcome-card-title-sub {
-      @apply text-[#231F20] font-geist text-[24px] font-normal leading-[120%] tracking-[-0.72px];
-    }
-
-    .text-heading-parts {
-      @apply text-[#111C2D] font-inter text-[18px] font-semibold  leading-[140%] tracking-[-0.18px] ;
-    }
-
-    .text-booking-heading {
-      @apply text-[#31B700] font-geist text-[24px] font-semibold  leading-[120%] tracking-[-0.72px] ;
-    }
-    
-    .text-booking-subheading {
-      @apply text-[#161618] font-geist text-[20px] font-semibold  leading-[150%] tracking-[-0.4px] ;
-    } 
-    
-    .text-booking-check-lbl-left {
-      @apply text-[#161618] font-geist text-[14px] font-semibold  leading-[150%] tracking-[-0.28px] ;
-    } 
-
-    .text-booking-check-lbl-right {
-      @apply text-[#5B5A64] font-geist text-[12px] font-normal tracking-[-0.12px] ;
-    } 
-
-    .text-booking-lbl-overide {
-      @apply text-[#1A1C21] font-publicSans text-[14px] font-semibold  leading-[140%] tracking-[-0.07px] ;
-    } 
-
-    .text-booking-card-heading {
-      @apply text-[#31B700] font-geist text-[18px] font-semibold  leading-[150%] tracking-[-0.36px] ;
-    }
-    .text-page-heading {
-      @apply text-[#161618] font-geist text-[18px] font-medium  leading-[150%] tracking-[-0.36px] ;
-    }
-    .text-booking-card-title {
-      @apply text-[#1A1C21] font-publicSans text-[14px] font-semibold leading-[140%] tracking-[-0.07px];
-    }
-    .text-booking-card-title-sub {
-      @apply text-[#231F20] font-publicSans text-[12px] font-normal leading-[132%] tracking-[-0.06px];
-    }
-
-    .text-booking-card-lbl {
-      @apply text-[#667085] font-publicSans text-[14px] font-medium leading-[140%] tracking-[-0.07px] ;
-    }
-
-    .text-booking-card-body {
-      @apply text-[#1A1C21] font-publicSans text-[14px] font-semibold  leading-[140%] tracking-[-0.07px] ;
-    }
-
-    .text-booking-lbl-main {
-      @apply text-[#161618] font-geist text-[14px] font-semibold  leading-[150%] tracking-[-0.28px] ;
-    } 
-
-    .text-booking-lbl-main-sub {
-      @apply text-[#4D81E7] font-geist text-[14px] font-semibold  leading-[150%] tracking-[-0.28px] ;
-    } 
-    .text-booking-lbl-main-sub-error {
-      @apply text-[#C65468] font-geist text-[14px] font-semibold  leading-[150%] tracking-[-0.28px] ;
-    } 
-    .text-booking-card-manifest-lbl {
-      @apply text-[#161618] font-geist text-[12px] font-medium leading-[150%] tracking-[-0.24px] ;
-    }
-
-    .text-booking-card-manifest-no {
-      @apply text-[#C65468] font-geist text-[12px] font-semibold tracking-[-0.24px] ;
-    }
-
-    .text-booking-card-manifest-yes {
-      @apply text-[#00BD13] font-geist text-[12px] font-semibold tracking-[-0.24px] ;
-    }
-
-    .text-tool-card-title {
-      @apply text-[#333843] font-geist text-[16px] font-semibold leading-[140%] tracking-[-0.08px] ;
-    }
-
-    .text-tool-card-btn {
-      @apply text-[#4D81E7] font-geist text-[12px] font-semibold tracking-[-0.24px] ;
-    }
-
-    .text-tool-card-btn-red {
-      @apply text-[#E74D4D] font-geist text-[12px] font-semibold tracking-[-0.24px] ;
-    }
+  .text-welcome-card-header {
+    @apply text-[#161618] font-poppins font-normal leading-[130%] text-[12px];
   }
 
-  .bg-blue-gradient-overlay {
-    background: linear-gradient(
-        180deg,
-        rgba(255, 255, 255, 0.12) 0%,
-        rgba(255, 255, 255, 0.0) 100%
-      ),
-      #3863C6;
+
+  .text-secondary-500 {
+    @apply text-[#44444A] font-geist font-medium leading-[150%] text-[12px] tracking-[-0.24px];
   }
 
-  .bg-green-gradient-overlay {
-  background: linear-gradient(
-      180deg,
+  .text-heading-lg {
+    @apply text-black font-geist font-bold text-[24px] leading-[120%] tracking-[-0.5px];
+  }
+
+  .text-body-sm {
+    @apply text-[#8C8C95] font-geist text-[12px] leading-[150%] tracking-[-0.24px];
+  }
+
+  .text-entity-logo {
+    @apply text-primary-3 font-geist text-[110px] font-bold leading-[150%] tracking-[-0.32px];
+  }
+
+  .text-entity-name {
+    @apply text-secondary-700 font-geist text-[14px] font-semibold leading-[150%] tracking-[-0.28px];
+  }
+
+  .text-menu-heading {
+    @apply text-[#44444A] font-geist text-[12px] font-medium leading-[150%] tracking-[-0.24px];
+  }
+
+  .text-menu-subheading {
+    @apply text-[#44444A] font-geist text-[12px] font-normal leading-[150%] tracking-[-0.24px];
+  }
+
+  .text-breadcrum-entity {
+    @apply text-[#000] font-geist text-[8px] font-medium leading-[150%] tracking-[-0.16px];
+  }
+
+  .text-breadcrum-title {
+    @apply text-[#161618] font-geist text-[8px] font-medium leading-[150%] tracking-[-0.16px];
+  }
+
+  .text-alert {
+    @apply text-[#FFFFFF] font-geist text-[14px] font-normal leading-[140%] tracking-[-0.16px];
+  }
+
+  .text-btn-gray {
+    @apply text-[#8C8C95] font-geist text-[12px] font-medium leading-[150%] tracking-[-0.24px];
+  }
+
+  .text-btn-black {
+    @apply text-[#000000] font-geist text-[12px] font-medium leading-[150%] tracking-[-0.24px];
+  }
+
+  .text-btn-white {
+    @apply text-[#161618] font-geist text-[12px] font-semibold leading-[100%] tracking-[-0.2px];
+  }
+
+
+  .text-btn-cal {
+    @apply text-[#161618] font-geist text-[12px] font-semibold tracking-[-0.24px];
+  }
+
+  .text-btn-green {
+    @apply text-[#FFFFFF] font-geist text-[16px] font-semibold leading-[150%] tracking-[-0.32px];
+  }
+
+  .text-checkbox-lbl {
+    @apply text-[#5B5A64] font-geist text-[12px] font-normal tracking-[-0.12px];
+  }
+
+  .text-welcome-card-title {
+    @apply text-[#231F20] font-geist text-[24px] font-semibold leading-[120%] tracking-[-0.96px];
+  }
+
+  .text-welcome-card-title-sub {
+    @apply text-[#231F20] font-geist text-[24px] font-normal leading-[120%] tracking-[-0.72px];
+  }
+
+  .text-welcome-card-title-mb {
+    @apply text-[#231F20] font-geist text-[20px] font-semibold leading-[120%] tracking-[-0.96px];
+  }
+
+  .text-welcome-card-title-sub-mb {
+    @apply text-[#231F20] font-geist text-[20px] font-normal leading-[120%] tracking-[-0.72px];
+  }
+
+  .text-heading-parts {
+    @apply text-[#111C2D] font-inter text-[18px] font-semibold leading-[140%] tracking-[-0.18px];
+  }
+
+  .text-booking-heading {
+    @apply text-[#31B700] font-geist text-[24px] font-semibold leading-[120%] tracking-[-0.72px];
+  }
+
+  .text-booking-subheading {
+    @apply text-[#161618] font-geist text-[20px] font-semibold leading-[150%] tracking-[-0.4px];
+  }
+
+  .text-booking-check-lbl-left {
+    @apply text-[#161618] font-geist text-[14px] font-semibold leading-[150%] tracking-[-0.28px];
+  }
+
+  .text-booking-check-lbl-right {
+    @apply text-[#5B5A64] font-geist text-[12px] font-normal tracking-[-0.12px];
+  }
+
+  .text-booking-lbl-overide {
+    @apply text-[#1A1C21] font-publicSans text-[14px] font-semibold leading-[140%] tracking-[-0.07px];
+  }
+
+  .text-booking-card-heading {
+    @apply text-[#31B700] font-geist text-[18px] font-semibold leading-[150%] tracking-[-0.36px];
+  }
+
+  .text-page-heading {
+    @apply text-[#161618] font-geist text-[18px] font-medium leading-[150%] tracking-[-0.36px];
+  }
+
+  .text-booking-card-title {
+    @apply text-[#1A1C21] font-publicSans text-[14px] font-semibold leading-[140%] tracking-[-0.07px];
+  }
+
+  .text-booking-card-title-sub {
+    @apply text-[#231F20] font-publicSans text-[12px] font-normal leading-[132%] tracking-[-0.06px];
+  }
+
+  .text-booking-card-lbl {
+    @apply text-[#667085] font-publicSans text-[14px] font-medium leading-[140%] tracking-[-0.07px];
+  }
+
+  .text-booking-card-body {
+    @apply text-[#1A1C21] font-publicSans text-[14px] font-semibold leading-[140%] tracking-[-0.07px];
+  }
+
+  .text-booking-lbl-main {
+    @apply text-[#161618] font-geist text-[14px] font-semibold leading-[150%] tracking-[-0.28px];
+  }
+
+  .text-booking-lbl-main-sub {
+    @apply text-[#4D81E7] font-geist text-[14px] font-semibold leading-[150%] tracking-[-0.28px];
+  }
+
+  .text-booking-lbl-main-sub-error {
+    @apply text-[#C65468] font-geist text-[14px] font-semibold leading-[150%] tracking-[-0.28px];
+  }
+
+  .text-booking-card-manifest-lbl {
+    @apply text-[#161618] font-geist text-[12px] font-medium leading-[150%] tracking-[-0.24px];
+  }
+
+  .text-booking-card-manifest-no {
+    @apply text-[#C65468] font-geist text-[12px] font-semibold tracking-[-0.24px];
+  }
+
+  .text-booking-card-manifest-yes {
+    @apply text-[#00BD13] font-geist text-[12px] font-semibold tracking-[-0.24px];
+  }
+
+  .text-tool-card-title {
+    @apply text-[#333843] font-geist text-[16px] font-semibold leading-[140%] tracking-[-0.08px];
+  }
+
+  .text-tool-card-btn {
+    @apply text-[#4D81E7] font-geist text-[12px] font-semibold tracking-[-0.24px];
+  }
+
+  .text-tool-card-btn-red {
+    @apply text-[#E74D4D] font-geist text-[12px] font-semibold tracking-[-0.24px];
+  }
+}
+
+.bg-blue-gradient-overlay {
+  background: linear-gradient(180deg,
       rgba(255, 255, 255, 0.12) 0%,
-      rgba(255, 255, 255, 0.0) 100%
-    ),
+      rgba(255, 255, 255, 0.0) 100%),
+    #3863C6;
+}
+
+.bg-green-gradient-overlay {
+  background: linear-gradient(180deg,
+      rgba(255, 255, 255, 0.12) 0%,
+      rgba(255, 255, 255, 0.0) 100%),
     #31B700;
 }
 
-  .bg-red-gradient-overlay {
-    background: linear-gradient(
-        180deg,
-        rgba(255, 255, 255, 0.12) 0%,
-        rgba(255, 255, 255, 0.0) 100%
-      ),
-      #C65468;
-  }
-  .shadow-inset-white {
-    box-shadow: inset 0 0 0 1.8px rgba(255, 255, 255, 0.25);
-  }
+.bg-red-gradient-overlay {
+  background: linear-gradient(180deg,
+      rgba(255, 255, 255, 0.12) 0%,
+      rgba(255, 255, 255, 0.0) 100%),
+    #C65468;
+}
+
+.shadow-inset-white {
+  box-shadow: inset 0 0 0 1.8px rgba(255, 255, 255, 0.25);
+}
 
 /* TitTap Editor Design */
 .ProseMirror {
@@ -201,6 +210,7 @@
   border-radius: 10px;
   min-height: 100px;
 }
+
 .ProseMirror:focus {
   border: none;
   outline: 1px solid black;
@@ -209,7 +219,7 @@
   border-radius: 10px;
 }
 
-.ProseMirror > * + * {
+.ProseMirror>*+* {
   margin-top: 0.75em;
 }
 
@@ -217,6 +227,7 @@
   padding: 0 2rem;
   list-style-type: disc;
 }
+
 .ProseMirror ol {
   padding: 0 2rem;
   list-style-type: numeric;
@@ -243,6 +254,7 @@
   padding: 0.75rem 1rem;
   border-radius: 0.5rem;
 }
+
 .ProseMirror code {
   color: inherit;
   padding: 0;
@@ -271,12 +283,14 @@
   border-radius: 5px;
   border: 1px solid grey;
 }
+
 .menuBar {
   padding-bottom: 5px;
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
+
 .menuBar button {
   font-size: 12px;
   margin: 4px;
@@ -287,6 +301,7 @@
   color: rgb(70, 70, 70);
   cursor: pointer;
 }
+
 .menuBar button:last-child {
   margin-right: 7px;
 }
@@ -318,5 +333,3 @@ button.is_active {
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
-
-
