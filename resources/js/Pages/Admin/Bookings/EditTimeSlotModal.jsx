@@ -27,6 +27,7 @@ const EditTimeSlotModal = ({ isOpen, onClose, mode, booking, services }) => {
     // console.log("roles", roles);
     const { data, setData, post, put, errors, reset, processing } = useForm({
         booking_id: '',
+        booking_item_id: '',
         service_id: '',
         season_id: '',
         booking_date: '',
@@ -36,10 +37,11 @@ const EditTimeSlotModal = ({ isOpen, onClose, mode, booking, services }) => {
     useEffect(() => {
         if (booking) {
             //reset();
-            const customer = booking.customers.find(c => c.is_lead);
+            const customer = booking?.customers?.find(c => c.is_lead);
             console.log('customer ', customer);
             setData({
-                booking_id: booking.id,
+                booking_id: booking.booking_id ?? booking.id,
+                booking_item_id: booking.booking_item_id ?? '',
                 service_id: booking.service_id,
                 season_id: booking.season_id,
                 booking_date: booking.booking_date,
@@ -51,7 +53,7 @@ const EditTimeSlotModal = ({ isOpen, onClose, mode, booking, services }) => {
     }, [mode, booking]);
 
     useEffect(() => {
-        if (data.service_id && data?.booking_date) {
+        if (data.service_id && data?.booking_date && Array.isArray(services)) {
             console.log('service_id', data.service_id);
             console.log('booking_date', data.booking_date);
 

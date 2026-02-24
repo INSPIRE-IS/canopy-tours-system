@@ -34,7 +34,7 @@ export default function BookingToolsModal({ booking, position, onClose, BookingT
                 </div>
 
                 <div className="flex flex-col gap-2">
-                    <button type='button' onClick={() => BookingToolClick('edit_timeslot', booking)} className="btn-tool">{icons.edit_timeslot} Edit Timeslot</button>
+
                     <button type="button" onClick={() => BookingToolClick('cancel_bookings', booking)} className="btn-tool-red">{icons.cancel_all_bookings} Cancel Bookings</button>
                 </div>
             </div>

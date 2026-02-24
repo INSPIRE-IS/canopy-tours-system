@@ -2,7 +2,7 @@ import { Link } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 import { icons } from '../icons';
 
-export default function SidebarMenuLink({ label, isOpen, url = null, iconName: iconName, submenuItems = [] }) {
+export default function SidebarMenuLink({ label, isOpen, url = null, params = null, iconName: iconName, submenuItems = [] }) {
   const [open, setOpen] = useState(false);
   const Icon = iconName ? icons[iconName] : null;
   const hasSubmenu = submenuItems.length > 0;
@@ -34,7 +34,7 @@ export default function SidebarMenuLink({ label, isOpen, url = null, iconName: i
       ) : (
         <Link
           key={label}
-          href={route(url)}
+          href={params ? route(url, params) : route(url)}
           className={`group menu-link flex items-center justify-between ${isOpen ? 'px-3' : 'px-1.5'} ${
             isActive ? 'text-[#3863C6] bg-secondary-200' : 'text-dark-gray'
           } py-2 hover:bg-secondary-200 hover:text-black rounded-lg cursor-pointer`}

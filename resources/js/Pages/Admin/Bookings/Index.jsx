@@ -177,11 +177,7 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
         if (tool === 'remove_resource') {
             router.get(route('admin.bookings.remove_resource'));
         }
-        if (tool === 'edit_timeslot') {
-            //router.get(route('admin.bookings.edit', booking.id));
-            setSelectedBooking(booking);
-            setIsEditTimeSlotModalOpen(true);
-        }
+
 
         if (tool === 'cancel_bookings') {
             setConfirmOpen(true);
@@ -225,6 +221,16 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
         if (tool === 'edit_booking') {
             router.get(route('admin.bookings.edit', booking.id));
         }
+        if (tool === 'edit_timeslot') {
+            //router.get(route('admin.bookings.edit', booking.id));
+            // setSelectedBooking({
+            //     ...booking,
+            //     booking_id: booking?.booking_id ?? booking?.id,
+            // });
+            setSelectedBooking(booking);
+            setIsEditTimeSlotModalOpen(true);
+        }
+
         if (tool === 'message_guest') {
             setGuestEmailTarget(booking);
             setIsEmailModalOpen(true);
@@ -543,7 +549,11 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
         setIsEmailModalOpen(false);
         window.location.reload();
     };
-
+    const handleCheveronDateChange = (direction) => {
+        const baseDate = selectedDate ? parseISO(selectedDate) : new Date();
+        const nextDate = addDays(baseDate, direction);
+        setSelectedDate(format(nextDate, 'yyyy-MM-dd'));
+    };
     return (
         <AuthenticatedLayout
             user={auth.user}
@@ -568,13 +578,17 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                                     className={selectedDate === today ? 'bg-blue-gradient-overlay border-[#3863C6]' : ''}
                                     onClick={handleTodayClick}
                                 />
-                                <WhiteButton
-                                    title="Day"
-                                    width="w-[90px]"
-                                    textColor={viewMode === VIEW_MODES.DAY ? 'text-white' : 'text-primary-14'}
-                                    className={viewMode === VIEW_MODES.DAY ? 'bg-blue-gradient-overlay border-[#3863C6]' : ''}
-                                    onClick={() => setViewMode(VIEW_MODES.DAY)}
-                                />
+                                <span className='flex flex-row gap-1'>
+                                    <button className='px-3 py-2 border border-gray-400 rounded-lg ' onClick={() => handleCheveronDateChange(-1)}>{icons.cheveron_left}</button>
+                                    <WhiteButton
+                                        title="Day"
+                                        width="w-[90px]"
+                                        textColor={viewMode === VIEW_MODES.DAY ? 'text-white' : 'text-primary-14'}
+                                        className={viewMode === VIEW_MODES.DAY ? 'bg-blue-gradient-overlay border-[#3863C6]' : ''}
+                                        onClick={() => setViewMode(VIEW_MODES.DAY)}
+                                    />
+                                    <button className='px-3 py-2 border border-gray-400 rounded-lg ' onClick={() => handleCheveronDateChange(1)}>{icons.cheveron_right}</button>
+                                </span>
                                 <WhiteButton
                                     title="Date Range"
                                     width="w-[120px]"

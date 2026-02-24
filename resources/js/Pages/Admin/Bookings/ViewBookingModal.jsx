@@ -49,12 +49,12 @@ const ViewBookingModal = ({ isOpen, onClose, mode, booking, services }) => {
     useEffect(() => {
         if (booking) {
             //reset();
-            const customer = booking.customers.find(c => c.is_lead);
+            const customer = booking?.customers?.find(c => c.is_lead);
             console.log('customer ', customer);
             setData({
                 bookingPax: booking.bookingPax,
                 booking_date: booking.booking_date,
-                customers: booking.customers,
+                customers: booking.customers ?? [],
                 due: booking.due,
                 dueStatus: booking.dueStatus,
                 due_date: booking.due_date,
@@ -76,7 +76,7 @@ const ViewBookingModal = ({ isOpen, onClose, mode, booking, services }) => {
     }, [mode, booking]);
 
     useEffect(() => {
-        if (data.service_id && data?.booking_date) {
+        if (data.service_id && data?.booking_date && Array.isArray(services)) {
             console.log('service_id', data.service_id);
             console.log('booking_date', data.booking_date);
 
@@ -264,7 +264,7 @@ const ViewBookingModal = ({ isOpen, onClose, mode, booking, services }) => {
                         />
                     </div>
                     <div className="grid grid-cols-1 gap-4">
-                        {data.customers.map((customer, index) => (
+                        {(data.customers || []).map((customer, index) => (
                             <div key={index} className="border p-3 mb-2 rounded">
                                 <div><span className="font-bold capitalize">{customer.type}</span> </div>
                                 <div className="grid grid-cols-3 space-y-1">

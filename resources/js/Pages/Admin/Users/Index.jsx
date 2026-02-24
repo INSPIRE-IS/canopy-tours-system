@@ -46,7 +46,7 @@ export default function Index({ users, permissions, roles, teams, auth, searchTe
         // Redirect to the route with search query and other parameters
         console.log('search ', search);
 
-        window.location.href = route('users.index', {
+        window.location.href = route('admin.users.index', {
             search,
             sort: sortColumn,
             direction: sortDirection
@@ -158,6 +158,7 @@ export default function Index({ users, permissions, roles, teams, auth, searchTe
                 mode={modalMode}
                 user={selectedUser}
                 roles={roles}
+
                 teams={teams}
                 team={auth?.team}
             />

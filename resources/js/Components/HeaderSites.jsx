@@ -20,9 +20,20 @@ export default function HeaderSites({ permissions, isOpenTab, setIsOpenTab }) {
       {permissions?.users_access && (
         <button id="Users-tab" className={` ${isOpenTab === 'Users' ? 'border-b-[5px] border-primary-7' : ''} tab-button px-4 py-[11px] text-tab-active pb-2 cursor-pointer`} onClick={() => toggleDropdown('Users', 'admin.users.index')} >Users</button>
       )}
+      {permissions?.roles_access && (
+        <button id="roles-tab" className={` ${isOpenTab === 'roles' ? 'border-b-[5px] border-primary-7' : ''} tab-button px-4 py-[11px] text-tab-active pb-2 cursor-pointer`} onClick={() => toggleDropdown('roles', 'admin.roles.index')} >roles</button>
+      )}
+      {permissions?.permissions_access && (
+        <button id="permissions-tab" className={` ${isOpenTab === 'permissions' ? 'border-b-[5px] border-primary-7' : ''} tab-button px-4 py-[11px] text-tab-active pb-2 cursor-pointer`} onClick={() => toggleDropdown('permissions', 'admin.permissions.index')} >permissions</button>
+      )}
+
       {permissions?.boarding_pass_templates_access && (
         <button id="Boarding-Pass-tab" className={` ${isOpenTab === 'Boarding_Pass' ? 'border-b-[5px] border-primary-7' : ''} tab-button px-4 py-[11px] text-tab-inactive pb-2 cursor-pointer flex items-center gap-1`} onClick={() => toggleDropdown('Boarding_Pass', 'admin.boardingpass.index')} >Boarding Pass</button>
       )}
+      {permissions?.help_questions_access && (
+        <button id="help-question-tab" className={` ${isOpenTab === 'Help_Question' ? 'border-b-[5px] border-primary-7' : ''} tab-button px-4 py-[11px] text-tab-inactive pb-2 cursor-pointer flex items-center gap-1`} onClick={() => toggleDropdown('Help_Question', 'admin.help-questions.index')} >Help Question</button>
+      )}
+
       {permissions?.permissions_access && false && (
         <button id="permissions-tab" className={` ${isOpenTab === 'permissions' ? 'border-b-[5px] border-primary-7' : ''} tab-button px-4 py-[11px] text-tab-active pb-2 cursor-pointer`} onClick={() => toggleDropdown('permissions', 'admin.permissions.index')} >permissions</button>
       )}

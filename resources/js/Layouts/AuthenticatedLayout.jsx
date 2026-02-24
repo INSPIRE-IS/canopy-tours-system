@@ -98,6 +98,11 @@ export default function AppLayout({ user, children }) {
             showBack: false,
         },
         {
+            match: 'admin.help-questions.show',
+            title: 'help questions',
+            showBack: false,
+        },
+        {
             match: 'admin.users.index',
             title: 'users',
             showBack: false,
@@ -378,7 +383,8 @@ export default function AppLayout({ user, children }) {
                         <SidebarMenuItem
                             label="Help & Center"
                             isOpen={isOpen}
-                            url='admin.help-questions.index'
+                            url='admin.help-questions.show'
+                            params={[1]}
                             iconName="helpcenter"
                         />
                     )}

@@ -38,6 +38,7 @@ export default function CustomerToolsModal({ index, booking, customer, position,
                     <button type='button' onClick={() => CustomerToolClick('customer_invoice', index, booking, customer)} className="btn-tool">{icons.customer_invoice} Customer Invoice</button>
                     <button type='button' onClick={() => CustomerToolClick('resend_invoice', index, booking, customer)} className="btn-tool">{icons.resend_invoice} Resend Invoice</button>
                     {/* <button type='button' onClick={() => CustomerToolClick('manifest', index, booking, customer)} className="btn-tool">{icons.manifest} Manifest</button> */}
+                    <button type='button' onClick={() => CustomerToolClick('edit_timeslot', index, booking, customer)} className="btn-tool">{icons.edit_timeslot} Edit Timeslot</button>
                     <button type='button' onClick={() => CustomerToolClick('edit_booking', index, booking, customer)} className="btn-tool">{icons.edit_timeslot} Edit Booking</button>
 
                     <button type='button' onClick={() => CustomerToolClick('message_guest', index, booking, customer)} className="btn-tool">{icons.message} Message Guests</button>

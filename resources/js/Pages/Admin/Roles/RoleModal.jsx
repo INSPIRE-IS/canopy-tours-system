@@ -1,27 +1,26 @@
 import React, { useEffect } from "react";
 import { useForm } from "@inertiajs/react";
 import InputText from "@/Components/InputText";
-import CustomCheckbox from "@/Components/CustomCheckbox";
-import CustomSelect from "@/Components/CustomSelect";
 import OutlineButton from "@/Components/OutlineButton";
 import BlueButton from "@/Components/BlueButton";
 
-const RoleModal = ({ isOpen, onClose, mode, role = null, roles, permissions, teams, team }) => {
-    // console.log("mode", mode);
-    console.log("role", role);
-    // console.log("roles", roles);
+const RoleModal = ({ isOpen, onClose, mode, role = null, user, roles, permissions, teams, team }) => {
+
     const { data, setData, post, put, errors, reset, processing } = useForm({
         name: "",
+        permissions: [],
     });
     useEffect(() => {
         if (role && mode !== "create") {
             setData({
                 name: role.name || "",
+                permissions: role.permissions?.map((permission) => permission.id) || [],
             });
         } else if (mode === "create") {
             reset(); // Clear form for create mode
         }
     }, [mode, role, team]);
+
 
     const handleChange = (target, value) => {
         setData(target, value);
@@ -31,11 +30,11 @@ const RoleModal = ({ isOpen, onClose, mode, role = null, roles, permissions, tea
     const handleSubmit = (e) => {
         e.preventDefault();
         if (mode === "create") {
-            post(route("roles.store"), {
+            post(route("admin.roles.store"), {
                 onSuccess: () => onClose(),
             });
         } else if (mode === "edit") {
-            put(route("roles.update", role.id), {
+            put(route("admin.roles.update", role.id), {
                 onSuccess: () => onClose(),
             });
         }
@@ -54,11 +53,11 @@ const RoleModal = ({ isOpen, onClose, mode, role = null, roles, permissions, tea
                 <form onSubmit={handleSubmit}>
 
 
-                    <div className="flex flex-row w-full items-center gap-2 justify-start mb-4">
+                    <div className="flex flex-col w-full items-center gap-2 justify-start mb-4">
                         <InputText
                             title="Role"
-                            field="role"
-                            value={data.role}
+                            field="name"
+                            value={data.name}
                             mode={mode}
                             handleChange={handleChange}
                             errors={errors}

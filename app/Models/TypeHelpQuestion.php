@@ -11,7 +11,12 @@ class TypeHelpQuestion extends Model
 
     protected $table = 'type_help_questions';
 
-    protected $fillable = ['id', 'name'];
+    protected $fillable = ['id', 'name', 'role_ids', 'order_id'];
+
+    protected $casts = [
+        'role_ids' => 'array',
+        'order_id' => 'integer',
+    ];
 
     public function helpQuestions()
     {

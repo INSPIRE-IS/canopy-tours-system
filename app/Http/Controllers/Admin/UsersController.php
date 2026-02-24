@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreUserRequest;
 use App\Http\Requests\UpdateUserRequest;
+use App\Models\Permission;
 use App\Models\Role;
 use App\Models\Team;
 use App\Models\User;
@@ -31,7 +32,8 @@ class UsersController extends Controller
         $user = Auth::user();
         $teamId = Session::get('team_id');
 
-        $roles = Role::whereNotIn('name', ['admin', 'super'])->select('name', 'id')->get();
+        $roles = Role::with('permissions')->whereNotIn('name', ['admin', 'super'])->select('name', 'id')->get();
+
         $teams = Team::select('name', 'id')->whereNotNull('name')->get();
         // dd($teams);
         // $users =  User::with('roles')->get();
@@ -54,6 +56,7 @@ class UsersController extends Controller
         return Inertia::render('Admin/Users/Index', [
             'users' => $users,
             'roles' => $roles,
+
             'teams' => $teams ?? [],
             'searchTerm' => $searchTerm,
             'sortColumn' => $sortColumn,

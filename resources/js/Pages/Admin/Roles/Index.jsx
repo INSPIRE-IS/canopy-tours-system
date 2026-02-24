@@ -9,19 +9,21 @@ import RoleModal from './RoleModal';
 import SearchBar from '@/Components/SearchBar';
 import BlueButton from '@/Components/BlueButton';
 import Pagination from '@/Components/Pagination';
+import SettingsHeader from '@/Components/HeaderSites';
 
 
-export default function Index({ user, permissions, roles, teams, auth, searchTerm, sortColumn, sortDirection }) {
+export default function Index({ user, permissions, roles, adminRole, permissionList, teams, auth, searchTerm, sortColumn, sortDirection }) {
     //const [modalOpen, setModalOpen] = useState(false);
 
     const [selectedRole, setSelectedRole] = useState(null);
     const { props } = usePage();
     console.log('auth on role ', auth);
     console.log('user on role ', user);
-    console.log('permissions on roleeeeeeeeeee ', permissions);
+    console.log('permissions ', permissions);
     const [search, setSearch] = useState(searchTerm);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalMode, setModalMode] = useState("create");
+    const [isOpenTab, setIsOpenTab] = useState('Users');
 
     const handleOpenModal = (mode, role = null) => {
         console.log('mode ', mode);
@@ -83,6 +85,7 @@ export default function Index({ user, permissions, roles, teams, auth, searchTer
             </div>
         </header> */}
             <div className="bg-white p-6 ">
+                <SettingsHeader permissions={permissions} isOpenTab={isOpenTab} setIsOpenTab={setIsOpenTab} />
                 {/* top */}
                 <div className="flex justify-between items-center mb-6">
                     <SearchBar search={search} handleSearchChange={(e) => handleSearchChange(e)} handleSearchSubmit={handleSearchSubmit} />
@@ -120,11 +123,11 @@ export default function Index({ user, permissions, roles, teams, auth, searchTer
                                             <td className="w-[95px] p-3">{role.name}</td>
 
                                             <td className="w-[185px] p-3 flex  gap-2">
-                                                {permissions.roles_edit && (
-                                                    <button onClick={() => handleOpenModal("edit", role)}
-                                                        className="flex items-center gap-1 text-green-600 hover:text-green-800">
-                                                        Edit
-                                                    </button>)}
+                                                {/* {permissions.roles_edit && ()} */}
+                                                <button onClick={() => handleOpenModal("edit", role)}
+                                                    className="flex items-center gap-1 text-green-600 hover:text-green-800">
+                                                    Edit
+                                                </button>
 
                                                 {permissions.roles_delete && (
                                                     <button onClick={() => handleDelete(role)}
@@ -157,7 +160,10 @@ export default function Index({ user, permissions, roles, teams, auth, searchTer
                 mode={modalMode}
                 role={selectedRole}
                 roles={roles}
-                permissions={permissions}
+                user={user}
+                permissions={permissionList}
+                adminRole={adminRole}
+                permissionList={permissionList}
                 teams={teams}
                 team={auth?.team}
             />

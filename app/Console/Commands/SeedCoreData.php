@@ -50,7 +50,6 @@ use App\Models\StatusPayment;
 use App\Models\TypeAlert;
 use App\Models\TypeConfirmation;
 use App\Models\TypeGender;
-use App\Models\TypeHelpQuestion;
 use App\Models\TypeInvoice;
 use App\Models\TypeLocation;
 use App\Models\TypeReferral;
@@ -296,15 +295,6 @@ class SeedCoreData extends Command
         ];
         foreach ($typePayments as $payment) {
             TypePayment::updateOrCreate(['id' => $payment['id']], $payment);
-        }
-
-        $typeHelpQuestions = [
-            ['id' => 1, 'name' => 'Internal'],
-            ['id' => 2, 'name' => 'External'],
-        ];
-
-        foreach ($typeHelpQuestions as $helpQuestion) {
-            TypeHelpQuestion::updateOrCreate(['id' => $helpQuestion['id']], $helpQuestion);
         }
 
         $lookups = [

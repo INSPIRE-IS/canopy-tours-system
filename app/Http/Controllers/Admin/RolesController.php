@@ -26,17 +26,18 @@ class RolesController extends Controller
             ->orderBy($sortColumn, $sortDirection)
             ->paginate(25);
 
-        $permissions = Permission::all(); //latest()->get(); //// You can paginate if necessary
-
+        $adminRole = Role::with('permissions')->find(1);
+        $permissionList = Permission::select('id', 'name')->orderBy('name')->get();
         //dd(method_exists($user, 'can'));
         //dd($user->can('view permission'));
         /** @disregard P1013 */
         return Inertia::render('Admin/Roles/Index', [
 
             'roles' => $roles,
-            'permissions' => $permissions,
             'searchTerm' => $searchTerm,
             'sortColumn' => $sortColumn,
+            'adminRole' => $adminRole,
+            'permissionList' => $permissionList,
             'sortDirection' => $sortDirection,
             'can' => [
                 'roles_show' => auth()->user()->can('roles_show'),

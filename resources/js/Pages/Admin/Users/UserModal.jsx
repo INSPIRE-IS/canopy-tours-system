@@ -1,12 +1,11 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useMemo } from "react";
 import { useForm } from "@inertiajs/react";
 import InputText from "@/Components/InputText";
-import CustomCheckbox from "@/Components/CustomCheckbox";
 import CustomSelect from "@/Components/CustomSelect";
 import OutlineButton from "@/Components/OutlineButton";
 import BlueButton from "@/Components/BlueButton";
 
-const UserModal = ({ isOpen, onClose, mode, user = null, roles, teams, team }) => {
+const UserModal = ({ isOpen, onClose, mode, user = null, roles = [], teams, team }) => {
     // console.log("mode", mode);
     console.log("user", user);
     // console.log("roles", roles);
@@ -17,6 +16,7 @@ const UserModal = ({ isOpen, onClose, mode, user = null, roles, teams, team }) =
         password: "",
         mobile_number: "",
         roles: [],
+
         team_id: null, //team?.id
         is_admin: false,
         is_email_recipient: false,
@@ -43,6 +43,7 @@ const UserModal = ({ isOpen, onClose, mode, user = null, roles, teams, team }) =
         setData(target, value);
         //setData("name", e.target.value);
     };
+
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -120,15 +121,6 @@ const UserModal = ({ isOpen, onClose, mode, user = null, roles, teams, team }) =
                     </div>
                     <div className="flex flex-row w-full items-center gap-2 justify-between mb-4">
                         <CustomSelect
-                            label="roles"
-                            name="roles"
-                            value={data.roles}
-                            mode={mode}
-                            onChange={(e) => handleChange(e.target.name, e.target.value)}
-                            error={errors.roles}
-                            options={roles}
-                        />
-                        <CustomSelect
                             label="teams"
                             name="team_id"
                             value={data.team_id ?? ""}
@@ -139,13 +131,11 @@ const UserModal = ({ isOpen, onClose, mode, user = null, roles, teams, team }) =
                         />
                     </div>
 
-                    {/* <div className="mb-4">
+                    <div className="mb-4">
                         <label className="block text-sm font-medium text-gray-700">
                             Roles
                         </label>
-                        <div
-                            className="mt-1 border border-gray-300 rounded-md p-2 max-h-80 w-full overflow-y-scroll flex flex-wrap gap-2"
-                        >
+                        <div className="mt-1 border border-gray-300 rounded-md p-2 max-h-56 w-full overflow-y-scroll flex flex-wrap gap-2">
                             {roles?.map((role) => (
                                 <label
                                     key={role.id}
@@ -161,11 +151,10 @@ const UserModal = ({ isOpen, onClose, mode, user = null, roles, teams, team }) =
                                                 const updatedRoles = isChecked
                                                     ? [...prevState.roles, role.id]
                                                     : prevState.roles.filter((id) => id !== role.id);
-                                            
+
                                                 return { ...prevState, roles: updatedRoles };
                                             });
-                                            }
-                                        }
+                                        }}
                                         className="form-checkbox h-4 w-4 text-blue-600"
                                         disabled={mode === "view"}
                                     />
@@ -173,19 +162,10 @@ const UserModal = ({ isOpen, onClose, mode, user = null, roles, teams, team }) =
                                 </label>
                             ))}
                         </div>
-                    </div> */}
-                    {/* <div className="mb-4">
-                        <label className="block text-sm font-medium text-gray-700">
-                                                <CustomSelect
-                        label="roles"
-                        name="roles"
-                        value={data.roles}
-                        mode={mode}
-                        onChange={(e) => handleChange(e.target.name, e.target.value)}
-                        error={errors.roles}
-                        options={roles}
-                    />
-                        </label>
+                    </div>
+
+
+                    {/* 
                         <div
                             className="mt-1 border border-gray-300 rounded-md p-2 max-h-80 w-full overflow-y-scroll flex flex-wrap gap-2"
                         >

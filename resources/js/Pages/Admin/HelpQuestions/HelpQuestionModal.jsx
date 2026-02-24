@@ -7,8 +7,9 @@ import CustomTextarea from "@/Components/CustomTextarea";
 import parse from "html-react-parser";
 import CustomSelect from "@/Components/CustomSelect";
 import InputRichText from '@/Components/InputRichText';
+import CustomCheckbox from "@/Components/CustomCheckbox";
 
-const HelpQuestionModal = ({ isOpen, onClose, mode, helpQuestion = null, typeHelpQuestions, auth, team_id }) => {
+const HelpQuestionModal = ({ isOpen, onClose, mode, helpQuestion = null, typeHelpQuestions, auth, team_id, teams = [] }) => {
     // console.log("mode", mode);
      console.log("helpQuestion", helpQuestion);
      const [content, setContent] = useState('');
@@ -21,37 +22,57 @@ const [file, setFile] = useState(null);
         type_help_question_id: "",
         answer: "",
         team_id: team_id,
+        is_internal: true,
         created_by_id: auth?.user?.id,
         updated_by_id: auth?.user?.id,
     });
+    const isAdmin = auth?.user?.is_admin || auth?.user?.roles?.some((role) => role?.id === 1);
+    const teamOptions = [
+        { id: "", name: "Generic (All Teams)" },
+        ...(teams || []),
+    ];
 
     useEffect(() => {
         if (helpQuestion && mode !== "create") {
             setData({
                 question: helpQuestion?.question || "",
                 type_help_question_id: helpQuestion?.type_help_question_id || "",
-                answer: helpQuestion?.answer || "",
-                team_id: team_id,
+                answer: helpQuestion?.answer?.answer || "",
+                team_id: helpQuestion?.team_id ?? "",
+                is_internal: helpQuestion?.is_internal ?? true,
                 created_by_id: helpQuestion.created_by_id || auth?.user?.id,
                 updated_by_id: helpQuestion.updated_by_id || auth?.user?.id,
             });
         } else if (mode === "create") {
             reset(); // Clear form for create mode
+            setData({
+                question: "",
+                type_help_question_id: "",
+                answer: "",
+                team_id: team_id ?? "",
+                is_internal: true,
+                created_by_id: auth?.user?.id,
+                updated_by_id: auth?.user?.id,
+            });
         }
     }, [mode,helpQuestion,team_id]);
 
     const handleChange = (target, value) => {
+        if (target === 'team_id') {
+            setData(target, value === "" ? null : value);
+            return;
+        }
         setData(target, value);
     };
 
     const handleSubmit = (e) => {
         e.preventDefault();
         if (mode === "create") {
-            post(route("helpQuestions.store"), {
+            post(route("admin.help-questions.store"), {
                 onSuccess: () => onClose(),
             });
         } else if (mode === "edit") {
-            put(route("helpQuestions.update", helpQuestion.id), {
+            put(route("admin.help-questions.update", helpQuestion.id), {
                 onSuccess: () => onClose(),
             });
         }
@@ -88,6 +109,30 @@ const [file, setFile] = useState(null);
                             error={errors.type_help_question_id}
                             options={typeHelpQuestions}
                             />
+                        </div>
+                        <div className="flex flex-row w-full items-center gap-2 justify-between mb-4">
+                        <CustomCheckbox
+                            label="Internal Only"
+                            name="is_internal"
+                            checked={!!data.is_internal}
+                            onChange={handleChange}
+                            errors={errors}
+                            disabled={mode === "view"}
+                        />
+                        {isAdmin && (
+                            <div className="w-full">
+                                <CustomSelect
+                                    label="Team"
+                                    name="team_id"
+                                    value={data.team_id ?? ""}
+                                    onChange={(e) => handleChange(e.target.name, e.target.value)}
+                                    error={errors.team_id}
+                                    options={teamOptions}
+                                    showOption={false}
+                                    mode={mode}
+                                />
+                            </div>
+                        )}
                         </div>
                         <div className="flex flex-row w-full items-center gap-2 justify-between mb-4">
                         <InputRichText
