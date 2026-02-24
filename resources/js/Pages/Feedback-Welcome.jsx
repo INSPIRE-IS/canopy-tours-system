@@ -73,6 +73,7 @@ export default function BookingLookup({ bookings }) {
       router.get(route('front.feedback-questionnaire.signed',
         {
           booking_item_id: booking.booking_item_id,
+          reference: booking.reference,
           customer_id: customer_id
         }));
 

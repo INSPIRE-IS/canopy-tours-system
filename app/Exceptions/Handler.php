@@ -36,10 +36,11 @@ class Handler extends ExceptionHandler
     {
         //dd($exception);
         if ($exception instanceof InvalidSignatureException) {
-            if ($request->is('front/booking-questionnaire/checkin')) {
+            if ($request->is('front/booking-questionnaire/checkin') || $request->is('front/feedback-questionnaire/feedback')) {
                 $bookingItemId = $request->query('booking_item_id');
                 $activityDate = null;
                 $activityOver = false;
+                $isFeedback = $request->is('front/feedback-questionnaire/feedback');
 
                 if ($bookingItemId) {
                     $bookingItem = BookingItem::with('booking_inventory')->find($bookingItemId);
@@ -49,9 +50,10 @@ class Handler extends ExceptionHandler
                     }
                 }
 
+                $linkLabel = $isFeedback ? 'feedback' : 'check-in';
                 $message = $activityOver
-                    ? 'This check-in link has expired and the activity has already passed.'
-                    : 'This check-in link has expired. Please contact your booking agent for a new link.';
+                    ? "This {$linkLabel} link has expired and the activity has already passed."
+                    : "This {$linkLabel} link has expired. Please contact your booking agent for a new link.";
 
                 return Inertia::render('Front/BookingQuestionnaire/Expired', [
                     'message' => $message,

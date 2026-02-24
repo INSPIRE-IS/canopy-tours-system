@@ -26,6 +26,7 @@ use App\Models\Inventory;
 use App\Models\InventoryOverride;
 use App\Models\InventoryTimeSlot;
 use App\Models\Promotion;
+use App\Models\QuestionAnswer;
 use App\Models\Season;
 use App\Models\Service;
 use App\Models\TypeAffiliate;
@@ -51,14 +52,19 @@ use App\Models\BoardingPassTemplate;
 use App\Models\BookingDiscount;
 use App\Models\BookingPricing;
 use App\Models\BookingVoucher;
+use App\Models\Continent;
 use App\Models\File;
 use App\Models\GiftVoucher;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use App\Models\InvoiceTemplate;
+use App\Models\Questionnaire;
+use App\Models\State;
 use App\Models\Team;
 use App\Models\TypeAlert;
 use App\Models\TypeBooking;
+use App\Models\TypeConfirmation;
+use App\Models\TypeGroup;
 use App\Models\LookupItem;
 use App\Services\RendererService;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -182,8 +188,33 @@ class BookingsController extends Controller
                     'contact_number' => $leadPhone,
                     'type' => 'adult',
                     'is_lead' => true,
+                    'is_indemnity' => false,
                     'files' => $booking_item->booking?->files,
                 ];
+
+                $customersList = [$leadRow];
+                $indemnityManifest = $booking_item->customer_manifests
+                    ?->firstWhere('is_indemnity', 1);
+                if ($indemnityManifest?->customer_id) {
+                    $indemnityCustomer = $booking_item->customers
+                        ->firstWhere('id', $indemnityManifest->customer_id);
+                    if ($indemnityCustomer) {
+                        if ($leadCustomer?->id && $leadCustomer->id === $indemnityCustomer->id) {
+                            $customersList[0]['is_indemnity'] = true;
+                        } else {
+                            $customersList[] = [
+                                'customer_id' => $indemnityCustomer->id,
+                                'full_name' => $indemnityCustomer->full_name,
+                                'email_address' => $indemnityCustomer->email_address,
+                                'contact_number' => $indemnityCustomer->contact_number,
+                                'type' => 'adult',
+                                'is_lead' => false,
+                                'is_indemnity' => true,
+                                'files' => $booking_item->booking?->files,
+                            ];
+                        }
+                    }
+                }
 
                 $bookingNotes = BookingNote::with('creator:id,name')
                     ->where('booking_id', $booking_item->booking_id)
@@ -217,7 +248,7 @@ class BookingsController extends Controller
                     'price' => round($price ?? 0, 2),
                     'paid' =>  round($paid ?? 0, 2),
                     'due' =>  round($due ?? 0, 2),
-                    'customers' => [$leadRow],
+                    'customers' => $customersList,
                     'dueStatus' => $due > 0 ? true : false,
                     'due_date' => $booking_item->booking->due_date,
                     'booking_date' => $booking_item->booking_inventory->date,
@@ -2353,6 +2384,155 @@ class BookingsController extends Controller
             });
 
         $manifest = $bookingItem->paxByBookingItem($bookingItem->id);
+        if ($bookingItem) {
+            $confirmOptions = TypeConfirmation::whereIn('id', [1, 2])
+                ->select('id', 'name')
+                ->get()
+                ->map(fn($row) => ['id' => $row->id, 'name' => $row->name])
+                ->values()
+                ->all();
+
+            $monthNames = [
+                'January',
+                'February',
+                'March',
+                'April',
+                'May',
+                'June',
+                'July',
+                'August',
+                'September',
+                'October',
+                'November',
+                'December',
+            ];
+
+            $optionMaps = [
+                'type_group_id' => TypeGroup::select('id', 'name')
+                    ->get()
+                    ->map(fn($row) => ['id' => $row->id, 'name' => $row->name])
+                    ->values()
+                    ->all(),
+                'referral_id' => TypeReferral::select('id', 'name')
+                    ->get()
+                    ->map(fn($row) => ['id' => $row->id, 'name' => $row->name])
+                    ->values()
+                    ->all(),
+                'continent_id' => Continent::select('id', 'name')
+                    ->get()
+                    ->map(fn($row) => ['id' => $row->id, 'name' => $row->name])
+                    ->values()
+                    ->all(),
+                'country_id' => Country::select('id', 'name')
+                    ->get()
+                    ->map(fn($row) => ['id' => $row->id, 'name' => $row->name])
+                    ->values()
+                    ->all(),
+                'province_id' => State::select('id', 'name')
+                    ->get()
+                    ->map(fn($row) => ['id' => $row->id, 'name' => $row->name])
+                    ->values()
+                    ->all(),
+                'age_id' => Questionnaire::AGES,
+                'gender' => Questionnaire::GENDERS,
+                'medical_id' => $confirmOptions,
+                'is_fit' => $confirmOptions,
+                'is_agree' => $confirmOptions,
+                'marketing_opt_in' => $confirmOptions,
+                'pregnant' => $confirmOptions,
+                'birthday_month' => collect($monthNames)
+                    ->map(fn($name, $index) => ['id' => $index + 1, 'name' => $name])
+                    ->values()
+                    ->all(),
+                'birthday_day' => collect(range(1, 31))
+                    ->map(fn($day) => ['id' => $day, 'name' => (string) $day])
+                    ->values()
+                    ->all(),
+                'parent_id' => $bookingItem->customers
+                    ->map(fn($customer) => ['id' => $customer->id, 'name' => $customer->full_name])
+                    ->values()
+                    ->all(),
+            ];
+
+            $resolveAnswer = function ($value, $slug) use ($optionMaps) {
+                if ($value === null || $value === '') {
+                    return null;
+                }
+
+                $options = $optionMaps[$slug] ?? null;
+                if (!$options || !is_array($options) || count($options) === 0) {
+                    return $value;
+                }
+
+                $decodedValue = $value;
+                if (is_string($value)) {
+                    $trimmed = trim($value);
+                    if (
+                        ($trimmed !== '') &&
+                        ((str_starts_with($trimmed, '[') && str_ends_with($trimmed, ']')) ||
+                            (str_starts_with($trimmed, '{') && str_ends_with($trimmed, '}')))
+                    ) {
+                        $decoded = json_decode($trimmed, true);
+                        if (json_last_error() === JSON_ERROR_NONE) {
+                            $decodedValue = $decoded;
+                        }
+                    }
+                }
+
+                $mapOption = function ($raw) use ($options) {
+                    foreach ($options as $option) {
+                        $optionId = $option['id'] ?? null;
+                        if ($optionId !== null && (string) $optionId === (string) $raw) {
+                            return $option['name'] ?? $raw;
+                        }
+                    }
+                    return $raw;
+                };
+
+                if (is_array($decodedValue)) {
+                    return collect($decodedValue)
+                        ->map(fn($val) => $mapOption($val))
+                        ->implode(', ');
+                }
+
+                return $mapOption($decodedValue);
+            };
+
+            $answersByCustomer = QuestionAnswer::with([
+                'question.question_sites' => function ($query) use ($bookingItem) {
+                    $query->where('service_id', $bookingItem->service_id);
+                },
+            ])
+                ->where('booking_item_id', $bookingItem->id)
+                ->get()
+                ->groupBy('customer_id');
+
+            $bookingItem->customer_manifests?->each(function ($customerManifest) use ($answersByCustomer, $resolveAnswer, $optionMaps) {
+                $answers = $answersByCustomer->get($customerManifest->customer_id, collect())
+                    ->map(function ($answer) use ($resolveAnswer, $optionMaps) {
+                        $site = $answer->question?->question_sites?->first();
+                        $slug = $answer->question?->slug;
+                        $mappedOptions = $slug ? ($optionMaps[$slug] ?? null) : null;
+                        return [
+                            'id' => $answer->id,
+                            'answer' => $answer->answer,
+                            'resolved_answer' => $slug ? $resolveAnswer($answer->answer, $slug) : $answer->answer,
+                            'question' => [
+                                'id' => $answer->question?->id,
+                                'name' => $answer->question?->name,
+                                'slug' => $answer->question?->slug,
+                                'type' => $answer->question?->type,
+                                'options' => $mappedOptions ?? $answer->question?->options,
+                            ],
+                            'sort_order' => $site?->sort_order ?? 999,
+                        ];
+                    })
+                    ->sortBy('sort_order')
+                    ->values();
+
+                $customerManifest->setAttribute('question_answers', $answers);
+            });
+        }
         //dd($manifest);
         $staff = User::with('roles:id,name')
             ->whereHas('roles', function ($query) {

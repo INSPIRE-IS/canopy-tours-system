@@ -14,6 +14,7 @@ import ManifestModal from './ManifestsModal';
 import { useToast } from '@/Context/ToastContext';
 import ManifestsModal from './ManifestsModal';
 import CheckInOptionsModal from '@/Components/CheckInOptionsModal';
+import CheckInAnswersModal from '@/Components/CheckInAnswersModal';
 // import { useRoute } from 'ziggy-js';
 // import { Ziggy } from '@/ziggy'; // the generated file
 
@@ -39,6 +40,7 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
     const [modalMode, setModalMode] = useState("create");
     const [total, setTotal] = useState(null);
     const [checkInTarget, setCheckInTarget] = useState(null);
+    const [checkInAnswersTarget, setCheckInAnswersTarget] = useState(null);
     const [noteInput, setNoteInput] = useState('');
     const [noteAuthorFilter, setNoteAuthorFilter] = useState('all');
     const [noteLimit, setNoteLimit] = useState(5);
@@ -138,6 +140,25 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
         setIsManifestsModalOpen(true);
     };
 
+    const handleManifestCheckIn = (manifestRow) => {
+        const answers = manifestRow?.question_answers || [];
+        if (answers.length) {
+            setCheckInAnswersTarget({
+                manifest: manifestRow,
+                answers,
+            });
+            return;
+        }
+
+        setCheckInTarget({
+            booking_item_id: bookingItem?.id,
+            reference: booking?.reference,
+            lead_name: data.lead_person,
+            lead_phone: data.lead_mobile,
+            lead_email: data.lead_email,
+        });
+    };
+
     const handleIndividualCheckin = async (e, index) => {
         e.preventDefault();
         data.customer_manifests[index].index = 1;
@@ -226,8 +247,15 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                             width="w-[158.8px]"
                             height="h-[31px]"
                             className="mt-4"
-                        // onClick={() => router.get(route('admin.checkins.index', { 'booking_id': booking?.id, 'customer_id': booking?.customer_id }))}
-                        // onClick={() => router.get(route('booking-questionnaire.index'))}
+                            onClick={() =>
+                                setCheckInTarget({
+                                    booking_item_id: bookingItem?.id,
+                                    reference: booking?.reference,
+                                    lead_name: data.lead_person,
+                                    lead_phone: data.lead_mobile,
+                                    lead_email: data.lead_email,
+                                })
+                            }
                         />
                         {/* <WhiteButton
                             title="Send Invoice"
@@ -423,8 +451,8 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                                             <div className="flex flex-col w-full  gap-2 ">
                                                 {(bookingItem?.customer_manifests?.length ? bookingItem.customer_manifests : (manifest || [])).map((manifest, i) => {
                                                     const manifestCustomer = manifest?.customer || {};
-                                                    const isIndemnity = manifest?.is_indemnity;
-                                                    const isCheckedIn = manifestCustomer?.booking_questionnaire != null;
+                                                    const hasIndemnity = Boolean(manifest?.is_indemnity);
+                                                    const hasCheckIn = hasIndemnity || (manifest?.question_answers?.length > 0);
                                                     const manifest_id = (i + 1) + '(' + (i + 1) + ')';
                                                     console.log('manifest', manifest);
                                                     return (
@@ -451,22 +479,14 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                                                                 </div>
                                                                 <div className='basis-[20%] items-center pt-2 ' >
                                                                     <WhiteButton
-                                                                        title="Check-In"
+                                                                        title={hasCheckIn ? "View Check-In" : "Check-In"}
                                                                         icon={true}
                                                                         iconName={icons.check_in}
                                                                         textColor='text-[#4D81E7]'
                                                                         width="w-[132.8px]"
                                                                         height="h-[31px]"
                                                                         className="mt-4"
-                                                                        onClick={() =>
-                                                                            setCheckInTarget({
-                                                                                booking_item_id: bookingItem?.id,
-                                                                                reference: booking?.reference,
-                                                                                lead_name: data.lead_person,
-                                                                                lead_phone: data.lead_mobile,
-                                                                                lead_email: data.lead_email,
-                                                                            })
-                                                                        }
+                                                                        onClick={() => handleManifestCheckIn(manifest)}
                                                                     />
                                                                 </div>
                                                             </div>
@@ -499,7 +519,7 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                                                                 <div className='basis-[20%] pt-1 space-y-[15px]' >
                                                                     <div className="flex gap-4">
                                                                         <span className="text-booking-card-manifest-lbl w-[69px]">Indemnity</span>
-                                                                        {manifestCustomer?.booking_questionnaire != null ? (
+                                                                        {hasIndemnity ? (
                                                                             <span className="text-booking-card-manifest-yes px-[9px] bg-[#00FF044D] rounded-[6px] border border-gray-300">Yes</span>
                                                                         ) : (
                                                                             <span className="text-booking-card-manifest-no px-[9px] bg-[#FCE4DF4D] rounded-[6px] border border-gray-300">No</span>
@@ -507,7 +527,7 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                                                                     </div>
                                                                     <div className="flex gap-4">
                                                                         <span className="text-booking-card-manifest-lbl w-[69px]">Checked-in</span>
-                                                                        {manifestCustomer?.id ? (
+                                                                        {hasCheckIn ? (
                                                                             <span className="text-booking-card-manifest-yes px-[9px] bg-[#00FF044D] rounded-[6px] border border-gray-300">Yes</span>
                                                                         ) : (
                                                                             <span className="text-booking-card-manifest-no px-[9px] bg-[#FCE4DF4D] rounded-[6px] border border-gray-300">No</span>
@@ -884,53 +904,53 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                                 {/* Email Log */}
                                 <div className="overflow-hidden shadow-medium sm:rounded-lg">
                                     <div className="flex flex-col w-full">  {/* Remove items-center + justify-between here */}
-                                <div className="flex items-center justify-between w-full px-6 py-4 border-b border-gray-300">
-                                    <span className="text-booking-card-heading ">Email Log</span>
-                                    <div className="flex items-center gap-2">
-                                        <CustomSelect
-                                            name="email_type_filter"
-                                            width="w-[200px]"
-                                            value={emailTypeFilter}
-                                            showOption={false}
-                                            onChange={(e) => { setEmailTypeFilter(e.target.value); }}
-                                            error={errors.email_type_filter}
-                                            options={emailTypeOptions}
-                                        />
-                                    </div>
-                                </div>
-                                <div className="flex flex-col w-full px-6 py-6 gap-2">
-                                    {filteredBookingEmails.length === 0 ? (
-                                        <div className="bg-gray-50 border border-gray-200 rounded-md p-4 text-gray-800 whitespace-pre-wrap">
-                                            No emails found.
+                                        <div className="flex items-center justify-between w-full px-6 py-4 border-b border-gray-300">
+                                            <span className="text-booking-card-heading ">Email Log</span>
+                                            <div className="flex items-center gap-2">
+                                                <CustomSelect
+                                                    name="email_type_filter"
+                                                    width="w-[200px]"
+                                                    value={emailTypeFilter}
+                                                    showOption={false}
+                                                    onChange={(e) => { setEmailTypeFilter(e.target.value); }}
+                                                    error={errors.email_type_filter}
+                                                    options={emailTypeOptions}
+                                                />
+                                            </div>
                                         </div>
-                                    ) : (
-                                        <div className="space-y-3">
-                                            {filteredBookingEmails.map((email) => (
-                                                <div key={email.id} className="bg-gray-50 border border-gray-200 rounded-md p-4 text-gray-800">
-                                                    <div className="text-xs text-gray-500 mb-2">
-                                                        {email.sent_at || 'Unknown date'}
-                                                    </div>
-                                                    <div className="text-sm">
-                                                        <div><span className="font-semibold">To:</span> {email.receiver || '-'}</div>
-                                                        <div><span className="font-semibold">Subject:</span> {email.subject || '-'}</div>
-                                                    </div>
-                                                    {email.attachment_path && (
-                                                        <div className="mt-2">
-                                                            <a
-                                                                href={email.attachment_path}
-                                                                target="_blank"
-                                                                rel="noopener noreferrer"
-                                                                className="text-blue-600 hover:underline text-sm"
-                                                            >
-                                                                View attachment
-                                                            </a>
-                                                        </div>
-                                                    )}
+                                        <div className="flex flex-col w-full px-6 py-6 gap-2">
+                                            {filteredBookingEmails.length === 0 ? (
+                                                <div className="bg-gray-50 border border-gray-200 rounded-md p-4 text-gray-800 whitespace-pre-wrap">
+                                                    No emails found.
                                                 </div>
-                                            ))}
+                                            ) : (
+                                                <div className="space-y-3">
+                                                    {filteredBookingEmails.map((email) => (
+                                                        <div key={email.id} className="bg-gray-50 border border-gray-200 rounded-md p-4 text-gray-800">
+                                                            <div className="text-xs text-gray-500 mb-2">
+                                                                {email.sent_at || 'Unknown date'}
+                                                            </div>
+                                                            <div className="text-sm">
+                                                                <div><span className="font-semibold">To:</span> {email.receiver || '-'}</div>
+                                                                <div><span className="font-semibold">Subject:</span> {email.subject || '-'}</div>
+                                                            </div>
+                                                            {email.attachment_path && (
+                                                                <div className="mt-2">
+                                                                    <a
+                                                                        href={email.attachment_path}
+                                                                        target="_blank"
+                                                                        rel="noopener noreferrer"
+                                                                        className="text-blue-600 hover:underline text-sm"
+                                                                    >
+                                                                        View attachment
+                                                                    </a>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
                                         </div>
-                                    )}
-                                </div>
                                     </div>
                                 </div>
                                 {/* Audit Logs */}
@@ -984,6 +1004,13 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                     onClose={() => setCheckInTarget(null)}
                     booking={checkInTarget}
                     contextLabel="booking"
+                />
+
+                <CheckInAnswersModal
+                    isOpen={!!checkInAnswersTarget}
+                    onClose={() => setCheckInAnswersTarget(null)}
+                    manifest={checkInAnswersTarget?.manifest}
+                    answers={checkInAnswersTarget?.answers}
                 />
 
             </div>

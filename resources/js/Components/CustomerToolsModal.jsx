@@ -35,6 +35,7 @@ export default function CustomerToolsModal({ index, booking, customer, position,
 
                 <div className="flex flex-col gap-2">
                     <button type='button' onClick={() => CustomerToolClick('check_in', index, booking, customer)} className="btn-tool">{icons.check_in} Check-In</button>
+                    <button type='button' onClick={() => CustomerToolClick('feedback', index, booking, customer)} className="btn-tool">{icons.message} Feedback</button>
                     <button type='button' onClick={() => CustomerToolClick('customer_invoice', index, booking, customer)} className="btn-tool">{icons.customer_invoice} Customer Invoice</button>
                     <button type='button' onClick={() => CustomerToolClick('resend_invoice', index, booking, customer)} className="btn-tool">{icons.resend_invoice} Resend Invoice</button>
                     {/* <button type='button' onClick={() => CustomerToolClick('manifest', index, booking, customer)} className="btn-tool">{icons.manifest} Manifest</button> */}

@@ -123,7 +123,8 @@ class FeedbackQuestionnaireController extends Controller
     {
         $validated = $request->validate([
             'booking_item_id' => 'required|integer',
-            'customer_id' => 'required|integer',
+            'reference' => 'required|string',
+            'customer_id' => 'nullable|integer',
         ]);
 
         if (!$validated) {
@@ -133,13 +134,18 @@ class FeedbackQuestionnaireController extends Controller
             ], 500);
         }
 
+        $params = [
+            'booking_item_id' => $request->booking_item_id,
+            'reference' => $request->reference,
+        ];
+        if ($request->filled('customer_id')) {
+            $params['customer_id'] = $request->customer_id;
+        }
+
         $url = URL::temporarySignedRoute(
             'front.feedback-questionnaire.feedback',
             now()->addMinutes(80),
-            [
-                'booking_item_id' => $request->booking_item_id,
-                'reference' => $request->reference,
-            ]
+            $params
         );
         return Inertia::location($url);
     }
@@ -365,7 +371,7 @@ class FeedbackQuestionnaireController extends Controller
             ]);
         } catch (InvalidSignatureException $e) {
             return Inertia::render('Front/BookingQuestionnaire/Expired', [
-                'message' => 'Your check-in link has expired. Please restart the process.'
+                'message' => 'Your feedback link has expired. Please restart the process.'
             ]);
             return redirect()->route('feedback-questionnaire.index');
         }

@@ -30,6 +30,7 @@ use App\Models\State;
 use App\Models\TypeConfirmation;
 use App\Models\TypeGroup;
 use App\Models\TypeReferral;
+use App\Models\TypeFile;
 use App\Models\User;
 use App\Services\QuestionnaireSeeder;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -667,12 +668,16 @@ class BookingQuestionnaireController extends Controller
                 //         'pully_number' => $validated['pully_number'] ?? null,
                 //     ]
                 // );
-                $customerManifest = CustomerManifest::where('customer_id', $validated['customer_id'])
-                    ->where('booking_item_id', $validated['booking_item_id'])
-                    ->where('team_id', $validated['team_id'])
-                    ->update([
+                CustomerManifest::updateOrCreate(
+                    [
+                        'customer_id' => $validated['customer_id'],
+                        'booking_item_id' => $validated['booking_item_id'],
+                    ],
+                    [
                         'is_indemnity' => 1,
-                    ]);
+                        'team_id' => $bookingItem?->booking?->team_id ?? $bookingItem?->team_id ?? $validated['team_id'] ?? null,
+                    ]
+                );
 
 
                 // Optionally save the signature as a file
@@ -686,13 +691,22 @@ class BookingQuestionnaireController extends Controller
                     $filename = 'signature_' . time() . '.png';
                     \Storage::disk('public')->put("signatures/{$filename}", base64_decode($image));
 
+                    $signatureTypeFileId = TypeFile::where('name', 'signature')->value('id');
+                    if (!$signatureTypeFileId) {
+                        Log::warning('Signature type_file_id missing; saving file without type reference.', [
+                            'booking_item_id' => $validated['booking_item_id'] ?? null,
+                            'customer_id' => $validated['customer_id'] ?? null,
+                            'team_id' => $bookingItem->team_id ?? null,
+                        ]);
+                    }
+
                     File::create([
                         'team_id' => $bookingItem->team_id,
                         'table_name' => 'customers',
                         'table_row_id' => $validated['customer_id'],
                         'file_name' => $filename,
                         'file_type' => 'image/png',
-                        'type_file_id' => 7, // signature
+                        'type_file_id' => $signatureTypeFileId,
                         'path' => "signatures/{$filename}",
                     ]);
 
@@ -867,15 +881,36 @@ class BookingQuestionnaireController extends Controller
             });
 
             $bookingItemId = collect($manifests['customer_manifests'] ?? [])->first()['booking_item_id'] ?? null;
-            $bookingDate = null;
-            if ($bookingItemId) {
-                $bookingItem = BookingItem::with('booking_inventory')->find($bookingItemId);
-                $bookingDate = $bookingItem?->booking_inventory?->date;
+            $bookingItem = $bookingItemId
+                ? BookingItem::with(['booking', 'booking_inventory', 'customer_manifests'])->find($bookingItemId)
+                : null;
+
+            if ($bookingItem) {
+                $hasRemaining = $bookingItem->customer_manifests()
+                    ->where(function ($query) {
+                        $query->whereNull('is_indemnity')
+                            ->orWhere('is_indemnity', 0);
+                    })
+                    ->exists();
+
+                $params = [
+                    'booking_item_id' => $bookingItem->id,
+                    'reference' => $bookingItem->booking?->reference,
+                ];
+                if (!$hasRemaining) {
+                    $params['complete'] = 1;
+                }
+
+                $url = URL::temporarySignedRoute(
+                    'front.booking-questionnaire.checkin',
+                    now()->addMinutes(80),
+                    $params
+                );
+
+                return Inertia::location($url);
             }
 
-            return redirect()->route('booking-questionnaire.index', array_filter([
-                'booking_date' => $bookingDate,
-            ]));
+            return redirect()->route('booking-questionnaire.index');
         } catch (\Throwable $e) {
             // Log the full error for debugging
             Log::error('Booking Questionnaire failed and rolled back', [

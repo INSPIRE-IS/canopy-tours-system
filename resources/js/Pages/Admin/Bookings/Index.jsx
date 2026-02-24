@@ -3,6 +3,7 @@ import CustomerToolsModal from '@/Components/CustomerToolsModal';
 import GuestEmailModal from '@/Components/GuestEmailModal';
 import BookingNotesModal from '@/Components/BookingNotesModal';
 import CheckInOptionsModal from '@/Components/CheckInOptionsModal';
+import FeedbackOptionsModal from '@/Components/FeedbackOptionsModal';
 import Header from '@/Components/Header';
 import { icons } from '@/icons';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
@@ -68,6 +69,7 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
     const [slotRows, setSlotRows] = useState([]);
     const [viewDocsIndex, setViewDocsIndex] = useState(null);
     const [checkInTarget, setCheckInTarget] = useState(null);
+    const [feedbackTarget, setFeedbackTarget] = useState(null);
     const servicesRef = useRef();
     useEffect(() => {
         if (flash?.success) {
@@ -169,6 +171,28 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
         });
     };
 
+    const openFeedbackOptions = (booking) => {
+        if (!booking?.booking_item_id || !booking?.reference) {
+            showToast('Booking item not found for feedback.', 'error');
+            return;
+        }
+
+        const indemnityCustomer = booking?.customers?.find((cust) => cust?.is_indemnity);
+        if (!indemnityCustomer) {
+            showToast('Feedback links are available after check-in is completed.', 'error');
+            return;
+        }
+
+        setFeedbackTarget({
+            booking_item_id: booking.booking_item_id,
+            reference: booking.reference,
+            customer_id: indemnityCustomer.customer_id,
+            lead_name: booking.lead_name,
+            lead_phone: booking.lead_phone,
+            lead_email: booking.lead_email,
+        });
+    };
+
 
     function BookingToolClick(tool, booking) {
 
@@ -195,6 +219,9 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
     const CustomerToolClick = (tool, booking, customer) => {
         if (tool === 'check_in') {
             openCheckInOptions(booking);
+        }
+        if (tool === 'feedback') {
+            openFeedbackOptions(booking);
         }
         if (tool === 'resend_invoice') {
             router.get(route('admin.invoices.resend-invoice', { booking_id: booking.id }));
@@ -989,6 +1016,13 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                     isOpen={!!checkInTarget}
                     onClose={() => setCheckInTarget(null)}
                     booking={checkInTarget}
+                    contextLabel="booking"
+                />
+
+                <FeedbackOptionsModal
+                    isOpen={!!feedbackTarget}
+                    onClose={() => setFeedbackTarget(null)}
+                    booking={feedbackTarget}
                     contextLabel="booking"
                 />
 
