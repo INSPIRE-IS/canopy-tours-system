@@ -653,15 +653,15 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
           {/* submit */}
           {currentSlug === "submit" && (
             <div className="flex flex-col w-[90%] h-full mb-[26px] ">
-              <div className="flex flex-col w-full h-[80%] overflow-x-auto no-scrollbar gap-2 " >
+              <div className="flex flex-col w-full h-[80%] overflow-x-auto no-scrollbar gap-2 mb-2" >
                 <span className="text-welcome-card-title text-center w-full mt-[42px] px-6 sm:px-[39px] ">
-                  Your Indemnity is ready to submit
+                  Your Feedback is ready to submit
                 </span>
-                <span className=" text-center min-w-[90%] mb-[26px]">
+                <span className=" text-center[90%] mb-[26px]">
                   <span className='block' ><span className='text-booking-heading capitalize'>booking reference</span> {booking?.reference}</span>
                   <span className='block'><span className='text-booking-subheading capitalize'>Service</span> {bookingItem?.service?.name}</span>
                 </span>
-                <div className="flex items-center justify-center h-[90%]  mb-2" >
+                <div className="flex items-center justify-center h-[90%]" >
                   <div className="grid grid-cols-1 sm:grid-cols-1 gap-4 h-full pl-7 sm:px-[12px] ">
                     <span className='flex flex-col items-start gap-2'><span className='text-booking-subheading capitalize'>full name</span> {data.feedback[selected]?.full_name}</span>
                     <span className='flex flex-col items-start gap-2'><span className='text-booking-subheading capitalize'>lead guide</span> {leadGuides?.find(g => g.id == data.feedback[selected]?.guide_id)?.name}</span>
