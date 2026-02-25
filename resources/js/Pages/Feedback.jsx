@@ -400,7 +400,7 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
                       type='button'
                       onClick={() => nextStep(selected)}
                       disabled={selected == null}
-                      className={`flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-green-gradient-overlay border-[#31B700] text-white shadow-inset-white ${selected == null ? "cursor-not-allowed" : "cursor-pointer"} `}>
+                      className={`flex items-center justify-center w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-green-gradient-overlay border-[#31B700] text-white shadow-inset-white ${selected == null ? "cursor-not-allowed" : "cursor-pointer"} `}>
                       <span className="text-btn-outline-gray">Next</span>
                     </button>
                   </div>
@@ -410,30 +410,32 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
           )}
           {/* select lead guide */}
           {currentSlug === "guide_id" && (
-            <div className="flex flex-col h-full mb-[26px]">
+            <div className="flex flex-col w-[90%] h-full mb-[26px]">
               <div className="flex flex-col w-full h-[90%] gap-2" >
-                <span className="text-welcome-card-title text-center min-w-[90%] sm:w-full mt-[42px] mb-[26px] px-6 sm:px-[39px]">
+                <span className="text-welcome-card-title text-center w-full mt-[42px] mb-[26px] px-6 sm:px-[39px]">
                   Select your Lead Guide
                 </span>
-                {leadGuides?.map((guide, i) => (
-                  <CustomRadio
-                    key={guide.id}
-                    label={guide.name}
-                    name="guide_id"
-                    value={guide.id}
-                    checked={data.feedback[selected].guide_id == guide.id.toString()}
-                    onChange={handleIndemnityChange}
-                    errors={errors}
-                  />
-                ))}
+                <div className="h-auto w-full pl-7 sm:pl-0 overflow-x-auto">
+                  {leadGuides?.map((guide, i) => (
+                    <CustomRadio
+                      key={guide.id}
+                      label={guide.name}
+                      name="guide_id"
+                      value={guide.id}
+                      checked={data.feedback[selected].guide_id == guide.id.toString()}
+                      onChange={handleIndemnityChange}
+                      errors={errors}
+                    />
+                  ))}
+                </div>
               </div>
               <div className="flex items-center justify-center gap-6">
                 <div className="flex items-center justify-center gap-6">
-                  <button type='button' onClick={() => prevStep(selected)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border border-primary-14 text-primary-14 cursor-pointer">
+                  <button type='button' onClick={() => prevStep(selected)} className="flex items-center justify-center w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border border-primary-14 text-primary-14 cursor-pointer">
                     <span className="text-btn-outline-gray">Prev</span>
 
                   </button>
-                  <button type='button' onClick={() => nextStep(selected)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-green-gradient-overlay border-[#31B700] text-white shadow-inset-white cursor-pointer">
+                  <button type='button' onClick={() => nextStep(selected)} className="flex items-center justify-center w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-green-gradient-overlay border-[#31B700] text-white shadow-inset-white cursor-pointer">
                     <span className="text-btn-outline-gray">Next</span>
                   </button>
                 </div>
@@ -442,12 +444,12 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
           )}
           {/* received upon arrival */}
           {currentSlug === "reception_id" && (
-            <div className="flex flex-col w-[70%] sm:w-full h-full mb-[26px]">
-              <div className="flex flex-col w-[70%] sm:w-full h-[90%] gap-2">
-                <span className="text-welcome-card-title text-center min-w-[90%] sm:w-full mt-[42px] mb-[26px] px-6 sm:px-[39px]">
+            <div className="flex flex-col w-[90%] h-full mb-[26px]">
+              <div className="flex flex-col w-full h-[90%] gap-2">
+                <span className="text-welcome-card-title text-center w-full mt-[42px] mb-[26px] px-6 sm:px-[39px]">
                   Were you well received upon arrival?
                 </span>
-                <div className="h-auto w-[70%] sm:w-full pl-7 sm:pl-0 overflow-x-auto">
+                <div className="h-auto w-full pl-7 sm:pl-0 overflow-x-auto">
                   {arrivals?.map((reception, i) => (
                     <CustomRadio
                       key={reception.id}
@@ -463,11 +465,11 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
               </div>
               <div className="flex items-center justify-center gap-6">
                 <div className="flex items-center justify-center gap-6">
-                  <button type='button' onClick={() => prevStep(selected)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border border-primary-14 text-primary-14 cursor-pointer">
+                  <button type='button' onClick={() => prevStep(selected)} className="flex items-center justify-center w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border border-primary-14 text-primary-14 cursor-pointer">
                     <span className="text-btn-outline-gray">Prev</span>
 
                   </button>
-                  <button type='button' onClick={() => nextStep(selected)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-green-gradient-overlay border-[#31B700] text-white shadow-inset-white cursor-pointer">
+                  <button type='button' onClick={() => nextStep(selected)} className="flex items-center justify-center w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-green-gradient-overlay border-[#31B700] text-white shadow-inset-white cursor-pointer">
                     <span className="text-btn-outline-gray">Next</span>
                   </button>
                 </div>
@@ -476,13 +478,13 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
           )}
           {/* safety briefing*/}
           {currentSlug === "briefing_id" && (
-            <div className="flex flex-col w-[70%] sm:w-full h-full mb-[26px]">
-              <div className="flex flex-col w-[70%] sm:w-full h-[90%] gap-2">
-                <div className="flex flex-col w-[90%] sm:w-full h-[90%] gap-2 " >
-                  <span className="text-welcome-card-title text-center min-w-[90%] sm:w-full mt-[42px] mb-[26px] px-6 sm:px-[39px]">
+            <div className="flex flex-col w-[90%] h-full mb-[26px]">
+              <div className="flex flex-col w-full h-[90%] gap-2">
+                <div className="flex flex-col w-full h-[90%] gap-2 " >
+                  <span className="text-welcome-card-title text-center w-full mt-[42px] mb-[26px] px-6 sm:px-[39px]">
                     How was the safety briefing?
                   </span>
-                  <div className="h-auto w-[70%] sm:w-full pl-7 sm:pl-0 overflow-x-auto">
+                  <div className="h-auto w-full pl-7 sm:pl-0 overflow-x-auto">
                     {safetyBrifings?.map((briefing, i) => (
                       <CustomRadio
                         key={briefing.id}
@@ -499,11 +501,11 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
               </div>
               <div className="flex items-center justify-center gap-6">
                 <div className="flex items-center justify-center gap-6">
-                  <button type='button' onClick={() => prevStep(selected)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border border-primary-14 text-primary-14 cursor-pointer">
+                  <button type='button' onClick={() => prevStep(selected)} className="flex items-center justify-center w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border border-primary-14 text-primary-14 cursor-pointer">
                     <span className="text-btn-outline-gray">Prev</span>
 
                   </button>
-                  <button type='button' onClick={() => nextStep(selected)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-green-gradient-overlay border-[#31B700] text-white shadow-inset-white cursor-pointer">
+                  <button type='button' onClick={() => nextStep(selected)} className="flex items-center justify-center w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-green-gradient-overlay border-[#31B700] text-white shadow-inset-white cursor-pointer">
                     <span className="text-btn-outline-gray">Next</span>
                   </button>
                 </div>
@@ -513,12 +515,12 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
 
           {/* drive */}
           {currentSlug === "experience_id" && (
-            <div className="flex flex-col w-[70%] sm:w-full h-full mb-[26px]">
-              <div className="flex flex-col w-[70%] sm:w-full h-[90%] gap-2 " >
-                <span className="text-welcome-card-title text-center min-w-[90%] sm:w-full mt-[42px] mb-[26px] px-6 sm:px-[39px]">
+            <div className="flex flex-col w-[90%] h-full mb-[26px]">
+              <div className="flex flex-col w-full h-[90%] gap-2 " >
+                <span className="text-welcome-card-title text-center w-full mt-[42px] mb-[26px] px-6 sm:px-[39px]">
                   So how about that 4x4 drive?
                 </span>
-                <div className="h-auto w-[70%] sm:w-full pl-7 sm:pl-0 overflow-x-auto">
+                <div className="h-auto w-full pl-7 sm:pl-0 overflow-x-auto">
                   {drive?.map((experience, i) => (
                     <CustomRadio
                       key={experience.id}
@@ -534,11 +536,11 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
               </div>
               <div className="flex items-center justify-center gap-6">
                 <div className="flex items-center justify-center gap-6">
-                  <button type='button' onClick={() => prevStep(selected)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border border-primary-14 text-primary-14 cursor-pointer">
+                  <button type='button' onClick={() => prevStep(selected)} className="flex items-center justify-center w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border border-primary-14 text-primary-14 cursor-pointer">
                     <span className="text-btn-outline-gray">Prev</span>
 
                   </button>
-                  <button type='button' onClick={() => nextStep(selected)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-green-gradient-overlay border-[#31B700] text-white shadow-inset-white cursor-pointer">
+                  <button type='button' onClick={() => nextStep(selected)} className="flex items-center justify-center w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-green-gradient-overlay border-[#31B700] text-white shadow-inset-white cursor-pointer">
                     <span className="text-btn-outline-gray">Next</span>
                   </button>
                 </div>
@@ -547,12 +549,12 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
           )}
           {/* guide's knowledge */}
           {currentSlug === "knowledge_id" && (
-            <div className="flex flex-col w-[70%] sm:w-full h-full mb-[26px]">
-              <div className="flex flex-col w-[70%] sm:w-full h-[90%] gap-2" >
-                <span className="text-welcome-card-title text-center min-w-[90%] sm:w-full mt-[42px] mb-[26px] px-6 sm:px-[39px]">
+            <div className="flex flex-col w-[90%] sm:w-full h-full mb-[26px]">
+              <div className="flex flex-col w-full h-[90%] gap-2" >
+                <span className="text-welcome-card-title text-center w-full mt-[42px] mb-[26px] px-6 sm:px-[39px]">
                   How would you rate your guide's knowledge of the area?
                 </span>
-                <div className="h-autow-[70%] sm:w-full pl-7 sm:pl-0 overflow-x-auto">
+                <div className="h-auto w-full pl-7 sm:pl-0 overflow-x-auto">
                   {areaKnowledge?.map((knowledge, i) => (
                     <CustomRadio
                       key={knowledge.id}
@@ -568,11 +570,11 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
               </div>
               <div className="flex items-center justify-center gap-6">
                 <div className="flex items-center justify-center gap-6">
-                  <button type='button' onClick={() => prevStep(selected)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border border-primary-14 text-primary-14 cursor-pointer">
+                  <button type='button' onClick={() => prevStep(selected)} className="flex items-center justify-center w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border border-primary-14 text-primary-14 cursor-pointer">
                     <span className="text-btn-outline-gray">Prev</span>
 
                   </button>
-                  <button type='button' onClick={() => nextStep(selected)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-green-gradient-overlay border-[#31B700] text-white shadow-inset-white cursor-pointer">
+                  <button type='button' onClick={() => nextStep(selected)} className="flex items-center justify-center w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-green-gradient-overlay border-[#31B700] text-white shadow-inset-white cursor-pointer">
                     <span className="text-btn-outline-gray">Next</span>
                   </button>
                 </div>
@@ -581,14 +583,14 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
           )}
           {/* comfortable and safe */}
           {currentSlug === "comfort_id" && (
-            <div className="flex flex-col w-[70%] sm:w-full h-full mb-[26px]">
+            <div className="flex flex-col w-[90%] sm:w-full h-full mb-[26px]">
 
-              <div className="flex flex-col w-[70%] sm:w-full h-[90%] gap-2  ">
+              <div className="flex flex-col w-full h-[90%] gap-2  ">
                 <span className="text-welcome-card-title text-center sm:w-full px-7 sm:px-[39px] mt-[42px] mb-[26px]">
                   Did you feel comfortable and safe with your guides?
                 </span>
 
-                <div className="h-auto w-[70%] sm:w-full pl-7 sm:pl-0 overflow-x-auto ">
+                <div className="h-auto w-full pl-7 sm:pl-0 overflow-x-auto ">
                   {comfortSafety?.map((comfort, i) => (
                     <CustomRadio
                       key={comfort.id}
@@ -604,11 +606,11 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
               </div>
               <div className="flex items-center justify-center gap-6">
                 <div className="flex items-center justify-center gap-6">
-                  <button type='button' onClick={() => prevStep(selected)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border border-primary-14 text-primary-14 cursor-pointer">
+                  <button type='button' onClick={() => prevStep(selected)} className="flex items-center justify-center w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border border-primary-14 text-primary-14 cursor-pointer">
                     <span className="text-btn-outline-gray">Prev</span>
 
                   </button>
-                  <button type='button' onClick={() => nextStep(selected)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-green-gradient-overlay border-[#31B700] text-white shadow-inset-white cursor-pointer">
+                  <button type='button' onClick={() => nextStep(selected)} className="flex items-center justify-center w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-green-gradient-overlay border-[#31B700] text-white shadow-inset-white cursor-pointer">
                     <span className="text-btn-outline-gray">Next</span>
                   </button>
                 </div>
@@ -617,13 +619,13 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
           )}
           {/* comments */}
           {currentSlug === "comment" && (
-            <div className="flex flex-col w-[70%] sm:w-full h-full mb-[26px]">
+            <div className="flex flex-col w-[90%] h-full mb-[26px]">
 
-              <div className="flex flex-col w-[70%] sm:w-full h-[90%] gap-2  ">
-                <span className="text-welcome-card-title text-center sm:w-full px-7 sm:px-[39px] mt-[42px] mb-[26px]">
+              <div className="flex flex-col w-full h-[90%] gap-2  ">
+                <span className="text-welcome-card-title text-center w-full px-7 sm:px-[39px] mt-[42px] mb-[26px]">
                   Comments or Suggestions
                 </span>
-                <div className="h-auto w-[70%] sm:w-full pl-7 sm:px-[39px] overflow-x-auto">
+                <div className="h-auto w-full pl-7 sm:px-[39px] overflow-x-auto">
                   <CustomInputText
                     title="Any comments, suggestions or cool quotes?"
                     name="comment"
@@ -637,11 +639,11 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
               </div>
               <div className="flex items-center justify-center gap-6">
                 <div className="flex items-center justify-center gap-6">
-                  <button type='button' onClick={() => prevStep(selected)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border border-primary-14 text-primary-14 cursor-pointer">
+                  <button type='button' onClick={() => prevStep(selected)} className="flex items-center justify-center w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border border-primary-14 text-primary-14 cursor-pointer">
                     <span className="text-btn-outline-gray">Prev</span>
 
                   </button>
-                  <button type='button' onClick={() => nextStep(selected)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-green-gradient-overlay border-[#31B700] text-white shadow-inset-white cursor-pointer">
+                  <button type='button' onClick={() => nextStep(selected)} className="flex items-center justify-center w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-green-gradient-overlay border-[#31B700] text-white shadow-inset-white cursor-pointer">
                     <span className="text-btn-outline-gray">Next</span>
                   </button>
                 </div>
@@ -650,16 +652,16 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
           )}
           {/* submit */}
           {currentSlug === "submit" && (
-            <div className="flex flex-col w-[70%] sm:w-full h-full mb-[26px]">
-              <div className="flex flex-col w-[70%] sm:w-full h-[90%] gap-2 " >
-                <span className="text-welcome-card-title text-center min-w-[90%] sm:w-full mt-[42px] px-6 sm:px-[39px]">
+            <div className="flex flex-col w-[90%] h-full mb-[26px] ">
+              <div className="flex flex-col w-full h-[80%] overflow-x-auto no-scrollbar gap-2 " >
+                <span className="text-welcome-card-title text-center w-full mt-[42px] px-6 sm:px-[39px] ">
                   Your Indemnity is ready to submit
                 </span>
                 <span className=" text-center min-w-[90%] mb-[26px]">
                   <span className='block' ><span className='text-booking-heading capitalize'>booking reference</span> {booking?.reference}</span>
                   <span className='block'><span className='text-booking-subheading capitalize'>Service</span> {bookingItem?.service?.name}</span>
                 </span>
-                <div className="flex items-center justify-center h-[90%] overflow-x-auto mb-2" >
+                <div className="flex items-center justify-center h-[90%]  mb-2" >
                   <div className="grid grid-cols-1 sm:grid-cols-1 gap-4 h-full pl-7 sm:px-[12px] ">
                     <span className='flex flex-col items-start gap-2'><span className='text-booking-subheading capitalize'>full name</span> {data.feedback[selected]?.full_name}</span>
                     <span className='flex flex-col items-start gap-2'><span className='text-booking-subheading capitalize'>lead guide</span> {leadGuides?.find(g => g.id == data.feedback[selected]?.guide_id)?.name}</span>
@@ -674,7 +676,7 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
                 </div>
               </div>
               <div className="flex items-center justify-center gap-6">
-                <button type='button' onClick={() => prevStep(selected)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border border-primary-14 text-primary-14 cursor-pointer">
+                <button type='button' onClick={() => prevStep(selected)} className="flex items-center justify-center w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border border-primary-14 text-primary-14 cursor-pointer">
                   <span className="text-btn-outline-gray">Prev</span>
 
                 </button>
@@ -683,7 +685,7 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
                   onClick={(e) => handleSubmit(e)}
                   disabled={processing}
 
-                  className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-green-gradient-overlay border-[#31B700] text-white shadow-inset-white cursor-pointer">
+                  className="flex items-center justify-center w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-green-gradient-overlay border-[#31B700] text-white shadow-inset-white cursor-pointer">
                   <span className="text-btn-outline-gray">Submit</span>
                 </button>
               </div>
