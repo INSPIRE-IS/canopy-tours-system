@@ -1,4 +1,4 @@
-const CustomCheckbox = ({ label,side="right", name, checked = false, mode, onChange, errors = {}, disabled = false }) => {
+const CustomCheckbox = ({ label, helper = "", side="right", name, checked = false, mode, onChange, errors = {}, disabled = false }) => {
 
     return (
         <div className="mb-4">
@@ -28,6 +28,9 @@ const CustomCheckbox = ({ label,side="right", name, checked = false, mode, onCha
                 </span>
                 {side === "right" && (<span className="text-booking-check-lbl-right mt-1.5">{label}</span>)}
             </label>
+            {helper && !errors[name] && (
+                <p className="text-xs text-gray-500 mt-1">{helper}</p>
+            )}
             {errors[name] && (
                 <p className="text-checkbox-lbl text-red-500 mt-2">
                     {errors[name]}

@@ -12,6 +12,13 @@ const SettingsModal = ({ isOpen, onClose, settings = [] }) => {
         }, {});
     }, [settings]);
 
+    const settingsInfo = useMemo(() => {
+        return settings.reduce((acc, item) => {
+            acc[item.slug] = item.info || item.description || "";
+            return acc;
+        }, {});
+    }, [settings]);
+
     const { data, setData, post, errors, processing } = useForm({
         enable_pickup_dropoff: settingsMap.enable_pickup_dropoff ?? true,
         auto_send_invoice_on_booking: settingsMap.auto_send_invoice_on_booking ?? true,
@@ -53,6 +60,7 @@ const SettingsModal = ({ isOpen, onClose, settings = [] }) => {
                             name="enable_pickup_dropoff"
                             checked={data.enable_pickup_dropoff}
                             onChange={handleChange}
+                            helper={settingsInfo.enable_pickup_dropoff}
                             errors={errors}
                         />
                         <CustomCheckbox
@@ -60,6 +68,7 @@ const SettingsModal = ({ isOpen, onClose, settings = [] }) => {
                             name="auto_send_invoice_on_booking"
                             checked={data.auto_send_invoice_on_booking}
                             onChange={handleChange}
+                            helper={settingsInfo.auto_send_invoice_on_booking}
                             errors={errors}
                         />
                         <CustomCheckbox
@@ -67,6 +76,7 @@ const SettingsModal = ({ isOpen, onClose, settings = [] }) => {
                             name="auto_send_quote_on_booking"
                             checked={data.auto_send_quote_on_booking}
                             onChange={handleChange}
+                            helper={settingsInfo.auto_send_quote_on_booking}
                             errors={errors}
                         />
                         <CustomCheckbox
@@ -74,6 +84,7 @@ const SettingsModal = ({ isOpen, onClose, settings = [] }) => {
                             name="enable_assign_staff"
                             checked={data.enable_assign_staff}
                             onChange={handleChange}
+                            helper={settingsInfo.enable_assign_staff}
                             errors={errors}
                         />
                     </div>

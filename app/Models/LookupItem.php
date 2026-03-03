@@ -21,6 +21,7 @@ class LookupItem extends Model
 
     protected $fillable = [
         'name',
+        'info',
         'slug',
         'rate',
         'multiplier',

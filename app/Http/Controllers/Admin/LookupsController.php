@@ -18,24 +18,28 @@ class LookupsController extends Controller
                 'slug' => 'enable_pickup_dropoff',
                 'name' => 'Enable Pickup/Dropoff',
                 'description' => 'Show pickup/dropoff fields on booking forms.',
+                'info' => 'Show pickup/dropoff fields on booking forms.',
                 'default' => true,
             ],
             [
                 'slug' => 'auto_send_invoice_on_booking',
                 'name' => 'Auto Send Invoice on Booking',
                 'description' => 'Send the invoice email automatically when a booking is created or updated.',
+                'info' => 'Send the invoice email automatically when a booking is created or updated.',
                 'default' => true,
             ],
             [
                 'slug' => 'auto_send_quote_on_booking',
                 'name' => 'Auto Send Quote on Booking',
                 'description' => 'Send a quote email automatically when a booking is created or updated.',
+                'info' => 'Send a quote email automatically when a booking is created or updated.',
                 'default' => false,
             ],
             [
                 'slug' => 'enable_assign_staff',
                 'name' => 'Enable Assign Staff',
                 'description' => 'Show assigned staff section on booking add view.',
+                'info' => 'Show assigned staff section on booking add view.',
                 'default' => true,
             ],
         ];
@@ -61,6 +65,7 @@ class LookupsController extends Controller
                 'slug' => $setting['slug'],
                 'name' => $setting['name'],
                 'description' => $setting['description'],
+                'info' => $item?->info ?? $setting['info'] ?? $setting['description'],
                 'value' => $value === null ? (bool) $setting['default'] : (bool) $value,
             ];
         })->values();
@@ -101,6 +106,7 @@ class LookupsController extends Controller
                 ],
                 [
                     'name' => $setting['name'],
+                    'info' => $setting['info'] ?? $setting['description'],
                     'rate' => null,
                     'multiplier' => $value ? 1 : 0,
                     'effective_from' => $today,
