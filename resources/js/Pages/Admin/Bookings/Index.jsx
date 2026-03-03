@@ -63,6 +63,9 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
     const [selectedServiceId, setSelectedServiceId] = useState(() => {
         return sessionStorage.getItem('bookings.selectedServiceId') || '0';
     });
+    const [showEmptySlots, setShowEmptySlots] = useState(() => {
+        return sessionStorage.getItem('bookings.showEmptySlots') === 'true';
+    });
     const [showServices, setShowServices] = useState(false);
     const [confirmOpen, setConfirmOpen] = useState(false);
     const [confirmAction, setConfirmAction] = useState(null); // { type: 'booking' | 'slot', booking }
@@ -490,7 +493,7 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
             grouped.set(key, existing);
         });
 
-        if (viewMode === VIEW_MODES.DAY) {
+        if (viewMode === VIEW_MODES.DAY && showEmptySlots) {
             const day = selectedDate || today;
             services?.forEach((service) => {
                 const activeSeason = service?.seasons?.find((season) => isDateWithinSeason(day, season));
@@ -519,7 +522,8 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
             });
         }
 
-        const rows = Array.from(grouped.values());
+        const rows = Array.from(grouped.values())
+            .filter((row) => showEmptySlots || row.bookings.length > 0);
         rows.sort((a, b) => {
             const aTime = timeToMinutes(a.time_start);
             const bTime = timeToMinutes(b.time_start);
@@ -535,7 +539,7 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
 
     useEffect(() => {
         setSlotRows(buildSlotRows());
-    }, [filteredBookings, services, viewMode, selectedDate]);
+    }, [filteredBookings, services, viewMode, selectedDate, showEmptySlots]);
 
     useEffect(() => {
         sessionStorage.setItem('bookings.selectedDate', selectedDate || '');
@@ -556,6 +560,10 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
     useEffect(() => {
         sessionStorage.setItem('bookings.selectedServiceId', selectedServiceId || '0');
     }, [selectedServiceId]);
+
+    useEffect(() => {
+        sessionStorage.setItem('bookings.showEmptySlots', showEmptySlots ? 'true' : 'false');
+    }, [showEmptySlots]);
 
     const handleTodayClick = () => {
 
@@ -701,6 +709,14 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                                         Week of {format(startOfWeek(selectedDate ? parseISO(selectedDate) : new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd')} to {format(endOfWeek(selectedDate ? parseISO(selectedDate) : new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd')}
                                     </div>
                                 )}
+                                <label className="flex items-center gap-2 text-sm text-gray-700">
+                                    <input
+                                        type="checkbox"
+                                        checked={showEmptySlots}
+                                        onChange={(e) => setShowEmptySlots(e.target.checked)}
+                                    />
+                                    Show empty slots
+                                </label>
 
                                 <div className="relative" ref={servicesRef}>
                                     <button onClick={() => setShowServices(!showServices)}
