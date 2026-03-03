@@ -16,6 +16,9 @@ const WholesalerModal = ({ isOpen, onClose, mode, wholesaler = null, wholesalerF
 
     const { data, setData, post, put, errors, reset, processing } = useForm({
         name: "",
+        reg_no: "",
+        vat_no: "",
+        address: "",
         description: "",
         created_by_id: auth?.user?.id,
         updated_by_id: auth?.user?.id,
@@ -25,6 +28,9 @@ const WholesalerModal = ({ isOpen, onClose, mode, wholesaler = null, wholesalerF
         if (wholesaler && mode !== "create") {
             setData({
                 name: wholesaler?.name || "",
+                reg_no: wholesaler?.reg_no || "",
+                vat_no: wholesaler?.vat_no || "",
+                address: wholesaler?.address || "",
                 description: wholesaler?.description || "",
                 created_by_id: wholesaler.created_by_id || auth?.user?.id,
                 updated_by_id: wholesaler.updated_by_id || auth?.user?.id,
@@ -65,7 +71,7 @@ const WholesalerModal = ({ isOpen, onClose, mode, wholesaler = null, wholesalerF
                     {mode === "view" && "View Wholesaler"}
                 </h2>
                 <form onSubmit={handleSubmit}>
-                    <div className="flex flex-row w-full items-center gap-2 justify-between mb-4">
+                    <div className="flex flex-col w-full items-center gap-2 justify-between mb-4">
                         <InputText
                             title="Wholesaler"
                             field="name"
@@ -74,27 +80,56 @@ const WholesalerModal = ({ isOpen, onClose, mode, wholesaler = null, wholesalerF
                             handleChange={handleChange}
                             errors={errors}
                         />
+                    </div>
+                    <div className="flex flex-row w-full items-center gap-2 justify-between mb-4">
                         <InputText
-                            title="Description"
+                            title="Reg. No."
+                            field="reg_no"
+                            value={data.reg_no}
+                            mode={mode}
+                            handleChange={handleChange}
+                            errors={errors}
+                        />
+                        <InputText
+                            title="VAT No."
+                            field="vat_no"
+                            value={data.vat_no}
+                            mode={mode}
+                            handleChange={handleChange}
+                            errors={errors}
+                        />
+                    </div>
+                    <div className="flex flex-col w-full items-center gap-2 justify-between mb-4">
+                        <CustomTextarea
+                            label="Address"
+                            field="address"
+                            value={data.address}
+                            mode={mode}
+                            handleChange={handleChange}
+                            errors={errors}
+                        />
+                        {/* <CustomTextarea
+                            label="Description"
                             field="description"
                             value={data.description}
                             mode={mode}
                             handleChange={handleChange}
                             errors={errors}
-                            isRequired
-                            isReadOnly={mode === "view"}
-                        />
-                        {/*   <div className="w-full mb-4">
+                        /> */}
+                    </div>
+
+
+                    {/*   <div className="w-full mb-4">
                             <label className="block text-main mb-1">Description</label>
                             <Tiptap setDescription={setDescription} />                           
                         </div>*/}
-                        {/*  show the description in a textarea
+                    {/*  show the description in a textarea
                     <div className="flex flex-row w-full items-center gap-2 justify-between mb-4">
                         <div className="ProseMirror">{parse(description)}</div>
                     </div>      
                     */}
 
-                    </div>
+
 
                     <div className="flex justify-center gap-4">
                         <OutlineButton title="Cancel" onClick={onClose} width="w-[180px]" />
@@ -109,3 +144,4 @@ const WholesalerModal = ({ isOpen, onClose, mode, wholesaler = null, wholesalerF
 };
 
 export default WholesalerModal;
+

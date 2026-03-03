@@ -206,8 +206,8 @@ export default function AppLayout({ user, children }) {
             backUrl: route('admin.bookings.index'),
         },
         {
-            match: 'admin.wholesaler-rates.index',
-            title: 'wholesaler rates',
+            match: 'admin.wholesaler-contacts.index',
+            title: 'wholesaler Contacts',
             backLabel: 'Back to all Bookings',
             backUrl: route('admin.bookings.index'),
         },

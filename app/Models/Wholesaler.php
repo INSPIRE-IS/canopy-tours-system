@@ -23,6 +23,9 @@ class Wholesaler extends Model
 
     protected $fillable = [
         'name',
+        'reg_no',
+        'vat_no',
+        'address',
         'description',
         'created_by_id',
         'updated_by_id',

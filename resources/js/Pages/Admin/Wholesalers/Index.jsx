@@ -70,9 +70,9 @@ export default function Index({ permissions, wholesalers, auth, searchTerm, sort
         // <AuthenticatedLayout user={props.auth.user}>
         <AuthenticatedLayout
             user={props.auth.user}
-            header={<h2 className="font-semibold text-xl text-gray-800 leading-tight">Users</h2>}
+            header={<h2 className="font-semibold text-xl text-gray-800 leading-tight">Wholesalers</h2>}
         >
-            <Head title="Users" />
+            <Head title="Wholesalers" />
             <div className="overflow-x-auto px-[15px]">
                 <HeaderWholesalers permissions={permissions} isOpenTab={isOpenTab} setIsOpenTab={setIsOpenTab} />
                 <div id="Wholesalers-content" className="tab-content">

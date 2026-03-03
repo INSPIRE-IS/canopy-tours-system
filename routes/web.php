@@ -223,7 +223,7 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['auth', 'v
     // Vouchers
     Route::resource('vouchers', VoucherController::class);
 
-    Route::resource('wholesaler-rates', WholesalerRateController::class)->names('wholesaler_rates');
+    Route::resource('wholesaler-rates', WholesalerRateController::class)->names('wholesaler-rates');
     Route::resource('discounts', DiscountController::class);
     Route::get('promotions/valid', [PromotionController::class, 'valid'])->name('promotions.valid');
     Route::resource('promotions', PromotionController::class);

@@ -24,7 +24,7 @@ export default function HeaderWholesalers({ permissions, isOpenTab, setIsOpenTab
         <button id="wholesaler_contacts-tab" className={` ${isOpenTab === 'wholesaler_contacts' ? 'border-b-[5px] border-primary-7' : ''} tab-button px-4 py-[11px] text-tab-inactive pb-2 cursor-pointer flex items-center gap-1`} onClick={() => toggleDropdown('wholesaler_contacts', 'admin.wholesaler-contacts.index')} >Wholesaler Contact</button>
       )}
       {permissions?.wholesaler_rates_access && (
-        <button id="wholesaler_rates-tab" className={` ${isOpenTab === 'wholesaler_rates' ? 'border-b-[5px] border-primary-7' : ''} tab-button px-4 py-[11px] text-tab-inactive pb-2 cursor-pointer flex items-center gap-1`} onClick={() => toggleDropdown('wholesaler_rates', 'admin.wholesaler_rates.index')} >Wholesaler Rates</button>
+        <button id="wholesaler_rates-tab" className={` ${isOpenTab === 'wholesaler_rates' ? 'border-b-[5px] border-primary-7' : ''} tab-button px-4 py-[11px] text-tab-inactive pb-2 cursor-pointer flex items-center gap-1`} onClick={() => toggleDropdown('wholesaler_rates', 'admin.wholesaler-rates.index')} >Wholesaler Rates</button>
       )}
     </div>
   );
