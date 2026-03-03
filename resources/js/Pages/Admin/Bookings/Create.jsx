@@ -2114,7 +2114,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                     onChange={handleChange}
                                     errors={errors}
                                 />
-                                {!settings?.auto_send_invoice_on_booking && (
+                                {(settings?.show_send_invoice_checkbox ?? false) && (
                                     <CustomCheckbox
                                         label="Send Invoice"
                                         name="send_invoice"
@@ -2123,7 +2123,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                         errors={errors}
                                     />
                                 )}
-                                {!settings?.auto_send_quote_on_booking && (
+                                {(settings?.show_send_quote_checkbox ?? false) && (
                                     <CustomCheckbox
                                         label="Send Quote"
                                         name="send_quote"

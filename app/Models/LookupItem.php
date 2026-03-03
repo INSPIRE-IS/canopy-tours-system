@@ -93,6 +93,8 @@ class LookupItem extends Model
             'auto_send_invoice_on_booking' => true,
             'auto_send_quote_on_booking' => false,
             'enable_assign_staff' => true,
+            'show_send_invoice_checkbox' => false,
+            'show_send_quote_checkbox' => false,
         ];
 
         $lookup = Lookup::where('slug', 'settings')->first();

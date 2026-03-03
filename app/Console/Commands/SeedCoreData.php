@@ -240,6 +240,30 @@ class SeedCoreData extends Command
                 'team_id' => null,
                 'lookup_id' => 4,
             ],
+            [
+                'id' => 8,
+                'name' => 'Show Send Invoice Checkbox',
+                'slug' => 'show_send_invoice_checkbox',
+                'rate' => null,
+                'multiplier' => 0.00,
+                'effective_from' => '2020-01-01',
+                'is_default' => 1,
+                'is_active' => 1,
+                'team_id' => null,
+                'lookup_id' => 4,
+            ],
+            [
+                'id' => 9,
+                'name' => 'Show Send Quote Checkbox',
+                'slug' => 'show_send_quote_checkbox',
+                'rate' => null,
+                'multiplier' => 0.00,
+                'effective_from' => '2020-01-01',
+                'is_default' => 1,
+                'is_active' => 1,
+                'team_id' => null,
+                'lookup_id' => 4,
+            ],
         ];
 
         foreach ($lookup_items as $lookup_item) {

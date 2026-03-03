@@ -42,6 +42,20 @@ class LookupsController extends Controller
                 'info' => 'Show assigned staff section on booking add view.',
                 'default' => true,
             ],
+            [
+                'slug' => 'show_send_invoice_checkbox',
+                'name' => 'Show Send Invoice Checkbox',
+                'description' => 'Show a per-booking checkbox to send the invoice email on save.',
+                'info' => 'If enabled, staff can choose to send the invoice on save. Auto-send still applies when enabled.',
+                'default' => false,
+            ],
+            [
+                'slug' => 'show_send_quote_checkbox',
+                'name' => 'Show Send Quote Checkbox',
+                'description' => 'Show a per-booking checkbox to send the quote email on save.',
+                'info' => 'If enabled, staff can choose to send the quote on save. Auto-send still applies when enabled.',
+                'default' => false,
+            ],
         ];
     }
 
@@ -84,6 +98,8 @@ class LookupsController extends Controller
             'auto_send_invoice_on_booking' => 'boolean',
             'auto_send_quote_on_booking' => 'boolean',
             'enable_assign_staff' => 'boolean',
+            'show_send_invoice_checkbox' => 'boolean',
+            'show_send_quote_checkbox' => 'boolean',
         ]);
 
         $lookup = Lookup::firstOrCreate(

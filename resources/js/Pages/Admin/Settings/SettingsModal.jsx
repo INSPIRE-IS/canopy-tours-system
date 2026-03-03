@@ -24,6 +24,8 @@ const SettingsModal = ({ isOpen, onClose, settings = [] }) => {
         auto_send_invoice_on_booking: settingsMap.auto_send_invoice_on_booking ?? true,
         auto_send_quote_on_booking: settingsMap.auto_send_quote_on_booking ?? false,
         enable_assign_staff: settingsMap.enable_assign_staff ?? true,
+        show_send_invoice_checkbox: settingsMap.show_send_invoice_checkbox ?? false,
+        show_send_quote_checkbox: settingsMap.show_send_quote_checkbox ?? false,
     });
 
     useEffect(() => {
@@ -33,6 +35,8 @@ const SettingsModal = ({ isOpen, onClose, settings = [] }) => {
             auto_send_invoice_on_booking: settingsMap.auto_send_invoice_on_booking ?? true,
             auto_send_quote_on_booking: settingsMap.auto_send_quote_on_booking ?? false,
             enable_assign_staff: settingsMap.enable_assign_staff ?? true,
+            show_send_invoice_checkbox: settingsMap.show_send_invoice_checkbox ?? false,
+            show_send_quote_checkbox: settingsMap.show_send_quote_checkbox ?? false,
         });
     }, [isOpen, setData, settingsMap]);
 
@@ -85,6 +89,22 @@ const SettingsModal = ({ isOpen, onClose, settings = [] }) => {
                             checked={data.enable_assign_staff}
                             onChange={handleChange}
                             helper={settingsInfo.enable_assign_staff}
+                            errors={errors}
+                        />
+                        <CustomCheckbox
+                            label="Show Send Invoice Checkbox"
+                            name="show_send_invoice_checkbox"
+                            checked={data.show_send_invoice_checkbox}
+                            onChange={handleChange}
+                            helper={settingsInfo.show_send_invoice_checkbox}
+                            errors={errors}
+                        />
+                        <CustomCheckbox
+                            label="Show Send Quote Checkbox"
+                            name="show_send_quote_checkbox"
+                            checked={data.show_send_quote_checkbox}
+                            onChange={handleChange}
+                            helper={settingsInfo.show_send_quote_checkbox}
                             errors={errors}
                         />
                     </div>
