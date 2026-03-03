@@ -259,8 +259,7 @@
                                 </tr>
                                 <tr>
                                     <td class="invoice-footer">
-                                        <p class="note">{{ $document['email_footer_note'] ?? '' }}</p>
-                                        <p class="note">Please pay within 7 days.</p>
+                                        <p class="note">{{ $document['email_footer_note'] ?? 'Please pay within 7 days.' }}</p>
                                         <p class="note">Thank you for choosing Canopy Tours.</p>
                                     </td>
                                 </tr>

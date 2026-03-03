@@ -9,6 +9,7 @@ use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\Team;
 use App\Models\TypeInvoice;
+use Illuminate\Support\Str;
 
 class RendererService
 {
@@ -17,7 +18,7 @@ class RendererService
      */
     public function invoice(Booking $booking, Customer $customer, ?Invoice $invoice = null): array
     {
-        $site = Team::select('full_name', 'reg_no', 'address', 'address_code', 'account_owner', 'account_number', 'account_type', 'bank_name', 'branch_code')->find($booking->team_id);
+        $site = Team::select('full_name', 'reg_no', 'vat_no', 'invoice_note', 'address', 'address_code', 'account_owner', 'account_number', 'account_type', 'bank_name', 'branch_code')->find($booking->team_id);
         $invoiceTypeId = TypeInvoice::where('slug', 'std')->value('id');
         $invoice = $invoice ?: Invoice::with([
             'items',
@@ -90,16 +91,24 @@ class RendererService
                 'total' => $total,
             ];
         })->values()->toArray();
-        $invoiceNote = BookingNote::where('booking_id', $booking->id)
-            ->where('type', 'invoice_note')
-            ->orderByDesc('created_at')
-            ->value('note');
+        $invoiceNote = $site?->invoice_note;
         //dd($services);
         $amountTotal = $invoice->total ?? $booking->grand_tot_due ?? 0;
         $amountExVat = round(($amountTotal / 1.15), 2);
         $vat = round(($amountTotal - $amountExVat), 2);
         $amountPaid = ($booking->tot_paid ?? 0) * 1.15;
         $balanceDue = max(0, $amountTotal - $amountPaid);
+
+        $logoPath = $booking->team->file_logo?->path;
+        if ($logoPath && Str::startsWith($logoPath, ['http://', 'https://'])) {
+            $parsedPath = parse_url($logoPath, PHP_URL_PATH);
+            if (is_string($parsedPath) && str_contains($parsedPath, '/storage/')) {
+                $logoPath = ltrim($parsedPath, '/');
+            } else {
+                $logoPath = null;
+            }
+        }
+        $logoPath = $logoPath ?: 'images/logo.png';
 
         $data = [
             'document' => [
@@ -110,10 +119,11 @@ class RendererService
                 'email_footer_note' => $emailFooterNote,
             ],
             'site' => [
-                'name' => $site->full_name,
-                'reg_no' => $site->reg_no,
-                'address' => $site->address,
-                'address_code' => $site->address_code,
+                'name' => $site?->full_name,
+                'reg_no' => $site?->reg_no,
+                'vat_no' => $site?->vat_no,
+                'address' => $site?->address,
+                'address_code' => $site?->address_code,
                 //'site_logo' => $site->file_logo->path,
                 //'file_logo' => $item->service->team->file_logo->path,
             ],
@@ -130,7 +140,7 @@ class RendererService
                 'ref' => $booking->reference,
             ],
             'services' => $services,
-            'file_logo' => $booking->team->file_logo?->path ?? asset('images/logo.png'),
+            'file_logo' => $logoPath,
             'amount_ex_vat' => $amountExVat,
             'vat'           => $vat,
             'vat_amount'    => $amountTotal,
@@ -138,11 +148,11 @@ class RendererService
             'balance_due'   => $balanceDue,
             'notes'         => $invoiceNote ?: 'Please pay within 7 days.',
             'bank' => [
-                'owner' => $site->account_owner,
-                'number' => $site->account_number,
-                'type'   => $site->account_type,
-                'name'   => $site->bank_name,
-                'branch_code' => $site->branch_code,
+                'owner' => $site?->account_owner,
+                'number' => $site?->account_number,
+                'type'   => $site?->account_type,
+                'name'   => $site?->bank_name,
+                'branch_code' => $site?->branch_code,
             ],
         ];
         //dd($data);

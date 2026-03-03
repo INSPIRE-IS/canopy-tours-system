@@ -33,6 +33,8 @@ class Team extends Model
         'account_type',
         'bank_name',
         'branch_code',
+        'invoice_note',
+        'vat_no',
         'created_at',
         'updated_at',
         'deleted_at',

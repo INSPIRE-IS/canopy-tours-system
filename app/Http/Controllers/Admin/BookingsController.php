@@ -418,9 +418,9 @@ class BookingsController extends Controller
             'adult' => 'integer|nullable',
             'child' => 'integer|nullable',
             'guide' => 'integer|nullable',
-            'rate_per_adult' => 'integer|nullable',
-            'rate_per_child' => 'integer|nullable',
-            'rate_per_guide' => 'integer|nullable',
+            'rate_per_adult' => 'numeric|nullable',
+            'rate_per_child' => 'numeric|nullable',
+            'rate_per_guide' => 'numeric|nullable',
             'override_reason' => 'required_if:override_rates,1|nullable|string',
 
             'is_wholesaler' => 'boolean', //   "is_wholesaler" => "true"
@@ -1189,9 +1189,9 @@ class BookingsController extends Controller
             'adult' => 'integer|nullable',
             'child' => 'integer|nullable',
             'guide' => 'integer|nullable',
-            'rate_per_adult' => 'integer|nullable',
-            'rate_per_child' => 'integer|nullable',
-            'rate_per_guide' => 'integer|nullable',
+            'rate_per_adult' => 'numeric|nullable',
+            'rate_per_child' => 'numeric|nullable',
+            'rate_per_guide' => 'numeric|nullable',
             'override_reason' => 'required_if:override_rates,1|nullable|string',
 
             'is_wholesaler' => 'boolean',
@@ -3585,12 +3585,17 @@ class BookingsController extends Controller
                 }
             }
 
+            $formatRates = fn(array $values) => array_map(
+                fn($value) => number_format((float) $value, 2, '.', ''),
+                $values
+            );
+
             $result = [
-                'base_rates'         => $baseRates,         // post-wholesaler, pre-promo
-                'applied_rates'      => $rates,             // post-promo (or == base if no promo)
+                'base_rates'         => $formatRates($baseRates), // post-wholesaler, pre-promo
+                'applied_rates'      => $formatRates($rates),     // post-promo (or == base if no promo)
                 'applied_promotion'  => $appliedPromo,      // null if none
                 'applied_discounts'  => $appliedDiscounts,  // [] if promo applied
-                'total_price'        => round($total, 2),
+                'total_price'        => number_format((float) $total, 2, '.', ''),
             ];
             //dd($result);
             return response()->json($result);
@@ -3681,13 +3686,17 @@ class BookingsController extends Controller
                         if (!empty($params['lookup'][$paxCount])) {
                             // Override total directly, skip per-pax logic
                             $total = $params['lookup'][$paxCount];
+                            $formatRates = fn(array $values) => array_map(
+                                fn($value) => number_format((float) $value, 2, '.', ''),
+                                $values
+                            );
                             return response()->json([
-                                'base_rates' => [
+                                'base_rates' => $formatRates([
                                     'adult' => $season->price_adult,
                                     'child' => $season->price_child,
                                     'guide' => $season->price_guide,
-                                ],
-                                'applied_rates' => $rates,
+                                ]),
+                                'applied_rates' => $formatRates($rates),
                                 'applied_discount' => null,
                                 'applied_promotion' => [
                                     'id' => $promo->id,
@@ -3695,7 +3704,7 @@ class BookingsController extends Controller
                                     'type' => $promo->type,
                                     'value' => $promo->value,
                                 ],
-                                'total_price' => $total,
+                                'total_price' => number_format((float) $total, 2, '.', ''),
                             ]);
                         }
                         break;
@@ -3747,13 +3756,17 @@ class BookingsController extends Controller
             }
         }
 
+        $formatRates = fn(array $values) => array_map(
+            fn($value) => number_format((float) $value, 2, '.', ''),
+            $values
+        );
         return response()->json([
-            'base_rates' => [
+            'base_rates' => $formatRates([
                 'adult' => $season->price_adult,
                 'child' => $season->price_child,
                 'guide' => $season->price_guide,
-            ],
-            'applied_rates' => $rates,
+            ]),
+            'applied_rates' => $formatRates($rates),
             'applied_discounts' => array_map(fn($d) => [
                 'id' => $d->id,
                 'name' => $d->name,
@@ -3764,7 +3777,7 @@ class BookingsController extends Controller
                 'type' => $appliedPromo->type,
                 'value' => $appliedPromo->value,
             ] : null,
-            'total_price' => $total,
+            'total_price' => number_format((float) $total, 2, '.', ''),
         ]);
     }
 

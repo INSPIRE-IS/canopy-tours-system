@@ -27,6 +27,8 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams }) => {
         account_type: "",
         bank_name: "",
         branch_code: "",
+        invoice_note: "",
+        vat_no: "",
         team_id: team?.team_id,
         owner_id: "",
 
@@ -48,6 +50,8 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams }) => {
                 account_type: team.account_type || "",
                 bank_name: team.bank_name || "",
                 branch_code: team.branch_code || "",
+                invoice_note: team.invoice_note || "",
+                vat_no: team.vat_no || "",
                 team_id: team.team_id,
                 owner_id: team.owner_id,
             });
@@ -88,6 +92,8 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams }) => {
         formData.append('account_type', data.account_type);
         formData.append('bank_name', data.bank_name);
         formData.append('branch_code', data.branch_code);
+        formData.append('invoice_note', data.invoice_note);
+        formData.append('vat_no', data.vat_no);
         formData.append('team_id', data.team_id);
 
 
@@ -175,11 +181,35 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams }) => {
                             errors={errors}
                         />
                     </div>
+                    <label className="block font-semibold mb-1">Site/Invoice/Quote Detail</label>
+                    <span className="border-bottom border-[1px] border-black flex flex-row w-full items-center gap-2 justify-start mb-4">
+
+                    </span>
+
                     <div className="flex flex-row w-full items-center gap-2 justify-start mb-4">
-                        <InputText
+                        {/* <InputText
                             title="Color"
                             field="color"
                             value={data.color}
+                            mode={mode}
+                            handleChange={handleChange}
+                            errors={errors}
+                        /> */}
+
+                        <InputText
+                            title="Address"
+                            field="address"
+                            value={data.address}
+                            mode={mode}
+                            handleChange={handleChange}
+                            errors={errors}
+                        />
+                    </div>
+                    <div className="flex flex-row w-full items-center gap-2 justify-start mb-4">
+                        <InputText
+                            title="Address Code"
+                            field="address_code"
+                            value={data.address_code}
                             mode={mode}
                             handleChange={handleChange}
                             errors={errors}
@@ -192,21 +222,10 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams }) => {
                             handleChange={handleChange}
                             errors={errors}
                         />
-                    </div>
-                    <div className="flex flex-row w-full items-center gap-2 justify-start mb-4">
                         <InputText
-                            title="Address"
-                            field="address"
-                            value={data.address}
-                            mode={mode}
-                            handleChange={handleChange}
-                            errors={errors}
-                        />
-
-                        <InputText
-                            title="Address Code"
-                            field="address_code"
-                            value={data.address_code}
+                            title="Vat No"
+                            field="vat_no"
+                            value={data.vat_no}
                             mode={mode}
                             handleChange={handleChange}
                             errors={errors}
@@ -238,6 +257,7 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams }) => {
                             handleChange={handleChange}
                             errors={errors}
                         />
+
                     </div>
                     <div className="flex flex-row w-full items-center gap-2 justify-start mb-4">
                         <InputText
@@ -257,11 +277,24 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams }) => {
                             errors={errors}
                         />
                     </div>
+                    <div className="flex flex-row w-full items-center gap-2 justify-start mb-4">
+                        <InputText
+                            title="Invoice Note"
+                            field="invoice_note"
+                            value={data.invoice_note}
+                            mode={mode}
+                            handleChange={handleChange}
+                            errors={errors}
+                        />
+                    </div>
+                    <label className="block font-semibold mb-1">Site/Invoice/Quote Icon</label>
+                    <span className="border-bottom border-[1px] border-black flex flex-row w-full items-center gap-2 justify-start mb-4">
 
+                    </span>
 
                     {mode !== "create" && team?.file_logo?.path && (
                         <div className="flex flex-row w-full items-center gap-2 justify-start mb-4">
-                            <label className="block font-semibold mb-1">Current Logo</label>
+                            <label className="block font-semibold mb-1">Current Icon</label>
                             {team?.file_logo?.path != null ? (
                                 <img
                                     src={`/storage/${team?.file_logo.path}`}
@@ -286,6 +319,10 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams }) => {
                         <label className="block font-semibold mb-1">Upload New Logo (optional)</label>
                         <input type="file" onChange={e => setLogo(e.target.files[0])} />
                     </div>
+                    <label className="block font-semibold mb-1">Site Main Image</label>
+                    <span className="border-bottom border-[1px] border-black flex flex-row w-full items-center gap-2 justify-start mb-4">
+
+                    </span>
                     {mode !== "create" && team?.file_image && (
                         <div className="flex flex-row w-full items-center gap-2 justify-start mb-4">
                             <label className="block font-semibold mb-1">Current Image</label>

@@ -51,7 +51,12 @@
         </tr>
     </table>
 
-    <div class="reg-line">Reg. {{ $site['reg_no'] ?? '' }}</div>
+    <div class="reg-line">
+        Reg. {{ $site['reg_no'] ?? '' }}
+        @if(!empty($site['vat_no']))
+            &nbsp;| VAT No: {{ $site['vat_no'] }}
+        @endif
+    </div>
 
     <table class="mt-2">
         <tr>
@@ -160,5 +165,8 @@
             </td>
         </tr>
     </table>
+    <p>
+    {{ $site['invoice_note'] ?? '' }}
+    </p>
 </body>
 </html>
