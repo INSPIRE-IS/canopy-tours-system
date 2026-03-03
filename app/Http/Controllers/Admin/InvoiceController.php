@@ -11,6 +11,7 @@ use App\Models\Email;
 use App\Models\AuditLog;
 use App\Models\Invoice;
 use App\Models\InvoiceTemplate;
+use App\Models\TypeInvoice;
 use App\Services\RendererService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use App\Models\File;
@@ -26,7 +27,10 @@ class InvoiceController extends Controller
     {
         $data = $request->all(); // booking form draft
         //dd($data);
-        $template = InvoiceTemplate::where('is_default', true)->where('type', 'invoice')->first();
+        $typeId = TypeInvoice::where('slug', 'std')->value('id');
+        $template = InvoiceTemplate::where('is_default', true)
+            ->when($typeId, fn($query) => $query->where('type_invoice_id', $typeId))
+            ->first();
 
         //$template = file_get_contents('invoice-template.html');
 
@@ -81,7 +85,10 @@ class InvoiceController extends Controller
     {
         $data = $request->all(); // booking form draft
         //dd($data);
-        $template = InvoiceTemplate::where('is_default', true)->first();
+        $typeId = TypeInvoice::where('slug', 'std')->value('id');
+        $template = InvoiceTemplate::where('is_default', true)
+            ->when($typeId, fn($query) => $query->where('type_invoice_id', $typeId))
+            ->first();
         $data = [
             'site' => [
                 'name' => 'Magoebaskloof Canopy Tours',
@@ -133,7 +140,9 @@ class InvoiceController extends Controller
 
     public function previewSaved(Invoice $invoice)
     {
-        $template = $invoice->template ?? InvoiceTemplate::where('is_default', true)->first();
+        $template = $invoice->template ?? InvoiceTemplate::where('is_default', true)
+            ->when($invoice->type_invoice_id, fn($query) => $query->where('type_invoice_id', $invoice->type_invoice_id))
+            ->first();
 
         $html = $this->renderTemplate($template->content, $invoice->toArray());
 
@@ -192,7 +201,10 @@ class InvoiceController extends Controller
 
     public function resend_invoice($booking_id)
     {
-        $invoice = Invoice::where('booking_id', $booking_id)->first();
+        $typeId = TypeInvoice::where('slug', 'std')->value('id');
+        $invoice = Invoice::where('booking_id', $booking_id)
+            ->when($typeId, fn($query) => $query->where('type_invoice_id', $typeId))
+            ->first();
         $booking = Booking::findOrFail($booking_id);
         $customer = Customer::findOrFail($booking->customer_id);
         $renderService = app(RendererService::class);
@@ -201,7 +213,7 @@ class InvoiceController extends Controller
             return redirect()->back()->with('error', 'No invoice found for this booking.');
         }
 
-        $data = $renderService->invoice($booking, $customer);
+        $data = $renderService->invoice($booking, $customer, $invoice);
 
         $invoiceFilename = 'invoices/' . $data['invoice']['number'] . '.pdf';
         $invoiceFile = File::where('booking_id', $booking->id)
@@ -246,7 +258,7 @@ class InvoiceController extends Controller
             Email::create([
                 'sender'         => config('mail.from.address'),
                 'receiver'       => $customer->email_address,
-                'subject'        => 'Invoice ' . $data['invoice']['number'],
+                'subject'        => ($data['document']['label'] ?? 'Invoice') . ' ' . $data['invoice']['number'],
                 'body'           => strip_tags($content),
                 'attachment_path' => $invoicePath,
                 'sent'           => true,
@@ -264,7 +276,7 @@ class InvoiceController extends Controller
                 'properties' => json_encode([
                     'invoice_id' => $invoice->id,
                     'receiver' => $customer->email_address,
-                    'subject' => 'Invoice ' . $data['invoice']['number'],
+                    'subject' => ($data['document']['label'] ?? 'Invoice') . ' ' . $data['invoice']['number'],
                     'attachment' => $invoicePath,
                 ]),
                 'host' => request()->ip(),
@@ -339,7 +351,7 @@ class InvoiceController extends Controller
         $attachments = [
             [
                 'data' => Storage::disk('public')->get($invoicePath),
-                'name' => "invoice-{$data['invoice']['number']}.pdf",
+                'name' => strtolower($data['document']['label'] ?? 'invoice') . "-{$data['invoice']['number']}.pdf",
                 'mime' => 'application/pdf',
             ],
         ];

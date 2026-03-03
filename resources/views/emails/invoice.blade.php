@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width">
-    <title>Your Invoice</title>
+    <title>Your {{ $document['label'] ?? 'Invoice' }}</title>
     <style>
         body {
             font-family: sans-serif;
@@ -220,6 +220,7 @@
 </head>
 
 <body>
+    @php($document = $document ?? [])
     <table class="wrapper" width="100%" cellpadding="0" cellspacing="0">
         <tr>
             <td align="center">
@@ -235,23 +236,30 @@
                                 </tr>                                
                                 <tr>
                                     <td class="invoice">
-                                        <h1>Invoice</h1>
-                                        <p class="invoice-number">Invoice #<span
+                                        <h1>{{ $document['label'] ?? 'Invoice' }}</h1>
+                                        <p class="invoice-number">{{ $document['number_label'] ?? 'Invoice #' }}<span
                                                 class="invoice-number-value">{{$invoice['number']}}</span></p>
                                         <p class="invoice-date">Date: <span class="invoice-date-value">{{$invoice['date']}}</span></p>
                                     </td>
                                 </tr>
                                 <tr>
                                     <td class="invoice-message">
-                                                            <p class="message">Hello {{ $client['name'] ?? $customer['name'] ?? '' }},</p>
-                            <p class="message">Your booking has been paid.</p>
-                            <p class="message">Thank you for choosing Canopy Tours.</p>
-                            <p class="message">Your booking reference is {{ $booking['ref'] ?? $booking['reference'] ?? '' }}.</p>
-                            <p class="message">Please Contact us if you have any questions.</p>
+                                        @if(!empty($document['email_message_lines']))
+                                            @foreach($document['email_message_lines'] as $line)
+                                                <p class="message">{{ $line }}</p>
+                                            @endforeach
+                                        @else
+                                            <p class="message">Hello {{ $client['name'] ?? $customer['name'] ?? '' }},</p>
+                                            <p class="message">Your booking has been paid.</p>
+                                            <p class="message">Thank you for choosing Canopy Tours.</p>
+                                            <p class="message">Your booking reference is {{ $booking['ref'] ?? $booking['reference'] ?? '' }}.</p>
+                                            <p class="message">Please Contact us if you have any questions.</p>
+                                        @endif
                                     </td>
                                 </tr>
                                 <tr>
                                     <td class="invoice-footer">
+                                        <p class="note">{{ $document['email_footer_note'] ?? '' }}</p>
                                         <p class="note">Please pay within 7 days.</p>
                                         <p class="note">Thank you for choosing Canopy Tours.</p>
                                     </td>

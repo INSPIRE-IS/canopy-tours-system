@@ -9,6 +9,12 @@ class TypeInvoice extends Model
 {
     use HasFactory;
 
+    public const SLUG_STD = 'std';
+    public const SLUG_WHOLESALE = 'wholesale';
+    public const SLUG_QUOTE = 'quote';
+    public const SLUG_PROFORMA = 'proforma';
+    public const SLUG_RECEIPT = 'receipt';
+
     public $table = 'type_invoices';
 
     protected $fillable = [

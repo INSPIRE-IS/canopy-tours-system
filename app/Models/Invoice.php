@@ -19,6 +19,7 @@ class Invoice extends Model
         'vat',
         'total',
         'invoice_template_id',
+        'type_invoice_id',
         'created_at',
         'updated_at',
         'deleted_at',
@@ -35,6 +36,9 @@ class Invoice extends Model
         parent::boot();
 
         static::creating(function ($model) {
+            if (!empty($model->invoice_number)) {
+                return;
+            }
             $year = now()->format('Y');
 
             // Find the last invoice for this year
@@ -48,7 +52,15 @@ class Invoice extends Model
                 ? ((int) substr($lastInvoice->invoice_number, -6)) + 1
                 : 1;
 
-            $model->invoice_number = sprintf("INV-%s-%06d", $year, $nextNumber);
+            $typeSlug = TypeInvoice::whereKey($model->type_invoice_id)->value('slug');
+            $prefix = match ($typeSlug) {
+                TypeInvoice::SLUG_QUOTE => 'QUO',
+                TypeInvoice::SLUG_PROFORMA => 'PRO',
+                TypeInvoice::SLUG_RECEIPT => 'REC',
+                default => 'INV',
+            };
+
+            $model->invoice_number = sprintf("%s-%s-%06d", $prefix, $year, $nextNumber);
         });
     }
 
@@ -71,5 +83,10 @@ class Invoice extends Model
     public function template()
     {
         return $this->belongsTo(InvoiceTemplate::class, 'invoice_template_id');
+    }
+
+    public function typeInvoice()
+    {
+        return $this->belongsTo(TypeInvoice::class);
     }
 }

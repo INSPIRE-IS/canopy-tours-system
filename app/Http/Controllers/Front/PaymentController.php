@@ -16,6 +16,7 @@ use App\Models\GiftVoucher;
 use App\Models\Invoice;
 use App\Models\BookingVoucher;
 use App\Models\InvoiceTemplate;
+use App\Models\TypeInvoice;
 use App\Models\LookupItem;
 use App\Models\Team;
 use App\Models\TypeAlert;
@@ -43,7 +44,8 @@ class PaymentController extends Controller
         if ($sessionId != $booking->session_id || $booking->status_payment_id != 1) {
             return redirect()->route('front.welcome');
         }
-        $lookups = LookupItem::where('is_default', true)->where('slug', '=', 'vat_rate')->first();
+        $teamId = $booking->team_id;
+        $lookups = LookupItem::findDefaultForTeam('vat_rate', $teamId);
 
         return Inertia::render('BookingPayment', [
             'booking' => $booking->load('booking_items', 'booking_items.customers', 'booking_items.booking_fee'),
@@ -57,7 +59,8 @@ class PaymentController extends Controller
             return redirect()->route('front.welcome');
         }
 
-        $lookups = LookupItem::where('is_default', true)->where('slug', '=', 'vat_rate')->first();
+        $teamId = $booking->team_id;
+        $lookups = LookupItem::findDefaultForTeam('vat_rate', $teamId);
 
         return Inertia::render('BookingPayment', [
             'booking' => $booking->load('booking_items', 'booking_items.customers', 'booking_items.booking_fee'),
@@ -69,7 +72,8 @@ class PaymentController extends Controller
     {
         //dd($gift);
         $sessionId = session()->getId() ?? null;
-        $lookups = LookupItem::where('is_default', true)->where('slug', '=', 'vat_rate')->first();
+        $teamId = $gift->team_id;
+        $lookups = LookupItem::findDefaultForTeam('vat_rate', $teamId);
         //logger()->info('sessionId inertia ' . $sessionId);
         if ($sessionId != $gift->session_id || $gift->status_payment_id != 1) {
             return redirect()->route('front.welcome');
@@ -96,14 +100,13 @@ class PaymentController extends Controller
             'booking' => 'nullable|integer',
             'gift_id' => 'nullable|integer',
         ]);
-        $vatRate = LookupItem::where('is_default', true)->where('slug', '=', 'vat_rate')->first();
-
         if ($validated['type'] === 'booking') {
 
             try {
-                $booking = DB::transaction(function () use ($validated, $vatRate) {
+                $booking = DB::transaction(function () use ($validated) {
                     $renderService = app(RendererService::class);
                     $booking = Booking::findOrFail($validated['booking']);
+                    $vatRate = LookupItem::findDefaultForTeam('vat_rate', $booking->team_id);
                     // Mark as paid (in real app, you'd validate PayFast response)
                     $booking->update([
                         'status_payment_id' => 2, // e.g., "paid"
@@ -178,7 +181,10 @@ class PaymentController extends Controller
                     }
 
                     $customer = Customer::findOrFail($booking->customer_id);
-                    $invoice = Invoice::where('booking_id', $booking->id)->first();
+                    $invoiceTypeId = TypeInvoice::where('slug', 'std')->value('id');
+                    $invoice = Invoice::where('booking_id', $booking->id)
+                        ->when($invoiceTypeId, fn($query) => $query->where('type_invoice_id', $invoiceTypeId))
+                        ->first();
                     $customer = Customer::where('id', $booking->customer_id)->first();
                     $site = Team::findorFail($invoice->team_id);
                     $items = $booking?->booking_items->first();
@@ -187,7 +193,7 @@ class PaymentController extends Controller
                     $recipient = $customer->email_address;
 
                     // 🔹 Load Blade view with data
-                    $data = $renderService->invoice($booking, $customer);
+                    $data = $renderService->invoice($booking, $customer, $invoice);
                     $invoicePdf = Pdf::loadView('invoices.invoice', $data);
                     // Optional: tweak DOMPDF options
                     $invoicePdf->setPaper('A4', 'portrait');
@@ -337,6 +343,8 @@ class PaymentController extends Controller
 
                     return $booking;
                 });
+
+                $vatRate = LookupItem::findDefaultForTeam('vat_rate', $booking->team_id);
 
                 return Inertia::render('SimulatedPayment', [
                     'booking' => $booking,
@@ -505,7 +513,11 @@ class PaymentController extends Controller
 
 
         // 🔹 Load Blade view with data
-        $data = $renderService->invoice($booking, $customer);
+        $invoiceTypeId = TypeInvoice::where('slug', 'std')->value('id');
+        $invoice = Invoice::where('booking_id', $booking->id)
+            ->when($invoiceTypeId, fn($query) => $query->where('type_invoice_id', $invoiceTypeId))
+            ->first();
+        $data = $renderService->invoice($booking, $customer, $invoice);
         $invoicePdf = Pdf::loadView('invoices.invoice', $data);
 
         // Optional: tweak DOMPDF options

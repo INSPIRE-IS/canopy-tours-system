@@ -28,7 +28,7 @@ const PRICING_MODES = {
     OVERRIDE: 'OVERRIDE',
 };
 
-export default function Dashboard({ auth, wholesalers = [], services = [], booking, booking_items, schedule, start_date, view_mode, days, type_affiliates, vouchers, discounts, wholesaler_rates, promos, lookups, countries = [] }) {
+export default function Dashboard({ auth, wholesalers = [], services = [], booking, booking_items, schedule, start_date, view_mode, days, type_affiliates, vouchers, discounts, wholesaler_rates, promos, lookups, countries = [], settings = {} }) {
     //seasons = [],, adults, children, guides
     console.log('---------------auth----create------------ ', auth);
     console.log('---------------auth----vouchers------------ ', vouchers);
@@ -86,6 +86,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
     const initialServiceIdRef = useRef(null);
     const initialBookingDateRef = useRef(null);
     const skipDiscountResetRef = useRef(false);
+    const pickupEnabled = settings?.enable_pickup_dropoff ?? true;
 
     // console.log('schedule ',schedule);
     const { data, setData, post, put, processing, errors } = useForm({
@@ -137,6 +138,8 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
         // booking details
         corporate_customer: false,
         send_sms: false,
+        send_invoice: false,
+        send_quote: false,
         is_lead: true,
         lead_person: '',
         lead_email: '',
@@ -1604,7 +1607,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
                             <div className="flex flex-wrap gap-4 items-center justify-end ">
                                 {[
                                     { key: 'web_booking', label: 'Web Booking' },
-                                    { key: 'needs_pickup', label: 'Needs Pickup' },
+                                    ...(pickupEnabled ? [{ key: 'needs_pickup', label: 'Needs Pickup' }] : []),
                                     { key: 'override_timeslots', label: 'Override Time Slots' },
                                     { key: 'exclusive_resource', label: 'Exclusive Resource use' },
                                 ].map(({ key, label }) => (
@@ -2301,6 +2304,24 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
                                     onChange={handleChange}
                                     errors={errors}
                                 />
+                                {!settings?.auto_send_invoice_on_booking && (
+                                    <CustomCheckbox
+                                        label="Send Invoice"
+                                        name="send_invoice"
+                                        checked={data.send_invoice}
+                                        onChange={handleChange}
+                                        errors={errors}
+                                    />
+                                )}
+                                {!settings?.auto_send_quote_on_booking && (
+                                    <CustomCheckbox
+                                        label="Send Quote"
+                                        name="send_quote"
+                                        checked={data.send_quote}
+                                        onChange={handleChange}
+                                        errors={errors}
+                                    />
+                                )}
                                 <BlueButton
                                     title="Update Booking"
                                     width={"w-[169px]"}

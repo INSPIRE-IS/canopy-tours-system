@@ -114,7 +114,7 @@ export default function Index({ templates, typeInvoices, users, auth, permission
                                         <tr key={template.id} className="flex justify-between items-center hover:bg-gray-50">
                                             <td className="w-[95px] p-3">{template.id}</td>
                                             <td className="w-[95px] p-3">{template.name}</td>
-                                            <td className="w-[268px] p-3">{template.type}</td>
+                                            <td className="w-[268px] p-3">{template.type_invoice?.name ?? template.type_invoice?.slug ?? ''}</td>
                                             <td className="w-[132px] p-3">{template.is_default ? "Yes" : "No"}</td>
                                             <td className="w-[185px] p-3 flex  gap-2">
                                                 {false && (

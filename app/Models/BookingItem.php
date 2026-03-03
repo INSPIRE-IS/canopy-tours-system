@@ -158,7 +158,9 @@ class BookingItem extends Model
     {
 
         $paxList = collect();
-        $vatMultiplier = LookupItem::where('lookup_id', 1)->where('is_default', true)->first()->multiplier;
+        $teamId = $this->team_id ?? $this->booking?->team_id;
+        $vatLookup = LookupItem::findDefaultForTeam('vat_rate', $teamId);
+        $vatMultiplier = $vatLookup?->multiplier ?? 1.15;
         // ensure totals are ints
         $totals = [
             'adult' => intval($this->pax_adults ?? 0),

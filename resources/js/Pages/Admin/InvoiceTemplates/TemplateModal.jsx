@@ -17,7 +17,7 @@ const TemplateModal = ({ isOpen, onClose, mode, template = null, typeInvoices, u
     console.log("type invoices", typeInvoices);
     const { data, setData, post, put, errors, reset, processing } = useForm({
         name: '',
-        type: 'invoice',
+        type_invoice_id: typeInvoices?.[0]?.id ?? '',
         content: '',
         is_default: false,
     });
@@ -30,7 +30,7 @@ const TemplateModal = ({ isOpen, onClose, mode, template = null, typeInvoices, u
 
             setData({
                 name: template.name || "",
-                type: template.type || "",
+                type_invoice_id: template.type_invoice_id || typeInvoices?.[0]?.id || "",
                 content: content,
                 is_default: template.is_default || false,
 
@@ -63,7 +63,10 @@ const TemplateModal = ({ isOpen, onClose, mode, template = null, typeInvoices, u
     const loadStarterTemplate = async () => {
         try {
             setLoadingTemplate(true);
-            const res = await fetch(`/templates/${data.type}.html`);
+            const selected = typeInvoices?.find((type) => type.id === data.type_invoice_id);
+            const typeSlug = selected?.slug ?? 'invoice';
+            const templateSlug = ['std', 'wholesale'].includes(typeSlug) ? 'invoice' : typeSlug;
+            const res = await fetch(`/templates/${templateSlug}.html`);
             console.log('res', res);
             if (!res.ok) throw new Error('Template not found');
             const html = await res.text();
@@ -112,17 +115,15 @@ const TemplateModal = ({ isOpen, onClose, mode, template = null, typeInvoices, u
                                                 hover:border-black  active:border-blue-600 
                                         focus:outline-none focus:ring-0 focus:border-black
                                 `}
-                                name="type"
-                                value={data.type}
-                                onChange={e => setData('type', e.target.value)}
+                                name="type_invoice_id"
+                                value={data.type_invoice_id}
+                                onChange={e => setData('type_invoice_id', Number(e.target.value))}
                             >
                                 {typeInvoices?.map((option, index) => {
                                     //console.log('option', option);
-                                    const value = typeof option === "object" ? option.type : option;
-                                    const label = typeof option === "object" ? option.name : option;
                                     return (
-                                        <option key={index} value={value} className="input-text">
-                                            {label}
+                                        <option key={index} value={option.id} className="input-text">
+                                            {option.name}
                                         </option>
                                     )
                                 })}

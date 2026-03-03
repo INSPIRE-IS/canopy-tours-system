@@ -22,7 +22,20 @@ class BookingMail extends Mailable
 
     public function build()
     {
-        $email = $this->subject('Your Invoice #' . ($this->invoiceData['invoice']['number'] ?? ''))
+        $document = $this->invoiceData['document'] ?? [];
+        $documentLabel = $document['label'] ?? 'Invoice';
+        $documentNumber = $this->invoiceData['invoice']['number'] ?? '';
+        $subject = $document['email_subject'] ?? trim($documentLabel . ' ' . $documentNumber);
+        if ($subject === '') {
+            $subject = 'Your ' . $documentLabel;
+        }
+        $this->invoiceData['document'] = array_merge([
+            'label' => $documentLabel,
+            'number_label' => $document['number_label'] ?? 'Invoice #',
+            'email_message_lines' => $document['email_message_lines'] ?? [],
+            'email_footer_note' => $document['email_footer_note'] ?? 'Please pay within 7 days.',
+        ], $document);
+        $email = $this->subject($subject)
             ->view('emails.invoice', $this->invoiceData);
 
         foreach ($this->extraAttachments as $file) {

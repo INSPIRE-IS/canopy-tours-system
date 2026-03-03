@@ -16,6 +16,7 @@ use App\Models\Email;
 use App\Models\Gateway;
 use App\Models\Invoice;
 use App\Models\InvoiceTemplate;
+use App\Models\TypeInvoice;
 use App\Models\LookupItem;
 use App\Models\StatusPayment;
 use App\Models\Team;
@@ -69,7 +70,7 @@ class BookingPaymentController extends Controller
         $updated_bies = User::select('name', 'id')->get();
 
         logger()->info($booking->load('booking_items'));
-        $lookups = LookupItem::where('is_default', true)->get();
+        $lookups = LookupItem::defaultsForTeam(auth()->user()->team_id);
         return Inertia::render('Admin/Bookings/Payment', [
             'booking' => $booking,
             'gateways' => $gateways,
@@ -171,7 +172,10 @@ class BookingPaymentController extends Controller
                     });
                 });
                 $customer = Customer::findOrFail($booking->customer_id);
-                $invoice = Invoice::where('booking_id', $booking->id)->first();
+                $invoiceTypeId = TypeInvoice::where('slug', 'std')->value('id');
+                $invoice = Invoice::where('booking_id', $booking->id)
+                    ->when($invoiceTypeId, fn($query) => $query->where('type_invoice_id', $invoiceTypeId))
+                    ->first();
                 $customer = Customer::where('id', $booking->customer_id)->first();
                 $site = Team::findorFail($invoice->team_id);
                 $items = $booking?->booking_items->first();
@@ -354,7 +358,7 @@ class BookingPaymentController extends Controller
     {
         abort_if(Gate::denies('booking_payments_create'), Response::HTTP_FORBIDDEN, '403 Forbidden');
 
-        $vatRate = LookupItem::where('is_default', true)->where('slug', '=', 'vat_rate')->first();
+        $vatRate = LookupItem::findDefaultForTeam('vat_rate', auth()->user()->team_id);
         if (!$vatRate) {
             return response()->json(['message' => 'VAT rate lookup missing.'], Response::HTTP_UNPROCESSABLE_ENTITY);
         }

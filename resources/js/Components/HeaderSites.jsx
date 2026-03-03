@@ -20,6 +20,9 @@ export default function HeaderSites({ permissions, isOpenTab, setIsOpenTab }) {
       {permissions?.users_access && (
         <button id="Users-tab" className={` ${isOpenTab === 'Users' ? 'border-b-[5px] border-primary-7' : ''} tab-button px-4 py-[11px] text-tab-active pb-2 cursor-pointer`} onClick={() => toggleDropdown('Users', 'admin.users.index')} >Users</button>
       )}
+      {permissions?.teams_access && (
+        <button id="Settings-tab" className={` ${isOpenTab === 'Settings' ? 'border-b-[5px] border-primary-7' : ''} tab-button px-4 py-[11px] text-tab-active pb-2 cursor-pointer`} onClick={() => toggleDropdown('Settings', 'admin.settings.index')} >Settings</button>
+      )}
       {permissions?.roles_access && (
         <button id="roles-tab" className={` ${isOpenTab === 'roles' ? 'border-b-[5px] border-primary-7' : ''} tab-button px-4 py-[11px] text-tab-active pb-2 cursor-pointer`} onClick={() => toggleDropdown('roles', 'admin.roles.index')} >roles</button>
       )}

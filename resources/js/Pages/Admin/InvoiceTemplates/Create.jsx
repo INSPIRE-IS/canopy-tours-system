@@ -3,11 +3,11 @@ import { useForm } from '@inertiajs/react';
 import InvoiceTemplateEditor from '@/Components/InvoiceTemplateEditor';
 import { useState } from 'react';
 
-export default function Create() {
+export default function Create({ typeInvoices = [] }) {
   const [previewHTML, setPreviewHTML] = useState("");
   const { data, setData, post, errors } = useForm({
     name: '',
-    type: 'invoice',
+    type_invoice_id: typeInvoices?.[0]?.id ?? '',
     content: '',
     is_default: false,
   });
@@ -17,7 +17,10 @@ export default function Create() {
   const loadStarterTemplate = async () => {
     try {
       setLoadingTemplate(true);
-      const res = await fetch(`/templates/${data.type}.html`);
+      const selected = typeInvoices.find((type) => type.id === data.type_invoice_id);
+      const typeSlug = selected?.slug ?? 'invoice';
+      const templateSlug = ['std', 'wholesale'].includes(typeSlug) ? 'invoice' : typeSlug;
+      const res = await fetch(`/templates/${templateSlug}.html`);
       console.log('res', res);
       if (!res.ok) throw new Error('Template not found');
       const html = await res.text();
@@ -100,13 +103,12 @@ export default function Create() {
             <label className="block">Type</label>
             <select
               className="input w-full"
-              value={data.type}
-              onChange={e => setData('type', e.target.value)}
+              value={data.type_invoice_id}
+              onChange={e => setData('type_invoice_id', Number(e.target.value))}
             >
-              <option value="invoice">Invoice</option>
-              <option value="quote">Quote</option>
-              <option value="proforma">Proforma</option>
-              <option value="receipt">Receipt</option>
+              {typeInvoices.map((type) => (
+                <option key={type.id} value={type.id}>{type.name}</option>
+              ))}
             </select>
           </div>
           <button

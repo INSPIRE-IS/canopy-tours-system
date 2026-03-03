@@ -21,6 +21,7 @@ use App\Models\InventoryTypeDay;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use App\Models\InvoiceTemplate;
+use App\Models\TypeInvoice;
 use App\Models\Promotion;
 use App\Models\Season;
 use App\Models\Service;
@@ -683,7 +684,11 @@ class ActivityController extends Controller
                     'team_id'        => $season->team_id,
                 ]);
                 $template = InvoiceTemplate::where('is_default', true)->where('type_invoice_id', 1)->first();
-                $invoice = Invoice::where('booking_id', $booking->id)->where('team_id', $season->team_id)->first();
+                $invoiceTypeId = TypeInvoice::where('slug', 'std')->value('id');
+                $invoice = Invoice::where('booking_id', $booking->id)
+                    ->where('team_id', $season->team_id)
+                    ->when($invoiceTypeId, fn($query) => $query->where('type_invoice_id', $invoiceTypeId))
+                    ->first();
                 $amountExVat = round(($amount / 1.15), 2);
                 $vatAmount = round(($amount - $amountExVat), 2);
                 if (!$invoice) {
@@ -698,6 +703,7 @@ class ActivityController extends Controller
                             'total'          => $amount,
                             'status'         => 'draft',
                             'invoice_template_id'    => $template->id,
+                            'type_invoice_id' => $template->type_invoice_id,
                             'team_id'        => $season->team_id,
 
                         ]

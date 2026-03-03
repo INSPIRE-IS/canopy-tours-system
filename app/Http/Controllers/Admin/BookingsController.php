@@ -58,6 +58,7 @@ use App\Models\GiftVoucher;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use App\Models\InvoiceTemplate;
+use App\Models\TypeInvoice;
 use App\Models\Questionnaire;
 use App\Models\State;
 use App\Models\Team;
@@ -154,7 +155,8 @@ class BookingsController extends Controller
         //dd($booking_items);
         $services = Service::with('seasons', 'seasons.inventory.inventory_time_slots')->get();
 
-        $vatMultiplier = LookupItem::where('lookup_id', 1)->where('is_default', true)->first()->multiplier;
+        $vatLookup = LookupItem::findDefaultForTeam('vat_rate', auth()->user()->team_id);
+        $vatMultiplier = $vatLookup?->multiplier ?? 1.15;
 
         $formatted = $booking_items->map(function ($booking_item) use ($vatMultiplier) {
             try {
@@ -269,7 +271,7 @@ class BookingsController extends Controller
             }
         });
 
-        $lookups = LookupItem::where('is_default', true)->get();
+        $lookups = LookupItem::defaultsForTeam(auth()->user()->team_id);
         $today = now()->toDateString();
         $activities = Service::whereHas('seasons', function ($query) use ($today) {
             $query->whereDate('end_date', '>=', $today);
@@ -339,7 +341,8 @@ class BookingsController extends Controller
         $promos = Promotion::select('id', 'name', 'promo_code', 'type', 'value', 'service_id', 'booking_start_date', 'booking_end_date', 'activity_start_date', 'activity_end_date')
             ->with('service')
             ->get();
-        $lookups = LookupItem::where('is_default', true)->get();
+        $lookups = LookupItem::defaultsForTeam(auth()->user()->team_id);
+        $settings = LookupItem::settingsForTeam(auth()->user()->team_id);
         $countries = Country::select('id', 'name', 'phonecode')
             ->whereNotNull('phonecode')
             ->orderBy('name')
@@ -371,6 +374,7 @@ class BookingsController extends Controller
             'wholesaler_rates' => $wholesaler_rates,
             'promos' => $promos,
             'lookups' => $lookups,
+            'settings' => $settings,
             'countries' => $countries,
         ]);
     }
@@ -425,9 +429,18 @@ class BookingsController extends Controller
             'promoCode' => 'nullable|string',
             'redeem_voucher' => 'string|nullable', //   "redeem_voucher" => "Voucher Code"
             'pay_later' => 'boolean', //   "pay_later" => "true"
+            'send_invoice' => 'boolean',
+            'send_quote' => 'boolean',
         ]);
+        $settings = LookupItem::settingsForTeam(auth()->user()->team_id);
+        $pickupEnabled = $settings['enable_pickup_dropoff'] ?? true;
+        $autoSendInvoiceSetting = $settings['auto_send_invoice_on_booking'] ?? true;
+        $autoSendQuoteSetting = $settings['auto_send_quote_on_booking'] ?? false;
+        $autoSendInvoice = $autoSendInvoiceSetting ? true : (bool) ($validated['send_invoice'] ?? false);
+        $autoSendQuote = $autoSendQuoteSetting ? true : (bool) ($validated['send_quote'] ?? false);
+        $validated['needs_pickup'] = $pickupEnabled ? ($validated['needs_pickup'] ?? false) : false;
         try {
-            $booking = DB::transaction(function () use ($validated) {
+            $booking = DB::transaction(function () use ($validated, $autoSendInvoice, $autoSendQuote) {
                 $renderService = app(RendererService::class);
                 $season_id = $validated['season_id'];
                 $selected_slot = $validated['selected_slot'];
@@ -495,7 +508,8 @@ class BookingsController extends Controller
                         'full_name' => $validated['lead_person'],
                         'contact_number' => $validated['lead_mobile'],
                     ]);
-                    $vatMultiplier = LookupItem::where('lookup_id', 1)->where('is_default', true)->first()->multiplier;
+                    $vatLookup = LookupItem::findDefaultForTeam('vat_rate', auth()->user()->team_id);
+                    $vatMultiplier = $vatLookup?->multiplier ?? 1.15;
                     // 2. Create booking
                     $booking = Booking::create([
                         'user_id' => auth()->user()->id,
@@ -651,7 +665,12 @@ class BookingsController extends Controller
                     'override_reason' => $validated['override_reason'] ?? null,
                 ]);
 
-                $template = InvoiceTemplate::where('is_default', true)->firstOrFail();
+                $invoiceTypeId = $this->getTypeInvoiceId(TypeInvoice::SLUG_STD);
+                // TODO: re-enable template-driven invoices when clients are ready.
+                $template = InvoiceTemplate::where('is_default', true)
+                    ->where('type_invoice_id', $invoiceTypeId)
+                    ->where('team_id', auth()->user()->team_id)
+                    ->first();
                 $amountExVat = round(($amount / 1.15), 2);
                 $vatAmount = round(($amount - $amountExVat), 2);
                 $invoice = Invoice::create([
@@ -663,7 +682,8 @@ class BookingsController extends Controller
                     'vat'            => $vatAmount,
                     'total'          => $amount,
                     'status'         => 'draft',
-                    'invoice_template_id'    => $template->id,
+                    'invoice_template_id'    => $template?->id,
+                    'type_invoice_id' => $invoiceTypeId,
                     'team_id'        => auth()->user()->team_id,
 
                 ]);
@@ -688,7 +708,7 @@ class BookingsController extends Controller
                 $site = Team::select('full_name', 'reg_no', 'address', 'address_code', 'account_owner', 'account_number', 'account_type', 'bank_name', 'branch_code')
                     ->find(auth()->user()->team_id);
                 $items = $booking?->booking_items->first();
-                $data = $renderService->invoice($booking, $customer);
+                $data = $renderService->invoice($booking, $customer, $invoice);
                 $invoicePdf = Pdf::loadView('invoices.invoice', $data);
                 // Optional: tweak DOMPDF options
                 $invoicePdf->setPaper('A4', 'portrait');
@@ -696,6 +716,8 @@ class BookingsController extends Controller
 
                 $invoiceFilename = 'invoices/' . $data['invoice']['number'] . '.pdf';
                 Storage::disk('public')->put($invoiceFilename, $invoicePdf->output());
+                $documentLabel = $data['document']['label'] ?? 'Invoice';
+                $documentLabelLower = strtolower($documentLabel);
                 $reminderContent = !empty($validated['email_reminder'])
                     ? "<p><strong>Reminder</strong></p><p>{$validated['email_reminder']}</p>"
                     : '';
@@ -708,24 +730,26 @@ class BookingsController extends Controller
                         <p>Please contact us if you have any questions.</p>";
                 // send mail
                 // 🔹 log in emails table
-                Email::create([
-                    'sender'         => config('mail.from.address'),
-                    'receiver'       => $validated['lead_email'],
-                    'subject'        => 'Invoice ' . $data['invoice']['number'],
-                    'body'           => strip_tags($content), // or a summary
-                    'attachment_path' => $invoiceFilename,
-                    'sent'           => true,
-                    'sent_at'        => now(),
-                    'user_id'        => auth()->user()->id,
-                    'auditable_type' => 'App\Models\Booking',
-                    'auditable_id'   => $booking->id,
-                    'team_id'        => auth()->user()->team_id,
-                ]);
-                $this->logAudit('Email sent (invoice)', $booking, $booking_item, [
-                    'subject' => 'Invoice ' . $data['invoice']['number'],
-                    'receiver' => $validated['lead_email'],
-                    'attachment' => $invoiceFilename,
-                ]);
+                if ($autoSendInvoice) {
+                    Email::create([
+                        'sender'         => config('mail.from.address'),
+                        'receiver'       => $validated['lead_email'],
+                        'subject'        => $documentLabel . ' ' . $data['invoice']['number'],
+                        'body'           => strip_tags($content), // or a summary
+                        'attachment_path' => $invoiceFilename,
+                        'sent'           => true,
+                        'sent_at'        => now(),
+                        'user_id'        => auth()->user()->id,
+                        'auditable_type' => 'App\Models\Booking',
+                        'auditable_id'   => $booking->id,
+                        'team_id'        => auth()->user()->team_id,
+                    ]);
+                    $this->logAudit('Email sent (invoice)', $booking, $booking_item, [
+                        'subject' => $documentLabel . ' ' . $data['invoice']['number'],
+                        'receiver' => $validated['lead_email'],
+                        'attachment' => $invoiceFilename,
+                    ]);
+                }
                 File::create([
                     'team_id'      => $invoice->team_id,
                     'table_name'   => 'invoices',
@@ -736,6 +760,88 @@ class BookingsController extends Controller
                     'path'         => $invoiceFilename,
                     'booking_id'   => $booking->id,
                 ]);
+                if ($autoSendQuote) {
+                    $quoteTypeId = $this->getTypeInvoiceId(TypeInvoice::SLUG_QUOTE);
+                    // TODO: re-enable template-driven quotes when clients are ready.
+                    $quoteTemplate = InvoiceTemplate::where('is_default', true)
+                        ->where('type_invoice_id', $quoteTypeId)
+                        ->where('team_id', auth()->user()->team_id)
+                        ->first();
+                    $quoteInvoice = Invoice::create([
+                        'booking_id'     => $booking->id,
+                        'gift_voucher_id'    => null,
+                        'invoice_date'   => $validated['booking_date'],
+                        'due_date'       => $validated['booking_date'],
+                        'subtotal'       => $amountExVat,
+                        'vat'            => $vatAmount,
+                        'total'          => $amount,
+                        'status'         => 'draft',
+                        'invoice_template_id'    => $quoteTemplate?->id,
+                        'type_invoice_id' => $quoteTypeId,
+                        'team_id'        => auth()->user()->team_id,
+                    ]);
+
+                    InvoiceItem::create([
+                        'invoice_id'     => $quoteInvoice->id,
+                        'pax_adults'     => (int) ($validated['adults'] ?? 0),
+                        'pax_children'   => (int) ($validated['children'] ?? 0),
+                        'pax_guides'     => (int) ($validated['guides'] ?? 0),
+                        'price_adult'    => (int) ($validated['adult'] ?? 0),
+                        'price_child'    => (int) ($validated['child'] ?? 0),
+                        'price_guide'    => (int) ($validated['guide'] ?? 0),
+                        'team_id'        => auth()->user()->team_id,
+                        'service_id'     => $season->service_id,
+                        'season_id'      => $season->id,
+                        'booking_inventory_id' => $bookingInventory->id,
+                        'promotion_id'   => $promotion ? $promotion->id : null,
+                        'wholesaler_id'  => $validated['wholesaler_id'],
+                        'discount_id'    => $booking_price ? $booking_price->id : null,
+                    ]);
+
+                    $quoteData = $renderService->invoice($booking, $customer, $quoteInvoice);
+                    $quotePdf = Pdf::loadView('invoices.invoice', $quoteData);
+                    $quotePdf->setPaper('A4', 'portrait');
+                    $quoteFilename = 'quotes/' . $quoteData['invoice']['number'] . '.pdf';
+                    Storage::disk('public')->put($quoteFilename, $quotePdf->output());
+
+                    Email::create([
+                        'sender'         => config('mail.from.address'),
+                        'receiver'       => $validated['lead_email'],
+                        'subject'        => ($quoteData['document']['label'] ?? 'Quote') . ' ' . $quoteData['invoice']['number'],
+                        'body'           => strip_tags($content),
+                        'attachment_path' => $quoteFilename,
+                        'sent'           => true,
+                        'sent_at'        => now(),
+                        'user_id'        => auth()->user()->id,
+                        'auditable_type' => 'App\Models\Booking',
+                        'auditable_id'   => $booking->id,
+                        'team_id'        => auth()->user()->team_id,
+                    ]);
+                    $this->logAudit('Email sent (quote)', $booking, $booking_item, [
+                        'subject' => ($quoteData['document']['label'] ?? 'Quote') . ' ' . $quoteData['invoice']['number'],
+                        'receiver' => $validated['lead_email'],
+                        'attachment' => $quoteFilename,
+                    ]);
+
+                    File::create([
+                        'team_id'      => $quoteInvoice->team_id,
+                        'table_name'   => 'invoices',
+                        'table_row_id' => $quoteInvoice->id,
+                        'file_name'    => $quoteData['invoice']['number'] . '.pdf',
+                        'file_type'    => "application/pdf",
+                        'type_file_id' => 4,
+                        'path'         => $quoteFilename,
+                        'booking_id'   => $booking->id,
+                    ]);
+
+                    Mail::to($customer->email_address)->send(new BookingMail($quoteData, [
+                        [
+                            'data' => $quotePdf->output(),
+                            'name' => strtolower($quoteData['document']['label'] ?? 'quote') . "-{$quoteData['invoice']['number']}.pdf",
+                            'mime' => 'application/pdf',
+                        ],
+                    ]));
+                }
                 /*
                  * Voucher email disabled: replace with boarding pass attachments for internal booking.
                  * We will revisit voucher fields when boarding pass data mapping is updated.
@@ -777,27 +883,29 @@ class BookingsController extends Controller
                         ->save($fullPath);
                 }
 
-                Email::create([
-                    'sender'         => config('mail.from.address'),
-                    'receiver'       => $customer->email_address,
-                    'subject'        => 'Your Boarding Pass – Invoice ' . $data['invoice']['number'],
-                    'body'           => strip_tags($content),
-                    'attachment_path' => $fileName,
-                    'sent'           => true,
-                    'sent_at'        => now(),
-                    'user_id'        => auth()->user()->id,
-                    'auditable_type' => BookingItem::class,
-                    'auditable_id'   => $bookingItem->id,
-                    'team_id'        => $bookingItem->team_id,
-                ]);
-                $this->logAudit('Email sent (boarding pass)', $booking, $bookingItem, [
-                    'receiver' => $customer->email_address,
-                    'attachment' => $fileName,
-                ]);
-                $this->logAudit('Email sent (boarding pass)', $booking, $booking_item, [
-                    'receiver' => $customer->email_address,
-                    'attachment' => $fileName,
-                ]);
+                if ($autoSendInvoice) {
+                    Email::create([
+                        'sender'         => config('mail.from.address'),
+                        'receiver'       => $customer->email_address,
+                        'subject'        => 'Your Boarding Pass – ' . $documentLabel . ' ' . $data['invoice']['number'],
+                        'body'           => strip_tags($content),
+                        'attachment_path' => $fileName,
+                        'sent'           => true,
+                        'sent_at'        => now(),
+                        'user_id'        => auth()->user()->id,
+                        'auditable_type' => BookingItem::class,
+                        'auditable_id'   => $bookingItem->id,
+                        'team_id'        => $bookingItem->team_id,
+                    ]);
+                    $this->logAudit('Email sent (boarding pass)', $booking, $bookingItem, [
+                        'receiver' => $customer->email_address,
+                        'attachment' => $fileName,
+                    ]);
+                    $this->logAudit('Email sent (boarding pass)', $booking, $booking_item, [
+                        'receiver' => $customer->email_address,
+                        'attachment' => $fileName,
+                    ]);
+                }
                 File::create([
                     'team_id'      => $bookingItem->team_id,
                     'table_name'   => 'BookingItem',
@@ -811,7 +919,7 @@ class BookingsController extends Controller
                 $attachments = [
                     [
                         'data' => $invoicePdf->output(),
-                        'name' => "invoice-{$data['invoice']['number']}.pdf",
+                        'name' => "{$documentLabelLower}-{$data['invoice']['number']}.pdf",
                         'mime' => 'application/pdf',
                     ],
                     [
@@ -835,7 +943,9 @@ class BookingsController extends Controller
                 ];
 
 
-                Mail::to($customer->email_address)->send(new BookingMail($messageData, $attachments));
+                if ($autoSendInvoice) {
+                    Mail::to($customer->email_address)->send(new BookingMail($messageData, $attachments));
+                }
 
 
                 // //send mail
@@ -980,7 +1090,8 @@ class BookingsController extends Controller
         $promos = Promotion::select('id', 'name', 'promo_code', 'type', 'value', 'service_id', 'booking_start_date', 'booking_end_date', 'activity_start_date', 'activity_end_date')
             ->with('service')
             ->get();
-        $lookups = LookupItem::where('is_default', true)->get();
+        $lookups = LookupItem::defaultsForTeam(auth()->user()->team_id);
+        $settings = LookupItem::settingsForTeam(auth()->user()->team_id);
         $countries = Country::select('id', 'name', 'phonecode')
             ->whereNotNull('phonecode')
             ->orderBy('name')
@@ -1015,6 +1126,7 @@ class BookingsController extends Controller
             'wholesaler_rates' => $wholesaler_rates,
             'promos' => $promos,
             'lookups' => $lookups,
+            'settings' => $settings,
             'countries' => $countries,
         ]);
 
@@ -1088,10 +1200,19 @@ class BookingsController extends Controller
             'promoCode' => 'nullable|string',
             'redeem_voucher' => 'string|nullable',
             'pay_later' => 'boolean',
+            'send_invoice' => 'boolean',
+            'send_quote' => 'boolean',
         ]);
+        $settings = LookupItem::settingsForTeam(auth()->user()->team_id);
+        $pickupEnabled = $settings['enable_pickup_dropoff'] ?? true;
+        $autoSendInvoiceSetting = $settings['auto_send_invoice_on_booking'] ?? true;
+        $autoSendQuoteSetting = $settings['auto_send_quote_on_booking'] ?? false;
+        $autoSendInvoice = $autoSendInvoiceSetting ? true : (bool) ($validated['send_invoice'] ?? false);
+        $autoSendQuote = $autoSendQuoteSetting ? true : (bool) ($validated['send_quote'] ?? false);
+        $validated['needs_pickup'] = $pickupEnabled ? ($validated['needs_pickup'] ?? false) : false;
 
         try {
-            DB::transaction(function () use ($validated, $booking) {
+            DB::transaction(function () use ($validated, $booking, $autoSendInvoice, $autoSendQuote) {
                 $bookingItem = BookingItem::with(['booking_detail', 'booking_inventory', 'booking_fee', 'customers'])
                     ->where('booking_id', $booking->id)
                     ->firstOrFail();
@@ -1353,25 +1474,34 @@ class BookingsController extends Controller
                     }
                 }
 
-                $existingInvoiceIds = Invoice::withTrashed()->where('booking_id', $booking->id)->pluck('id');
+                $invoiceTypeId = $this->getTypeInvoiceId(TypeInvoice::SLUG_STD);
+                $existingInvoiceIds = Invoice::withTrashed()
+                    ->where('booking_id', $booking->id)
+                    ->when($invoiceTypeId, fn($query) => $query->where('type_invoice_id', $invoiceTypeId))
+                    ->pluck('id');
                 if ($existingInvoiceIds->isNotEmpty()) {
                     InvoiceItem::whereIn('invoice_id', $existingInvoiceIds)->delete();
                     Invoice::whereIn('id', $existingInvoiceIds)->delete();
                 }
 
                 File::where('booking_id', $booking->id)
-                    ->where(function ($query) {
-                        $query->where(function ($subQuery) {
-                            $subQuery->where('table_name', 'invoices')
-                                ->where('type_file_id', 4);
-                        })->orWhere(function ($subQuery) {
-                            $subQuery->where('table_name', 'BookingItem')
-                                ->where('type_file_id', 6);
-                        });
-                    })
+                    ->where('table_name', 'BookingItem')
+                    ->where('type_file_id', 6)
                     ->delete();
 
-                $template = InvoiceTemplate::where('is_default', true)->firstOrFail();
+                if ($existingInvoiceIds->isNotEmpty()) {
+                    File::where('booking_id', $booking->id)
+                        ->where('table_name', 'invoices')
+                        ->where('type_file_id', 4)
+                        ->whereIn('table_row_id', $existingInvoiceIds)
+                        ->delete();
+                }
+
+                // TODO: re-enable template-driven invoices when clients are ready.
+                $template = InvoiceTemplate::where('is_default', true)
+                    ->where('type_invoice_id', $invoiceTypeId)
+                    ->where('team_id', auth()->user()->team_id)
+                    ->first();
                 $amountExVat = round(($amount / 1.15), 2);
                 $vatAmount = round(($amount - $amountExVat), 2);
                 $invoice = Invoice::create([
@@ -1383,7 +1513,8 @@ class BookingsController extends Controller
                     'vat'            => $vatAmount,
                     'total'          => $amount,
                     'status'         => 'draft',
-                    'invoice_template_id'    => $template->id,
+                    'invoice_template_id'    => $template?->id,
+                    'type_invoice_id' => $invoiceTypeId,
                     'team_id'        => auth()->user()->team_id,
 
                 ]);
@@ -1406,12 +1537,14 @@ class BookingsController extends Controller
                 ]);
 
                 $renderService = app(RendererService::class);
-                $data = $renderService->invoice($booking, $customer);
+                $data = $renderService->invoice($booking, $customer, $invoice);
                 $invoicePdf = Pdf::loadView('invoices.invoice', $data);
                 $invoicePdf->setPaper('A4', 'portrait');
 
                 $invoiceFilename = 'invoices/' . $data['invoice']['number'] . '.pdf';
                 Storage::disk('public')->put($invoiceFilename, $invoicePdf->output());
+                $documentLabel = $data['document']['label'] ?? 'Invoice';
+                $documentLabelLower = strtolower($documentLabel);
                 $reminderContent = !empty($validated['email_reminder'])
                     ? "<p><strong>Reminder</strong></p><p>{$validated['email_reminder']}</p>"
                     : '';
@@ -1422,24 +1555,26 @@ class BookingsController extends Controller
                         <p>Your booking reference is {$booking->reference}.</p>
                         {$reminderContent}
                         <p>Please contact us if you have any questions.</p>";
-                Email::create([
-                    'sender'         => config('mail.from.address'),
-                    'receiver'       => $validated['lead_email'],
-                    'subject'        => 'Invoice ' . $data['invoice']['number'],
-                    'body'           => strip_tags($content),
-                    'attachment_path' => $invoiceFilename,
-                    'sent'           => true,
-                    'sent_at'        => now(),
-                    'user_id'        => auth()->user()->id,
-                    'auditable_type' => 'App\Models\Booking',
-                    'auditable_id'   => $booking->id,
-                    'team_id'        => auth()->user()->team_id,
-                ]);
-                $this->logAudit('Email sent (invoice)', $booking, $bookingItem, [
-                    'subject' => 'Invoice ' . $data['invoice']['number'],
-                    'receiver' => $validated['lead_email'],
-                    'attachment' => $invoiceFilename,
-                ]);
+                if ($autoSendInvoice) {
+                    Email::create([
+                        'sender'         => config('mail.from.address'),
+                        'receiver'       => $validated['lead_email'],
+                        'subject'        => $documentLabel . ' ' . $data['invoice']['number'],
+                        'body'           => strip_tags($content),
+                        'attachment_path' => $invoiceFilename,
+                        'sent'           => true,
+                        'sent_at'        => now(),
+                        'user_id'        => auth()->user()->id,
+                        'auditable_type' => 'App\Models\Booking',
+                        'auditable_id'   => $booking->id,
+                        'team_id'        => auth()->user()->team_id,
+                    ]);
+                    $this->logAudit('Email sent (invoice)', $booking, $bookingItem, [
+                        'subject' => $documentLabel . ' ' . $data['invoice']['number'],
+                        'receiver' => $validated['lead_email'],
+                        'attachment' => $invoiceFilename,
+                    ]);
+                }
                 File::create([
                     'team_id'      => $invoice->team_id,
                     'table_name'   => 'invoices',
@@ -1450,6 +1585,88 @@ class BookingsController extends Controller
                     'path'         => $invoiceFilename,
                     'booking_id'   => $booking->id,
                 ]);
+                if ($autoSendQuote) {
+                    $quoteTypeId = $this->getTypeInvoiceId(TypeInvoice::SLUG_QUOTE);
+                    // TODO: re-enable template-driven quotes when clients are ready.
+                    $quoteTemplate = InvoiceTemplate::where('is_default', true)
+                        ->where('type_invoice_id', $quoteTypeId)
+                        ->where('team_id', auth()->user()->team_id)
+                        ->first();
+                    $quoteInvoice = Invoice::create([
+                        'booking_id'     => $booking->id,
+                        'gift_voucher_id'    => null,
+                        'invoice_date'   => $bookingDate,
+                        'due_date'       => $bookingDate,
+                        'subtotal'       => $amountExVat,
+                        'vat'            => $vatAmount,
+                        'total'          => $amount,
+                        'status'         => 'draft',
+                        'invoice_template_id'    => $quoteTemplate?->id,
+                        'type_invoice_id' => $quoteTypeId,
+                        'team_id'        => auth()->user()->team_id,
+                    ]);
+
+                    InvoiceItem::create([
+                        'invoice_id'     => $quoteInvoice->id,
+                        'pax_adults'     => (int) ($validated['adults'] ?? 0),
+                        'pax_children'   => (int) ($validated['children'] ?? 0),
+                        'pax_guides'     => (int) ($validated['guides'] ?? 0),
+                        'price_adult'    => (int) ($validated['adult'] ?? 0),
+                        'price_child'    => (int) ($validated['child'] ?? 0),
+                        'price_guide'    => (int) ($validated['guide'] ?? 0),
+                        'team_id'        => auth()->user()->team_id,
+                        'service_id'     => $season->service_id,
+                        'season_id'      => $season->id,
+                        'booking_inventory_id' => $bookingInventory?->id,
+                        'promotion_id'   => $promotion ? $promotion->id : null,
+                        'wholesaler_id'  => $validated['wholesaler_id'],
+                        'discount_id'    => null,
+                    ]);
+
+                    $quoteData = $renderService->invoice($booking, $customer, $quoteInvoice);
+                    $quotePdf = Pdf::loadView('invoices.invoice', $quoteData);
+                    $quotePdf->setPaper('A4', 'portrait');
+                    $quoteFilename = 'quotes/' . $quoteData['invoice']['number'] . '.pdf';
+                    Storage::disk('public')->put($quoteFilename, $quotePdf->output());
+
+                    Email::create([
+                        'sender'         => config('mail.from.address'),
+                        'receiver'       => $validated['lead_email'],
+                        'subject'        => ($quoteData['document']['label'] ?? 'Quote') . ' ' . $quoteData['invoice']['number'],
+                        'body'           => strip_tags($content),
+                        'attachment_path' => $quoteFilename,
+                        'sent'           => true,
+                        'sent_at'        => now(),
+                        'user_id'        => auth()->user()->id,
+                        'auditable_type' => 'App\Models\Booking',
+                        'auditable_id'   => $booking->id,
+                        'team_id'        => auth()->user()->team_id,
+                    ]);
+                    $this->logAudit('Email sent (quote)', $booking, $bookingItem, [
+                        'subject' => ($quoteData['document']['label'] ?? 'Quote') . ' ' . $quoteData['invoice']['number'],
+                        'receiver' => $validated['lead_email'],
+                        'attachment' => $quoteFilename,
+                    ]);
+
+                    File::create([
+                        'team_id'      => $quoteInvoice->team_id,
+                        'table_name'   => 'invoices',
+                        'table_row_id' => $quoteInvoice->id,
+                        'file_name'    => $quoteData['invoice']['number'] . '.pdf',
+                        'file_type'    => "application/pdf",
+                        'type_file_id' => 4,
+                        'path'         => $quoteFilename,
+                        'booking_id'   => $booking->id,
+                    ]);
+
+                    Mail::to($customer->email_address)->send(new BookingMail($quoteData, [
+                        [
+                            'data' => $quotePdf->output(),
+                            'name' => strtolower($quoteData['document']['label'] ?? 'quote') . "-{$quoteData['invoice']['number']}.pdf",
+                            'mime' => 'application/pdf',
+                        ],
+                    ]));
+                }
 
                 $bookingItem = BookingItem::with(
                     'booking',
@@ -1487,19 +1704,21 @@ class BookingsController extends Controller
                         ->save($fullPath);
                 }
 
-                Email::create([
-                    'sender'         => config('mail.from.address'),
-                    'receiver'       => $customer->email_address,
-                    'subject'        => 'Your Boarding Pass – Invoice ' . $data['invoice']['number'],
-                    'body'           => strip_tags($content),
-                    'attachment_path' => $fileName,
-                    'sent'           => true,
-                    'sent_at'        => now(),
-                    'user_id'        => auth()->user()->id,
-                    'auditable_type' => BookingItem::class,
-                    'auditable_id'   => $bookingItem->id,
-                    'team_id'        => $bookingItem->team_id,
-                ]);
+                if ($autoSendInvoice) {
+                    Email::create([
+                        'sender'         => config('mail.from.address'),
+                        'receiver'       => $customer->email_address,
+                        'subject'        => 'Your Boarding Pass – ' . $documentLabel . ' ' . $data['invoice']['number'],
+                        'body'           => strip_tags($content),
+                        'attachment_path' => $fileName,
+                        'sent'           => true,
+                        'sent_at'        => now(),
+                        'user_id'        => auth()->user()->id,
+                        'auditable_type' => BookingItem::class,
+                        'auditable_id'   => $bookingItem->id,
+                        'team_id'        => $bookingItem->team_id,
+                    ]);
+                }
                 File::create([
                     'team_id'      => $bookingItem->team_id,
                     'table_name'   => 'BookingItem',
@@ -1513,7 +1732,7 @@ class BookingsController extends Controller
                 $attachments = [
                     [
                         'data' => $invoicePdf->output(),
-                        'name' => "invoice-{$data['invoice']['number']}.pdf",
+                        'name' => "{$documentLabelLower}-{$data['invoice']['number']}.pdf",
                         'mime' => 'application/pdf',
                     ],
                     [
@@ -1535,10 +1754,20 @@ class BookingsController extends Controller
                     ],
                 ];
 
-                Mail::to($customer->email_address)->send(new BookingMail($messageData, $attachments));
+                if ($autoSendInvoice) {
+                    Mail::to($customer->email_address)->send(new BookingMail($messageData, $attachments));
+                }
             });
 
             $locations = TypeLocation::pluck('id', 'name');
+            if (!$pickupEnabled) {
+                $locations = $locations->reject(function ($id, $name) {
+                    $label = strtolower((string) $name);
+                    return in_array((int) $id, [1, 4], true)
+                        || str_contains($label, 'pickup')
+                        || str_contains($label, 'drop');
+                });
+            }
             $booking_infos = [];
             foreach ($locations as $key => $type_id) {
                 $location = $request->input("{$key}_location");
@@ -2171,7 +2400,7 @@ class BookingsController extends Controller
             ->where('internal_use_only', false)
             ->with('service')
             ->get();
-        $lookups = LookupItem::where('is_default', true)->get();
+        $lookups = LookupItem::defaultsForTeam(auth()->user()->team_id);
 
         return Inertia::render('Admin/Bookings/Edit', [
             'wholesalers' => $wholesalers,
@@ -2557,7 +2786,7 @@ class BookingsController extends Controller
         //     });
         // });
         //dd($booking);
-        $lookups = LookupItem::where('is_default', true)->get();
+        $lookups = LookupItem::defaultsForTeam(auth()->user()->team_id);
         $invoiceIds = Invoice::where('booking_id', $booking->id)->pluck('id')->all();
         $bookingEmails = Email::where(function ($query) use ($booking, $invoiceIds) {
             $query->where(function ($sub) use ($booking) {
@@ -2625,34 +2854,19 @@ class BookingsController extends Controller
                 ];
             });
 
+        $settings = LookupItem::settingsForTeam($user->team_id);
+
         return Inertia::render('Admin/Bookings/Add', [
             'booking' => $booking,
             'manifest' => $manifest,
             'bookingItem' => $bookingItem,
             'staff' => $staff,
             'lookups' => $lookups,
+            'settings' => $settings,
             'bookingNotes' => $bookingNotes,
             'bookingEmails' => $bookingEmails,
             'bookingAuditLogs' => $auditLogs,
         ]);
-        // $users = User::pluck('name', 'id')->prepend(trans('global.pleaseSelect'), '');
-
-        // $status_bookings = StatusBooking::pluck('name', 'id')->prepend(trans('global.pleaseSelect'), '');
-
-        // $services = Service::pluck('name', 'id')->prepend(trans('global.pleaseSelect'), '');
-
-        // $seasons = Season::pluck('name', 'id')->prepend(trans('global.pleaseSelect'), '');
-
-        // $inventories = Inventory::pluck('start_date', 'id')->prepend(trans('global.pleaseSelect'), '');
-
-
-        // $updated_bies = User::pluck('name', 'id')->prepend(trans('global.pleaseSelect'), '');
-
-        // $customers = Customer::pluck('full_name as name', 'id');
-
-        // $booking->load('user', 'status_booking', 'service', 'season', 'inventory', 'updated_by', 'customers', 'team');
-
-        // return view('admin.bookings.edit', compact('booking', 'customers', 'inventories', 'seasons', 'services', 'status_bookings', 'updated_bies', 'users'));
     }
 
     public function show(Booking $booking)
@@ -3590,7 +3804,11 @@ class BookingsController extends Controller
 
 
         //  Load Blade view with data
-        $data = $renderService->invoice($booking, $customer);
+        $invoiceTypeId = $this->getTypeInvoiceId(TypeInvoice::SLUG_STD);
+        $invoice = Invoice::where('booking_id', $booking->id)
+            ->when($invoiceTypeId, fn($query) => $query->where('type_invoice_id', $invoiceTypeId))
+            ->first();
+        $data = $renderService->invoice($booking, $customer, $invoice);
         $invoicePdf = Pdf::loadView('invoices.invoice', $data);
 
         // Optional: tweak DOMPDF options
@@ -3652,5 +3870,30 @@ class BookingsController extends Controller
         }
 
         return response()->download($fullPath);
+    }
+
+    private function getTypeInvoiceId(string $slug): ?int
+    {
+        return TypeInvoice::where('slug', $slug)->value('id');
+    }
+
+    private function getDefaultInvoiceTemplate(?int $typeInvoiceId, ?int $teamId = null, bool $allowNull = false): ?InvoiceTemplate
+    {
+        $query = InvoiceTemplate::where('is_default', true)
+            ->when($typeInvoiceId, fn($q) => $q->where('type_invoice_id', $typeInvoiceId));
+
+        if ($teamId) {
+            $template = (clone $query)->where('team_id', $teamId)->first();
+            if ($template) {
+                return $template;
+            }
+        }
+
+        $template = $query->first();
+        if ($template || $allowNull) {
+            return $template;
+        }
+
+        throw new \RuntimeException('No default invoice template found.');
     }
 }

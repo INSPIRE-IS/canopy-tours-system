@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Invoice {{ $invoice['number'] ?? '' }}</title>
+    <title>{{ $document['label'] ?? 'Invoice' }} {{ $invoice['number'] ?? '' }}</title>
     <style>
         @page { margin: 30px 40px; }
         body {
@@ -37,6 +37,7 @@
     </style>
 </head>
 <body>
+    @php($document = $document ?? [])
     <table>
         <tr>
             <td class="logo" style="width:60%;">
@@ -45,7 +46,7 @@
                 @endif
             </td>
             <td style="width:40%;">
-                <div class="title">INVOICE</div>
+                <div class="title">{{ strtoupper($document['label'] ?? 'INVOICE') }}</div>
             </td>
         </tr>
     </table>
@@ -77,7 +78,7 @@
             <td class="meta-right">
                 <table class="meta-table">
                     <tr>
-                        <th class="border grey">Invoice #:</th>
+                        <th class="border grey">{{ $document['number_label'] ?? 'Invoice #' }}:</th>
                         <td class="border right">{{ $invoice['number'] ?? '' }}</td>
                     </tr>
                     <tr>

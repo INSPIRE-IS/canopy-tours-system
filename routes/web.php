@@ -13,6 +13,7 @@ use App\Http\Controllers\Admin\HomeController;
 use App\Http\Controllers\Admin\InventoryController;
 use App\Http\Controllers\Admin\InventoryOverridesController;
 use App\Http\Controllers\Admin\InvoiceController;
+use App\Http\Controllers\Admin\LookupsController;
 use App\Http\Controllers\Admin\MessengerController;
 use App\Http\Controllers\Admin\PermissionsController;
 use App\Http\Controllers\Admin\PromotionController;
@@ -196,6 +197,9 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['auth', 'v
     //Route::get('/teams/{team_id}/change', [TeamController::class, 'change'])->name('teams.change');
     Route::post('/teams/change', [TeamController::class, 'change'])->name('teams.change');
     Route::resource('teams', TeamController::class);
+    // Settings (Lookups)
+    Route::get('settings', [LookupsController::class, 'index'])->name('settings.index');
+    Route::post('settings', [LookupsController::class, 'store'])->name('settings.store');
     // Boarding Pass Templates
     Route::resource('boardingpass', BoardingPassController::class);
     // Users

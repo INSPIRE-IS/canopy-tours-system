@@ -8,24 +8,70 @@ use App\Models\BookingVoucher;
 use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\Team;
+use App\Models\TypeInvoice;
 
 class RendererService
 {
     /**
      * Render a template by replacing {{placeholders}} with data.
      */
-    public function invoice(Booking $booking, Customer $customer): array
+    public function invoice(Booking $booking, Customer $customer, ?Invoice $invoice = null): array
     {
         $site = Team::select('full_name', 'reg_no', 'address', 'address_code', 'account_owner', 'account_number', 'account_type', 'bank_name', 'branch_code')->find($booking->team_id);
-        $invoice = Invoice::with([
+        $invoiceTypeId = TypeInvoice::where('slug', 'std')->value('id');
+        $invoice = $invoice ?: Invoice::with([
             'items',
             'items.season',
             'items.service',
             'items.booking_inventory.booking_item.booking_fee',
-        ])->where('booking_id', $booking->id)->first();
+        ])
+            ->where('booking_id', $booking->id)
+            ->when($invoiceTypeId, function ($query) use ($invoiceTypeId) {
+                $query->where('type_invoice_id', $invoiceTypeId);
+            })
+            ->first();
+
+        if (!$invoice) {
+            $invoice = Invoice::with([
+                'items',
+                'items.season',
+                'items.service',
+                'items.booking_inventory.booking_item.booking_fee',
+            ])->where('booking_id', $booking->id)->first();
+        }
         if (!$invoice) {
             throw new \RuntimeException('Invoice not found for booking ' . $booking->id);
         }
+        $typeSlug = $invoice->typeInvoice?->slug;
+        $documentLabel = match ($typeSlug) {
+            'quote' => 'Quote',
+            'proforma' => 'Proforma Invoice',
+            'receipt' => 'Receipt',
+            default => 'Invoice',
+        };
+        $documentNumberLabel = match ($typeSlug) {
+            'quote' => 'Quote #',
+            'proforma' => 'Proforma #',
+            'receipt' => 'Receipt #',
+            default => 'Invoice #',
+        };
+        $emailMessageLines = $documentLabel === 'Quote'
+            ? [
+                "Hello {$customer->full_name},",
+                'Please find your quote attached.',
+                "Your booking reference is {$booking->reference}.",
+                'Please contact us if you have any questions.',
+            ]
+            : [
+                "Hello {$customer->full_name},",
+                'Your booking has been paid.',
+                'Thank you for choosing Canopy Tours.',
+                "Your booking reference is {$booking->reference}.",
+                'Please contact us if you have any questions.',
+            ];
+        $emailFooterNote = $documentLabel === 'Quote'
+            ? 'Thank you for considering Canopy Tours.'
+            : 'Please pay within 7 days.';
         $services = $invoice->items->map(function ($item) {
             $fee = $item->booking_inventory?->booking_item?->booking_fee;
             $adultTotal = $fee?->tot_adults ?? ($item->price_adult ?? 0);
@@ -56,6 +102,13 @@ class RendererService
         $balanceDue = max(0, $amountTotal - $amountPaid);
 
         $data = [
+            'document' => [
+                'label' => $documentLabel,
+                'number_label' => $documentNumberLabel,
+                'email_subject' => $documentLabel . ' ' . $invoice->invoice_number,
+                'email_message_lines' => $emailMessageLines,
+                'email_footer_note' => $emailFooterNote,
+            ],
             'site' => [
                 'name' => $site->full_name,
                 'reg_no' => $site->reg_no,

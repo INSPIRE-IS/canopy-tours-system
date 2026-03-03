@@ -18,7 +18,7 @@ import CheckInAnswersModal from '@/Components/CheckInAnswersModal';
 // import { useRoute } from 'ziggy-js';
 // import { Ziggy } from '@/ziggy'; // the generated file
 
-export default function Dashboard({ auth, booking, manifest, bookingItem, staff, lookups, bookingNotes = [], bookingEmails = [], bookingAuditLogs = [] }) {
+export default function Dashboard({ auth, booking, manifest, bookingItem, staff, lookups, bookingNotes = [], bookingEmails = [], bookingAuditLogs = [], settings = {} }) {
     // console.log("auth", auth);
     // console.log("booking", booking);
     // console.log("bookingItem", bookingItem);
@@ -36,6 +36,8 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
     const [toggleComments, setToggleComments] = useState(true);
     const [togglePayment, setTogglePayment] = useState(true);
     const [toggleEmail, setToggleEmail] = useState(true);
+    const pickupEnabled = settings?.enable_pickup_dropoff ?? true;
+    const assignStaffEnabled = settings?.enable_assign_staff ?? true;
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalMode, setModalMode] = useState("create");
     const [total, setTotal] = useState(null);
@@ -563,25 +565,26 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                                         {toggleInformation && (
                                             <div className="flex flex-col w-full  gap-2 ">
                                                 <div className="flex flex-col px-6 py-6 gap-2 border-b border-gray-100">
-                                                    {/* Pickup Location */}
-                                                    <div className="flex w-full items-center justify-between gap-5">
-                                                        <CustomInputText
-                                                            title="Pickup Location"
-                                                            name="pickup_location"
-                                                            value={data.pickup_location}
-                                                            height="h-[48px]"
-                                                            type="text"
-                                                            onChange={(e) => setData('pickup_location', e.target.value)}
-                                                            errors={errors}
-                                                        />
-                                                        <CustomTimePicker
-                                                            label="Pickup Time"
-                                                            value={data.pickup_time}
-                                                            meridiem={data.pickup_time}
-                                                            onChange={(time) => setData('pickup_time', time)}
-                                                            onMeridiemChange={(mer) => setData('pickup_meridiem', mer)}
-                                                        />
-                                                    </div>
+                                                    {pickupEnabled && (
+                                                        <div className="flex w-full items-center justify-between gap-5">
+                                                            <CustomInputText
+                                                                title="Pickup Location"
+                                                                name="pickup_location"
+                                                                value={data.pickup_location}
+                                                                height="h-[48px]"
+                                                                type="text"
+                                                                onChange={(e) => setData('pickup_location', e.target.value)}
+                                                                errors={errors}
+                                                            />
+                                                            <CustomTimePicker
+                                                                label="Pickup Time"
+                                                                value={data.pickup_time}
+                                                                meridiem={data.pickup_time}
+                                                                onChange={(time) => setData('pickup_time', time)}
+                                                                onMeridiemChange={(mer) => setData('pickup_meridiem', mer)}
+                                                            />
+                                                        </div>
+                                                    )}
 
                                                     <div className="flex w-full items-center justify-between gap-5">
                                                         <CustomInputText
@@ -622,24 +625,26 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                                                         />
 
                                                     </div>
-                                                    <div className="flex w-full items-center justify-between gap-5">
-                                                        <CustomInputText
-                                                            title="Dropoff Location"
-                                                            name="dropoff_location"
-                                                            value={data.dropoff_location}
-                                                            height="h-[48px]"
-                                                            type="text"
-                                                            onChange={(e) => setData('dropoff_location', e.target.value)}
-                                                            errors={errors}
-                                                        />
-                                                        <CustomTimePicker
-                                                            label="Dropoff Time"
-                                                            value={data.dropoff_time}
-                                                            meridiem={data.dropoff_time}
-                                                            onChange={(time) => setData('dropoff_time', time)}
-                                                            onMeridiemChange={(mer) => setData('dropoff_meridiem', mer)}
-                                                        />
-                                                    </div>
+                                                    {pickupEnabled && (
+                                                        <div className="flex w-full items-center justify-between gap-5">
+                                                            <CustomInputText
+                                                                title="Dropoff Location"
+                                                                name="dropoff_location"
+                                                                value={data.dropoff_location}
+                                                                height="h-[48px]"
+                                                                type="text"
+                                                                onChange={(e) => setData('dropoff_location', e.target.value)}
+                                                                errors={errors}
+                                                            />
+                                                            <CustomTimePicker
+                                                                label="Dropoff Time"
+                                                                value={data.dropoff_time}
+                                                                meridiem={data.dropoff_time}
+                                                                onChange={(time) => setData('dropoff_time', time)}
+                                                                onMeridiemChange={(mer) => setData('dropoff_meridiem', mer)}
+                                                            />
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
                                         )}
@@ -652,6 +657,7 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                         <div className='flex basis-[30%] items-center'>
                             <div className="flex flex-col gap-6">
                                 {/* Staff */}
+                                {assignStaffEnabled && (
                                 <div className=" overflow-hidden shadow-medium sm:rounded-lg">
                                     <div className="flex flex-col justify-between items-center ">
                                         <span className='flex items-center justify-between w-full px-6 py-4 border-b border-gray-300'>
@@ -711,6 +717,7 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                                         )}
                                     </div>
                                 </div>
+                                )}
                                 {/* Comments */}
                                 <div className=" overflow-hidden shadow-medium sm:rounded-lg">
                                     <div className="flex flex-col justify-between items-center ">
