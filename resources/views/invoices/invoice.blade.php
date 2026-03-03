@@ -116,7 +116,16 @@
         <tbody>
             @foreach($services ?? [] as $service)
                 <tr>
-                    <td class="border">{{ $service['name'] ?? '' }}</td>
+                    <td class="border">
+                        {{ $service['name'] ?? '' }}
+                        @if(!empty($service['date']) || !empty($service['time']))
+                            <div class="mt-1">
+                                <small>
+                                    {{ $service['date'] ?? '' }}{{ !empty($service['date']) && !empty($service['time']) ? ' ' : '' }}{{ $service['time'] ?? '' }}
+                                </small>
+                            </div>
+                        @endif
+                    </td>
                     <td class="border center">{{ $service['adults'] ?? 0 }}</td>
                     <td class="border center">{{ $service['children'] ?? 0 }}</td>
                     <td class="border center">{{ $service['guides'] ?? 0 }}</td>

@@ -79,9 +79,13 @@ class RendererService
             $childTotal = $fee?->tot_children ?? ($item->price_child ?? 0);
             $guideTotal = $fee?->tot_guides ?? ($item->price_guide ?? 0);
             $total = (float) $adultTotal + (float) $childTotal + (float) $guideTotal;
+            $inventoryDate = $item->booking_inventory?->date;
+            $inventoryTime = $item->booking_inventory?->inventory_time_slot?->start_time;
 
             return [
                 'name' => trim(($item->service?->name ?? '') . ' ' . ($item->season?->name ?? '')),
+                'date' => $inventoryDate,
+                'time' => $inventoryTime,
                 'adults' => $item->pax_adults,
                 'children' => $item->pax_children,
                 'guides' => $item->pax_guides,
@@ -91,7 +95,10 @@ class RendererService
                 'total' => $total,
             ];
         })->values()->toArray();
-        $invoiceNote = $site?->invoice_note;
+        $invoiceNote = BookingNote::where('booking_id', $booking->id)
+            ->where('type', 'invoice_note')
+            ->orderByDesc('created_at')
+            ->value('note');
         //dd($services);
         $amountTotal = $invoice->total ?? $booking->grand_tot_due ?? 0;
         $amountExVat = round(($amountTotal / 1.15), 2);
@@ -124,6 +131,7 @@ class RendererService
                 'vat_no' => $site?->vat_no,
                 'address' => $site?->address,
                 'address_code' => $site?->address_code,
+                'invoice_note' => $site?->invoice_note,
                 //'site_logo' => $site->file_logo->path,
                 //'file_logo' => $item->service->team->file_logo->path,
             ],
@@ -146,7 +154,7 @@ class RendererService
             'vat_amount'    => $amountTotal,
             'amount_paid'   => $amountPaid,
             'balance_due'   => $balanceDue,
-            'notes'         => $invoiceNote ?: 'Please pay within 7 days.',
+            'notes'         => $invoiceNote ?: '',
             'bank' => [
                 'owner' => $site?->account_owner,
                 'number' => $site?->account_number,
