@@ -9,6 +9,7 @@ use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\Team;
 use App\Models\TypeInvoice;
+use App\Models\WholesalerBooking;
 use Illuminate\Support\Str;
 
 class RendererService
@@ -56,15 +57,29 @@ class RendererService
             'receipt' => 'Receipt #',
             default => 'Invoice #',
         };
+        $wholesalerBooking = WholesalerBooking::with('wholesaler')
+            ->where('booking_id', $booking->id)
+            ->first();
+        $clientName = $customer->full_name;
+        $clientPhone = $customer->contact_number;
+        $clientEmail = $customer->email_address;
+        if ($wholesalerBooking?->wholesaler) {
+            $consultant = $wholesalerBooking->consultant_name;
+            $clientName = $wholesalerBooking->wholesaler->name
+                . ($consultant ? ' (Attn: ' . $consultant . ')' : '');
+            $clientPhone = $wholesalerBooking->consultant_mobile ?? '';
+            $clientEmail = $wholesalerBooking->consultant_email ?? '';
+        }
+
         $emailMessageLines = $documentLabel === 'Quote'
             ? [
-                "Hello {$customer->full_name},",
+                "Hello {$clientName},",
                 'Please find your quote attached.',
                 "Your booking reference is {$booking->reference}.",
                 'Please contact us if you have any questions.',
             ]
             : [
-                "Hello {$customer->full_name},",
+                "Hello {$clientName},",
                 'Your booking has been paid.',
                 'Thank you for choosing Canopy Tours.',
                 "Your booking reference is {$booking->reference}.",
@@ -136,9 +151,9 @@ class RendererService
                 //'file_logo' => $item->service->team->file_logo->path,
             ],
             'client' => [
-                'name' => $customer->full_name,
-                'phone' => $customer->contact_number,
-                'email' => $customer->email_address,
+                'name' => $clientName,
+                'phone' => $clientPhone,
+                'email' => $clientEmail,
             ],
             'invoice' => [
                 'number' => $invoice->invoice_number,
