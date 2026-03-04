@@ -1,5 +1,5 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import parse from 'html-react-parser';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import HelpQuestionModal from './HelpQuestionModal';
@@ -28,7 +28,6 @@ export default function Show({ helpQuestions = [], activeQuestion = null, typeHe
     const list = useMemo(() => (Array.isArray(helpQuestions) ? helpQuestions : []), [helpQuestions]);
     const selected = useMemo(() => {
         if (search && list.length === 0) return null;
-        if (search && list.length > 0) return list[0];
         return activeQuestion ?? list[0] ?? null;
     }, [activeQuestion, list, search]);
     const answerHtml = selected?.answer?.answer ?? '';
@@ -39,6 +38,10 @@ export default function Show({ helpQuestions = [], activeQuestion = null, typeHe
     const isAdmin = auth?.user?.is_admin || auth?.user?.roles?.some((role) => role?.id === 1);
     const canEdit = !!permissions?.help_questions_edit;
     const canDelete = !!permissions?.help_questions_delete || canEdit;
+
+    useEffect(() => {
+        setSearch(searchTerm);
+    }, [searchTerm]);
 
     const handleDelete = () => {
         if (!selected) return;
@@ -170,7 +173,7 @@ export default function Show({ helpQuestions = [], activeQuestion = null, typeHe
                                         <div className="text-xs uppercase tracking-wide text-gray-500">Answer</div>
                                         <div className="mt-3 text-sm text-gray-700">
                                             {hasAnswer ? (
-                                                <div className="ProseMirror">{parse(answerHtml)}</div>
+                                                <div key={selected.id} className="ProseMirror">{parse(answerHtml)}</div>
                                             ) : (
                                                 <p className="text-gray-500">No answer has been added yet.</p>
                                             )}

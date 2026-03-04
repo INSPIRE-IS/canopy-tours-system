@@ -91,7 +91,8 @@ class SeedHelpQuestions extends Command
             $description = $item['description'] ?? $item['answer'] ?? '';
             $where = $item['where'] ?? '';
             $businessRules = $item['business_rules'] ?? '';
-            $formattedAnswer = $this->formatAnswer($description, $where, $businessRules);
+            $examples = $item['examples'] ?? '';
+            $formattedAnswer = $this->formatAnswer($description, $where, $businessRules, $examples);
 
             $question = HelpQuestion::updateOrCreate(
                 [
@@ -163,7 +164,7 @@ class SeedHelpQuestions extends Command
                 'question' => 'When should I use a wholesaler booking?',
                 'description' => 'Wholesalers are trade partners with contracted rates.',
                 'where' => '<a href="/admin/wholesalers">Admin > Wholesalers</a>',
-                'business_rules' => 'Wholesaler rates override standard rates when applied.',
+                'business_rules' => 'Wholesaler rates override standard rates when a booking is marked as wholesaler. Rates are matched by service + season; if no rate exists, standard pricing applies.',
                 'is_internal' => true,
             ],
             [
@@ -187,7 +188,41 @@ class SeedHelpQuestions extends Command
                 'question' => 'Where is capacity and duration set?',
                 'description' => 'Services define capacity, duration, and base pricing.',
                 'where' => '<a href="/admin/services">Admin > Services</a>',
-                'business_rules' => 'Capacity is enforced on bookings; duration drives time range.',
+                'business_rules' => 'Capacity is enforced on bookings; duration drives the time-range displayed on calendars. Services also use visibility (Draft/Bookable/Gift/Both) to control where they appear (front booking vs gift flow).',
+                'is_internal' => true,
+            ],
+            [
+                'category' => 'Services',
+                'question' => 'How do service visibility settings work?',
+                'description' => 'Service visibility controls whether a service appears on booking and gift flows.',
+                'where' => '<a href="/admin/services">Admin > Services</a>',
+                'business_rules' => 'Visibility options: Draft (hidden), Bookable, Gift Only, or Bookable + Gift. Draft hides the service everywhere until changed. Front booking list shows Bookable/Both. Gift-only services are intended for gift voucher purchase and do not appear in admin booking calendars.',
+                'is_internal' => true,
+            ],
+            [
+                'category' => 'Services',
+                'question' => 'Gift services vs bookable services (what shows where?)',
+                'description' => 'Visibility controls which actions are shown on the front site and in admin bookings.',
+                'where' => '<a href="/admin/services">Admin > Services</a>, <a href="/front/welcome">Front > Welcome</a>, <a href="/front/activity">Front > Activities</a>',
+                'business_rules' => 'Bookable services show “Book Now” on the front activity pages and appear in admin booking calendars. Gift-only services show “Buy as a Gift” and do not appear in admin bookings. Bookable + Gift shows both actions. Draft/Hidden shows nowhere.',
+                'examples' => 'If a service is Gift Only, users can purchase a gift voucher from the front site but cannot book dates. If a service is Bookable + Gift, both booking and gift purchase are available.',
+                'is_internal' => true,
+            ],
+            [
+                'category' => 'Services',
+                'question' => 'How do I clone a service?',
+                'description' => 'Cloning creates a full copy of the service and its related setup.',
+                'where' => 'Open a service detail view from <a href="/admin/services">Admin > Services</a> and click Clone Service.',
+                'business_rules' => 'Clone copies service fields, seasons, inventories, time slots, inventory days, and closeouts. The clone starts as Draft (hidden) and must be set to Bookable/Gift/Both to appear.',
+                'is_internal' => true,
+            ],
+            [
+                'category' => 'Services',
+                'question' => 'What happens when I delete a service?',
+                'description' => 'Deleting a service soft-deletes its related setup.',
+                'where' => '<a href="/admin/services">Admin > Services</a>',
+                'business_rules' => 'Deleting a service will soft-delete its seasons, inventory, time slots, inventory days, closeouts, promotions, wholesaler rates, service fields, and service file. Discount links are detached but discounts are not deleted.',
+                'examples' => 'If you delete a service with two seasons, those seasons and their inventory/time slots are also soft-deleted so they no longer appear in Seasons or Bookings.',
                 'is_internal' => true,
             ],
             [
@@ -195,7 +230,7 @@ class SeedHelpQuestions extends Command
                 'question' => 'Why is a date not bookable?',
                 'description' => 'Seasons control availability dates for services.',
                 'where' => '<a href="/admin/seasons">Admin > Seasons</a>',
-                'business_rules' => 'Bookings must fall within season dates; questionnaires are seeded on create.',
+                'business_rules' => 'Bookings must fall within season dates. New seasons auto-seed questionnaires; booking/feedback check-in will auto-seed if missing.',
                 'is_internal' => true,
             ],
             [
@@ -203,7 +238,44 @@ class SeedHelpQuestions extends Command
                 'question' => 'How are time slots generated?',
                 'description' => 'Inventory defines dates and time slots per season.',
                 'where' => '<a href="/admin/inventories">Admin > Inventory</a>',
-                'business_rules' => 'Time slots drive availability and capacity calculations.',
+                'business_rules' => 'Weekly day selections + time slots generate availability across a season. Closeouts remove specific days/times from availability.',
+                'examples' => 'If a season runs 1-31 May and you select Mondays + Wednesdays with 09:00 and 13:00, those two slots appear on every Monday and Wednesday in May. To block 13:00 on May 15, add a closeout for that date/time.',
+                'is_internal' => true,
+            ],
+            [
+                'category' => 'Inventory',
+                'question' => 'What is the difference between inventory and closeouts?',
+                'description' => 'Inventory creates availability; closeouts remove it.',
+                'where' => '<a href="/admin/inventories">Admin > Inventory</a> and <a href="/admin/closeouts">Admin > Closeouts</a>',
+                'business_rules' => 'Inventory defines the recurring weekly schedule for a season. Closeouts are exceptions that block specific dates/times without changing the base schedule.',
+                'examples' => 'If Fridays at 10:00 are available all season, add a closeout for 2026-06-12 at 10:00 to block only that one slot.',
+                'is_internal' => true,
+            ],
+            [
+                'category' => 'Inventory',
+                'question' => 'Where does the current inventory model fall short?',
+                'description' => 'Weekly schedules expand across the full season, which can be too broad for date-specific needs.',
+                'where' => '<a href="/admin/inventories">Admin > Inventory</a> and <a href="/admin/closeouts">Admin > Closeouts</a>',
+                'business_rules' => 'Current inventory applies selected weekdays + time slots to every matching day in the season. It does not allow “open only for these exact dates” without using closeouts to block everything else.',
+                'examples' => 'If you only want 09:00 on May 5–7, the current system forces you to open 09:00 for every matching weekday across the season, then add closeouts for the days you do NOT want. Closeouts can remove dates but cannot create availability that never existed.',
+                'is_internal' => true,
+            ],
+            [
+                'category' => 'Inventory',
+                'question' => 'How would Option A (weekly + date overrides) work?',
+                'description' => 'Date-range overrides replace the weekly schedule for specific dates.',
+                'where' => '<a href="/admin/inventories">Admin > Inventory</a>',
+                'business_rules' => 'Weekly schedule is the default. If a date-range override exists for a date, only those override slots are used for that date. Closeouts still apply after overrides.',
+                'examples' => 'Weekly schedule: Mon/Wed/Fri 09:00 + 13:00. Override range: May 5–7 with only 10:00. Result: May 5–7 shows only 10:00; all other Mon/Wed/Fri still show 09:00 + 13:00.',
+                'is_internal' => true,
+            ],
+            [
+                'category' => 'Inventory',
+                'question' => 'How would Option B (range-only scheduling) work?',
+                'description' => 'Availability exists only when a date range is created.',
+                'where' => '<a href="/admin/inventories">Admin > Inventory</a>',
+                'business_rules' => 'Weekly schedule is not used. If no range exists for a date, that date is closed. Closeouts can still block within created ranges.',
+                'examples' => 'If you create ranges for May 5–7 at 10:00 and May 12–14 at 09:00, only those dates/times are bookable. All other dates are closed unless you add more ranges.',
                 'is_internal' => true,
             ],
             [
@@ -211,7 +283,8 @@ class SeedHelpQuestions extends Command
                 'question' => 'When do we use an inventory override?',
                 'description' => 'Override base rates for a specific inventory.',
                 'where' => '<a href="/admin/inventories-overrides">Admin > Inventory Overrides</a>',
-                'business_rules' => 'Allowed only when season.allow_internal_price_override is true. Overrides clear promos/discounts/wholesaler pricing.',
+                'business_rules' => 'Allowed only when season.allow_internal_price_override is true. Overrides clear promos/discounts/wholesaler pricing for that booking.',
+                'examples' => 'If a private group needs a custom price on 10 June at 09:00, create an inventory override for that inventory record. The booking will use the override price and will ignore promos/discounts/wholesaler rates.',
                 'is_internal' => true,
             ],
             [
@@ -219,7 +292,17 @@ class SeedHelpQuestions extends Command
                 'question' => 'How do we block a day or slot?',
                 'description' => 'Closeouts block dates or time slots from booking.',
                 'where' => '<a href="/admin/closeouts">Admin > Closeouts</a>',
-                'business_rules' => 'Closed slots are unavailable in admin and front calendars.',
+                'business_rules' => 'Closed slots are unavailable in admin and front calendars. Closeouts can target specific weekdays and time slots over a date range.',
+                'examples' => 'If you select a date range 10-14 July, weekdays Mon-Fri, and time slot 09:00, then 09:00 is blocked on every weekday in that range. Leaving time slots empty blocks all slots for those dates.',
+                'is_internal' => true,
+            ],
+            [
+                'category' => 'Closeouts',
+                'question' => 'Can closeouts solve date-specific availability?',
+                'description' => 'Closeouts can block availability but cannot add it.',
+                'where' => '<a href="/admin/closeouts">Admin > Closeouts</a>',
+                'business_rules' => 'Closeouts are useful for removing specific days/times from an existing weekly schedule. They do not create new availability for a date that was never opened by inventory.',
+                'examples' => 'If a season has no Monday slots, a closeout cannot open Mondays. If Mondays are open all season but you only want two specific Mondays, you can keep the weekly schedule and close out every other Monday (workaround).',
                 'is_internal' => true,
             ],
             [
@@ -235,7 +318,44 @@ class SeedHelpQuestions extends Command
                 'question' => 'What is the difference between discounts and promos?',
                 'description' => 'Discount rules applied to bookings or invoices.',
                 'where' => '<a href="/admin/discounts">Admin > Discounts</a>',
-                'business_rules' => 'Discounts are separate from promo codes.',
+                'business_rules' => 'Discounts are separate from promo codes. Discounts can be per-line (per pax) or invoice-level. Per-line discounts reduce individual rates; invoice-level discounts apply to the total after all per-line logic. Discounts do not have booking/activity windows.',
+                'examples' => 'A 10% line discount for Adults reduces adult rates only. A 10% invoice discount reduces the full total after line-level discounts are applied.',
+                'is_internal' => true,
+            ],
+            [
+                'category' => 'Discounts',
+                'question' => 'What are line vs invoice discounts?',
+                'description' => 'Line discounts apply to specific pax types; invoice discounts apply to the total.',
+                'where' => '<a href="/admin/discounts">Admin > Discounts</a> and Admin booking create/edit',
+                'business_rules' => 'Line discounts reduce the selected pax type rates (adult/child/guide). Invoice discounts apply once to the total after line discounts. Only one invoice discount should be applied at a time.',
+                'examples' => 'If a booking has 2 Adults + 1 Child and you apply a 15% Child line discount, only the child rate is reduced. If you then apply a 5% invoice discount, it applies to the new total.',
+                'is_internal' => true,
+            ],
+            [
+                'category' => 'Discounts',
+                'question' => 'Are value (R) discounts supported?',
+                'description' => 'Discounts can be percent-based today; value-based discounts are planned.',
+                'where' => '<a href="/admin/discounts">Admin > Discounts</a>',
+                'business_rules' => 'Current discount logic uses percent-off only. Value (R) discounts will require a discount type field and updated pricing logic.',
+                'examples' => 'If you need to discount R100 off a total, this is not supported yet; use a percent discount instead.',
+                'is_internal' => true,
+            ],
+            [
+                'category' => 'Discounts',
+                'question' => 'How do discount types apply to pricing?',
+                'description' => 'Per-line discounts apply to a specific pax type; invoice discounts apply to the total.',
+                'where' => '<a href="/admin/discounts">Admin > Discounts</a>',
+                'business_rules' => 'When a promotion is applied, per-line discounts are skipped. Invoice-level discounts apply at the end and do not stack with other invoice-level discounts. Discounts can be limited to specific services.',
+                'examples' => 'If a promo code is applied to a booking, line discounts (e.g., “Local Resident 10%”) will not apply. An invoice-level discount can still be applied if selected.',
+                'is_internal' => true,
+            ],
+            [
+                'category' => 'Discounts',
+                'question' => 'Why is a discount not showing on a booking?',
+                'description' => 'Discount visibility depends on service and context.',
+                'where' => 'Admin booking create/edit',
+                'business_rules' => 'Discounts only appear for services they are linked to. If a promotion is selected, per-line discounts are not applied. Invoice discounts are exclusive and apply only when selected.',
+                'examples' => 'If a discount is linked to “Canopy Tour A” but the booking is for “Canopy Tour B”, it will not show. If a promo code is applied, the discount list may be empty.',
                 'is_internal' => true,
             ],
             [
@@ -243,7 +363,44 @@ class SeedHelpQuestions extends Command
                 'question' => 'Why is a promo not selectable?',
                 'description' => 'Promo codes use booking and activity windows.',
                 'where' => '<a href="/admin/promotions">Admin > Promotions</a>',
-                'business_rules' => 'Booking window uses today; activity window uses booking date. Admin sees all; front only active and internal_use_only=false.',
+                'business_rules' => 'Booking window uses today; activity window uses the booking date (activity date). Admin sees all; front only shows active promos with internal_use_only=false. If the activity date is outside the promo activity window, the promo will be invalid.',
+                'examples' => 'If a promo’s booking window is Feb 1–Feb 28 and today is March 3, it will be expired (not selectable). If today is within the booking window but the activity date is May 5 and the promo activity window is April only, it will show as invalid.',
+                'is_internal' => true,
+            ],
+            [
+                'category' => 'Promotions',
+                'question' => 'How do booking dates vs activity dates work for promos?',
+                'description' => 'Promos have two date ranges: booking window and activity window.',
+                'where' => '<a href="/admin/promotions">Admin > Promotions</a>',
+                'business_rules' => 'Booking window controls when the promo can be used (today must be within booking range). Activity window controls which activity dates are eligible (booking date must fall within activity range). Booking dates are not tied to seasons; activity dates must be within a season for the selected service.',
+                'examples' => 'Booking window: Feb 1–Feb 28. Activity window: May 1–May 31. You can book in February for a May activity date. Booking in March won’t allow the promo even if the activity date is in May.',
+                'is_internal' => true,
+            ],
+            [
+                'category' => 'Promotions',
+                'question' => 'What promotion types are available?',
+                'description' => 'Promotions can change pricing by percent, fixed value, tiers, or time slots.',
+                'where' => '<a href="/admin/promotions">Admin > Promotions</a>',
+                'business_rules' => 'Types include percent, fixed value, graduated, varied child, volume discount, and time-slot promos. Graduated promos override total price based on pax count. Time-slot promos apply only to selected days/time slots.',
+                'examples' => 'A “10% off” promo reduces each pax rate by 10%. A “Graduated” promo can set the total to R1500 for 4 pax regardless of base price.',
+                'is_internal' => true,
+            ],
+            [
+                'category' => 'Promotions',
+                'question' => 'How do promotion types affect totals?',
+                'description' => 'Each promo type calculates pricing differently.',
+                'where' => '<a href="/admin/promotions">Admin > Promotions</a>',
+                'business_rules' => 'Percent and fixed-value adjust rates; graduated overrides total by pax count; varied-child discounts child rates when adult minimum is met; volume tiers apply based on pax thresholds; time-slot promos apply only to selected days/time slots.',
+                'examples' => 'Varied-child: 2 adults + 1 child with min_adults=2 gives child discount only if at least 2 adults are present. Volume: 1–3 pax = 5%, 4–6 pax = 10%.',
+                'is_internal' => true,
+            ],
+            [
+                'category' => 'Promotions',
+                'question' => 'Why do promos and discounts not stack?',
+                'description' => 'Promotions override discount logic in pricing.',
+                'where' => 'Admin booking create/edit',
+                'business_rules' => 'When a promotion is applied, per-line discounts are skipped. This prevents double-discounting. Invoice-level discounts can still apply if explicitly selected.',
+                'examples' => 'If a promo is selected, you will not see line discounts apply. To discount further, use the invoice discount selector.',
                 'is_internal' => true,
             ],
             [
@@ -267,7 +424,7 @@ class SeedHelpQuestions extends Command
                 'question' => 'Can we book children only?',
                 'description' => 'Create bookings from the admin calendar.',
                 'where' => '<a href="/admin/bookings">Admin > Bookings</a>',
-                'business_rules' => 'At least 1 adult or 1 child is required. Capacity is enforced; overrides allowed only when service permits.',
+                'business_rules' => 'At least 1 adult or 1 child is required. Capacity is enforced; overrides allowed only when service permits. Selected slot is required to save.',
                 'is_internal' => true,
             ],
             [
@@ -275,7 +432,7 @@ class SeedHelpQuestions extends Command
                 'question' => 'Why does editing reissue invoices?',
                 'description' => 'Edit bookings and reissue documents.',
                 'where' => 'Open a booking from <a href="/admin/bookings">Admin > Bookings</a>',
-                'business_rules' => 'Edits reissue invoice and boarding pass. Expired seasons are included for the current booking.',
+                'business_rules' => 'Edits reissue invoice and boarding pass. Expired seasons are included for the current booking so legacy bookings can be edited.',
                 'is_internal' => true,
             ],
             [
@@ -283,7 +440,7 @@ class SeedHelpQuestions extends Command
                 'question' => 'How do we record a manual payment?',
                 'description' => 'Record manual or simulated payments.',
                 'where' => 'Open a booking > Payments or <a href="/admin/booking-payments/create/BOOKING_ID">/admin/booking-payments/create/BOOKING_ID</a>',
-                'business_rules' => 'Totals are VAT-inclusive; simulated payments store ex-VAT and VAT amounts.',
+                'business_rules' => 'Totals are VAT-inclusive; simulated payments store ex-VAT and VAT amounts. Payment records update booking fee totals.',
                 'is_internal' => true,
             ],
             [
@@ -299,7 +456,7 @@ class SeedHelpQuestions extends Command
                 'question' => 'Why are totals VAT inclusive?',
                 'description' => 'Invoices are generated per booking.',
                 'where' => 'Booking tools in <a href="/admin/bookings">Admin > Bookings</a>',
-                'business_rules' => 'Totals are VAT-inclusive; VAT is shown as a breakdown line.',
+                'business_rules' => 'Totals are VAT-inclusive; VAT is shown as a breakdown line. Invoice notes use the site invoice note, not per-booking notes.',
                 'is_internal' => true,
             ],
             [
@@ -323,7 +480,7 @@ class SeedHelpQuestions extends Command
                 'question' => 'How do we send a check-in link?',
                 'description' => 'Check-in links are signed and shared with guests.',
                 'where' => 'Booking tools in <a href="/admin/bookings">Admin > Bookings</a>',
-                'business_rules' => 'Signed links required; questionnaires auto-seed if missing.',
+                'business_rules' => 'Signed links required; questionnaires auto-seed if missing. After submit, guests are redirected back to booking date context.',
                 'is_internal' => true,
             ],
             [
@@ -387,23 +544,37 @@ class SeedHelpQuestions extends Command
                 'question' => 'Where are VAT rates configured?',
                 'description' => 'System settings and lookups.',
                 'where' => 'Admin > Settings (varies by module).',
-                'business_rules' => 'VAT rates are configured in Lookups > VAT Rate.',
+                'business_rules' => 'VAT rates are configured in Lookups > VAT Rate. Settings toggles control booking UI options like pickup/dropoff and send-invoice/quote checkboxes.',
+                'is_internal' => true,
+            ],
+            [
+                'category' => 'System / Settings',
+                'question' => 'What do the booking settings toggles do?',
+                'description' => 'Settings control what fields and actions appear in booking flows.',
+                'where' => 'Admin > Settings',
+                'business_rules' => 'Enable Pickup/Dropoff shows or hides pickup/dropoff fields. Auto Send Invoice/Quote controls default send behavior on booking create/update. Show Send Invoice/Quote Checkbox controls whether staff can manually choose to send these on save. Enable Assign Staff shows the staff assignment panel on Booking Add.',
+                'examples' => 'If Auto Send Invoice is OFF and Show Send Invoice Checkbox is ON, staff will see a checkbox and can choose to send. If Auto Send Invoice is ON and Show Send Invoice Checkbox is OFF, invoices always send automatically.',
                 'is_internal' => true,
             ],
         ];
     }
 
-    protected function formatAnswer(string $description, string $where = '', string $businessRules = ''): string
+    protected function formatAnswer(string $description, string $where = '', string $businessRules = '', string $examples = ''): string
     {
         $description = trim($description);
         $where = trim($where);
         $businessRules = trim($businessRules);
+        $examples = trim($examples);
 
         $parts = [];
         $parts[] = '<p><strong>Description:</strong> ' . ($description !== '' ? $description : 'N/A') . '</p>';
         $parts[] = '<p><strong>Where:</strong> ' . ($where !== '' ? $where : 'N/A') . '</p>';
         $parts[] = '<p><strong>Business Rules:</strong> ' . ($businessRules !== '' ? $businessRules : 'N/A') . '</p>';
+        if ($examples !== '') {
+            $parts[] = '<p><strong>Example:</strong> ' . $examples . '</p>';
+        }
 
         return implode('', $parts);
     }
 }
+

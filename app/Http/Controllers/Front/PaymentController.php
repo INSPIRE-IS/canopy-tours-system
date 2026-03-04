@@ -371,40 +371,121 @@ class PaymentController extends Controller
                 return redirect()->back()->with('error', 'Something went wrong while saving your booking. Please try again.');
             }
         } else if ($validated['type'] === 'voucher') {
-            $voucher = GiftVoucher::findOrFail($validated['gift_id']);
+            $voucher = GiftVoucher::with(['gift_voucher_items.team.file_logo', 'gift_voucher_items.service', 'gift_voucher_items.season'])
+                ->findOrFail($validated['gift_id']);
+            $voucherItem = $voucher->gift_voucher_items->first();
+            $team = $voucherItem?->team;
 
             $voucher->update([
                 'status_payment_id' => 2, // e.g., "paid"
                 'paid_date' => now(),
-                'redeemed' => true,
-                'redeemed_date' => now(),
+                'redeemed' => false,
+                'redeemed_date' => null,
             ]);
 
             $recipient = $voucher->email_address;
             $subject = 'Payment Confirmation';
-            //TODO : update to use template invoice
+            $voucherCode = $voucher->voucher_code ?: ('VOU-' . $voucher->id);
             $content = "
                 <p>Hello {$voucher->full_name},</p>
-                <p>Your booking has been paid.</p>
+                <p>Your gift voucher has been paid.</p>
                 <p>Thank you for choosing Canopy Tours.</p>
-                <p>Your booking reference is {$voucher->reference}.</p>
-                <p>Please Contact us if you have any questions.</p>";
+                <p>Your voucher code is {$voucherCode}.</p>
+                <p>Please contact us if you have any questions.</p>";
+
+            $voucherPdfPath = null;
+            if ($voucherItem && $team) {
+                $logoPath = $team->file_logo?->path;
+                $logoAbs = null;
+                if ($logoPath) {
+                    $relativePath = $logoPath;
+                    if (str_starts_with($relativePath, 'http')) {
+                        $parsed = parse_url($relativePath);
+                        $relativePath = $parsed['path'] ?? $relativePath;
+                    }
+                    if (str_starts_with($relativePath, '/storage/')) {
+                        $relativePath = substr($relativePath, strlen('/storage/'));
+                    }
+                    $logoAbs = public_path('storage/' . ltrim($relativePath, '/'));
+                }
+
+                $voucherData = [
+                    'voucher' => $voucher,
+                    'voucher_code' => $voucherCode,
+                    'team' => $team,
+                    'service' => $voucherItem?->service,
+                    'season' => $voucherItem?->season,
+                    'logo_path' => $logoAbs,
+                    'pax_adults' => $voucherItem?->pax_adults,
+                    'pax_children' => $voucherItem?->pax_children,
+                    'amount' => $voucher->grand_tot_due,
+                ];
+
+                $voucherPdf = Pdf::loadView('vouchers.gift', $voucherData)->setPaper('A4', 'portrait');
+                $voucherFilename = 'gift_vouchers/' . $voucherCode . '.pdf';
+                Storage::disk('public')->put($voucherFilename, $voucherPdf->output());
+                $voucherPdfPath = Storage::disk('public')->path($voucherFilename);
+
+                File::create([
+                    'team_id'      => $team->id,
+                    'table_name'   => 'gift_vouchers',
+                    'table_row_id' => $voucher->id,
+                    'file_name'    => $voucherCode . '.pdf',
+                    'file_type'    => 'application/pdf',
+                    'type_file_id' => null,
+                    'path'         => $voucherFilename,
+                ]);
+            }
 
             Email::create([
                 'sender'         => config('mail.from.address'),
                 'receiver'       => $recipient,
                 'subject'        => $subject,
                 'body'           => strip_tags($content), // or a summary
-                'attachment_path' => null,
+                'attachment_path' => $voucherPdfPath ? ('gift_vouchers/' . $voucherCode . '.pdf') : null,
                 'sent'           => true,
                 'sent_at'        => now(),
                 'user_id'        => null,
                 'auditable_type' => 'App\Models\GiftVoucher',
                 'auditable_id'   => $voucher->id,
-                'team_id'        => $voucher->team_id,
+                'team_id'        => $team?->id,
             ]);
 
-            Mail::to($recipient)->send(new MessageGuestMail($subject, $content));
+            $attachments = [];
+            if ($voucherPdfPath && file_exists($voucherPdfPath)) {
+                $attachments[] = [
+                    'data' => file_get_contents($voucherPdfPath),
+                    'name' => $voucherCode . '.pdf',
+                    'mime' => 'application/pdf',
+                ];
+            }
+            Mail::to($recipient)->send(new MessageGuestMail($subject, $content, $attachments));
+
+            AuditLog::create([
+                'description' => 'Gift voucher payment recorded (simulated)',
+                'subject_id' => $voucher->id,
+                'subject_type' => GiftVoucher::class,
+                'user_id' => null,
+                'properties' => json_encode([
+                    'voucher_code' => $voucherCode,
+                    'amount' => $voucher->grand_tot_due,
+                    'method' => 'simulated',
+                ]),
+                'host' => request()->ip(),
+            ]);
+
+            AuditLog::create([
+                'description' => 'Email sent (gift voucher payment)',
+                'subject_id' => $voucher->id,
+                'subject_type' => GiftVoucher::class,
+                'user_id' => null,
+                'properties' => json_encode([
+                    'receiver' => $recipient,
+                    'subject' => $subject,
+                    'attachment' => $voucherPdfPath ? ('gift_vouchers/' . $voucherCode . '.pdf') : null,
+                ]),
+                'host' => request()->ip(),
+            ]);
 
             return Inertia::render('SimulatedPayment', [
                 'booking' => $voucher,
