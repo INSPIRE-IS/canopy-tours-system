@@ -4,11 +4,15 @@ namespace App\Services\Calendar;
 
 use Carbon\CarbonPeriod;
 use Illuminate\Support\Facades\Log;
+use App\Models\InventorySlotRange;
 
 class ServiceCalendarBuilder
 {
-    public static function build($inventory, $season, $service, $bookingData, $startDate, $endDate, $totalRequested, $startTime = null, $currentBooking = null)
+    public static function build($inventory, $season, $service, $bookingData, $startDate, $endDate, $totalRequested, $startTime = null, $currentBooking = null, $includeInternalOverrides = null)
     {
+        if ($includeInternalOverrides === null) {
+            $includeInternalOverrides = auth()->check();
+        }
 
         $lockoutHours = $inventory->slot_cutoff_hours ?? 0; // 0 = no lockout, 3 = 3h, 4 = 4h, etc
         if (auth()->user() && $inventory->allow_internal_override) {
@@ -18,7 +22,12 @@ class ServiceCalendarBuilder
         $seasonId = $inventory->season_id;
         $allowedDays = $inventory->inventory_type_days->pluck('type_day_id')->toArray();
 
+        $overrideMap = self::buildOverrideMap($inventory->id, $startDate, $endDate, $includeInternalOverrides);
+        $overrideSlotIds = collect($overrideMap)->flatten()->unique()->values()->all();
         $timeSlots = $inventory->inventory_time_slots
+            ->filter(function ($slot) use ($overrideSlotIds) {
+                return !$slot->is_override_only || in_array($slot->id, $overrideSlotIds, true);
+            })
             ->when($startTime, function ($collection, $startTime) {
                 // filter the collection by start_time
                 return $collection->where('id', $startTime);
@@ -26,7 +35,7 @@ class ServiceCalendarBuilder
             //->pluck('start_time')
             ->unique()->sort();
         logger()->info("$serviceId, $seasonId, $startDate, $endDate");
-        $calendar = self::initCalendar($season, $service, $bookingData, $startDate, $endDate, $totalRequested, $allowedDays, $timeSlots, $lockoutHours, $currentBooking);
+        $calendar = self::initCalendar($season, $service, $bookingData, $startDate, $endDate, $totalRequested, $allowedDays, $timeSlots, $lockoutHours, $currentBooking, $overrideMap);
 
         // Apply Closeouts
         $calendar = ServiceCloseoutCalendarBuilder::apply(
@@ -55,7 +64,7 @@ class ServiceCalendarBuilder
         return $calendar;
     }
 
-    protected static function initCalendar($season, $service, $bookingData, $startDate, $endDate, $totalRequested, $allowedDays, $timeSlots, $lockoutHours, $currentBooking = null)
+    protected static function initCalendar($season, $service, $bookingData, $startDate, $endDate, $totalRequested, $allowedDays, $timeSlots, $lockoutHours, $currentBooking = null, $overrideMap = [])
     {
         $calendar = [];
         foreach ($timeSlots as $timeSlot) {
@@ -71,6 +80,7 @@ class ServiceCalendarBuilder
                 $label = $date->format('D d');
                 $dayOfWeek = $date->dayOfWeekIso;
                 $dateStr = $date->toDateString();
+                $overrideSlots = $overrideMap[$dateStr] ?? [];
                 // time period in hours before a slot closes
                 $slotCloseTime = $lockoutHours ?? 0;
 
@@ -82,15 +92,35 @@ class ServiceCalendarBuilder
                 // $cutoff = now()->addDay(); // 24-hour lockout    
                 Log::info('cutoff' . $cutoff);
 
-                // Not an allowed weekday
-                if (!in_array($dayOfWeek, $allowedDays)) {
+                if (!empty($overrideSlots)) {
+                    if (!in_array($timeSlot->id, $overrideSlots, true)) {
+                        $row['days'][$label] = [
+                            'date' => $dateStr,
+                            'slots' => 0,
+                            'status' => 'unavailable',
+                            'note' => 'Date override active',
+                        ];
+                        continue;
+                    }
+                } elseif (!empty($timeSlot->is_override_only)) {
                     $row['days'][$label] = [
                         'date' => $dateStr,
                         'slots' => 0,
                         'status' => 'unavailable',
-                        'note' => 'Not an allowed day',
+                        'note' => 'Override-only slot',
                     ];
                     continue;
+                } else {
+                    // Not an allowed weekday
+                    if (!in_array($dayOfWeek, $allowedDays)) {
+                        $row['days'][$label] = [
+                            'date' => $dateStr,
+                            'slots' => 0,
+                            'status' => 'unavailable',
+                            'note' => 'Not an allowed day',
+                        ];
+                        continue;
+                    }
                 }
                 // Rule: Past date
                 if ($date->isBefore(now()->startOfDay())) {
@@ -226,5 +256,37 @@ class ServiceCalendarBuilder
         }
 
         return $newCalendar;
+    }
+
+    protected static function buildOverrideMap(int $inventoryId, $startDate, $endDate, bool $includeInternalOverrides): array
+    {
+        $ranges = InventorySlotRange::where('inventory_id', $inventoryId)
+            ->whereDate('start_date', '<=', $endDate)
+            ->whereDate('end_date', '>=', $startDate)
+            ->when(!$includeInternalOverrides, function ($query) {
+                $query->where('internal_only', false);
+            })
+            ->get();
+
+        if ($ranges->isEmpty()) {
+            return [];
+        }
+
+        $map = [];
+        foreach ($ranges as $range) {
+            foreach (CarbonPeriod::create($range->start_date, $range->end_date) as $date) {
+                $dateStr = $date->toDateString();
+                if (!isset($map[$dateStr])) {
+                    $map[$dateStr] = [];
+                }
+                $map[$dateStr][] = $range->time_slot_id;
+            }
+        }
+
+        foreach ($map as $dateStr => $slots) {
+            $map[$dateStr] = array_values(array_unique($slots));
+        }
+
+        return $map;
     }
 }

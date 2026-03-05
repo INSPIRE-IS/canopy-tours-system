@@ -9,6 +9,7 @@ use DateTimeInterface;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Models\InventorySlotRange;
 
 class Inventory extends Model
 {
@@ -92,6 +93,11 @@ class Inventory extends Model
         return $this->hasMany(InventoryTimeSlot::class, 'inventory_id');
     }
 
+    public function inventory_slot_ranges()
+    {
+        return $this->hasMany(InventorySlotRange::class, 'inventory_id');
+    }
+
     public function updated_by()
     {
         return $this->belongsTo(User::class, 'updated_by_id');
@@ -100,5 +106,21 @@ class Inventory extends Model
     public function team()
     {
         return $this->belongsTo(Team::class, 'team_id');
+    }
+
+    protected static function booted()
+    {
+        static::deleting(function (Inventory $inventory) {
+            if ($inventory->isForceDeleting()) {
+                $inventory->inventory_time_slots()->withTrashed()->get()->each->forceDelete();
+                $inventory->inventory_type_days()->withTrashed()->get()->each->forceDelete();
+                $inventory->inventory_slot_ranges()->withTrashed()->get()->each->forceDelete();
+                return;
+            }
+
+            $inventory->inventory_time_slots()->get()->each->delete();
+            $inventory->inventory_type_days()->get()->each->delete();
+            $inventory->inventory_slot_ranges()->get()->each->delete();
+        });
     }
 }

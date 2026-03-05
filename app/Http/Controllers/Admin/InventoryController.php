@@ -20,6 +20,7 @@ use Inertia\Inertia;
 use Session;
 use Symfony\Component\HttpFoundation\Response;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 
 class InventoryController extends Controller
 {
@@ -32,7 +33,7 @@ class InventoryController extends Controller
         /** @var \App\Models\User $user */
         $teamId = Session::get('team_id');
         //$seasons = Season::with(['service', 'updated_by', 'team'])
-        $inventories = Inventory::with(['service', 'season', 'inventory_type_days.type_day', 'inventory_time_slots', 'team'])
+        $inventories = Inventory::with(['service', 'season', 'inventory_type_days.type_day', 'inventory_time_slots', 'inventory_slot_ranges.time_slot', 'team'])
             ->where('season_id', 'like', '%' . $searchTerm . '%')
             ->orderBy($sortColumn, $sortDirection)
             ->paginate(10);
@@ -42,7 +43,7 @@ class InventoryController extends Controller
         $day_slots = TypeDay::select('name', 'id')->get();
         //$time_slots = TypeTimeSlot::select('name', 'id')->get();
         //dd($services);
-        return Inertia::render('Admin/Inventories/Index1', [
+        return Inertia::render('Admin/Inventories/Index', [
 
             'services' => $services,
             'seasons' => $seasons,
@@ -60,55 +61,17 @@ class InventoryController extends Controller
         //dd($request->all());
         // plan with days if we select 1,2,3,4,5 this is saved then for the period we take these into consideration for the time slots and only do mon to friday
         // plan with time slots we capture these and then they go to every day we will use blockout to exclude days times and periods
-        $data = $request->except(['day_slots', 'time_slots', 'allow_slot_cutoff_hours', 'allow_slot_funneling']);
-        $data['created_by_id'] = auth()->id();
-        $data['team_id'] = auth()->user()->team_id;
-
-        $inventory = Inventory::create($data);
-
-        // Clear existing related slots
-        $inventory->inventory_type_days()->delete();
-        $inventory->inventory_time_slots()->delete();
-
-        // Prepare new day slot records
-        $daySlotRecords = collect($request->day_slots)->map(fn($typeDayId) => [
-            'inventory_id' => $inventory->id,
-            'type_day_id' => $typeDayId,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ])->toArray();
-
-        // Prepare new time slot records (adjust depending on format)
-        $timeSlotRecords = collect($request->time_slots)->map(function ($slot) use ($inventory) {
-            return [
-                'inventory_id' => $inventory->id,
-                'start_time' => is_array($slot) ? $slot['start_time'] : $slot,
-                //'end_time' => is_array($slot) && isset($slot['end_time']) ? $slot['end_time'] : null,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ];
-        })->toArray();
-
-        // Bulk insert
-        InventoryTypeDay::insert($daySlotRecords);
-        InventoryTimeSlot::insert($timeSlotRecords);
-
-        return redirect()->route('admin.inventories.index');
-    }
-
-    public function update(UpdateInventoryRequest $request, Inventory $inventory)
-    {
-
-        try {
-            // dd($request);
+        DB::transaction(function () use ($request) {
             $data = $request->except(['day_slots', 'time_slots', 'allow_slot_cutoff_hours', 'allow_slot_funneling']);
-            $data['updated_by_id'] = auth()->id();
+            $data['created_by_id'] = auth()->id();
             $data['team_id'] = auth()->user()->team_id;
 
-            $inventory->update($data);
-            //$inventory->time_slots()->sync($request->input('time_slots', []));
-            // Clear existing related day slots we need these but technically use over rides currently
+            $inventory = Inventory::create($data);
+
+            // Clear existing related slots
             $inventory->inventory_type_days()->delete();
+            $inventory->inventory_time_slots()->delete();
+
             // Prepare new day slot records
             $daySlotRecords = collect($request->day_slots)->map(fn($typeDayId) => [
                 'inventory_id' => $inventory->id,
@@ -117,14 +80,14 @@ class InventoryController extends Controller
                 'updated_at' => now(),
             ])->toArray();
 
-            $inventory->inventory_time_slots()->delete();
             // Prepare new time slot records (adjust depending on format)
             $timeSlotRecords = collect($request->time_slots)->map(function ($slot) use ($inventory) {
-                $slot_time = is_array($slot) ? $slot['start_time'] : $slot;
-                $start_time = strlen($slot_time) === 5 ? $slot_time . ':00' : $slot_time;
+                $slotTime = is_array($slot) ? $slot['start_time'] : $slot;
+                $startTime = strlen($slotTime) === 5 ? $slotTime . ':00' : $slotTime;
                 return [
                     'inventory_id' => $inventory->id,
-                    'start_time' => $start_time,
+                    'start_time' => $startTime,
+                    'is_override_only' => false,
                     //'end_time' => is_array($slot) && isset($slot['end_time']) ? $slot['end_time'] : null,
                     'created_at' => now(),
                     'updated_at' => now(),
@@ -134,6 +97,52 @@ class InventoryController extends Controller
             // Bulk insert
             InventoryTypeDay::insert($daySlotRecords);
             InventoryTimeSlot::insert($timeSlotRecords);
+        });
+
+        return redirect()->route('admin.inventories.index');
+    }
+
+    public function update(UpdateInventoryRequest $request, Inventory $inventory)
+    {
+
+        try {
+            // dd($request);
+            DB::transaction(function () use ($request, $inventory) {
+                $data = $request->except(['day_slots', 'time_slots', 'allow_slot_cutoff_hours', 'allow_slot_funneling']);
+                $data['updated_by_id'] = auth()->id();
+                $data['team_id'] = auth()->user()->team_id;
+
+                $inventory->update($data);
+                //$inventory->time_slots()->sync($request->input('time_slots', []));
+                // Clear existing related day slots we need these but technically use over rides currently
+                $inventory->inventory_type_days()->delete();
+                // Prepare new day slot records
+                $daySlotRecords = collect($request->day_slots)->map(fn($typeDayId) => [
+                    'inventory_id' => $inventory->id,
+                    'type_day_id' => $typeDayId,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ])->toArray();
+
+                $inventory->inventory_time_slots()->where('is_override_only', false)->delete();
+                // Prepare new time slot records (adjust depending on format)
+                $timeSlotRecords = collect($request->time_slots)->map(function ($slot) use ($inventory) {
+                    $slot_time = is_array($slot) ? $slot['start_time'] : $slot;
+                    $start_time = strlen($slot_time) === 5 ? $slot_time . ':00' : $slot_time;
+                    return [
+                        'inventory_id' => $inventory->id,
+                        'start_time' => $start_time,
+                        'is_override_only' => false,
+                        //'end_time' => is_array($slot) && isset($slot['end_time']) ? $slot['end_time'] : null,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ];
+                })->toArray();
+
+                // Bulk insert
+                InventoryTypeDay::insert($daySlotRecords);
+                InventoryTimeSlot::insert($timeSlotRecords);
+            });
 
             // return redirect()->route('admin.inventories.index');
         } catch (\Throwable $e) {

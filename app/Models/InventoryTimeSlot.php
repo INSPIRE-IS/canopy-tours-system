@@ -23,6 +23,7 @@ class InventoryTimeSlot extends Model
     protected $fillable = [
         'inventory_id',
         'start_time',
+        'is_override_only',
         'created_at',
         'updated_at',
         'deleted_at',

@@ -3080,7 +3080,7 @@ class BookingsController extends Controller
             ];
         }
         $schedule = app(\App\Services\Calendar\ServiceCalendarBuilder::class)
-            ->build($inventory, $season, $service, $bookingData, $startDate, $endDate, $totalRequested, $startTime, $currentBooking);
+            ->build($inventory, $season, $service, $bookingData, $startDate, $endDate, $totalRequested, $startTime, $currentBooking, true);
 
         return response()->json([
             'schedule' => $schedule,

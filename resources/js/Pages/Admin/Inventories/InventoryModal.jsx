@@ -32,7 +32,7 @@ const InventoryModal = ({ isOpen, onClose, mode, inventory = null, services, sea
                 service_id: inventory.service_id || "",
                 season_id: inventory.season_id || "",
                 day_slots: [1, 2, 3, 4, 5, 6, 7], // inventory.inventory_type_days ||
-                time_slots: inventory?.inventory_time_slots?.map(slot => slot.start_time) || [],
+                time_slots: inventory?.inventory_time_slots?.filter((slot) => !slot.is_override_only).map(slot => slot.start_time.slice(0, 5)) || [],
                 slot_cutoff_hours: inventory.slot_cutoff_hours || 0,
                 slot_funneling: inventory.slot_funneling || 0,
                 allow_internal_override: inventory.allow_internal_override || 0,
@@ -80,6 +80,7 @@ const InventoryModal = ({ isOpen, onClose, mode, inventory = null, services, sea
             data.time_slots.filter((_, i) => i !== index)
         );
     };
+
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -244,6 +245,7 @@ const InventoryModal = ({ isOpen, onClose, mode, inventory = null, services, sea
                             </ul>
                         ) : (<span className="block text-red-400">No time slots added</span>)}
                     </div>
+
                     <div className="flex justify-center gap-4">
                         <OutlineButton title="Cancel" onClick={onClose} width="w-[180px]" />
                         {mode !== "view" && (

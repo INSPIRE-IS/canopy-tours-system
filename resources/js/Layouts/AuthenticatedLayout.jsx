@@ -176,6 +176,12 @@ export default function AppLayout({ user, children }) {
             backUrl: route('admin.bookings.index'),
         },
         {
+            match: 'admin.inventory-slot-ranges.index',
+            title: 'date overrides',
+            backLabel: 'Back to all Bookings',
+            backUrl: route('admin.bookings.index'),
+        },
+        {
             match: 'admin.closeouts.index',
             title: 'closeouts',
             backLabel: 'Back to all Bookings',

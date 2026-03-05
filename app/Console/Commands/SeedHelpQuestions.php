@@ -148,7 +148,7 @@ class SeedHelpQuestions extends Command
                 'question' => 'Which role should I give front-desk operators?',
                 'description' => 'Roles bundle permissions for staff access.',
                 'where' => '<a href="/admin/roles">Admin > Roles</a>',
-                'business_rules' => 'Permissions are managed on roles, not users.',
+                'business_rules' => 'Permissions are managed on roles, not users. Admin controles available roles and permissions.',
                 'is_internal' => true,
             ],
             [
@@ -156,7 +156,7 @@ class SeedHelpQuestions extends Command
                 'question' => 'Why can I not see a menu item?',
                 'description' => 'Permissions control access to menus and actions.',
                 'where' => '<a href="/admin/permissions">Admin > Permissions</a>',
-                'business_rules' => 'Permissions are assigned to roles and enforced by gates.',
+                'business_rules' => 'Permissions are assigned to roles and enforced by gates(these are controlled access created and by admin).',
                 'is_internal' => true,
             ],
             [
@@ -257,25 +257,25 @@ class SeedHelpQuestions extends Command
                 'description' => 'Weekly schedules expand across the full season, which can be too broad for date-specific needs.',
                 'where' => '<a href="/admin/inventories">Admin > Inventory</a> and <a href="/admin/closeouts">Admin > Closeouts</a>',
                 'business_rules' => 'Current inventory applies selected weekdays + time slots to every matching day in the season. It does not allow “open only for these exact dates” without using closeouts to block everything else.',
-                'examples' => 'If you only want 09:00 on May 5–7, the current system forces you to open 09:00 for every matching weekday across the season, then add closeouts for the days you do NOT want. Closeouts can remove dates but cannot create availability that never existed.',
+                'examples' => 'If you only want 09:00 on May 5–7, the current system forces you to open 09:00 for every matching weekday across the season, then add closeouts for the days you do NOT want. Closeouts can remove dates but cannot create availability that never existed. see <a href="/admin/inventory-slot-ranges">Admin > Date Overrides</a> for a more flexible solution.',
                 'is_internal' => true,
             ],
             [
                 'category' => 'Inventory',
                 'question' => 'How would Option A (weekly + date overrides) work?',
-                'description' => 'Date-range overrides replace the weekly schedule for specific dates.',
-                'where' => '<a href="/admin/inventories">Admin > Inventory</a>',
-                'business_rules' => 'Weekly schedule is the default. If a date-range override exists for a date, only those override slots are used for that date. Closeouts still apply after overrides.',
+                'description' => 'Date overrides replace the weekly schedule for specific dates.',
+                'where' => '<a href="/admin/inventory-slot-ranges">Admin > Inventory > Date Overrides</a>',
+                'business_rules' => 'Weekly schedule is the default. If a date override exists for a date, only those override slots are used for that date. Overrides can use custom times not present in weekly inventory and can be marked internal-only to hide from the guest calendar. Closeouts still apply after overrides.',
                 'examples' => 'Weekly schedule: Mon/Wed/Fri 09:00 + 13:00. Override range: May 5–7 with only 10:00. Result: May 5–7 shows only 10:00; all other Mon/Wed/Fri still show 09:00 + 13:00.',
                 'is_internal' => true,
             ],
             [
                 'category' => 'Inventory',
-                'question' => 'How would Option B (range-only scheduling) work?',
-                'description' => 'Availability exists only when a date range is created.',
-                'where' => '<a href="/admin/inventories">Admin > Inventory</a>',
-                'business_rules' => 'Weekly schedule is not used. If no range exists for a date, that date is closed. Closeouts can still block within created ranges.',
-                'examples' => 'If you create ranges for May 5–7 at 10:00 and May 12–14 at 09:00, only those dates/times are bookable. All other dates are closed unless you add more ranges.',
+                'question' => 'What are date overrides and when should I use them?',
+                'description' => 'Date overrides let you open custom times for a specific date range without changing the weekly schedule.',
+                'where' => '<a href="/admin/inventory-slot-ranges">Admin > Inventory > Date Overrides</a>',
+                'business_rules' => 'Overrides apply only to the selected dates and replace the weekly schedule for those dates. Override-only slots are hidden on other dates. Internal-only overrides show on admin calendars only. Closeouts can still block slots after overrides are applied.',
+                'examples' => 'If your weekly schedule is 09:00 + 13:00 but you need 12:00 + 14:00 on Mar 23-25, add a date override for those dates with 12:00 + 14:00. Those dates show only 12:00 + 14:00; the rest of the season remains 09:00 + 13:00.',
                 'is_internal' => true,
             ],
             [
@@ -293,7 +293,7 @@ class SeedHelpQuestions extends Command
                 'description' => 'Closeouts block dates or time slots from booking.',
                 'where' => '<a href="/admin/closeouts">Admin > Closeouts</a>',
                 'business_rules' => 'Closed slots are unavailable in admin and front calendars. Closeouts can target specific weekdays and time slots over a date range.',
-                'examples' => 'If you select a date range 10-14 July, weekdays Mon-Fri, and time slot 09:00, then 09:00 is blocked on every weekday in that range. Leaving time slots empty blocks all slots for those dates.',
+                'examples' => 'If you select a date range 10-14 July, weekdays Mon-Fri, and time slot 09:00, then 09:00 is blocked on every weekday in that range. Leaving time slots empty blocks all slots for those dates. To close all Mondays and Tuesdays for a season, set the closeout date range to the full season, pick Mon + Tue, and leave time slots empty.',
                 'is_internal' => true,
             ],
             [
@@ -382,7 +382,10 @@ class SeedHelpQuestions extends Command
                 'description' => 'Promotions can change pricing by percent, fixed value, tiers, or time slots.',
                 'where' => '<a href="/admin/promotions">Admin > Promotions</a>',
                 'business_rules' => 'Types include percent, fixed value, graduated, varied child, volume discount, and time-slot promos. Graduated promos override total price based on pax count. Time-slot promos apply only to selected days/time slots.',
-                'examples' => 'A “10% off” promo reduces each pax rate by 10%. A “Graduated” promo can set the total to R1500 for 4 pax regardless of base price.',
+                'examples' => '
+                 
+
+<strong>* Percent Fields</strong>: <strong>Value </strong>(%). <strong>Logic</strong>: Percent off booking total. A &ldquo;10% off&rdquo; promo reduces each pax rate by 10%. Fixed Value <strong>Fields</strong>: Value (R). <strong>Logic</strong>: Fixed amount off booking total. <strong>* Graduated Fields</strong>: Lookup table (pax count &rarr; total). A &ldquo;Graduated&rdquo; promo can set the total to R1500 for 4 pax regardless of base price.&nbsp;<strong>Logic</strong>: Sets booking total to lookup value for matched pax. Generally the larger the group the more discount. <strong>* Varied Child Fields:</strong> Min adults + Child discount %, or tiers. <strong>Logic</strong>: Child-only discount when min adults/tier matched. <strong>* Volume Discount Fields:</strong> Tiers (pax range, type, value). <strong>Logic</strong>: Best tier applies; percent or fixed value off booking total. <strong>* Time Slot Fields:</strong> Season, Days, optional Time Slots, <strong>Value </strong>(%). <strong>Logic</strong>: Percent off booking total for selected days; no slots = all slots. -- <em>Day/time filters: if no days are selected, the promo applies to all days. If days are selected and no time slots are checked, it applies to every slot for those days.</em></p>',
                 'is_internal' => true,
             ],
             [
@@ -577,4 +580,3 @@ class SeedHelpQuestions extends Command
         return implode('', $parts);
     }
 }
-

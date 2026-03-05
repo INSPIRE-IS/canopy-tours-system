@@ -26,6 +26,9 @@ export default function HeaderServices({ permissions, isOpenTab, setIsOpenTab })
       {permissions?.inventories_access && (
         <button id="Inventory-tab" className={` ${isOpenTab === 'Inventory' ? 'border-b-[5px] border-primary-7' : ''} tab-button px-4 py-[11px] text-tab-inactive pb-2 cursor-pointer flex items-center gap-1`} onClick={() => toggleDropdown('Inventory', 'admin.inventories.index')} >Inventory</button>
       )}
+      {permissions?.inventories_access && (
+        <button id="DateOverrides-tab" className={` ${isOpenTab === 'DateOverrides' ? 'border-b-[5px] border-primary-7' : ''} tab-button px-4 py-[11px] text-tab-inactive pb-2 cursor-pointer flex items-center gap-1`} onClick={() => toggleDropdown('DateOverrides', 'admin.inventory-slot-ranges.index')} >Date Overrides</button>
+      )}
       {permissions?.closeouts_access && (
         <button id="Closeout-tab" className={` ${isOpenTab === 'Closeout' ? 'border-b-[5px] border-primary-7' : ''} tab-button px-4 py-[11px] text-tab-inactive pb-2 cursor-pointer flex items-center gap-1`} onClick={() => toggleDropdown('Closeout', 'admin.closeouts.index')} >Closeouts</button>
       )}

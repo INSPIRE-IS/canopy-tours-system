@@ -11,6 +11,7 @@ use App\Http\Controllers\Admin\DiscountController;
 use App\Http\Controllers\Admin\HelpQuestionsController;
 use App\Http\Controllers\Admin\HomeController;
 use App\Http\Controllers\Admin\InventoryController;
+use App\Http\Controllers\Admin\InventorySlotRangesController;
 use App\Http\Controllers\Admin\InventoryOverridesController;
 use App\Http\Controllers\Admin\InvoiceController;
 use App\Http\Controllers\Admin\LookupsController;
@@ -215,6 +216,8 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['auth', 'v
     Route::resource('seasons', SeasonsController::class);
     // Inventory
     Route::resource('inventories', InventoryController::class);
+    // Inventory Date Overrides
+    Route::resource('inventory-slot-ranges', InventorySlotRangesController::class);
     // Closeouts
     Route::resource('closeouts', CloseoutsController::class);
     // Wholesalers

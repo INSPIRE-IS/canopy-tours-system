@@ -304,7 +304,7 @@ class ActivityController extends Controller
 
         // build schedule (still extendable with promo/closeout)
         $schedule = app(\App\Services\Calendar\ServiceCalendarBuilder::class)
-            ->build($inventory, $season, $service, $bookingData, $startDate, $endDate, $totalRequested);
+            ->build($inventory, $season, $service, $bookingData, $startDate, $endDate, $totalRequested, null, null, false);
 
         return response()->json([
             'schedule' => $schedule,
