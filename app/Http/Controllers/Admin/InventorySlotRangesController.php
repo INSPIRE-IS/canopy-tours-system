@@ -200,6 +200,15 @@ class InventorySlotRangesController extends Controller
             }
         });
 
+        if ($request->wantsJson()) {
+            $timeSlots = $inventory->inventory_time_slots()
+                ->orderBy('start_time')
+                ->get(['id', 'start_time', 'is_override_only']);
+            return response()->json([
+                'time_slots' => $timeSlots,
+            ], 201);
+        }
+
         return redirect()->route('admin.inventory-slot-ranges.index');
     }
 
@@ -410,3 +419,4 @@ class InventorySlotRangesController extends Controller
             ->delete();
     }
 }
+

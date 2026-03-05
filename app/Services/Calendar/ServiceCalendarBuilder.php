@@ -177,6 +177,7 @@ class ServiceCalendarBuilder
                         $row['days'][$label] = [
                             'date' => $dateStr,
                             'slots' => $remaining,
+                            'capacity' => $slotCapacity,
                             'status' => 'full',
                             'note' => 'Fully booked',
                         ];
@@ -184,6 +185,7 @@ class ServiceCalendarBuilder
                         $row['days'][$label] = [
                             'date' => $dateStr,
                             'slots' => $remaining,
+                            'capacity' => $slotCapacity,
                             'status' => 'full',
                             'note' => 'Fully booked',
                         ];
@@ -191,6 +193,7 @@ class ServiceCalendarBuilder
                         $row['days'][$label] = [
                             'date' => $dateStr,
                             'slots' => $remaining,
+                            'capacity' => $slotCapacity,
                             'status' => 'available',
                             'rake_rate_adult' => $season->rake_rate_adult,
                         ];

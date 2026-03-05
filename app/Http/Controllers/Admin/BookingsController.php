@@ -421,6 +421,7 @@ class BookingsController extends Controller
             'web_booking' => 'boolean', //   "web_booking" => "true"
             'include_media' => 'boolean', //   "videos_photos" => "true"
             'override_timeslots' => 'boolean', //   "override_timeslots" => "true"
+            'override_capacity' => 'boolean',
             'override_rates' => 'boolean',
             'exclusive_resource' => 'boolean', //   "exclusive_resource" => "true"
 
@@ -463,6 +464,12 @@ class BookingsController extends Controller
                 //dd($selected_slot['date']);
                 $season = Season::findOrFail($season_id);
                 $service = Service::findOrFail($season->service_id);
+                $overrideCapacity = !empty($validated['override_capacity']);
+                if ($overrideCapacity && !(bool) $service->allow_internal_capacity_override) {
+                    throw ValidationException::withMessages([
+                        'override_capacity' => 'Override capacity is not allowed for this service.',
+                    ]);
+                }
                 $overrideRates = !empty($validated['override_rates']);
                 if ($overrideRates && !(bool) $season->allow_internal_price_override) {
                     throw ValidationException::withMessages([
@@ -488,11 +495,19 @@ class BookingsController extends Controller
                 if (!$inventory) {
                     abort(404, 'This season has no inventory.');
                 }
+                $overrideTimeSlots = !empty($validated['override_timeslots']);
+                if ($overrideTimeSlots && !(bool) $inventory->allow_internal_override) {
+                    throw ValidationException::withMessages([
+                        'override_timeslots' => 'Override time slots are not allowed for this inventory.',
+                    ]);
+                }
                 $inventoryTimeSlot = InventoryTimeSlot::where('inventory_id', $inventory->id)->where('start_time', $selected_slot['time'])->first();
                 //$inventoryTypeDay = InventoryTypeDay::where('inventory_id', $inventory->id)->first();
 
-                if (!$inventoryTimeSlot && !$validated['override_timeslots']) {
-                    abort(404, 'This inventory has no time slot.');
+                if (!$inventoryTimeSlot) {
+                    throw ValidationException::withMessages([
+                        'start_time' => 'Selected time slot does not exist. Use Override Time Slots to add it.',
+                    ]);
                 }
                 $adultsCount = (int) ($validated['adults'] ?? 0);
                 $amount_adults = (int) ($validated['rate_per_adult'] ?? 0) * $adultsCount;
@@ -501,8 +516,8 @@ class BookingsController extends Controller
                 $guidesCount = (int) ($validated['guides'] ?? 0);
                 $amount_guides = (int) ($validated['rate_per_guide'] ?? 0) * $guidesCount;
                 $requestedPax = $adultsCount + $childrenCount;
-                $canOverrideCapacity = !empty($validated['override_timeslots']) && (bool) $service->allow_internal_capacity_override;
-                if (!$canOverrideCapacity && $inventoryTimeSlot) {
+                $canOverrideCapacity = !empty($validated['override_capacity']) && (bool) $service->allow_internal_capacity_override;
+                if (!$canOverrideCapacity) {
                     $this->validateSlotCapacity(
                         $service,
                         $validated['booking_date'],
@@ -1192,6 +1207,7 @@ class BookingsController extends Controller
             'web_booking' => 'boolean',
             'include_media' => 'boolean',
             'override_timeslots' => 'boolean',
+            'override_capacity' => 'boolean',
             'override_rates' => 'boolean',
             'exclusive_resource' => 'boolean',
 
@@ -1238,6 +1254,12 @@ class BookingsController extends Controller
 
                 $season = Season::findOrFail($validated['season_id']);
                 $service = Service::findOrFail($season->service_id);
+                $overrideCapacity = !empty($validated['override_capacity']);
+                if ($overrideCapacity && !(bool) $service->allow_internal_capacity_override) {
+                    throw ValidationException::withMessages([
+                        'override_capacity' => 'Override capacity is not allowed for this service.',
+                    ]);
+                }
                 $overrideRates = !empty($validated['override_rates']);
                 if ($overrideRates && !(bool) $season->allow_internal_price_override) {
                     throw ValidationException::withMessages([
@@ -1254,13 +1276,21 @@ class BookingsController extends Controller
                 if (!$inventory) {
                     abort(404, 'This season has no inventory.');
                 }
+                $overrideTimeSlots = !empty($validated['override_timeslots']);
+                if ($overrideTimeSlots && !(bool) $inventory->allow_internal_override) {
+                    throw ValidationException::withMessages([
+                        'override_timeslots' => 'Override time slots are not allowed for this inventory.',
+                    ]);
+                }
 
                 $inventoryTimeSlot = InventoryTimeSlot::where('inventory_id', $inventory->id)
                     ->where('start_time', $selectedSlot['time'])
                     ->first();
 
-                if (!$inventoryTimeSlot && !$validated['override_timeslots']) {
-                    abort(404, 'This inventory has no time slot.');
+                if (!$inventoryTimeSlot) {
+                    throw ValidationException::withMessages([
+                        'start_time' => 'Selected time slot does not exist. Use Override Time Slots to add it.',
+                    ]);
                 }
 
                 $isoNameOfDay = Carbon::parse($bookingDate)->format('N');
@@ -1282,8 +1312,8 @@ class BookingsController extends Controller
                 $amount_children = (int) ($validated['rate_per_child'] ?? 0) * $childrenCount;
                 $amount_guides = (int) ($validated['rate_per_guide'] ?? 0) * $guidesCount;
                 $requestedPax = $adultsCount + $childrenCount;
-                $canOverrideCapacity = !empty($validated['override_timeslots']) && (bool) $service->allow_internal_capacity_override;
-                if (!$canOverrideCapacity && $inventoryTimeSlot) {
+                $canOverrideCapacity = !empty($validated['override_capacity']) && (bool) $service->allow_internal_capacity_override;
+                if (!$canOverrideCapacity) {
                     $this->validateSlotCapacity(
                         $service,
                         $bookingDate,
@@ -3926,3 +3956,4 @@ class BookingsController extends Controller
         throw new \RuntimeException('No default invoice template found.');
     }
 }
+

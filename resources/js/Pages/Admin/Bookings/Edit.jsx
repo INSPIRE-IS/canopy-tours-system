@@ -11,6 +11,7 @@ import CustomSelect from '@/Components/CustomSelect';
 import InputText from '@/Components/InputText';
 import CustomInputText from '@/Components/CustomInputText';
 import CustomCheckbox from '@/Components/CustomCheckbox';
+import Modal from '@/Components/Modal';
 import { icons } from '../../../icons';
 import WhiteButton from '@/Components/WhiteButton';
 import BlueButton from '@/Components/BlueButton';
@@ -54,12 +55,22 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
     const [timeslots, setTimeslots] = useState([]);
     const [toggleCalendar, setToggleCalendar] = useState(true);
     const [toggleRate, setToggleRate] = useState(true);
+    const [slotOverrideOpen, setSlotOverrideOpen] = useState(false);
+    const [slotOverrideCommitted, setSlotOverrideCommitted] = useState(false);
+    const [slotOverrideSaving, setSlotOverrideSaving] = useState(false);
+    const [slotOverrideData, setSlotOverrideData] = useState({
+        time: '',
+        capacity_override: '',
+        note: '',
+        internal_only: true,
+    });
+    const [slotOverrideErrors, setSlotOverrideErrors] = useState({});
 
     const [selectedService, setSelectedService] = useState(null);
     const [selectedSeason, setSelectedSeason] = useState(null);
     const [activityDate, setActivityDate] = useState(() => new Date(start_date));
     const [selectedSlot, setSelectedSlot] = useState(null); // stores {date: string, day: string, time: string }
-    const [currentBookingSlot, setCurrentBookingSlot] = useState({ date: '', time: '', pax: 0 });
+    const [currentBookingSlot, setCurrentBookingSlot] = useState({ date: '', time: '', pax: 0, slotId: null });
     const [showWholesaler, setShowWholesaler] = useState(false);
     const [wholesalerApplied, setWholesalerApplied] = useState(false);
     const [wholesalerRateList, setWholesalerRateList] = useState([]);
@@ -78,8 +89,10 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
 
     const [pricing, setPricing] = useState(null);
     const lastSlotWarningRef = useRef('');
+    const lastCapacityWarningRef = useRef('');
     const canOverrideCapacity = !!selectedService?.allow_internal_capacity_override;
     const canOverrideRates = !!selectedSeason?.allow_internal_price_override;
+    const canOverrideTimeSlots = !!selectedSeason?.inventory?.allow_internal_override;
     const hasSlotInteractionRef = useRef(false);
     const skipServiceResetRef = useRef(true);
     const skipBookingDateResetRef = useRef(true);
@@ -223,6 +236,15 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
             : hasDiscounts
                 ? PRICING_MODES.DISCOUNT
                 : PRICING_MODES.STANDARD;
+    const slotOverrideTimeErrorRaw = slotOverrideErrors?.time || slotOverrideErrors?.time_slots || slotOverrideErrors?.time_slot;
+    const slotOverrideTimeError = Array.isArray(slotOverrideTimeErrorRaw) ? slotOverrideTimeErrorRaw[0] : slotOverrideTimeErrorRaw;
+    const bookingToggleItems = [
+        { key: 'web_booking', label: 'Web Booking' },
+        ...(pickupEnabled ? [{ key: 'needs_pickup', label: 'Needs Pickup' }] : []),
+        { key: 'override_capacity', label: 'Override Capacity', disabled: !canOverrideCapacity },
+        { key: 'override_timeslots', label: 'Override Time Slots', disabled: !canOverrideTimeSlots },
+        { key: 'exclusive_resource', label: 'Exclusive Resource use' },
+    ];
 
     useEffect(() => {
         // if (selectedService && selectedSeason) {
@@ -543,7 +565,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
         if (!data.wholesaler_id && !data.is_wholesaler) {
             setData(prev => ({
                 ...prev,
-                override_capacity: service?.allow_internal_capacity_override || false,
+                override_capacity: false,
                 capacity: service?.capacity || 0,
                 duration: service?.duration || 0,
                 season_id: null,
@@ -568,7 +590,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
         } else {
             setData(prev => ({
                 ...prev,
-                override_capacity: service?.allow_internal_capacity_override || false,
+                override_capacity: false,
                 capacity: service?.capacity || 0,
                 duration: service?.duration || 0,
                 season_id: null,
@@ -717,6 +739,104 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
             const { name, type, checked, value: inputValue } = target.target;
             return handleChange(name, type === 'checkbox' ? checked : inputValue);
         }
+        const getRemainingSlots = (bookingDate, startTimeId) => {
+            if (!bookingDate || !startTimeId || Number(startTimeId) === 0) return null;
+            const datePart = bookingDate.split(' ')[0].split('T')[0];
+            const row = (scheduleData?.schedule || []).find(r => String(r.slot_id) === String(startTimeId))
+                || (scheduleData?.schedule || []).find(r => {
+                    const slot = (timeslots || []).find(s => String(s.id) === String(startTimeId));
+                    const timeLabel = slot?.name;
+                    return timeLabel ? r.time?.slice(0, 5) === timeLabel : false;
+                });
+            if (!row) {
+                console.log('[capacity] no row', { bookingDate, startTimeId, datePart, timeslots });
+                return null;
+            }
+            const info = Object.values(row.days || {}).find(dayInfo => dayInfo?.date === datePart);
+            if (!info) {
+                console.log('[capacity] no info', { bookingDate, startTimeId, datePart, rowDays: row.days });
+                return null;
+            }
+            let remaining = Number(info.slots ?? 0);
+            const capacity = Number(info.capacity ?? selectedService?.capacity ?? 0);
+            const currentDatePart = (currentBookingSlot?.date || '').split(' ')[0].split('T')[0] || '';
+            const currentTime = currentBookingSlot?.time || '';
+            if (currentDatePart === datePart && currentTime) {
+                const slot = (timeslots || []).find(s => String(s.id) === String(startTimeId));
+                const timeLabel = slot?.name;
+                const currentTimeLabel = currentTime.slice(0, 5);
+                if (timeLabel && currentTimeLabel === timeLabel) {
+                    const currentPax = Number(currentBookingSlot?.pax || 0);
+                    if (capacity > 0) {
+                        const withCurrent = remaining + currentPax;
+                        remaining = withCurrent <= capacity ? withCurrent : remaining;
+                    } else {
+                        remaining += currentPax;
+                    }
+                }
+            } else if (
+                currentDatePart === datePart
+                && (!currentTime || Number(currentBookingSlot?.slotId) === Number(startTimeId))
+            ) {
+                const currentPax = Number(currentBookingSlot?.pax || 0);
+                if (capacity > 0) {
+                    const withCurrent = remaining + currentPax;
+                    remaining = withCurrent <= capacity ? withCurrent : remaining;
+                } else {
+                    remaining += currentPax;
+                }
+            }
+            console.log('[capacity] resolved', {
+                bookingDate,
+                startTimeId,
+                datePart,
+                info,
+                remaining,
+                capacity,
+                currentBookingSlot,
+            });
+            return remaining;
+        };
+        if (target === 'override_capacity') {
+            const nextValue = !!value;
+            if (nextValue && !canOverrideCapacity) {
+                showToast('Override capacity is not allowed for this service.', 'error');
+                setData('override_capacity', false);
+                return;
+            }
+            setData('override_capacity', nextValue);
+            return;
+        }
+        if (target === 'override_timeslots') {
+            const nextValue = !!value;
+            if (nextValue) {
+                if (!canOverrideTimeSlots) {
+                    showToast('Override time slots are not allowed for this inventory.', 'error');
+                    setData('override_timeslots', false);
+                    return;
+                }
+                if (!selectedService || !selectedSeason || !data.booking_date) {
+                    showToast('Select a service, season, and date first.', 'error');
+                    setData('override_timeslots', false);
+                    return;
+                }
+                setSlotOverrideCommitted(false);
+                const slot = timeslots.find(s => String(s.id) === String(data.start_time));
+                const initialTime = slot?.name && slot.name !== 'All' ? slot.name : '';
+                setSlotOverrideData({
+                    time: initialTime,
+                    capacity_override: '',
+                    note: '',
+                    internal_only: true,
+                });
+                setSlotOverrideErrors({});
+                setSlotOverrideOpen(true);
+                setData('override_timeslots', true);
+            } else {
+                setData('override_timeslots', false);
+            }
+            return;
+        }
         if (target === 'override_rates') {
             const nextValue = !!value;
             if (nextValue && !canOverrideRates) {
@@ -734,10 +854,42 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
             return;
         }
         if (target === 'adults') {
+            const nextAdults = value === '' ? 0 : Number(value);
+            const nextChildren = Number(data.children || 0);
+            if (!data.override_capacity) {
+                const remaining = getRemainingSlots(data.booking_date, data.start_time);
+                if (remaining !== null && (nextAdults + nextChildren) > remaining) {
+                    const warningKey = `${data.booking_date}|${data.start_time}|${remaining}`;
+                    if (lastCapacityWarningRef.current !== warningKey) {
+                        const message = remaining > 0
+                            ? `Cannot exceed remaining capacity (${remaining}). Enable Override Capacity to proceed.`
+                            : 'This slot is full. Enable Override Capacity to proceed.';
+                        showToast(message, 'error');
+                        lastCapacityWarningRef.current = warningKey;
+                    }
+                    return;
+                }
+            }
             setData('adults', value === '' ? '' : value);
             return;
         }
         if (target === 'children') {
+            const nextAdults = Number(data.adults || 0);
+            const nextChildren = value === '' ? 0 : Number(value);
+            if (!data.override_capacity) {
+                const remaining = getRemainingSlots(data.booking_date, data.start_time);
+                if (remaining !== null && (nextAdults + nextChildren) > remaining) {
+                    const warningKey = `${data.booking_date}|${data.start_time}|${remaining}`;
+                    if (lastCapacityWarningRef.current !== warningKey) {
+                        const message = remaining > 0
+                            ? `Cannot exceed remaining capacity (${remaining}). Enable Override Capacity to proceed.`
+                            : 'This slot is full. Enable Override Capacity to proceed.';
+                        showToast(message, 'error');
+                        lastCapacityWarningRef.current = warningKey;
+                    }
+                    return;
+                }
+            }
             setData('children', value === '' ? '' : value);
             return;
 
@@ -893,6 +1045,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
             date: bookingDate || '',
             time: bookingTime || '',
             pax: Number(bookingInventory?.pax ?? (Number(bookingInventory?.adults || 0) + Number(bookingInventory?.children || 0))),
+            slotId: bookingInventory?.inventory_time_slot_id || null,
         });
 
         const leadCustomer = bookingCustomers.find(c => c?.pivot?.is_lead) || bookingCustomers[0] || null;
@@ -912,7 +1065,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
             is_wholesaler: isWholesaler,
             wholesaler_id: bookingItem?.wholesaler_id || '',
             service_id: bookingItem?.service_id || '',
-            override_capacity: service?.allow_internal_capacity_override || false,
+            override_capacity: false,
             capacity: service?.capacity || 0,
             duration: service?.duration || 0,
             season_id: bookingItem?.season_id || '',
@@ -971,6 +1124,78 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
         if (!slot) return null;
         const row = (scheduleList || []).find(r => r.time?.slice(0, 5) === slot.name);
         return row?.time || slot.name;
+    };
+
+    const getDefaultWeeklySlots = () => {
+        return (selectedSeason?.inventory?.inventory_time_slots || [])
+            .filter(slot => !slot.is_override_only)
+            .map(slot => slot.start_time.slice(0, 5));
+    };
+
+    const closeSlotOverrideModal = () => {
+        setSlotOverrideOpen(false);
+        if (!slotOverrideCommitted) {
+            setData('override_timeslots', false);
+        }
+    };
+
+    const saveSlotOverride = async () => {
+        if (!selectedService || !selectedSeason || !data.booking_date) {
+            showToast('Select a service, season, and date first.', 'error');
+            return;
+        }
+        const timeValue = (slotOverrideData.time || '').trim();
+        if (!timeValue) {
+            setSlotOverrideErrors({ time: 'Time is required.' });
+            return;
+        }
+        const timeSlots = Array.from(new Set([
+            ...getDefaultWeeklySlots(),
+            timeValue,
+        ]));
+        setSlotOverrideSaving(true);
+        try {
+            const response = await axios.post(route('admin.inventory-slot-ranges.store'), {
+                service_id: selectedService.id,
+                season_id: selectedSeason.id,
+                start_date: data.booking_date,
+                end_date: data.booking_date,
+                time_slots: timeSlots,
+                internal_only: slotOverrideData.internal_only ? 1 : 0,
+                capacity_override: slotOverrideData.capacity_override || null,
+                note: slotOverrideData.note || null,
+            }, {
+                headers: { Accept: 'application/json' },
+            });
+            const returnedSlots = response?.data?.time_slots || [];
+            if (returnedSlots.length) {
+                const formatted = [
+                    { id: 0, name: 'All' },
+                    ...returnedSlots.map(slot => ({
+                        id: slot.id,
+                        name: slot.start_time.slice(0, 5),
+                    })),
+                ];
+                setTimeslots(formatted);
+                const match = formatted.find(s => s.name === timeValue);
+                if (match) {
+                    setData('start_time', match.id);
+                }
+            }
+            setSlotOverrideCommitted(true);
+            setData('override_timeslots', true);
+            setSlotOverrideOpen(false);
+            loadCalendar();
+        } catch (error) {
+            const message = error?.response?.data?.message || 'Failed to save date override.';
+            showToast(message, 'error');
+            if (error?.response?.data?.errors) {
+                setSlotOverrideErrors(error.response.data.errors);
+            }
+            setData('override_timeslots', false);
+        } finally {
+            setSlotOverrideSaving(false);
+        }
     };
 
     useEffect(() => {
@@ -1605,12 +1830,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
                         </div>
                         )} */}
                             <div className="flex flex-wrap gap-4 items-center justify-end ">
-                                {[
-                                    { key: 'web_booking', label: 'Web Booking' },
-                                    ...(pickupEnabled ? [{ key: 'needs_pickup', label: 'Needs Pickup' }] : []),
-                                    { key: 'override_timeslots', label: 'Override Time Slots' },
-                                    { key: 'exclusive_resource', label: 'Exclusive Resource use' },
-                                ].map(({ key, label }) => (
+                                {bookingToggleItems.map(({ key, label, disabled }) => (
                                     <CustomCheckbox
                                         key={key}
                                         label={label}
@@ -1618,7 +1838,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
                                         checked={data[key] || false}
                                         onChange={handleChange}
                                         errors={errors}
-                                        disabled={key === 'override_timeslots' ? !canOverrideCapacity : false}
+                                        disabled={disabled || false}
                                     />
                                 ))}
                                 {/* <WhiteButton
@@ -2350,6 +2570,93 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
 
                     </div>
                 </div>
+                <Modal show={slotOverrideOpen} maxWidth="md" onClose={closeSlotOverrideModal}>
+                    <div className="p-6">
+                        <div className="flex items-start justify-between mb-4">
+                            <div>
+                                <h2 className="text-lg font-semibold">Add Internal Time Slot</h2>
+                                <p className="text-sm text-gray-500 mt-1">
+                                    This creates a date override for the selected day. Default weekly slots are included automatically.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <CustomInputText
+                                title="Date"
+                                name="override_date"
+                                value={data.booking_date || ''}
+                                disabled
+                            />
+                            <div className="mb-4 w-full">
+                                <label className="text-[#161618] font-poppins text-[12px] font-normal leading-[130%]">
+                                    Time Slot
+                                </label>
+                                <input
+                                    type="time"
+                                    value={slotOverrideData.time || ''}
+                                    onChange={(e) => {
+                                        setSlotOverrideData(prev => ({ ...prev, time: e.target.value }));
+                                        if (slotOverrideErrors.time || slotOverrideErrors.time_slots || slotOverrideErrors.time_slot) {
+                                            setSlotOverrideErrors(prev => ({ ...prev, time: undefined, time_slots: undefined, time_slot: undefined }));
+                                        }
+                                    }}
+                                    className={`mt-1 block w-full h-[48px] ${slotOverrideTimeError ? 'border-red-500' : 'border-gray-300'} shadow-sm input-text rounded-[10px] hover:border-black active:border-blue-600 focus:outline-none focus:ring-0 focus:border-black`}
+                                />
+                                {slotOverrideTimeError && (
+                                    <p className="text-red-500 text-sm mt-2">{slotOverrideTimeError}</p>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <CustomInputText
+                                title="Capacity Override (optional)"
+                                name="capacity_override"
+                                type="number"
+                                value={slotOverrideData.capacity_override ?? ''}
+                                onChange={(e) => setSlotOverrideData(prev => ({ ...prev, capacity_override: e.target.value }))}
+                                errors={slotOverrideErrors}
+                            />
+                            <div className="flex items-end">
+                                <CustomCheckbox
+                                    label="Internal only (hide from public)"
+                                    name="internal_only"
+                                    checked={slotOverrideData.internal_only}
+                                    onChange={(name, value) => setSlotOverrideData(prev => ({ ...prev, [name]: value }))}
+                                    errors={{}}
+                                />
+                            </div>
+                        </div>
+
+                        <CustomTextarea
+                            label="Note (optional)"
+                            name="note"
+                            value={slotOverrideData.note || ''}
+                            onChange={(e) => setSlotOverrideData(prev => ({ ...prev, note: e.target.value }))}
+                            error={slotOverrideErrors.note}
+                            rows={4}
+                        />
+
+                        <div className="flex items-center justify-end gap-3 mt-4">
+                            <WhiteButton
+                                title="Cancel"
+                                width="w-[120px]"
+                                onClick={closeSlotOverrideModal}
+                                disabled={slotOverrideSaving}
+                                type="button"
+                            />
+                            <BlueButton
+                                title={slotOverrideSaving ? 'Saving...' : 'Save Override'}
+                                width="w-[160px]"
+                                onClick={saveSlotOverride}
+                                disabled={slotOverrideSaving}
+                                type="button"
+                            />
+                        </div>
+                    </div>
+                </Modal>
+
                 {selectedService?.id && data.booking_date && (
                     <PromoModal
                         isOpen={promoModalOpen}
@@ -2365,3 +2672,4 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
         </AuthenticatedLayout>
     );
 }
+
