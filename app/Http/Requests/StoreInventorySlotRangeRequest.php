@@ -39,6 +39,15 @@ class StoreInventorySlotRangeRequest extends FormRequest
             'time_slots.*' => [
                 'string',
             ],
+            'capacity_override' => [
+                'nullable',
+                'integer',
+                'min:0',
+            ],
+            'note' => [
+                'nullable',
+                'string',
+            ],
             'internal_only' => [
                 'nullable',
                 'boolean',

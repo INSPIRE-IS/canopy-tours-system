@@ -7,16 +7,18 @@ import { Head } from '@inertiajs/react';
 import InventorySlotRangeModal from './InventorySlotRangeModal';
 import SearchBar from '@/Components/SearchBar';
 import BlueButton from '@/Components/BlueButton';
+import OutlineButton from '@/Components/OutlineButton';
 import Pagination from '@/Components/Pagination';
 import HeaderServices from '@/Components/HeaderServices';
 
-export default function Index({ permissions, slotRanges, services, auth, searchTerm, sortColumn, sortDirection }) {
+export default function Index({ permissions, slotRanges, services, auth, searchTerm, sortColumn, sortDirection, viewMode = 'detailed' }) {
     const { props } = usePage();
     const [selectedRange, setSelectedRange] = useState(null);
     const [search, setSearch] = useState(searchTerm);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalMode, setModalMode] = useState('create');
     const [isOpenTab, setIsOpenTab] = useState('DateOverrides');
+    const [currentView, setCurrentView] = useState(viewMode);
 
     const handleOpenModal = (mode, range = null) => {
         setModalMode(mode);
@@ -38,13 +40,31 @@ export default function Index({ permissions, slotRanges, services, auth, searchT
             search,
             sort: sortColumn,
             direction: sortDirection,
+            view: currentView,
         });
     };
 
     const handleDelete = (range) => {
         if (confirm('Are you sure you want to delete this override?')) {
-            router.delete(route('admin.inventory-slot-ranges.destroy', range), { preserveScroll: true });
+            const data = Array.isArray(range?.ids) ? { ids: range.ids } : {};
+            router.delete(route('admin.inventory-slot-ranges.destroy', range.id), {
+                preserveScroll: true,
+                data,
+            });
         }
+    };
+
+    const toggleView = (nextView) => {
+        setCurrentView(nextView);
+        router.get(route('admin.inventory-slot-ranges.index'), {
+            search,
+            sort: sortColumn,
+            direction: sortDirection,
+            view: nextView,
+        }, {
+            preserveScroll: true,
+            preserveState: true,
+        });
     };
 
     return (
@@ -59,7 +79,33 @@ export default function Index({ permissions, slotRanges, services, auth, searchT
                     <div className="bg-white p-6 ">
                         <div className="flex justify-between items-center mb-6">
                             <SearchBar search={search} handleSearchChange={handleSearchChange} handleSearchSubmit={handleSearchSubmit} />
-                            <span className="flex gap-2">
+                            <span className="flex gap-2 items-center">
+                                {currentView === 'grouped' ? (
+                                    <BlueButton
+                                        title="Compact"
+                                        width="w-[170px]"
+                                        onClick={() => toggleView('grouped')}
+                                    />
+                                ) : (
+                                    <OutlineButton
+                                        title="Compact"
+                                        width="w-[170px]"
+                                        onClick={() => toggleView('grouped')}
+                                    />
+                                )}
+                                {currentView === 'detailed' ? (
+                                    <BlueButton
+                                        title="Expanded"
+                                        width="w-[160px]"
+                                        onClick={() => toggleView('detailed')}
+                                    />
+                                ) : (
+                                    <OutlineButton
+                                        title="Expanded"
+                                        width="w-[160px]"
+                                        onClick={() => toggleView('detailed')}
+                                    />
+                                )}
                                 {permissions.inventories_create && (
                                     <BlueButton title="Add Date Override" onClick={() => handleOpenModal('create')} icon={true} />
                                 )}
@@ -75,59 +121,127 @@ export default function Index({ permissions, slotRanges, services, auth, searchT
                                     </span>
                                 </div>
                                 <div className="flex justify-between items-center px-4 pb-[9px] ">
-                                    <table className="min-w-full divide-y divide-gray-200 text-sm">
-                                        <thead className="bg-gray-50 text-left text-gray-500">
-                                            <tr className="flex justify-between items-center">
-                                                <th className="w-[70px] p-3">ID</th>
-                                                <th className="w-[140px] p-3">Service</th>
-                                                <th className="w-[140px] p-3">Season</th>
-                                                <th className="w-[120px] p-3">Start</th>
-                                                <th className="w-[120px] p-3">End</th>
-                                                <th className="w-[110px] p-3">Time</th>
-                                                <th className="w-[185px] p-3">Actions</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-gray-100">
-                                            {slotRanges?.data.map((range) => (
-                                                <tr key={range.id} className="flex justify-between items-center hover:bg-gray-50">
-                                                    <td className="w-[70px] p-3">{range.id}</td>
-                                                    <td className="w-[140px] p-3">{range.inventory?.service?.name}</td>
-                                                    <td className="w-[140px] p-3">{range.inventory?.season?.name}</td>
-                                                    <td className="w-[120px] p-3">{range.start_date}</td>
-                                                    <td className="w-[120px] p-3">{range.end_date}</td>
-                                                    <td className="w-[110px] p-3">
-                                                        {range.time_slot?.start_time ? range.time_slot.start_time.slice(0, 5) : ''}
-                                                    </td>
-                                                    <td className="w-[185px] p-3 flex gap-2">
-                                                        {permissions.inventories_edit && (
-                                                            <button
-                                                                onClick={() => handleOpenModal('edit', range)}
-                                                                className="flex items-center gap-1 text-green-600 hover:text-green-800"
-                                                            >
-                                                                Edit
-                                                            </button>
-                                                        )}
-                                                        {permissions.inventories_edit && (
-                                                            <button
-                                                                onClick={() => handleDelete(range)}
-                                                                className="flex items-center gap-1 text-red-600 hover:text-red-800"
-                                                            >
-                                                                Remove
-                                                            </button>
-                                                        )}
-                                                        {permissions.inventories_edit && (
-                                                            <button
-                                                                onClick={() => handleOpenModal('view', range)}
-                                                                className="flex items-center gap-1 text-blue-600 hover:text-blue-800"
-                                                            >
-                                                                View
-                                                            </button>
-                                                        )}
-                                                    </td>
+                                    {currentView === 'grouped' ? (
+                                        <table className="min-w-full divide-y divide-gray-200 text-sm">
+                                            <thead className="bg-gray-50 text-left text-gray-500">
+                                                <tr className="flex justify-between items-center">
+                                                    <th className="w-[70px] p-3">ID</th>
+                                                    <th className="w-[140px] p-3">Service</th>
+                                                    <th className="w-[140px] p-3">Season</th>
+                                                    <th className="w-[120px] p-3">Start</th>
+                                                    <th className="w-[120px] p-3">End</th>
+                                                    <th className="w-[200px] p-3">Times</th>
+                                                    <th className="w-[120px] p-3">Capacity</th>
+                                                    <th className="w-[180px] p-3">Note</th>
+                                                    <th className="w-[110px] p-3">Internal</th>
+                                                    <th className="w-[185px] p-3">Actions</th>
                                                 </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
+                                            </thead>
+                                            <tbody className="divide-y divide-gray-100">
+                                                {slotRanges?.data.map((range) => (
+                                                    <tr key={range.id} className="flex justify-between items-center hover:bg-gray-50">
+                                                        <td className="w-[70px] p-3">{range.id}</td>
+                                                        <td className="w-[140px] p-3">{range.inventory?.service?.name}</td>
+                                                        <td className="w-[140px] p-3">{range.inventory?.season?.name}</td>
+                                                        <td className="w-[120px] p-3">{range.start_date}</td>
+                                                        <td className="w-[120px] p-3">{range.end_date}</td>
+                                                        <td className="w-[200px] p-3">
+                                                            {(range.time_slots || []).map((slot) => slot.slice(0, 5)).join(', ')}
+                                                        </td>
+                                                        <td className="w-[120px] p-3">{range.capacity_override ?? ''}</td>
+                                                        <td className="w-[180px] p-3">{range.note ?? ''}</td>
+                                                        <td className="w-[110px] p-3">{range.internal_only ? 'Yes' : 'No'}</td>
+                                                        <td className="w-[185px] p-3 flex gap-2">
+                                                            {permissions.inventories_edit && (
+                                                                <button
+                                                                    onClick={() => handleOpenModal('edit', range)}
+                                                                    className="flex items-center gap-1 text-green-600 hover:text-green-800"
+                                                                >
+                                                                    Edit
+                                                                </button>
+                                                            )}
+                                                            {permissions.inventories_edit && (
+                                                                <button
+                                                                    onClick={() => handleDelete(range)}
+                                                                    className="flex items-center gap-1 text-red-600 hover:text-red-800"
+                                                                >
+                                                                    Remove
+                                                                </button>
+                                                            )}
+                                                            {permissions.inventories_edit && (
+                                                                <button
+                                                                    onClick={() => handleOpenModal('view', range)}
+                                                                    className="flex items-center gap-1 text-blue-600 hover:text-blue-800"
+                                                                >
+                                                                    View
+                                                                </button>
+                                                            )}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    ) : (
+                                        <table className="min-w-full divide-y divide-gray-200 text-sm">
+                                            <thead className="bg-gray-50 text-left text-gray-500">
+                                                <tr className="flex justify-between items-center">
+                                                    <th className="w-[70px] p-3">ID</th>
+                                                    <th className="w-[140px] p-3">Service</th>
+                                                    <th className="w-[140px] p-3">Season</th>
+                                                    <th className="w-[120px] p-3">Start</th>
+                                                    <th className="w-[120px] p-3">End</th>
+                                                    <th className="w-[110px] p-3">Time</th>
+                                                    <th className="w-[120px] p-3">Capacity</th>
+                                                    <th className="w-[180px] p-3">Note</th>
+                                                    <th className="w-[110px] p-3">Internal</th>
+                                                    <th className="w-[185px] p-3">Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-gray-100">
+                                                {slotRanges?.data.map((range) => (
+                                                    <tr key={range.id} className="flex justify-between items-center hover:bg-gray-50">
+                                                        <td className="w-[70px] p-3">{range.id}</td>
+                                                        <td className="w-[140px] p-3">{range.inventory?.service?.name}</td>
+                                                        <td className="w-[140px] p-3">{range.inventory?.season?.name}</td>
+                                                        <td className="w-[120px] p-3">{range.start_date}</td>
+                                                        <td className="w-[120px] p-3">{range.end_date}</td>
+                                                        <td className="w-[110px] p-3">
+                                                            {range.time_slot?.start_time ? range.time_slot.start_time.slice(0, 5) : ''}
+                                                        </td>
+                                                        <td className="w-[120px] p-3">{range.capacity_override ?? ''}</td>
+                                                        <td className="w-[180px] p-3">{range.note ?? ''}</td>
+                                                        <td className="w-[110px] p-3">{range.internal_only ? 'Yes' : 'No'}</td>
+                                                        <td className="w-[185px] p-3 flex gap-2">
+                                                            {permissions.inventories_edit && (
+                                                                <button
+                                                                    onClick={() => handleOpenModal('edit', range)}
+                                                                    className="flex items-center gap-1 text-green-600 hover:text-green-800"
+                                                                >
+                                                                    Edit
+                                                                </button>
+                                                            )}
+                                                            {permissions.inventories_edit && (
+                                                                <button
+                                                                    onClick={() => handleDelete(range)}
+                                                                    className="flex items-center gap-1 text-red-600 hover:text-red-800"
+                                                                >
+                                                                    Remove
+                                                                </button>
+                                                            )}
+                                                            {permissions.inventories_edit && (
+                                                                <button
+                                                                    onClick={() => handleOpenModal('view', range)}
+                                                                    className="flex items-center gap-1 text-blue-600 hover:text-blue-800"
+                                                                >
+                                                                    View
+                                                                </button>
+                                                            )}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    )}
                                 </div>
                             </div>
                         </div>

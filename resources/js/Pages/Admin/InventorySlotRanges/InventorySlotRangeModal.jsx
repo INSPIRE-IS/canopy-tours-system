@@ -5,11 +5,14 @@ import OutlineButton from "@/Components/OutlineButton";
 import BlueButton from "@/Components/BlueButton";
 import CustomSelect from "@/Components/CustomSelect";
 import CustomCheckbox from "@/Components/CustomCheckbox";
+import CustomTextarea from "@/Components/CustomTextarea";
 
 const InventorySlotRangeModal = ({ isOpen, onClose, mode, slotRange = null, services, auth }) => {
     const [seasons, setSeasons] = useState([]);
     const [inventory, setInventory] = useState(null);
     const [newTimeSlot, setNewTimeSlot] = useState("");
+    const [includeDefaults, setIncludeDefaults] = useState(false);
+    const [defaultSlots, setDefaultSlots] = useState([]);
 
     const { data, setData, post, put, errors, reset, processing } = useForm({
         service_id: "",
@@ -19,8 +22,12 @@ const InventorySlotRangeModal = ({ isOpen, onClose, mode, slotRange = null, serv
         time_slots: [],
         time_slot: "",
         internal_only: false,
+        capacity_override: "",
+        note: "",
+        ids: [],
         created_by_id: auth?.user?.id,
     });
+    const isGroupedRange = mode !== "create" && Array.isArray(slotRange?.time_slots);
 
     useEffect(() => {
         if (slotRange && mode !== "create") {
@@ -30,9 +37,14 @@ const InventorySlotRangeModal = ({ isOpen, onClose, mode, slotRange = null, serv
                 season_id: slotRange?.inventory?.season_id || "",
                 start_date: slotRange?.start_date || "",
                 end_date: slotRange?.end_date || "",
-                time_slots: [],
+                time_slots: isGroupedRange
+                    ? (slotRange?.time_slots || []).map((slot) => slot.slice(0, 5))
+                    : [],
                 time_slot: startTime,
                 internal_only: !!slotRange?.internal_only,
+                capacity_override: slotRange?.capacity_override ?? "",
+                note: slotRange?.note ?? "",
+                ids: slotRange?.ids || [],
                 updated_by_id: auth?.user?.id,
             });
             setNewTimeSlot("");
@@ -40,6 +52,7 @@ const InventorySlotRangeModal = ({ isOpen, onClose, mode, slotRange = null, serv
         if (mode === "create") {
             reset();
             setNewTimeSlot("");
+            setIncludeDefaults(false);
         }
     }, [mode, slotRange]);
 
@@ -74,8 +87,39 @@ const InventorySlotRangeModal = ({ isOpen, onClose, mode, slotRange = null, serv
         if (mode === "create") {
             setData("time_slots", []);
             setNewTimeSlot("");
+            setIncludeDefaults(false);
+            setDefaultSlots([]);
         }
     }, [data.season_id, mode]);
+
+    const getDefaultSlots = () => {
+        if (!inventory?.inventory_time_slots) {
+            return [];
+        }
+        return inventory.inventory_time_slots
+            .filter((slot) => !slot.is_override_only)
+            .map((slot) => slot.start_time.slice(0, 5));
+    };
+
+    useEffect(() => {
+        setDefaultSlots(getDefaultSlots());
+    }, [inventory]);
+
+    useEffect(() => {
+        if (mode !== "create") {
+            return;
+        }
+        if (!includeDefaults) {
+            return;
+        }
+        if (defaultSlots.length === 0) {
+            return;
+        }
+        const hasDefault = (data.time_slots || []).some((slot) => defaultSlots.includes(slot));
+        if (!hasDefault) {
+            setIncludeDefaults(false);
+        }
+    }, [data.time_slots, defaultSlots, includeDefaults, mode]);
 
     const handleAddTimeSlot = () => {
         if (!newTimeSlot.trim()) {
@@ -177,6 +221,32 @@ const InventorySlotRangeModal = ({ isOpen, onClose, mode, slotRange = null, serv
                         />
                     </div>
 
+                    <div className="flex flex-row w-full items-center gap-2 justify-between mb-4">
+                        <div className="mb-4 w-full">
+                            <label className="block input-header">Capacity Override (optional)</label>
+                            <input
+                                type="number"
+                                min="0"
+                                className="mt-1 block w-full border-gray-300 shadow-sm input-text rounded-xl hover:border-black focus:outline-none focus:ring-0 focus:border-black"
+                                value={data.capacity_override ?? ""}
+                                onChange={(e) => setData("capacity_override", e.target.value)}
+                                disabled={mode === "view"}
+                            />
+                            {errors.capacity_override && <span className="text-xs text-red-500">{errors.capacity_override}</span>}
+                        </div>
+                        <div className="w-full">
+                            <CustomTextarea
+                                label="Note (optional)"
+                                name="note"
+                                mode={mode}
+                                value={data.note ?? ""}
+                                onChange={(e) => setData("note", e.target.value)}
+                                error={errors.note}
+                                rows={2}
+                            />
+                        </div>
+                    </div>
+
                     <CustomCheckbox
                         label="Internal Only (hide from guest calendar)"
                         name="internal_only"
@@ -186,8 +256,34 @@ const InventorySlotRangeModal = ({ isOpen, onClose, mode, slotRange = null, serv
                         errors={errors}
                     />
 
-                    {mode === "create" && (
+                    {(mode === "create" || isGroupedRange) && (
                         <>
+                            <CustomCheckbox
+                                label="Include default weekly slots"
+                                helper="Adds all weekly time slots from the selected inventory so you can remove any you don't want."
+                                name="include_defaults"
+                                checked={includeDefaults}
+                                mode={mode}
+                                onChange={(_, checked) => {
+                                    setIncludeDefaults(checked);
+                                    if (!checked) {
+                                        if (defaultSlots.length === 0) {
+                                            return;
+                                        }
+                                        const remaining = (data.time_slots || []).filter(
+                                            (slot) => !defaultSlots.includes(slot)
+                                        );
+                                        setData("time_slots", remaining);
+                                        return;
+                                    }
+                                    if (defaultSlots.length === 0) {
+                                        return;
+                                    }
+                                    const merged = Array.from(new Set([...(data.time_slots || []), ...defaultSlots]));
+                                    setData("time_slots", merged);
+                                }}
+                                errors={errors}
+                            />
                             <div className="flex flex-row w-full items-center gap-2 justify-start mb-4">
                                 <div className="mb-4 w-full">
                                     <label className="block input-header">Time Slot</label>
@@ -237,7 +333,7 @@ const InventorySlotRangeModal = ({ isOpen, onClose, mode, slotRange = null, serv
                         </>
                     )}
 
-                    {mode !== "create" && (
+                    {mode !== "create" && !isGroupedRange && (
                         <div className="mb-4">
                             <label className="block input-header">Time Slot</label>
                             <input

@@ -23,7 +23,9 @@ class ServiceCalendarBuilder
         $allowedDays = $inventory->inventory_type_days->pluck('type_day_id')->toArray();
 
         $overrideMap = self::buildOverrideMap($inventory->id, $startDate, $endDate, $includeInternalOverrides);
-        $overrideSlotIds = collect($overrideMap)->flatten()->unique()->values()->all();
+        $overrideSlotIds = collect($overrideMap)->map(function ($slots) {
+            return is_array($slots) ? array_keys($slots) : [];
+        })->flatten()->unique()->values()->all();
         $timeSlots = $inventory->inventory_time_slots
             ->filter(function ($slot) use ($overrideSlotIds) {
                 return !$slot->is_override_only || in_array($slot->id, $overrideSlotIds, true);
@@ -92,8 +94,9 @@ class ServiceCalendarBuilder
                 // $cutoff = now()->addDay(); // 24-hour lockout    
                 Log::info('cutoff' . $cutoff);
 
+                $slotCapacity = (int) ($service->capacity ?? 0);
                 if (!empty($overrideSlots)) {
-                    if (!in_array($timeSlot->id, $overrideSlots, true)) {
+                    if (!array_key_exists($timeSlot->id, $overrideSlots)) {
                         $row['days'][$label] = [
                             'date' => $dateStr,
                             'slots' => 0,
@@ -101,6 +104,10 @@ class ServiceCalendarBuilder
                             'note' => 'Date override active',
                         ];
                         continue;
+                    }
+                    $overrideCapacity = $overrideSlots[$timeSlot->id];
+                    if ($overrideCapacity !== null) {
+                        $slotCapacity = (int) $overrideCapacity;
                     }
                 } elseif (!empty($timeSlot->is_override_only)) {
                     $row['days'][$label] = [
@@ -156,7 +163,7 @@ class ServiceCalendarBuilder
                 if (true) {
                     $dateTimeStr = $dateStr . '_' . $timeSlot->start_time;
                     $booked = $bookingData[$dateTimeStr]->total ?? 0;
-                    $remaining = $service->capacity - $booked;
+                    $remaining = $slotCapacity - $booked;
                     $effectiveRemaining = $remaining;
                     if (is_array($currentBooking)) {
                         $currentDate = $currentBooking['date'] ?? null;
@@ -279,12 +286,8 @@ class ServiceCalendarBuilder
                 if (!isset($map[$dateStr])) {
                     $map[$dateStr] = [];
                 }
-                $map[$dateStr][] = $range->time_slot_id;
+                $map[$dateStr][$range->time_slot_id] = $range->capacity_override;
             }
-        }
-
-        foreach ($map as $dateStr => $slots) {
-            $map[$dateStr] = array_values(array_unique($slots));
         }
 
         return $map;

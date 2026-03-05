@@ -32,7 +32,30 @@ class UpdateInventorySlotRangeRequest extends FormRequest
                 'date',
             ],
             'time_slot' => [
-                'required',
+                'nullable',
+                'string',
+            ],
+            'time_slots' => [
+                'nullable',
+                'array',
+            ],
+            'time_slots.*' => [
+                'string',
+            ],
+            'ids' => [
+                'nullable',
+                'array',
+            ],
+            'ids.*' => [
+                'integer',
+            ],
+            'capacity_override' => [
+                'nullable',
+                'integer',
+                'min:0',
+            ],
+            'note' => [
+                'nullable',
                 'string',
             ],
             'internal_only' => [

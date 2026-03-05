@@ -24,6 +24,7 @@ use App\Models\Customer;
 use App\Models\Discount;
 use App\Models\Inventory;
 use App\Models\InventoryOverride;
+use App\Models\InventorySlotRange;
 use App\Models\InventoryTimeSlot;
 use App\Models\Promotion;
 use App\Models\QuestionAnswer;
@@ -79,7 +80,21 @@ class BookingsController extends Controller
 {
     private function validateSlotCapacity($service, string $bookingDate, int $inventoryTimeSlotId, int $requestedPax, int $teamId, ?int $excludeBookingItemId = null): void
     {
-        if (!$service || $service->capacity === null) {
+        if (!$service) {
+            return;
+        }
+
+        $inventoryId = InventoryTimeSlot::whereKey($inventoryTimeSlotId)->value('inventory_id');
+        $overrideCapacity = null;
+        if ($inventoryId) {
+            $overrideCapacity = InventorySlotRange::where('inventory_id', $inventoryId)
+                ->where('time_slot_id', $inventoryTimeSlotId)
+                ->whereDate('start_date', '<=', $bookingDate)
+                ->whereDate('end_date', '>=', $bookingDate)
+                ->value('capacity_override');
+        }
+
+        if ($overrideCapacity === null && $service->capacity === null) {
             return;
         }
 
@@ -94,7 +109,8 @@ class BookingsController extends Controller
             });
 
         $booked = (int) $bookedQuery->sum('pax');
-        $remaining = (int) $service->capacity - $booked;
+        $capacity = $overrideCapacity !== null ? (int) $overrideCapacity : (int) $service->capacity;
+        $remaining = $capacity - $booked;
 
         if ($remaining < $requestedPax) {
             throw ValidationException::withMessages([
