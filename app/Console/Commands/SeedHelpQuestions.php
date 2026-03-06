@@ -443,6 +443,15 @@ class SeedHelpQuestions extends Command
             ],
             [
                 'category' => 'Bookings - Create',
+                'question' => 'Why did my total change after saving?',
+                'description' => 'Totals are recalculated from per‑pax rates and rounded to 2 decimals on save.',
+                'where' => '<a href="/admin/bookings">Admin > Bookings</a>',
+                'business_rules' => 'Booking totals are derived from per‑pax rates (adult/child/guide). Rates and per‑pax totals are rounded to 2 decimals, then the booking total is rounded to 2 decimals. This prevents drift between the calculator, saved booking, and invoice.',
+                'examples' => 'If a promo gives a rate like 722.50, the saved total should remain consistent (e.g., 4 pax × 722.50 = 2,890.00). If you previously saw 2,905 → 2,904 after save, resaving should now keep the same total.',
+                'is_internal' => true,
+            ],
+            [
+                'category' => 'Bookings - Create',
                 'question' => 'What is Override Capacity vs Override Time Slots?',
                 'description' => 'They control different things: capacity vs availability.',
                 'where' => '<a href="/admin/bookings">Admin > Bookings</a>',

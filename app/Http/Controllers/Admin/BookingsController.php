@@ -510,11 +510,14 @@ class BookingsController extends Controller
                     ]);
                 }
                 $adultsCount = (int) ($validated['adults'] ?? 0);
-                $amount_adults = (int) ($validated['rate_per_adult'] ?? 0) * $adultsCount;
                 $childrenCount = (int) ($validated['children'] ?? 0);
-                $amount_children = (int) ($validated['rate_per_child'] ?? 0) * $childrenCount;
                 $guidesCount = (int) ($validated['guides'] ?? 0);
-                $amount_guides = (int) ($validated['rate_per_guide'] ?? 0) * $guidesCount;
+                $rateAdult = round((float) ($validated['rate_per_adult'] ?? 0), 2);
+                $rateChild = round((float) ($validated['rate_per_child'] ?? 0), 2);
+                $rateGuide = round((float) ($validated['rate_per_guide'] ?? 0), 2);
+                $amount_adults = round($rateAdult * $adultsCount, 2);
+                $amount_children = round($rateChild * $childrenCount, 2);
+                $amount_guides = round($rateGuide * $guidesCount, 2);
                 $requestedPax = $adultsCount + $childrenCount;
                 $canOverrideCapacity = !empty($validated['override_capacity']) && (bool) $service->allow_internal_capacity_override;
                 if (!$canOverrideCapacity) {
@@ -527,7 +530,7 @@ class BookingsController extends Controller
                     );
                 }
                 // TODO figure out why we changed to only amount below that seems like a bad idea
-                $amount = $amount_adults + $amount_children + $amount_guides;
+                $amount = round($amount_adults + $amount_children + $amount_guides, 2);
                 // $amount = (int) ($validated['adult'] ?? 0) + (int) ($validated['child'] ?? 0) + (int) ($validated['guide'] ?? 0);
                 // TODO: if we ever move to multiple bookings per customer, we need to add the booking fee to the amount
                 $booking = null; // Booking::where('id', $validated['booking_id'])->where('status_payment_id', 1)->first();
@@ -568,9 +571,9 @@ class BookingsController extends Controller
                 if (is_array($validated['discount_lines']) && $validated['discount_lines'] != null) {
                     $booking_discount = BookingDiscount::create([
                         'booking_id'     => $booking->id,
-                        'final_price_adult'    => (int) ($validated['adult'] ?? 0),
-                        'final_price_child'    => (int) ($validated['child'] ?? 0),
-                        'final_price_guide'    => (int) ($validated['guide'] ?? 0),
+                        'final_price_adult'    => $rateAdult,
+                        'final_price_child'    => $rateChild,
+                        'final_price_guide'    => $rateGuide,
                     ]);
                     // Remove old discount lines if you want "sync" behavior
                     $booking_discount->booking_discount_items()->delete();
@@ -599,9 +602,9 @@ class BookingsController extends Controller
                     'pax_adults'     => (int) ($validated['adults'] ?? 0),
                     'pax_children'   => (int) ($validated['children'] ?? 0),
                     'pax_guides'     => (int) ($validated['guides'] ?? 0),
-                    'price_adult'    => (int) ($validated['rate_per_adult'] ?? 0),
-                    'price_child'    => (int) ($validated['rate_per_child'] ?? 0),
-                    'price_guide'    => (int) ($validated['rate_per_guide'] ?? 0),
+                    'price_adult'    => $rateAdult,
+                    'price_child'    => $rateChild,
+                    'price_guide'    => $rateGuide,
                     'promotion_id'   => $promotion ? $promotion->id : null,
                     'wholesaler_id'  => $validated['wholesaler_id'],
                     'discount_id'    => $booking_price ? $booking_price->id : null,
@@ -724,9 +727,9 @@ class BookingsController extends Controller
                     'pax_adults'     => (int) ($validated['adults'] ?? 0),
                     'pax_children'   => (int) ($validated['children'] ?? 0),
                     'pax_guides'     => (int) ($validated['guides'] ?? 0),
-                    'price_adult'    => (int) ($validated['adult'] ?? 0),
-                    'price_child'    => (int) ($validated['child'] ?? 0),
-                    'price_guide'    => (int) ($validated['guide'] ?? 0),
+                    'price_adult'    => $rateAdult,
+                    'price_child'    => $rateChild,
+                    'price_guide'    => $rateGuide,
                     'team_id'        => auth()->user()->team_id,
                     'service_id'     => $season->service_id,
                     'season_id'      => $season->id,
@@ -817,9 +820,9 @@ class BookingsController extends Controller
                         'pax_adults'     => (int) ($validated['adults'] ?? 0),
                         'pax_children'   => (int) ($validated['children'] ?? 0),
                         'pax_guides'     => (int) ($validated['guides'] ?? 0),
-                        'price_adult'    => (int) ($validated['adult'] ?? 0),
-                        'price_child'    => (int) ($validated['child'] ?? 0),
-                        'price_guide'    => (int) ($validated['guide'] ?? 0),
+                        'price_adult'    => $rateAdult,
+                        'price_child'    => $rateChild,
+                        'price_guide'    => $rateGuide,
                         'team_id'        => auth()->user()->team_id,
                         'service_id'     => $season->service_id,
                         'season_id'      => $season->id,
@@ -1308,9 +1311,12 @@ class BookingsController extends Controller
                     ]);
                 }
                 $guidesCount = (int) ($validated['guides'] ?? 0);
-                $amount_adults = (int) ($validated['rate_per_adult'] ?? 0) * $adultsCount;
-                $amount_children = (int) ($validated['rate_per_child'] ?? 0) * $childrenCount;
-                $amount_guides = (int) ($validated['rate_per_guide'] ?? 0) * $guidesCount;
+                $rateAdult = round((float) ($validated['rate_per_adult'] ?? 0), 2);
+                $rateChild = round((float) ($validated['rate_per_child'] ?? 0), 2);
+                $rateGuide = round((float) ($validated['rate_per_guide'] ?? 0), 2);
+                $amount_adults = round($rateAdult * $adultsCount, 2);
+                $amount_children = round($rateChild * $childrenCount, 2);
+                $amount_guides = round($rateGuide * $guidesCount, 2);
                 $requestedPax = $adultsCount + $childrenCount;
                 $canOverrideCapacity = !empty($validated['override_capacity']) && (bool) $service->allow_internal_capacity_override;
                 if (!$canOverrideCapacity) {
@@ -1323,7 +1329,7 @@ class BookingsController extends Controller
                         $bookingItem->id
                     );
                 }
-                $amount = $amount_adults + $amount_children + $amount_guides;
+                $amount = round($amount_adults + $amount_children + $amount_guides, 2);
 
                 $inventoryOverride = null;
                 if ($overrideRates) {
@@ -1398,9 +1404,9 @@ class BookingsController extends Controller
                     'pax_adults' => $adultsCount,
                     'pax_children' => $childrenCount,
                     'pax_guides' => $guidesCount,
-                    'price_adult' => (int) ($validated['rate_per_adult'] ?? 0),
-                    'price_child' => (int) ($validated['rate_per_child'] ?? 0),
-                    'price_guide' => (int) ($validated['rate_per_guide'] ?? 0),
+                    'price_adult' => $rateAdult,
+                    'price_child' => $rateChild,
+                    'price_guide' => $rateGuide,
                     'promotion_id' => $promotion?->id,
                     'wholesaler_id' => $validated['wholesaler_id'],
                 ]);
@@ -1499,11 +1505,11 @@ class BookingsController extends Controller
                             'booking_id' => $booking->id,
                         ],
                         [
-                            'final_price_adult' => (int) ($validated['adult'] ?? 0),
-                            'final_price_child' => (int) ($validated['child'] ?? 0),
-                            'final_price_guide' => (int) ($validated['guide'] ?? 0),
-                        ]
-                    );
+                        'final_price_adult' => $rateAdult,
+                        'final_price_child' => $rateChild,
+                        'final_price_guide' => $rateGuide,
+                    ]
+                );
                     $booking_discount->booking_discount_items()->delete();
                     foreach ($validated['discount_lines'] as $line) {
                         $booking_discount->booking_discount_items()->updateOrCreate(
@@ -1570,9 +1576,9 @@ class BookingsController extends Controller
                     'pax_adults'     => (int) ($validated['adults'] ?? 0),
                     'pax_children'   => (int) ($validated['children'] ?? 0),
                     'pax_guides'     => (int) ($validated['guides'] ?? 0),
-                    'price_adult'    => (int) ($validated['adult'] ?? 0),
-                    'price_child'    => (int) ($validated['child'] ?? 0),
-                    'price_guide'    => (int) ($validated['guide'] ?? 0),
+                    'price_adult'    => $rateAdult,
+                    'price_child'    => $rateChild,
+                    'price_guide'    => $rateGuide,
                     'team_id'        => auth()->user()->team_id,
                     'service_id'     => $season->service_id,
                     'season_id'      => $season->id,
@@ -1657,9 +1663,9 @@ class BookingsController extends Controller
                         'pax_adults'     => (int) ($validated['adults'] ?? 0),
                         'pax_children'   => (int) ($validated['children'] ?? 0),
                         'pax_guides'     => (int) ($validated['guides'] ?? 0),
-                        'price_adult'    => (int) ($validated['adult'] ?? 0),
-                        'price_child'    => (int) ($validated['child'] ?? 0),
-                        'price_guide'    => (int) ($validated['guide'] ?? 0),
+                        'price_adult'    => $rateAdult,
+                        'price_child'    => $rateChild,
+                        'price_guide'    => $rateGuide,
                         'team_id'        => auth()->user()->team_id,
                         'service_id'     => $season->service_id,
                         'season_id'      => $season->id,

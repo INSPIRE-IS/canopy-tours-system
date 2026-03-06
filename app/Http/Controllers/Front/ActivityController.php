@@ -424,7 +424,10 @@ class ActivityController extends Controller
                 $tot_children = $season->rake_rate_child * $children;
                 $guides = (int) ($validated['guides'] ?? 0);
                 $tot_guides = $season->rake_rate_guide * $guides;
-                $amount = $tot_adults + $tot_children + $tot_guides;
+                $tot_adults = round($tot_adults, 2);
+                $tot_children = round($tot_children, 2);
+                $tot_guides = round($tot_guides, 2);
+                $amount = round($tot_adults + $tot_children + $tot_guides, 2);
                 logger()->info('amount ' . $amount);
                 $promoCode = $validated['promo_code'];
                 $promotion_id = null;
@@ -555,7 +558,10 @@ class ActivityController extends Controller
                             break;
                     }
 
-                    $amount = $tot_adults + $tot_children + $tot_guides;
+                    $tot_adults = round($tot_adults, 2);
+                    $tot_children = round($tot_children, 2);
+                    $tot_guides = round($tot_guides, 2);
+                    $amount = round($tot_adults + $tot_children + $tot_guides, 2);
                 }
 
                 $rate_adult = $adults > 0 ? round($tot_adults / $adults, 2) : 0;
