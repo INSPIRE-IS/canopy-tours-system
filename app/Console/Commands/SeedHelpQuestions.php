@@ -189,6 +189,7 @@ class SeedHelpQuestions extends Command
                 'description' => 'Services define capacity, duration, and base pricing.',
                 'where' => '<a href="/admin/services">Admin > Services</a>',
                 'business_rules' => 'Capacity is enforced on bookings; duration drives the time-range displayed on calendars. Services also use visibility (Draft/Bookable/Gift/Both) to control where they appear (front booking vs gift flow).',
+                'examples' => 'If a service capacity is 8, bookings cannot exceed 8 unless Override Capacity is enabled for that service and selected on the booking.',
                 'is_internal' => true,
             ],
             [
@@ -266,7 +267,7 @@ class SeedHelpQuestions extends Command
                 'description' => 'Date overrides replace the weekly schedule for specific dates without changing the base inventory.',
                 'where' => '<a href="/admin/inventory-slot-ranges">Admin > Inventory > Date Overrides</a>',
                 'business_rules' => 'Weekly schedule is the default. If a date override exists for a date, only those override slots are used for that date. Overrides can use custom times not present in weekly inventory. Internal-only overrides show on admin calendars only. Closeouts still apply after overrides.',
-                'examples' => 'Weekly schedule: Mon/Wed/Fri 09:00 + 13:00. Date override: May 5-7 with only 10:00. Result: May 5-7 shows only 10:00; all other Mon/Wed/Fri still show 09:00 + 13:00.',
+                'examples' => 'Weekly schedule: Mon/Wed/Fri 09:00 + 13:00. Date override: May 5-7 with only 10:00. Result: May 5-7 shows only 10:00; all other Mon/Wed/Fri still show 09:00 + 13:00. If you mark the override internal-only, it appears in admin calendars but not on the front booking calendar.',
                 'is_internal' => true,
             ],
             [
@@ -436,7 +437,17 @@ class SeedHelpQuestions extends Command
                 'question' => 'Can we book children only?',
                 'description' => 'Create bookings from the admin calendar.',
                 'where' => '<a href="/admin/bookings">Admin > Bookings</a>',
-                'business_rules' => 'At least 1 adult or 1 child is required. Capacity is enforced; overrides allowed only when service permits. Selected slot is required to save.',
+                'business_rules' => 'At least 1 adult or 1 child is required. Selected slot is required to save. Capacity is enforced against remaining slots; Override Capacity allows exceeding capacity only when the service allows it. Override Time Slots opens a date-override modal to add internal-only slots for the selected booking date.',
+                'examples' => 'If a slot has 4 remaining and you add 3 adults + 2 children, the form warns you unless Override Capacity is checked (and allowed). If you need an extra 12:00 slot on a specific day, toggle Override Time Slots and add it as an internal-only date override.',
+                'is_internal' => true,
+            ],
+            [
+                'category' => 'Bookings - Create',
+                'question' => 'What is Override Capacity vs Override Time Slots?',
+                'description' => 'They control different things: capacity vs availability.',
+                'where' => '<a href="/admin/bookings">Admin > Bookings</a>',
+                'business_rules' => 'Override Capacity allows exceeding the service capacity for a booking (only if the service allows it). Override Time Slots lets you add a date-specific slot (internal-only by default) without changing the weekly schedule.',
+                'examples' => 'Override Capacity: allow 9 pax on a slot with capacity 8 for an exception. Override Time Slots: add a 12:00 slot for one day even if the weekly schedule is only 09:00 + 13:00.',
                 'is_internal' => true,
             ],
             [
@@ -444,7 +455,8 @@ class SeedHelpQuestions extends Command
                 'question' => 'Why does editing reissue invoices?',
                 'description' => 'Edit bookings and reissue documents.',
                 'where' => 'Open a booking from <a href="/admin/bookings">Admin > Bookings</a>',
-                'business_rules' => 'Edits reissue invoice and boarding pass. Expired seasons are included for the current booking so legacy bookings can be edited.',
+                'business_rules' => 'Edits reissue invoice and boarding pass. Expired seasons are included for the current booking so legacy bookings can be edited. The edit calendar considers the current booking pax for capacity checks, and Override Capacity can be used only when the service allows it.',
+                'examples' => 'If a booking already holds 4 seats and the slot capacity is 8, you can increase it up to 8 on edit. To exceed 8, Override Capacity must be enabled (and allowed).',
                 'is_internal' => true,
             ],
             [
@@ -548,7 +560,8 @@ class SeedHelpQuestions extends Command
                 'question' => 'Why does a slot show full on edit?',
                 'description' => 'Capacity and availability across dates.',
                 'where' => 'Admin calendar <a href="/admin/bookings">Admin > Bookings</a> and front calendar <a href="/front/activity/calendar">/front/activity/calendar</a>',
-                'business_rules' => 'Availability is based on booked pax; edit calendar includes existing booking pax in capacity checks.',
+                'business_rules' => 'Availability is based on booked pax and capacity (including date-override capacity). The edit calendar adds the current booking pax back into remaining availability so the slot does not appear full for its own booking. Internal-only date overrides show on admin calendars only.',
+                'examples' => 'If a slot capacity is 8 and the booking already has 4 seats, edit should still show 4 remaining. If the slot is full in the front calendar, check for internal-only overrides or closeouts.',
                 'is_internal' => true,
             ],
             [
