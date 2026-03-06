@@ -157,6 +157,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
         lead_person: '',
         lead_email: '',
         lead_mobile: '',
+        nationality_id: '',
         referral_source: '',
         // booking payment
         booking_total: 0,
@@ -1098,6 +1099,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
             lead_person: leadName,
             lead_email: leadEmail,
             lead_mobile: leadMobile,
+            nationality_id: leadCustomer?.nationality_id || '',
             promoCode: promoCodeValue,
             override_rates: hasOverrideRates,
             override_reason: inventoryOverride?.note || '',
@@ -2432,6 +2434,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
                                 name="lead_mobile"
                                 value={data.lead_mobile}
                                 onChange={(val) => setData('lead_mobile', val)}
+                                onCountryChange={(option) => setData('nationality_id', option?.countryId || '')}
                                 countries={countries}
                                 error={errors.lead_mobile}
                                 defaultCountryCode="27"

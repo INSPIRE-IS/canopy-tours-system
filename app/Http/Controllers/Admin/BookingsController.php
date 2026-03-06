@@ -404,7 +404,8 @@ class BookingsController extends Controller
             'lead_person' => 'required|string', //   "lead_person" => "Lead Person"
             'lead_email' => 'required|email', //   "lead_email" => "Lead Email"
             'lead_mobile' => 'required|string', //   "lead_mobile" => "Lead Mobile"
-            'selected_slot' => 'required|array', //   "selected_slot" => array:3 [▶] date "2025-07-28" "selected_slot" => array:3 [▶] time "08:00:00"
+            'nationality_id' => 'nullable|exists:countries,id',
+            'selected_slot' => 'required|array', //   "selected_slot" => array:3 [â–¶] date "2025-07-28" "selected_slot" => array:3 [â–¶] time "08:00:00"
 
             'service_id' => 'required|integer', //   "season_id" => "2"
             'season_id' => 'required|integer', //   "season_id" => "2"
@@ -541,7 +542,11 @@ class BookingsController extends Controller
                     ], [
                         'full_name' => $validated['lead_person'],
                         'contact_number' => $validated['lead_mobile'],
+                        'nationality_id' => $validated['nationality_id'] ?? null,
                     ]);
+                    if (!empty($validated['nationality_id']) && $customer->nationality_id !== (int) $validated['nationality_id']) {
+                        $customer->update(['nationality_id' => (int) $validated['nationality_id']]);
+                    }
                     $vatLookup = LookupItem::findDefaultForTeam('vat_rate', auth()->user()->team_id);
                     $vatMultiplier = $vatLookup?->multiplier ?? 1.15;
                     // 2. Create booking
@@ -763,7 +768,7 @@ class BookingsController extends Controller
                         {$reminderContent}
                         <p>Please contact us if you have any questions.</p>";
                 // send mail
-                // 🔹 log in emails table
+                // log in emails table
                 if ($autoSendInvoice) {
                     Email::create([
                         'sender'         => config('mail.from.address'),
@@ -921,7 +926,7 @@ class BookingsController extends Controller
                     Email::create([
                         'sender'         => config('mail.from.address'),
                         'receiver'       => $customer->email_address,
-                        'subject'        => 'Your Boarding Pass – ' . $documentLabel . ' ' . $data['invoice']['number'],
+                        'subject'        => 'Your Boarding Pass - ' . $documentLabel . ' ' . $data['invoice']['number'],
                         'body'           => strip_tags($content),
                         'attachment_path' => $fileName,
                         'sent'           => true,
@@ -1193,6 +1198,7 @@ class BookingsController extends Controller
             'lead_person' => 'required|string',
             'lead_email' => 'required|email',
             'lead_mobile' => 'required|string',
+            'nationality_id' => 'nullable|exists:countries,id',
             'selected_slot' => 'required|array',
 
             'service_id' => 'required|integer',
@@ -1369,6 +1375,7 @@ class BookingsController extends Controller
                     [
                         'full_name' => $validated['lead_person'],
                         'contact_number' => $validated['lead_mobile'],
+                        'nationality_id' => $validated['nationality_id'] ?? null,
                     ]
                 );
 
@@ -1379,19 +1386,12 @@ class BookingsController extends Controller
                 if (!empty($validated['lead_mobile']) && $customer->contact_number !== $validated['lead_mobile']) {
                     $customerUpdates['contact_number'] = $validated['lead_mobile'];
                 }
+                if (!empty($validated['nationality_id']) && $customer->nationality_id !== (int) $validated['nationality_id']) {
+                    $customerUpdates['nationality_id'] = (int) $validated['nationality_id'];
+                }
                 if (!empty($customerUpdates)) {
                     $customer->update($customerUpdates);
                 }
-
-                $booking->update([
-                    'lead_name' => $customer->full_name,
-                    'is_corporate' => $validated['corporate_customer'],
-                    'is_sms' => $validated['send_sms'],
-                    'due_date' => $bookingDate,
-                    'grand_tot_due' => $amount,
-                    'customer_id' => $customer->id,
-                    'updated_by_id' => auth()->id(),
-                ]);
 
                 $promotion = !empty($validated['promoCode'])
                     ? Promotion::where('promo_code', $validated['promoCode'])->first()
@@ -1505,11 +1505,11 @@ class BookingsController extends Controller
                             'booking_id' => $booking->id,
                         ],
                         [
-                        'final_price_adult' => $rateAdult,
-                        'final_price_child' => $rateChild,
-                        'final_price_guide' => $rateGuide,
-                    ]
-                );
+                            'final_price_adult' => $rateAdult,
+                            'final_price_child' => $rateChild,
+                            'final_price_guide' => $rateGuide,
+                        ]
+                    );
                     $booking_discount->booking_discount_items()->delete();
                     foreach ($validated['discount_lines'] as $line) {
                         $booking_discount->booking_discount_items()->updateOrCreate(
@@ -1760,7 +1760,7 @@ class BookingsController extends Controller
                     Email::create([
                         'sender'         => config('mail.from.address'),
                         'receiver'       => $customer->email_address,
-                        'subject'        => 'Your Boarding Pass – ' . $documentLabel . ' ' . $data['invoice']['number'],
+                        'subject'        => 'Your Boarding Pass - ' . $documentLabel . ' ' . $data['invoice']['number'],
                         'body'           => strip_tags($content),
                         'attachment_path' => $fileName,
                         'sent'           => true,
@@ -1824,7 +1824,7 @@ class BookingsController extends Controller
             foreach ($locations as $key => $type_id) {
                 $location = $request->input("{$key}_location");
                 $time     = $request->input("{$key}_time");
-                $meridiem = $request->input("{$key}_meridiem"); // Optional — only needed for pickup
+                $meridiem = $request->input("{$key}_meridiem"); // Optional â€” only needed for pickup
 
                 if ($location && $time) {
                     $booking_infos[] = [
@@ -1966,7 +1966,7 @@ class BookingsController extends Controller
                                 'All equipment and training.',
                                 'A short 4x4 trip to the drop off point.',
                                 'A 2.5 - 3 hour fully guided forest canopy zipline adventure along 10 elevated platforms.',
-                                'Small exclusive groups of 8–10 people.',
+                                'Small exclusive groups of 8â€“10 people.',
                                 '2x fully trained Canopy Tour facilitators will join you on each tour.'
                             ]
                         ],
@@ -1975,7 +1975,7 @@ class BookingsController extends Controller
                             'icon' => '/images/icons/location.png',
                             'items' => [
                                 'Please arrive at 20 min BEFORE your tour time.',
-                                'Allow sufficient travel time — the tour will start promptly and late guests cannot be accommodated.',
+                                'Allow sufficient travel time - the tour will start promptly and late guests cannot be accommodated.',
                                 'Once the safety briefing begins late guests cannot join and the tour will be considered missed.'
                             ]
                         ],
@@ -2107,7 +2107,7 @@ class BookingsController extends Controller
                                 'This is an adventure activity requiring moderate fitness.',
                                 'Recommended weight limit: 120 -130kg kg per person.',
                                 'Limit is based on harness size and strap circumference. (Mens size 44 jean should fit)',
-                                'If over 120–130 kg but fit your body shape may still allow safe harness fit.',
+                                'If over 120 — 130 kg but fit your body shape may still allow safe harness fit.',
                                 'Minimum age: 6 years old. Management reserves the right to decline a child which they think, for safety reasons should not do the Canopy Tour, regardless of age.',
                                 'Anyone under the influence or suspected to be under the influence of alcohol are not allowed to participate in a Canopy Tour.',
                                 'Pregnant or suspected pregnant women are not allowed to do a Canopy Tour.'
@@ -2162,8 +2162,8 @@ class BookingsController extends Controller
                             'items' => [
                                 'All equipment and training.',
                                 'A return 4x4 experience from through the nature reserve.',
-                                'A 4–5 hour fully guided mountain top zipline adventure along 13 elevated platforms.',
-                                'Small exclusive groups of 8–9 people.',
+                                'A 4 — 5 hour fully guided mountain top zipline adventure along 13 elevated platforms.',
+                                'Small exclusive groups of 8 — 9 people.',
                                 '2x fully trained Cape Canopy Tour facilitators will join you on each tour.',
                                 'A personalized video (this is available to purchase as an optional extra).'
                             ]
@@ -2172,9 +2172,9 @@ class BookingsController extends Controller
                             'title' => 'Arrival',
                             'icon' => '/images/icons/location.png',
                             'items' => [
-                                'Please arrive at least 10–15min BEFORE your tour time.',
-                                'Allow sufficient travel time — the tour will start promptly and late guests cannot be accommodated.',
-                                'If coming from Cape Town, please factor in an extra 30–45min for irregular traffic delays.',
+                                'Please arrive at least 10 — 15min BEFORE your tour time.',
+                                'Allow sufficient travel time  —  the tour will start promptly and late guests cannot be accommodated.',
+                                'If coming from Cape Town, please factor in an extra 30â€“45min for irregular traffic delays.',
                                 'Once the safety briefing begins, late guests cannot join and the tour will be considered missed.'
                             ]
                         ],
@@ -2212,9 +2212,9 @@ class BookingsController extends Controller
                             'icon' => '/images/icons/restrictions.png',
                             'items' => [
                                 'This is an adventure activity requiring moderate fitness.',
-                                'Recommended weight limit: 100–110 kg per person.',
+                                'Recommended weight limit: 100 — 110 kg per person.',
                                 'Limit is based on harness size and strap circumference.',
-                                'If over 100–110 kg but fit, your body shape may still allow safe harness fit.',
+                                'If over 100 — 110 kg but fit, your body shape may still allow safe harness fit.',
                                 'Minimum age: 5 years old.'
                             ]
                         ],
@@ -3586,7 +3586,7 @@ class BookingsController extends Controller
             // Step 4: Apply per-pax discounts (only if no promo)
             // Step 4: Totals
             if ($appliedPromo) {
-                // Promo applied → no per-pax discounts
+                // Promo applied - no per-pax discounts
                 foreach ($data['pax_groups'] as $group) {
                     $type  = $group['type'];
                     $count = (int) $group['count'];
@@ -3594,7 +3594,7 @@ class BookingsController extends Controller
                     $total += $rate * $count;
                 }
             } else {
-                // No promo → apply per-pax discounts on top of base rates (post-wholesaler)
+                // No promo - apply per-pax discounts on top of base rates (post-wholesaler)
                 foreach ($data['pax_groups'] as $group) {
                     $type  = $group['type'];
                     $count = (int) $group['count'];
@@ -3962,4 +3962,3 @@ class BookingsController extends Controller
         throw new \RuntimeException('No default invoice template found.');
     }
 }
-

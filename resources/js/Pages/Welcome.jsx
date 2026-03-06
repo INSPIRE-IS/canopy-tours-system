@@ -286,6 +286,7 @@ export default function HomePage({ activities, auth, teams, team_id, team }) {
           activityName={selectedActivity.name}
           activityId={selectedActivity.id}
           auth={auth}
+          countries={countries}
         />
       )}
 

@@ -545,6 +545,7 @@ export default function ActivitySchedulePage({ activity, auth, team, activityId,
           pricePerChild={activity.rake_rate_child}
           activityId={activityId}
           auth={auth}
+          countries={countries}
         />
       )}
       {show && (

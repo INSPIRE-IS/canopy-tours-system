@@ -4,10 +4,17 @@ import CustomInputText from '@/Components/CustomInputText';
 
 const normalizeCountries = (countries) => (countries || [])
     .filter(c => c?.phonecode)
-    .map(c => ({
-        id: String(c.phonecode),
-        name: `+${c.phonecode}`,
-    }));
+    .map(c => {
+        const code = String(c.phonecode);
+        const label = c?.name ? `${c.name} (+${code})` : `+${code}`;
+        return {
+            id: code,
+            name: label,
+            countryId: c?.id ?? null,
+            countryName: c?.name ?? '',
+            phonecode: c?.phonecode ?? null,
+        };
+    });
 
 const splitPhoneNumber = (value, phonecodeOptions, fallbackCode) => {
     if (!value) {
@@ -39,6 +46,7 @@ export default function PhoneInput({
     label = 'Phone',
     value,
     onChange,
+    onCountryChange,
     countries = [],
     error,
     defaultCountryCode = '27',
@@ -80,6 +88,12 @@ export default function PhoneInput({
             onChange?.(formatted);
         }
     }, [countryCode, localNumber, resolvedDefault, value, onChange]);
+
+    useEffect(() => {
+        if (!onCountryChange) return;
+        const selected = phonecodeOptions.find(o => o.id === String(countryCode));
+        onCountryChange(selected || null);
+    }, [countryCode, onCountryChange, phonecodeOptions]);
 
     const allowPhoneKey = (e) => {
         if (e.ctrlKey || e.metaKey || e.altKey) return;

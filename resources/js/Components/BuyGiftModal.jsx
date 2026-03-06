@@ -1,10 +1,15 @@
 import React, { use, useEffect, useState } from 'react';
 import axios from 'axios';
 import InputText from './InputText';
-import { useForm } from '@inertiajs/react';
+import PhoneInput from '@/Components/PhoneInput';
+import { useForm, usePage } from '@inertiajs/react';
+import { useToast } from '../Context/ToastContext';
 
-export default function BuyGiftModal({ isOpen, onClose, activityName, pricePerAdult, pricePerChild, activityId, auth }) {
+export default function BuyGiftModal({ isOpen, onClose, activityName, pricePerAdult, pricePerChild, activityId, auth, countries = [] }) {
   console.log("gift activity", activityName);
+  const { showToast } = useToast();
+  const { props } = usePage();
+  const { flash } = props;
   const [total, setTotal] = useState(0.00);
   const mode = 'create';
   const { data, setData, post, put, errors, reset, processing } = useForm({
@@ -18,6 +23,15 @@ export default function BuyGiftModal({ isOpen, onClose, activityName, pricePerAd
     reference: '',
     activity_id: activityId,
   });
+
+  useEffect(() => {
+    if (flash?.success) {
+      showToast(flash.success, "success");
+    }
+    if (flash?.error) {
+      showToast(flash.error, "error");
+    }
+  }, [flash, showToast]);
 
   useEffect(() => {
 
@@ -52,6 +66,14 @@ export default function BuyGiftModal({ isOpen, onClose, activityName, pricePerAd
     //setData("name", e.target.value);
   };
   const handleConfirm = async () => {
+    if (!data.full_name || !data.email || !data.phone) {
+      showToast("Please fill in all the required fields.", "info");
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
+      showToast("Please enter a valid email address.", "warning");
+      return;
+    }
     setLoading(true);
     setError(null);
 
@@ -133,17 +155,14 @@ export default function BuyGiftModal({ isOpen, onClose, activityName, pricePerAd
             mode={mode}
             required
           />
-          <InputText
-            title="Phone Number"
-            field="phone"
+          <PhoneInput
+            label="Phone Number*"
+            name="phone"
             value={data.phone}
-            type="text"
-            width="w-full"
-            height="h-[42px]"
-            handleChange={handleChange}
-            errors={errors}
-            mode={mode}
-            required
+            onChange={(val) => setData('phone', val)}
+            countries={countries}
+            error={errors.phone}
+            defaultCountryCode="27"
           />
         </div>
 

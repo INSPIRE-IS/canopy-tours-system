@@ -382,7 +382,7 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                                         {toggleCustomer && (
                                             <span className="flex flex-col w-full px-6 py-6 gap-2">
                                                 <CustomInputText
-                                                    title="Name"
+                                                    title="Lead Person"
                                                     name="lead_person"
                                                     value={data.lead_person}
                                                     height="h-[52px]"
@@ -394,7 +394,7 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                                                 <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-6">
 
                                                     <CustomInputText
-                                                        title="Email"
+                                                        title="Lead Email"
                                                         name="lead_email"
                                                         value={data.lead_email}
                                                         height="h-[52px]"
@@ -404,7 +404,7 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                                                         errors={errors}
                                                     />
                                                     <CustomInputText
-                                                        title="Contact Number"
+                                                        title="Lead Mobile"
                                                         name="lead_mobile"
                                                         value={data.lead_mobile}
                                                         height="h-[52px]"
@@ -658,65 +658,65 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                             <div className="flex flex-col gap-6">
                                 {/* Staff */}
                                 {assignStaffEnabled && (
-                                <div className=" overflow-hidden shadow-medium sm:rounded-lg">
-                                    <div className="flex flex-col justify-between items-center ">
-                                        <span className='flex items-center justify-between w-full px-6 py-4 border-b border-gray-300'>
-                                            <span className="text-booking-card-heading block text-start">Assigned Staff</span>
-                                            <span onClick={() => setToggleStaff(!toggleStaff)}>
-                                                <button className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] border-primary-14 text-primary-14 cursor-pointer">
-                                                    <img src="/assets/icons/plus.svg" alt="bookings" className="w-5 h-5 text-black" />
-                                                    <span className="text-btn-outline-gray">Add Staff</span>
-                                                </button>
+                                    <div className=" overflow-hidden shadow-medium sm:rounded-lg">
+                                        <div className="flex flex-col justify-between items-center ">
+                                            <span className='flex items-center justify-between w-full px-6 py-4 border-b border-gray-300'>
+                                                <span className="text-booking-card-heading block text-start">Assigned Staff</span>
+                                                <span onClick={() => setToggleStaff(!toggleStaff)}>
+                                                    <button className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] border-primary-14 text-primary-14 cursor-pointer">
+                                                        <img src="/assets/icons/plus.svg" alt="bookings" className="w-5 h-5 text-black" />
+                                                        <span className="text-btn-outline-gray">Add Staff</span>
+                                                    </button>
+                                                </span>
                                             </span>
-                                        </span>
-                                        {toggleStaff ? (
-                                            <div className="flex flex-col w-full px-6 py-6 gap-2">
-                                                <div className="flex flex-col px-6 py-6 gap-2 border-b border-gray-100">
-                                                    <div className="flex w-full items-center justify-between gap-5">
-                                                        <div className='basis-[80%] px-[13px] py-1 gap-[6px] flex items-center justify-start w-[298px] h-[46px] rounded-[100px] border border-gray-300'>
-                                                            <span className="flex items-center justify-center w-[15.5px] h-[12.4px]">{icons.user}</span>
-                                                            <span className="text-booking-card-title">Name</span>
-                                                        </div>
-                                                        <div className='basis-[20%] flex items-center gap-[7px]'>
-                                                            <span className={`flex items-center justify-center w-[36px] h-[36px] gap-2 px-4 py-2 rounded-[10px] border border-primary-14
+                                            {toggleStaff ? (
+                                                <div className="flex flex-col w-full px-6 py-6 gap-2">
+                                                    <div className="flex flex-col px-6 py-6 gap-2 border-b border-gray-100">
+                                                        <div className="flex w-full items-center justify-between gap-5">
+                                                            <div className='basis-[80%] px-[13px] py-1 gap-[6px] flex items-center justify-start w-[298px] h-[46px] rounded-[100px] border border-gray-300'>
+                                                                <span className="flex items-center justify-center w-[15.5px] h-[12.4px]">{icons.user}</span>
+                                                                <span className="text-booking-card-title">Name</span>
+                                                            </div>
+                                                            <div className='basis-[20%] flex items-center gap-[7px]'>
+                                                                <span className={`flex items-center justify-center w-[36px] h-[36px] gap-2 px-4 py-2 rounded-[10px] border border-primary-14
                                                                         bg-white-gradient-overlay text-black shadow-inset-white 
                                                                         hover:border-black hover:text-blackcursor-pointer`}
-                                                                onClick={() => { }}
-                                                            >{icons.envelope}</span>
-                                                            <span className={`flex items-center justify-center w-[36px] h-[36px] gap-2 px-4 py-2 rounded-[10px] border border-primary-14
+                                                                    onClick={() => { }}
+                                                                >{icons.envelope}</span>
+                                                                <span className={`flex items-center justify-center w-[36px] h-[36px] gap-2 px-4 py-2 rounded-[10px] border border-primary-14
                                                                         bg-white-gradient-overlay text-black shadow-inset-white 
                                                                         hover:border-black hover:text-blackcursor-pointer`}
-                                                                onClick={() => { }}
-                                                            >{icons.cross}</span>
+                                                                    onClick={() => { }}
+                                                                >{icons.cross}</span>
 
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>
-                                            </div>
-                                        ) : (
-                                            <span className="flex flex-col w-full px-6 py-6 gap-2">
-                                                <CustomSelect
-                                                    name="wholesaler_id"
-                                                    value={data.wholesaler_id}
+                                            ) : (
+                                                <span className="flex flex-col w-full px-6 py-6 gap-2">
+                                                    <CustomSelect
+                                                        name="wholesaler_id"
+                                                        value={data.wholesaler_id}
 
-                                                    onChange={(e) => setData(e.target.name, e.target.value)}
-                                                    error={errors.wholesaler_id}
-                                                    options={staff}
-                                                />
-                                                <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-6">
-                                                    <button onClick={() => { }} className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-blue-gradient-overlay border-[#3863C6] text-white shadow-inset-white cursor-pointer">
-                                                        <img src="/assets/icons/plus.svg" alt="bookings" className="w-5 h-5" />
-                                                        <span className="text-btn-outline-gray">Add</span>
-                                                    </button>
-                                                    <button className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-red-gradient-overlay border-[#C65468] text-white shadow-inset-white cursor-pointer">
-                                                        <img src="/assets/icons/plus.svg" alt="bookings" className="w-5 h-5" />
-                                                        <span className="text-btn-outline-gray">Cancel</span>
-                                                    </button>
-                                                </div>
-                                            </span>
-                                        )}
+                                                        onChange={(e) => setData(e.target.name, e.target.value)}
+                                                        error={errors.wholesaler_id}
+                                                        options={staff}
+                                                    />
+                                                    <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                                        <button onClick={() => { }} className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-blue-gradient-overlay border-[#3863C6] text-white shadow-inset-white cursor-pointer">
+                                                            <img src="/assets/icons/plus.svg" alt="bookings" className="w-5 h-5" />
+                                                            <span className="text-btn-outline-gray">Add</span>
+                                                        </button>
+                                                        <button className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-red-gradient-overlay border-[#C65468] text-white shadow-inset-white cursor-pointer">
+                                                            <img src="/assets/icons/plus.svg" alt="bookings" className="w-5 h-5" />
+                                                            <span className="text-btn-outline-gray">Cancel</span>
+                                                        </button>
+                                                    </div>
+                                                </span>
+                                            )}
+                                        </div>
                                     </div>
-                                </div>
                                 )}
                                 {/* Comments */}
                                 <div className=" overflow-hidden shadow-medium sm:rounded-lg">
