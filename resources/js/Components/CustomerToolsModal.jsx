@@ -1,8 +1,9 @@
 import { icons } from '@/icons';
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 export default function CustomerToolsModal({ index, booking, customer, position, onClose, CustomerToolClick }) {
     const modalRef = useRef();
+    const [modalStyle, setModalStyle] = useState(null);
     console.log('-----customer-----', customer);
 
     // Close when clicking outside the modal
@@ -16,16 +17,32 @@ export default function CustomerToolsModal({ index, booking, customer, position,
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [modalRef, onClose]);
 
+    useLayoutEffect(() => {
+        if (!position || !modalRef.current) return;
+        const rect = modalRef.current.getBoundingClientRect();
+        const padding = 12;
+        const viewportWidth = window.innerWidth || 0;
+        const viewportHeight = window.innerHeight || 0;
+
+        let left = position.right - rect.width;
+        left = Math.max(padding, Math.min(left, viewportWidth - rect.width - padding));
+
+        let top = position.bottom + 8;
+        if (top + rect.height > viewportHeight - padding) {
+            top = position.top - rect.height - 8;
+        }
+        top = Math.max(padding, Math.min(top, viewportHeight - rect.height - padding));
+
+        setModalStyle({ top, left });
+    }, [position]);
+
     if (!customer || !position) return null;
 
     return (
         <div
             ref={modalRef}
-            className="absolute z-50 w-[220px] bg-white rounded-xl shadow-lg border border-gray-200"
-            style={{
-                top: position.top,
-                left: position.left,
-            }}
+            className="fixed z-50 w-[220px] bg-white rounded-xl shadow-lg border border-gray-200 max-h-[70vh] overflow-y-auto"
+            style={modalStyle ?? { top: position.bottom + 8, left: position.left }}
         >
             <div className="p-4">
                 <div className="flex justify-between items-center mb-2">

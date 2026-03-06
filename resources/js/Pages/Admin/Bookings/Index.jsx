@@ -86,26 +86,30 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
         event.preventDefault();
         console.log("booking----------tool-------- ", booking)
 
-        const rect = event.target.getBoundingClientRect();
+        const rect = event.currentTarget.getBoundingClientRect();
         setBookingToolsTarget({
             booking,
             position: {
-                top: rect.top + window.scrollY + 30, // offset below the button
-                left: rect.left + window.scrollX,
+                top: rect.top,
+                bottom: rect.bottom,
+                left: rect.left,
+                right: rect.right,
             }
         });
     };
     const openCustomerToolsModal = (event, booking, customer, indexKey) => {
         event.preventDefault();
 
-        const rect = event.target.getBoundingClientRect();
+        const rect = event.currentTarget.getBoundingClientRect();
         setCustomerToolsTarget({
             booking,
             customer,
             indexKey,
             position: {
-                top: rect.top + window.scrollY + 30,
-                left: rect.left + window.scrollX,
+                top: rect.top,
+                bottom: rect.bottom,
+                left: rect.left,
+                right: rect.right,
             }
         });
     };
