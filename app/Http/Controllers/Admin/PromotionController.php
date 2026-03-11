@@ -114,13 +114,6 @@ class PromotionController extends Controller
             ]);
         }
 
-        $today = Carbon::today();
-        if (Carbon::parse($data['booking_start_date'])->lt($today)) {
-            throw ValidationException::withMessages([
-                'booking_start_date' => ['Booking start date cannot be in the past.'],
-            ]);
-        }
-
         $season = Season::where('service_id', $data['service_id'])
             ->whereDate('start_date', '<=', $data['activity_start_date'])
             ->whereDate('end_date', '>=', $data['activity_end_date'])
@@ -260,13 +253,6 @@ class PromotionController extends Controller
         if ($data['type'] === 'time_slot' && empty($data['season_id'])) {
             throw ValidationException::withMessages([
                 'season_id' => ['Season is required for time slot promotions.'],
-            ]);
-        }
-
-        $today = Carbon::today();
-        if (Carbon::parse($data['booking_start_date'])->lt($today)) {
-            throw ValidationException::withMessages([
-                'booking_start_date' => ['Booking start date cannot be in the past.'],
             ]);
         }
 

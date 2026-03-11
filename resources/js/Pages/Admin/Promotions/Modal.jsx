@@ -118,6 +118,9 @@ const Modal = ({ isOpen, onClose, mode, item = null, services }) => {
 
   const handleChange = (target, value) => setData(target, value);
 
+  const now = new Date();
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  const isPastBookingStart = data.booking_start_date && data.booking_start_date < todayStr;
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -137,9 +140,7 @@ const Modal = ({ isOpen, onClose, mode, item = null, services }) => {
       return;
     }
 
-    const today = new Date();
-    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-    if (booking_start_date && booking_start_date < todayStr) {
+    if (mode === "create" && booking_start_date && booking_start_date < todayStr) {
       alert("Booking start date cannot be in the past.");
       return;
     }
@@ -271,6 +272,11 @@ const Modal = ({ isOpen, onClose, mode, item = null, services }) => {
               <CustomInputText title="Promo Code" name="promo_code" value={data.promo_code} mode={mode} onChange={(e) => { handleChange(e.target.name, e.target.value); }} errors={errors} />
             </div>
             <span className="text-booking-card-title">Booking Dates</span>
+            {mode !== "create" && isPastBookingStart && (
+              <p className="text-xs text-amber-600 -mt-2">
+                Booking start date is in the past. This is allowed on edits. The promo is active as long as today falls within the booking window.
+              </p>
+            )}
             <div className="flex flex-row w-full items-center gap-2 justify-between mb-4">
               <CustomInputText title="Start Date (YYYY-MM-DD)" type="date" name="booking_start_date" value={data.booking_start_date} mode={mode} onChange={(e) => { handleChange(e.target.name, e.target.value); }} errors={errors} />
               <CustomInputText title="End Date (YYYY-MM-DD)" type="date" name="booking_end_date" value={data.booking_end_date} mode={mode} onChange={(e) => { handleChange(e.target.name, e.target.value); }} errors={errors} />
@@ -428,4 +434,3 @@ const Modal = ({ isOpen, onClose, mode, item = null, services }) => {
 };
 
 export default Modal;
-

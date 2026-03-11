@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Traits\MultiTenantModelTrait;
+use App\Traits\Auditable;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -10,7 +11,7 @@ use App\Models\Season;
 
 class Promotion extends Model
 {
-    use HasFactory, MultiTenantModelTrait;
+    use HasFactory, MultiTenantModelTrait, Auditable;
 
     public $table = 'promotions';
 

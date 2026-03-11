@@ -513,8 +513,8 @@ class SeedHelpQuestions extends Command
                 'question' => 'How do we send a check-in link?',
                 'description' => 'Check-in links are signed and shared with guests.',
                 'where' => 'Booking tools in <a href="/admin/bookings">Admin > Bookings</a>',
-                'business_rules' => 'Signed links required; questionnaires auto-seed if missing. After submit, guests are redirected back to booking date context. The top Check-in button on Admin > Bookings is disabled if there are no bookings for the selected date or if the selected date is in the past.',
-                'examples' => 'If you pick a day with no bookings, the Check-in button is disabled. If you pick yesterday, Check-in is disabled and a message explains that Check-in is only available for today or future dates.',
+                'business_rules' => 'Signed links required; questionnaires auto-seed if missing. Check-in links expire at activity start time + 3 hours (booking date + time slot). If the signature expires but the activity window is still valid, the link is reissued automatically on open. The top Check-in button on Admin > Bookings is disabled if there are no bookings for the selected date or if the selected date is in the past.',
+                'examples' => 'If you pick a day with no bookings, the Check-in button is disabled. If a guest opens an old link before the 3‑hour window ends, the system reissues a signed link automatically.',
                 'is_internal' => true,
             ],
             [
@@ -532,6 +532,15 @@ class SeedHelpQuestions extends Command
                 'where' => '<a href="/front/feedback-questionnaire">Front > Feedback Questionnaire</a>',
                 'business_rules' => 'Links are signed and available after activity dates. The top Feedback button on Admin > Bookings is disabled if there are no bookings for the selected date, if the date is in the future, or if no check-ins have been completed for that date.',
                 'examples' => 'If a booking is for next week, Feedback is disabled until the activity date passes. If there are bookings today but no guests have completed check-in, Feedback remains disabled.',
+                'is_internal' => true,
+            ],
+            [
+                'category' => 'Check-in',
+                'question' => 'Why does the check-in screen say “complete” or not complete?',
+                'description' => 'Completion is per booking item, not per individual.',
+                'where' => '<a href="/front/booking-questionnaire/checkin">Front > Check-in</a>',
+                'business_rules' => 'The completion message only appears once all pax (adults + children) for the booking item have submitted indemnity. If only some guests are done, the link stays open so the remaining guests can complete their forms.',
+                'examples' => 'If a booking has 4 pax and only 1 has completed, the screen stays open and does not mark complete. Share the same link with the remaining guests.',
                 'is_internal' => true,
             ],
             [
