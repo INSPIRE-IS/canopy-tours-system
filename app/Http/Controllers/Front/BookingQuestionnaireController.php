@@ -127,6 +127,30 @@ class BookingQuestionnaireController extends Controller
         ], 200);
     }
 
+    protected function resolveCheckinExpiry(?BookingItem $bookingItem): ?Carbon
+    {
+        if (!$bookingItem) {
+            return null;
+        }
+
+        $bookingItem->loadMissing(['booking_inventory.inventory_time_slot']);
+        $bookingInventory = $bookingItem->booking_inventory;
+        $bookingDate = $bookingInventory?->getRawOriginal('date') ?? $bookingInventory?->date;
+        $startTime = $bookingInventory?->inventory_time_slot?->start_time;
+
+        if (!$bookingDate || !$startTime) {
+            return null;
+        }
+
+        try {
+            $startDateTime = Carbon::parse(trim("{$bookingDate} {$startTime}"), config('app.timezone'));
+        } catch (\Throwable $e) {
+            return null;
+        }
+
+        return $startDateTime->copy()->addHours(3);
+    }
+
     public function signed(Request $request)
     {
         $validated = $request->validate([
@@ -141,9 +165,26 @@ class BookingQuestionnaireController extends Controller
             ], 500);
         }
 
+        $bookingItem = BookingItem::with(['booking_inventory.inventory_time_slot'])->find($request->booking_item_id);
+        if (!$bookingItem) {
+            return Inertia::render('Front/BookingQuestionnaire/Expired', [
+                'message' => 'Booking not found. Please contact your booking agent for assistance.',
+                'activityDate' => null,
+                'activityOver' => false,
+            ]);
+        }
+        $expiresAt = $this->resolveCheckinExpiry($bookingItem);
+        if (!$expiresAt) {
+            return Inertia::render('Front/BookingQuestionnaire/Expired', [
+                'message' => 'Activity start time is not set. Please contact your booking agent to confirm activity start time.',
+                'activityDate' => $bookingItem?->booking_inventory?->getRawOriginal('date'),
+                'activityOver' => false,
+            ]);
+        }
+
         $url = URL::temporarySignedRoute(
             'front.booking-questionnaire.checkin',
-            now()->addMinutes(80),
+            $expiresAt,
             [
                 'booking_item_id' => $request->booking_item_id,
                 'reference' => $request->reference,
@@ -437,6 +478,7 @@ class BookingQuestionnaireController extends Controller
             'customer_manifests' => 'required|array',
         ]);
         $details = $validated['customer_manifests'];
+        $bookingItemForLink = null;
         //dd($details);
         $customerId = null;
         $customerReference = null;
@@ -498,16 +540,29 @@ class BookingQuestionnaireController extends Controller
             if ($detail['index'] == 1) {
                 $customerId = $customer->id;
                 $customerReference = $bookingItem->booking->reference;
+                $bookingItemForLink = $bookingItem;
             }
         }
 
+        $expiresAt = $this->resolveCheckinExpiry($bookingItemForLink ?? null);
+        if (!$expiresAt) {
+            return Inertia::render('Front/BookingQuestionnaire/Expired', [
+                'message' => 'Activity start time is not set. Please contact your booking agent to confirm activity start time.',
+                'activityDate' => $bookingItemForLink?->booking_inventory?->getRawOriginal('date'),
+                'activityOver' => false,
+            ]);
+        }
+
+        $params = array_filter([
+            'reference' => $customerReference,
+            'customer' => $customerId,
+            'booking_item_id' => $bookingItemForLink?->id,
+        ], static fn ($value) => $value !== null && $value !== '');
+
         $url = URL::temporarySignedRoute(
             'front.booking-questionnaire.checkin',
-            now()->addMinutes(80),
-            [
-                'reference' => $customerReference,
-                'customer'  => $customerId,
-            ]
+            $expiresAt,
+            $params
         );
 
         return Inertia::location($url);
@@ -901,9 +956,18 @@ class BookingQuestionnaireController extends Controller
                     $params['complete'] = 1;
                 }
 
+                $expiresAt = $this->resolveCheckinExpiry($bookingItem);
+                if (!$expiresAt) {
+                    return Inertia::render('Front/BookingQuestionnaire/Expired', [
+                        'message' => 'Activity start time is not set. Please contact your booking agent to confirm activity start time.',
+                        'activityDate' => $bookingItem?->booking_inventory?->getRawOriginal('date'),
+                        'activityOver' => false,
+                    ]);
+                }
+
                 $url = URL::temporarySignedRoute(
                     'front.booking-questionnaire.checkin',
-                    now()->addMinutes(80),
+                    $expiresAt,
                     $params
                 );
 

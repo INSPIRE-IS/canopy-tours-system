@@ -653,7 +653,7 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
           {/* submit */}
           {currentSlug === "submit" && (
             <div className="flex flex-col w-[90%] h-full mb-[26px] ">
-              <div className="flex flex-col w-full h-[80%] overflow-x-auto no-scrollbar gap-2 mb-2" >
+              <div className="flex flex-col w-full h-[80%] overflow-x-auto scrollbar-elegant gap-2 mb-2" >
                 <span className="text-welcome-card-title text-center w-full mt-[42px] px-6 sm:px-[39px] ">
                   Your Feedback is ready to submit
                 </span>
@@ -698,3 +698,4 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
     </>
   );
 }
+

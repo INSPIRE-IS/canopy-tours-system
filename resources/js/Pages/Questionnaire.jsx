@@ -1,4 +1,4 @@
-﻿// resources/js/Pages/BookingLookup.jsx
+// resources/js/Pages/BookingLookup.jsx
 import React, { useState, useEffect } from 'react';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import CustomButton from '@/Components/CustomButton';
@@ -85,7 +85,7 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
       const mapped = bookings.customers.map((item, i) => {
         const { customer, manifest, questionnaire } = item;
 
-        // Convert questionnaire array â†’ { slug: value }
+        // Convert questionnaire array → { slug: value }
         const qAnswers = questionnaire.reduce((acc, q) => {
           acc[q.slug] = q.answer ?? "";
           return acc;
@@ -217,17 +217,7 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
     return `${minutes}m`;
   };
 
-  const handleRefreshLink = () => {
-    const bookingItemId = signedParams?.booking_item_id ?? bookingItem?.id;
-    const reference = signedParams?.reference ?? booking?.reference;
-    if (!bookingItemId || !reference) return;
-    router.get(route('front.booking-questionnaire.signed', {
-      booking_item_id: bookingItemId,
-      reference,
-    }));
-  };
   const timeLeftLabel = formatTimeLeft(linkTimeLeft);
-  const canRefreshLink = Boolean((signedParams?.booking_item_id ?? bookingItem?.id) && (signedParams?.reference ?? booking?.reference));
   const hasUnsavedChanges = isDirty && hasUserChanges;
 
   const openConfirm = (config) => {
@@ -445,39 +435,14 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
           {isComplete && (
             <div className="w-full px-4 pt-4">
               <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
-                Check-in complete. Thank you! Redirecting to the welcome screen…
-              </div>
-            </div>
-          )}
-          {linkExpiresAt && (
-            <div className="w-full px-4 pt-4">
-              <div
-                className={`rounded-lg border px-4 py-3 text-sm flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between ${linkExpired
-                  ? 'border-amber-200 bg-amber-50 text-amber-800'
-                  : 'border-blue-200 bg-blue-50 text-blue-700'
-                  }`}
-              >
-                <span>
-                  {linkExpired
-                    ? 'This check-in link has expired. You can refresh it to continue.'
-                    : `This check-in link expires in ${timeLeftLabel || 'a few minutes'}.`}
-                </span>
-                {canRefreshLink && (
-                  <button
-                    type="button"
-                    onClick={handleRefreshLink}
-                    className="inline-flex items-center justify-center rounded-lg border border-current px-3 py-1 text-sm font-medium hover:bg-white/60"
-                  >
-                    Refresh link
-                  </button>
-                )}
+                Check-in complete. Thank you! Redirecting to the welcome screen�
               </div>
             </div>
           )}
 
           {prevNext == 1 && (
             <div className="flex w-[90%] flex-col h-full min-h-0 mb-[26px]">
-              <div className="flex flex-col w-full flex-1 overflow-y-auto no-scrollbar gap-2" >
+              <div className="flex flex-col w-full flex-1 overflow-y-auto scrollbar-elegant gap-2" >
                 <span className="text-welcome-card-title-mb text-center w-full sm:w-[90%] mt-[42px] mb-[26px] px-6 sm:px-[39px]">
                   Select or add your Name
                 </span>
@@ -568,7 +533,7 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
           {/* select age group */}
           {prevNext == 2 && isEnabled('age_id') && (
             <div className="flex flex-col w-[90%] h-full min-h-0 mb-[26px]">
-              <div className="flex flex-col w-full flex-1 overflow-auto no-scrollbar gap-2 mb-2">
+              <div className="flex flex-col w-full flex-1 overflow-auto scrollbar-elegant gap-2 mb-2">
                 <span className="text-welcome-card-title-mb text-center w-full mt-[42px] mb-[26px] px-6 sm:px-[39px]">
                   Please select your Age Group
                 </span>
@@ -600,14 +565,14 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
           {/* Continent Country  Province*/}
           {prevNext == 3 && (
             <div className="flex flex-col w-[90%] h-full min-h-0 mb-[26px]">
-              <div className="flex flex-col w-full flex-1 overflow-y-auto no-scrollbar gap-2 mb-2">
+              <div className="flex flex-col w-full flex-1 overflow-y-auto scrollbar-elegant gap-2 mb-2">
                 {/* Continent */}
                 {(continents.length > 0 && countries.length == 0) && (
                   <div className="flex flex-col w-full flex-1 overflow-y-auto gap-2 " >
                     <span className="text-welcome-card-title-mb text-center w-full mt-[42px] mb-[26px] px-6 sm:px-[39px]">
                       Where are you from? Select your Continent
                     </span>
-                    <div className="h-auto w-full pl-7 sm:pl-0 overflow-x-auto no-scrollbar">
+                    <div className="h-auto w-full pl-7 sm:pl-0 overflow-x-auto scrollbar-elegant">
                       {continents?.map((continent, i) => (
                         <CustomRadio
                           key={continent.id}
@@ -629,7 +594,7 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
                     <span className="text-welcome-card-title-mb text-center w-full mt-[42px] mb-[26px] px-6 sm:px-[39px]">
                       Country of Residence
                     </span>
-                    <div className="h-auto w-full pl-7 sm:pl-0 overflow-x-auto no-scrollbar">
+                    <div className="h-auto w-full pl-7 sm:pl-0 overflow-x-auto scrollbar-elegant">
                       {countries?.map((country, i) => (
                         <CustomRadio
                           key={country.id}
@@ -651,7 +616,7 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
                     <span className="text-welcome-card-title-mb text-center w-full sm:px-[39px] mt-[42px] mb-[26px] ">
                       Select Province
                     </span>
-                    <div className="h-auto w-full pl-7 sm:pl-0 overflow-x-auto no-scrollbar">
+                    <div className="h-auto w-full pl-7 sm:pl-0 overflow-x-auto scrollbar-elegant">
                       {states?.map((state, i) => (
                         <CustomRadio
                           key={state.id}
@@ -685,7 +650,7 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
                 <span className="text-welcome-card-title-mb text-center w-full mt-[42px] mb-[26px] px-6 sm:px-[39px]">
                   Where did you hear about us
                 </span>
-                <div className="h-auto w-full  pl-7 sm:pl-0 overflow-x-auto no-scrollbar">
+                <div className="h-auto w-full  pl-7 sm:pl-0 overflow-x-auto scrollbar-elegant">
                   {typeReferral?.map((referral, i) => (
                     <CustomRadio
                       key={referral.id}
@@ -713,11 +678,11 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
           {/* Visitor type (individual, couple, etc.) */}
           {prevNext == 7 && (
             <div className="flex flex-col w-[90%] h-full min-h-0 mb-[26px]">
-              <div className="flex flex-col w-full flex-1 overflow-y-auto no-scrollbar gap-2 mb-2" >
+              <div className="flex flex-col w-full flex-1 overflow-y-auto scrollbar-elegant gap-2 mb-2" >
                 <span className="text-welcome-card-title-mb text-center w-full sm:w-[90%] mt-[42px] mb-[26px] px-6 sm:px-[39px]">
                   What kind of a group are you with?
                 </span>
-                <div className="h-auto w-full pl-7 sm:pl-0 overflow-x-auto no-scrollbar">
+                <div className="h-auto w-full pl-7 sm:pl-0 overflow-x-auto scrollbar-elegant">
                   {typeGroups?.map((group, i) => (
                     <CustomRadio
                       key={group.id}
@@ -746,7 +711,7 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
           {prevNext == 8 && (
             <div className="flex flex-col w-[90%] h-full min-h-0 mb-[26px]">
 
-              <div className="flex flex-col w-full flex-1 overflow-auto no-scrollbar gap-2  ">
+              <div className="flex flex-col w-full flex-1 overflow-auto scrollbar-elegant gap-2  ">
                 <span className="text-welcome-card-title-mb text-center sm:w-full px-7 sm:px-[39px] mt-[42px] mb-[26px]">
                   Would you like us to email you a certificate and invite you for a free tour on your birthday?
                   (This also means you are happy to receive the occasional email from us regarding specials and promos on Canopy Tours around Southern Africa.)
@@ -819,7 +784,7 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
           {prevNext == 9 && (
             <div className="flex flex-col w-[90%] h-full min-h-0 mb-[26px]">
 
-              <div className="flex flex-col w-full flex-1 overflow-auto no-scrollbar gap-2 mb-2 ">
+              <div className="flex flex-col w-full flex-1 overflow-auto scrollbar-elegant gap-2 mb-2 ">
                 <span className="text-welcome-card-title-mb text-center sm:w-full px-7 sm:px-[39px] mt-[42px] mb-[26px]">
                   Do you have any medical conditions we should be aware of?
                 </span>
@@ -866,7 +831,7 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
           {/* Gender */}
           {prevNext == 10 && (
             <div className="flex flex-col w-[90%] h-full min-h-0 mb-[26px]">
-              <div className="flex flex-col w-full flex-1 overflow-auto no-scrollbar gap-2 mb-2" >
+              <div className="flex flex-col w-full flex-1 overflow-auto scrollbar-elegant gap-2 mb-2" >
                 <span className="text-welcome-card-title-mb text-center w-full sm:w-[90%] mt-[42px] mb-[26px] px-6 sm:px-[39px]">
                   Gender?
                 </span>
@@ -924,7 +889,7 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
           {/* Fit */}
           {prevNext == 11 && (
             <div className="flex flex-col w-[90%] h-full min-h-0 mb-[26px]">
-              <div className="flex flex-col w-full flex-1 overflow-auto no-scrollbar gap-2 mb-2 " >
+              <div className="flex flex-col w-full flex-1 overflow-auto scrollbar-elegant gap-2 mb-2 " >
                 <span className="text-welcome-card-title text-center sm:w-full sm:px-[39px] mt-[42px] mb-[26px]">
                   I am fit enough to walk 1km in steep terrain
                 </span>
@@ -958,7 +923,7 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
           {/* Agree */}
           {prevNext == 12 && (
             <div className="flex flex-col w-[90%] h-full min-h-0 mb-[26px]">
-              <div className="flex flex-col w-full flex-1 overflow-auto no-scrollbar gap-2 mb-2" >
+              <div className="flex flex-col w-full flex-1 overflow-auto scrollbar-elegant gap-2 mb-2" >
                 <span className="text-welcome-card-title-mb text-center w-full mt-[42px] mb-2 px-6 sm:px-[39px]">
                   Please agree to the following terms and conditions
                 </span>
@@ -1003,7 +968,7 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
           {/* signature */}
           {prevNext == 13 && (
             <div className="flex flex-col w-[90%] h-full min-h-0 mb-[26px]">
-              <div className="flex flex-col w-full flex-1 overflow-auto no-scrollbar gap-2 mb-2" >
+              <div className="flex flex-col w-full flex-1 overflow-auto scrollbar-elegant gap-2 mb-2" >
                 <span className="text-welcome-card-title-mb text-center w-full mt-[42px] mb-[26px] px-6 sm:px-[39px]">
                   Please sign below
                 </span>
@@ -1029,7 +994,7 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
           {/* submit */}
           {prevNext == 14 && (
             <div className="flex flex-col  w-[90%] h-full min-h-0 mb-[26px]">
-              <div className="flex flex-col w-full flex-1 overflow-auto no-scrollbar gap-2 mb-2" >
+              <div className="flex flex-col w-full flex-1 overflow-auto scrollbar-elegant gap-2 mb-2" >
                 <span className="text-welcome-card-title-mb text-center w-full mt-[42px] px-6 sm:px-[39px]">
                   Your Indemnity is ready to submit
                 </span>
@@ -1095,7 +1060,7 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
 {/* enter name */ }
 {/* {prevNext == 4 && (
             <div className="flex flex-col h-full min-h-0 mb-[26px]">
-              <div className="flex flex-col w-full flex-1 overflow-y-auto no-scrollbar gap-2" >
+              <div className="flex flex-col w-full flex-1 overflow-y-auto scrollbar-elegant gap-2" >
                 <span className="text-welcome-card-title text-center w-full sm:w-[90%] mt-[42px] mb-[26px] px-6 sm:px-[39px]">
                   Please enter your First and Last name
                 </span>
@@ -1125,7 +1090,7 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
 {/* Email only required if marketing opt-in is YES */ }
 {/* {prevNext == 13 && (
             <div className="flex flex-col h-full min-h-0 mb-[26px]">
-              <div className="flex flex-col w-full flex-1 overflow-y-auto no-scrollbar gap-2" >
+              <div className="flex flex-col w-full flex-1 overflow-y-auto scrollbar-elegant gap-2" >
                 <span className="text-welcome-card-title text-center w-full sm:w-[90%] mt-[42px] mb-[26px] px-6 sm:px-[39px]">
                   Please enter your email address
                 </span>
@@ -1156,7 +1121,7 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
 {/* referral */ }
 {/* {prevNext == 6 && (
             <div className="flex flex-col h-full min-h-0 mb-[26px]">
-              <div className="flex flex-col w-full flex-1 overflow-y-auto no-scrollbar gap-2 " >
+              <div className="flex flex-col w-full flex-1 overflow-y-auto scrollbar-elegant gap-2 " >
                 <span className="text-welcome-card-title text-center w-full sm:w-[90%] mt-[42px] mb-[26px] px-6 sm:px-[39px]">
                   Where did you hear about us
                 </span>
@@ -1217,7 +1182,7 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
 {/* select lead guide */ }
 {/* {prevNext == 1 && (
             <div className="flex flex-col h-full min-h-0 mb-[26px]">
-              <div className="flex flex-col w-full flex-1 overflow-y-auto no-scrollbar gap-2" >
+              <div className="flex flex-col w-full flex-1 overflow-y-auto scrollbar-elegant gap-2" >
                 <span className="text-welcome-card-title text-center w-full sm:w-[90%] mt-[42px] mb-[26px] px-6 sm:px-[39px]">
                   Select your Lead Guide
                 </span>
@@ -1243,7 +1208,7 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
 {/* select safety guide */ }
 {/* {prevNext == 2 && (
             <div className="flex flex-col h-full min-h-0 mb-[26px]">
-              <div className="flex flex-col w-full flex-1 overflow-y-auto no-scrollbar gap-2" >
+              <div className="flex flex-col w-full flex-1 overflow-y-auto scrollbar-elegant gap-2" >
                 <span className="text-welcome-card-title text-center w-full sm:w-[90%] mt-[42px] mb-[26px] px-6 sm:px-[39px]">
                   Select your Safety Guide
                 </span>
@@ -1272,7 +1237,7 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
           )}
                     {prevNext == 4 && (
             <div className="flex flex-col w-full h-full min-h-0 mb-[26px]">
-              <div className="flex flex-col w-full flex-1 overflow-y-auto no-scrollbar gap-2" >
+              <div className="flex flex-col w-full flex-1 overflow-y-auto scrollbar-elegant gap-2" >
                 <span className="text-welcome-card-title text-center w-full sm:w-[90%] mt-[42px] mb-[26px] px-6 sm:px-[39px]">
                   Please enter your email address
                 </span>
@@ -1300,3 +1265,4 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
           )}  
           
           */}
+
