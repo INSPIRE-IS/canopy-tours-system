@@ -941,18 +941,16 @@ class BookingQuestionnaireController extends Controller
                 : null;
 
             if ($bookingItem) {
-                $hasRemaining = $bookingItem->customer_manifests()
-                    ->where(function ($query) {
-                        $query->whereNull('is_indemnity')
-                            ->orWhere('is_indemnity', 0);
-                    })
-                    ->exists();
+                $expectedCount = (int) ($bookingItem->pax_adults ?? 0) + (int) ($bookingItem->pax_children ?? 0);
+                $completedCount = $bookingItem->customer_manifests()
+                    ->where('is_indemnity', 1)
+                    ->count();
 
                 $params = [
                     'booking_item_id' => $bookingItem->id,
                     'reference' => $bookingItem->booking?->reference,
                 ];
-                if (!$hasRemaining) {
+                if ($expectedCount > 0 && $completedCount >= $expectedCount) {
                     $params['complete'] = 1;
                 }
 

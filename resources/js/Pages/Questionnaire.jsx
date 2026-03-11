@@ -146,10 +146,7 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
     const hasSignedParams = signature && expires && bookingItemId && reference;
     if (params.get('complete')) {
       setIsComplete(true);
-      const timer = setTimeout(() => {
-        router.get(route('front.welcome'));
-      }, 3000);
-      return () => clearTimeout(timer);
+      return;
     }
 
     if (hasSignedParams) {
@@ -320,6 +317,72 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
     return q ? q.enabled == 1 : false;
   };
 
+  const questionStepsBase = [1, 2, 3, 6, 7, 8, 9, 10, 11, 12, 13];
+  const questionSteps = isEnabled('age_id')
+    ? questionStepsBase
+    : questionStepsBase.filter((step) => step !== 2);
+
+  const selectedManifest = selected != null ? data.customer_manifests?.[selected] : null;
+  const isStep2Disabled = !selectedManifest?.age_id;
+  const isContinentStep = continents.length > 0 && countries.length === 0;
+  const isCountryStep = countries.length > 0 && states.length === 0;
+  const isProvinceStep = states.length > 0 && selectedCountry == "204";
+  const baseQuestionIndex = questionSteps.indexOf(prevNext) + 1;
+  const hasContinent = Boolean(selectedManifest?.continent_id);
+  const requiresProvince = selectedCountry == "204" || selectedManifest?.country_id == "204";
+  const locationExtra = hasContinent ? (requiresProvince ? 2 : 1) : 0;
+  const medicalExtra = selectedManifest?.medical_id == 1 ? 1 : 0;
+  const pregnancyExtra = selectedManifest?.gender == "2" ? 1 : 0;
+  const conditionalExtra = medicalExtra + pregnancyExtra;
+  const totalQuestions = questionSteps.length + locationExtra + conditionalExtra;
+  let locationOffset = 0;
+  if (prevNext === 3) {
+    if (isCountryStep) locationOffset = 1;
+    if (isProvinceStep) locationOffset = 2;
+  } else if (prevNext > 3) {
+    locationOffset = locationExtra;
+  }
+  let conditionalOffset = 0;
+  if (prevNext > 9) conditionalOffset += medicalExtra;
+  if (prevNext > 10) conditionalOffset += pregnancyExtra;
+  const questionIndex = baseQuestionIndex + locationOffset + conditionalOffset;
+  const questionBadgeLabel = questionIndex > 0 ? `${questionIndex}/${totalQuestions}` : null;
+  const isStep3Disabled = isContinentStep
+    ? !selectedManifest?.continent_id
+    : isCountryStep
+      ? !selectedManifest?.country_id
+      : isProvinceStep
+        ? !selectedManifest?.province_id
+        : false;
+  const isStep6Disabled = !selectedManifest?.referral_id;
+  const isStep7Disabled = !selectedManifest?.type_group_id;
+  const requiresMarketingDetails = selectedManifest?.marketing_opt_in == 1;
+  const hasMarketingDetails = Boolean(selectedManifest?.email_address?.trim() && selectedManifest?.birthday_month && selectedManifest?.birthday_day);
+  const isStep8Disabled = !selectedManifest?.marketing_opt_in || (requiresMarketingDetails && !hasMarketingDetails);
+  const requiresMedicalDetail = selectedManifest?.medical_id == 1;
+  const hasMedicalDetail = Boolean(selectedManifest?.medical_detail?.trim());
+  const isStep9Disabled = !selectedManifest?.medical_id || (requiresMedicalDetail && !hasMedicalDetail);
+  const isStep10Disabled = !selectedManifest?.gender || (selectedManifest?.gender == "2" && !selectedManifest?.pregnant);
+  const isStep11Disabled = !selectedManifest?.is_fit;
+  const isStep12Disabled = selectedManifest?.is_agree !== true;
+  const isStep13Disabled = !selectedManifest?.signature;
+
+  const getNextButtonClass = (disabled) => (
+    `flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px]
+    ${disabled
+      ? "border-primary-14 text-primary-14 cursor-not-allowed opacity-50"
+      : "bg-green-gradient-overlay border-[#31B700] text-white shadow-inset-white cursor-pointer"
+    }`
+  );
+
+  const getWideNextButtonClass = (disabled) => (
+    `flex items-center justify-center w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px]
+    ${disabled
+      ? "border-primary-14 text-primary-14 cursor-not-allowed opacity-50"
+      : "bg-green-gradient-overlay border-[#31B700] text-white shadow-inset-white cursor-pointer"
+    }`
+  );
+
 
   const handleChange = (target, value) => {
 
@@ -405,7 +468,12 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
 
 
         </div>
-        <div className="flex flex-col bg-white w-full max-w-4xl sm:w-[80%] md:w-[60%] sm:h-[80%] max-h-[70vh] items-center shadow-lg rounded-[20px] overflow-hidden">
+        <div className="flex flex-col bg-white w-full max-w-4xl sm:w-[80%] md:w-[60%] sm:h-[80%] max-h-[70vh] items-center shadow-lg rounded-[20px] overflow-hidden relative">
+          {questionBadgeLabel && (
+            <div className="absolute top-4 right-4 z-10 rounded-full border border-slate-300 bg-slate-50 px-3 py-1 text-xs text-slate-600">
+              {questionBadgeLabel}
+            </div>
+          )}
           {confirmConfig && (
             <ConfirmModal
               title={confirmConfig.title}
@@ -435,7 +503,7 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
           {isComplete && (
             <div className="w-full px-4 pt-4">
               <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
-                Check-in complete. Thank you! Redirecting to the welcome screen…
+                Check-in complete. Thank you! You can close this window when you are finished.
               </div>
             </div>
           )}
@@ -449,6 +517,7 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
                 <div className="h-auto w-full sm:w-[90%] pl-7 sm:pl-0 overflow-x-auto">
                   {data?.customer_manifests?.map((person, index) => {
                     // console.log("person", person);
+                    const nameMissing = !person?.full_name?.trim();
                     return (
                       <div key={index} className="flex w-full justify-between border p-3 mb-4 rounded-lg">
                         <div className="flex w-full flex-col justify-between items-center mb-2 ">
@@ -511,7 +580,7 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
                                 <span className="text-btn-outline-gray">Complete</span>
                               </button>
                             ) : (
-                              <button type='button' onClick={() => handlePrevNext(2, index)} className="flex items-center justify-center w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-green-gradient-overlay border-[#31B700] text-white shadow-inset-white cursor-pointer">
+                              <button type='button' disabled={nameMissing} onClick={() => handlePrevNext(2, index)} className={getWideNextButtonClass(nameMissing)} >
                                 <span className="text-btn-outline-gray">Next</span>
                               </button>
                             )}
@@ -556,7 +625,7 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
                   <span className="text-btn-outline-gray">Prev</span>
 
                 </button>
-                <button type='button' onClick={() => handlePrevNext(3, selected)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-green-gradient-overlay border-[#31B700] text-white shadow-inset-white cursor-pointer">
+                <button type='button' disabled={isStep2Disabled} onClick={() => handlePrevNext(3, selected)} className={getNextButtonClass(isStep2Disabled)} >
                   <span className="text-btn-outline-gray">Next</span>
                 </button>
               </div>
@@ -636,7 +705,7 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
                 <button type='button' onClick={() => handlePrevNext(2, selected)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border border-primary-14 text-primary-14 cursor-pointer">
                   <span className="text-btn-outline-gray">Prev</span>
                 </button>
-                <button type='button' onClick={() => handlePrevNext(6, selected)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-green-gradient-overlay border-[#31B700] text-white shadow-inset-white cursor-pointer">
+                <button type='button' disabled={isStep3Disabled} onClick={() => handlePrevNext(6, selected)} className={getNextButtonClass(isStep3Disabled)} >
                   <span className="text-btn-outline-gray">Next</span>
                 </button>
               </div>
@@ -669,7 +738,7 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
                   <span className="text-btn-outline-gray">Prev</span>
 
                 </button>
-                <button type='button' onClick={() => handlePrevNext(7, selected)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-green-gradient-overlay border-[#31B700] text-white shadow-inset-white cursor-pointer">
+                <button type='button' disabled={isStep6Disabled} onClick={() => handlePrevNext(7, selected)} className={getNextButtonClass(isStep6Disabled)} >
                   <span className="text-btn-outline-gray">Next</span>
                 </button>
               </div>
@@ -701,7 +770,7 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
                   <span className="text-btn-outline-gray">Prev</span>
 
                 </button>
-                <button type='button' onClick={() => handlePrevNext(8, selected)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-green-gradient-overlay border-[#31B700] text-white shadow-inset-white cursor-pointer">
+                <button type='button' disabled={isStep7Disabled} onClick={() => handlePrevNext(8, selected)} className={getNextButtonClass(isStep7Disabled)} >
                   <span className="text-btn-outline-gray">Next</span>
                 </button>
               </div>
@@ -773,7 +842,7 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
                 <button type='button' onClick={() => handlePrevNext(7, selected)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border border-primary-14 text-primary-14 cursor-pointer">
                   <span className="text-btn-outline-gray">Prev</span>
                 </button>
-                <button type='button' onClick={() => handlePrevNext(9, selected)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-green-gradient-overlay border-[#31B700] text-white shadow-inset-white cursor-pointer">
+                <button type='button' disabled={isStep8Disabled} onClick={() => handlePrevNext(9, selected)} className={getNextButtonClass(isStep8Disabled)} >
                   <span className="text-btn-outline-gray">Next</span>
                 </button>
               </div>
@@ -822,7 +891,7 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
                 <button type='button' onClick={() => handlePrevNext(8, selected)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border border-primary-14 text-primary-14 cursor-pointer">
                   <span className="text-btn-outline-gray">Prev</span>
                 </button>
-                <button type='button' onClick={() => handlePrevNext(10, selected)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-green-gradient-overlay border-[#31B700] text-white shadow-inset-white cursor-pointer">
+                <button type='button' disabled={isStep9Disabled} onClick={() => handlePrevNext(10, selected)} className={getNextButtonClass(isStep9Disabled)} >
                   <span className="text-btn-outline-gray">Next</span>
                 </button>
               </div>
@@ -880,7 +949,7 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
                   <span className="text-btn-outline-gray">Prev</span>
 
                 </button>
-                <button type='button' onClick={() => handlePrevNext(11, selected)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-green-gradient-overlay border-[#31B700] text-white shadow-inset-white cursor-pointer">
+                <button type='button' disabled={isStep10Disabled} onClick={() => handlePrevNext(11, selected)} className={getNextButtonClass(isStep10Disabled)} >
                   <span className="text-btn-outline-gray">Next</span>
                 </button>
               </div>
@@ -913,7 +982,7 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
                 <button type='button' onClick={() => handlePrevNext(10, selected)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border border-primary-14 text-primary-14 cursor-pointer">
                   <span className="text-btn-outline-gray">Prev</span>
                 </button>
-                <button type='button' onClick={() => handlePrevNext(12, selected)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-green-gradient-overlay border-[#31B700] text-white shadow-inset-white cursor-pointer">
+                <button type='button' disabled={isStep11Disabled} onClick={() => handlePrevNext(12, selected)} className={getNextButtonClass(isStep11Disabled)} >
                   <span className="text-btn-outline-gray">Next</span>
                 </button>
               </div>
@@ -948,10 +1017,10 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
                   <span className="text-btn-outline-gray">Prev</span>
                 </button>
                 <button type='button'
-                  disabled={data.customer_manifests[selected]?.is_agree === false}
+                  disabled={isStep12Disabled}
                   onClick={() => handlePrevNext(13, selected)}
                   className={`flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px]
-                    ${data.customer_manifests[selected]?.is_agree === true
+                    ${!isStep12Disabled
                       ? "bg-green-gradient-overlay border-[#31B700] text-white shadow-inset-white cursor-pointer"
                       : "border-primary-14 text-primary-14 cursor-not-allowed opacity-50"
                     }`}
@@ -985,7 +1054,7 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
                   <span className="text-btn-outline-gray">Prev</span>
 
                 </button>
-                <button type='button' onClick={() => handlePrevNext(14, selected)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-green-gradient-overlay border-[#31B700] text-white shadow-inset-white cursor-pointer">
+                <button type='button' disabled={isStep13Disabled} onClick={() => handlePrevNext(14, selected)} className={getNextButtonClass(isStep13Disabled)} >
                   <span className="text-btn-outline-gray">Next</span>
                 </button>
               </div>
@@ -1029,7 +1098,7 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
 
               </div>
               <div className="flex items-center justify-center gap-6">
-                <button type='button' onClick={() => handlePrevNext(13, selected)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border border-primary-14 text-primary-14 cursor-pointer">
+                <button type='button' disabled={isStep12Disabled} onClick={() => handlePrevNext(13, selected)} className={getNextButtonClass(isStep12Disabled)} >
                   <span className="text-btn-outline-gray">Prev</span>
 
                 </button>

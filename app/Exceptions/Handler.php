@@ -6,6 +6,7 @@ use App\Models\BookingItem;
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
 use Illuminate\Routing\Exceptions\InvalidSignatureException;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\URL;
 use Inertia\Inertia;
 use Throwable;
 
@@ -43,9 +44,26 @@ class Handler extends ExceptionHandler
                 $isFeedback = $request->is('front/feedback-questionnaire/feedback');
 
                 if ($bookingItemId) {
-                    $bookingItem = BookingItem::with('booking_inventory')->find($bookingItemId);
+                    $bookingItem = BookingItem::with('booking_inventory.inventory_time_slot')->find($bookingItemId);
                     $activityDate = optional($bookingItem?->booking_inventory)->date;
-                    if ($activityDate) {
+                    if (!$isFeedback) {
+                        $expiresAt = $this->resolveCheckinExpiry($bookingItem);
+                        if ($expiresAt && now()->lessThanOrEqualTo($expiresAt)) {
+                            $params = array_filter([
+                                'booking_item_id' => $request->query('booking_item_id'),
+                                'reference' => $request->query('reference'),
+                                'customer' => $request->query('customer'),
+                                'complete' => $request->query('complete'),
+                            ], static fn ($value) => $value !== null && $value !== '');
+
+                            return redirect(URL::temporarySignedRoute(
+                                'front.booking-questionnaire.checkin',
+                                $expiresAt,
+                                $params
+                            ));
+                        }
+                        $activityOver = $expiresAt ? now()->greaterThan($expiresAt) : false;
+                    } elseif ($activityDate) {
                         $activityOver = Carbon::parse($activityDate)->endOfDay()->isPast();
                     }
                 }
@@ -66,5 +84,29 @@ class Handler extends ExceptionHandler
         }
 
         return parent::render($request, $exception);
+    }
+
+    protected function resolveCheckinExpiry(?BookingItem $bookingItem): ?Carbon
+    {
+        if (!$bookingItem) {
+            return null;
+        }
+
+        $bookingItem->loadMissing(['booking_inventory.inventory_time_slot']);
+        $bookingInventory = $bookingItem->booking_inventory;
+        $bookingDate = $bookingInventory?->getRawOriginal('date') ?? $bookingInventory?->date;
+        $startTime = $bookingInventory?->inventory_time_slot?->start_time;
+
+        if (!$bookingDate || !$startTime) {
+            return null;
+        }
+
+        try {
+            $startDateTime = Carbon::parse(trim("{$bookingDate} {$startTime}"), config('app.timezone'));
+        } catch (\Throwable $e) {
+            return null;
+        }
+
+        return $startDateTime->copy()->addHours(3);
     }
 }
