@@ -12,6 +12,7 @@ const InventoryModal = ({ isOpen, onClose, mode, inventory = null, services, sea
     console.log("inventory", inventory);
     console.log('inventory.time_slots', inventory?.time_slots);
     const [newTimeSlot, setNewTimeSlot] = useState("");
+    const [timeSlotError, setTimeSlotError] = useState("");
     const [filteredSeasons, setFilteredSeasons] = useState([]);
     // console.log("roles", roles);
     const { data, setData, post, put, errors, reset, processing } = useForm({
@@ -68,10 +69,16 @@ const InventoryModal = ({ isOpen, onClose, mode, inventory = null, services, sea
     };
 
     const handleAddIdentification = () => {
-        if (newTimeSlot.trim() !== "") {
-            setData("time_slots", [...data.time_slots, newTimeSlot.trim()]);
-            setNewTimeSlot(""); // Reset input field
+        const normalized = newTimeSlot.trim();
+        if (!normalized) return;
+        const exists = data.time_slots.some((slot) => slot.trim() === normalized);
+        if (exists) {
+            setTimeSlotError("This time slot has already been added.");
+            return;
         }
+        setTimeSlotError("");
+        setData("time_slots", [...data.time_slots, normalized]);
+        setNewTimeSlot(""); // Reset input field
     };
 
     const handleRemoveIdentification = (index) => {
@@ -209,8 +216,13 @@ const InventoryModal = ({ isOpen, onClose, mode, inventory = null, services, sea
                                 className={`mt-1 block w-full ${errors.name ? "border-red-500" : "border-gray-300"} shadow-sm input-text rounded-xl
                                             hover:border-black  active:border-blue-600 focus:outline-none focus:ring-0 focus:border-black`}
                                 value={newTimeSlot ?? ""}
-                                onChange={(e) => { e.preventDefault(); setNewTimeSlot(e.target.value) }}
+                                onChange={(e) => { e.preventDefault(); setNewTimeSlot(e.target.value); setTimeSlotError(""); }}
                             />
+                            {(timeSlotError || errors?.time_slots) && (
+                                <p className="text-sm text-red-500 mt-1">
+                                    {timeSlotError || errors?.time_slots}
+                                </p>
+                            )}
                         </div>
                         <div className="mt-6 mb-4 w-full">
                             <BlueButton

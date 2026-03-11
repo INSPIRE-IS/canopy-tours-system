@@ -42,6 +42,7 @@ class UpdateInventoryRequest extends FormRequest
             // ],
             'time_slots.*' => [
                 'string',
+                'distinct',
             ],
             'time_slots' => [
                 'required',

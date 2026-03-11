@@ -21,6 +21,7 @@ use Session;
 use Symfony\Component\HttpFoundation\Response;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class InventoryController extends Controller
 {
@@ -61,6 +62,24 @@ class InventoryController extends Controller
         //dd($request->all());
         // plan with days if we select 1,2,3,4,5 this is saved then for the period we take these into consideration for the time slots and only do mon to friday
         // plan with time slots we capture these and then they go to every day we will use blockout to exclude days times and periods
+        $normalizedTimes = collect($request->time_slots ?? [])
+            ->map(function ($slot) {
+                $slotTime = is_array($slot) ? ($slot['start_time'] ?? '') : $slot;
+                $slotTime = trim((string) $slotTime);
+                if ($slotTime === '') {
+                    return null;
+                }
+                return strlen($slotTime) >= 5 ? substr($slotTime, 0, 5) : $slotTime;
+            })
+            ->filter()
+            ->values();
+
+        if ($normalizedTimes->count() !== $normalizedTimes->unique()->count()) {
+            throw ValidationException::withMessages([
+                'time_slots' => ['Duplicate time slots are not allowed.'],
+            ]);
+        }
+
         DB::transaction(function () use ($request) {
             $data = $request->except(['day_slots', 'time_slots', 'allow_slot_cutoff_hours', 'allow_slot_funneling']);
             $data['created_by_id'] = auth()->id();
@@ -107,6 +126,24 @@ class InventoryController extends Controller
 
         try {
             // dd($request);
+            $normalizedTimes = collect($request->time_slots ?? [])
+                ->map(function ($slot) {
+                    $slotTime = is_array($slot) ? ($slot['start_time'] ?? '') : $slot;
+                    $slotTime = trim((string) $slotTime);
+                    if ($slotTime === '') {
+                        return null;
+                    }
+                    return strlen($slotTime) >= 5 ? substr($slotTime, 0, 5) : $slotTime;
+                })
+                ->filter()
+                ->values();
+
+            if ($normalizedTimes->count() !== $normalizedTimes->unique()->count()) {
+                throw ValidationException::withMessages([
+                    'time_slots' => ['Duplicate time slots are not allowed.'],
+                ]);
+            }
+
             DB::transaction(function () use ($request, $inventory) {
                 $data = $request->except(['day_slots', 'time_slots', 'allow_slot_cutoff_hours', 'allow_slot_funneling']);
                 $data['updated_by_id'] = auth()->id();
