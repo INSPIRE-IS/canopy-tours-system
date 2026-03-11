@@ -16,7 +16,7 @@ import ViewBookingModal from './ViewBookingModal';
 import NavSelect from '@/Components/NavSelect';
 import DatePicker from '@/Components/DatePicker';
 import WhiteButton from '@/Components/WhiteButton';
-import { addDays, addSeconds, endOfDay, endOfWeek, format, isSameDay, isValid, isWithinInterval, parse, parseISO, startOfDay, startOfWeek } from 'date-fns';
+import { addDays, addSeconds, endOfDay, endOfWeek, format, isAfter, isBefore, isSameDay, isValid, isWithinInterval, parse, parseISO, startOfDay, startOfWeek } from 'date-fns';
 import ConfirmModal from '@/Components/ConfirmModal';
 import { useToast } from '@/Context/ToastContext';
 import CustomDatePicker from '@/Components/CustomDatePicker';
@@ -163,6 +163,38 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
         }
         return selectedDate || today;
     };
+
+    const normalizeBookingDate = (bookingDate) => {
+        if (!bookingDate) return null;
+        const parsed = parseISO(bookingDate);
+        return isValid(parsed) ? parsed : null;
+    };
+
+    const getBookingsForDate = (dateStr) => {
+        if (!dateStr) return [];
+        const target = parseISO(dateStr);
+        if (!isValid(target)) return [];
+        return (Array.isArray(bookings) ? bookings : []).filter((booking) => {
+            if (selectedServiceId !== '0' && Number(booking.service_id) !== Number(selectedServiceId)) {
+                return false;
+            }
+            const bookingDate = normalizeBookingDate(booking.booking_date);
+            return bookingDate && isSameDay(bookingDate, target);
+        });
+    };
+
+    const targetDate = getSelectedBookingDate();
+    const targetDateObj = targetDate ? parseISO(targetDate) : null;
+    const isTargetDateValid = targetDateObj && isValid(targetDateObj);
+    const isPastDate = isTargetDateValid ? isBefore(targetDateObj, startOfDay(new Date())) : false;
+    const isFutureDate = isTargetDateValid ? isAfter(targetDateObj, startOfDay(new Date())) : false;
+    const bookingsForTargetDate = getBookingsForDate(targetDate);
+    const hasBookingsForTargetDate = bookingsForTargetDate.length > 0;
+    const hasCheckinForTargetDate = bookingsForTargetDate.some((booking) =>
+        (booking?.customers || []).some((cust) => cust?.is_indemnity)
+    );
+    const checkinDisabled = !hasBookingsForTargetDate || isPastDate;
+    const feedbackDisabled = !hasBookingsForTargetDate || isFutureDate || !hasCheckinForTargetDate;
 
     const openCheckInOptions = (booking) => {
         if (!booking?.booking_item_id || !booking?.reference) {
@@ -417,12 +449,6 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
         setSelectedServiceId(activity_id);
     };
 
-    const normalizeBookingDate = (bookingDate) => {
-        if (!bookingDate) return null;
-        const parsed = parseISO(bookingDate);
-        return isValid(parsed) ? parsed : null;
-    };
-
     const applyFilters = () => {
         let next = Array.isArray(bookings) ? bookings : [];
         if (selectedServiceId !== '0') {
@@ -652,13 +678,42 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                             </button>
                             <button
                                 type="button"
-                                onClick={() => router.get(route('booking-questionnaire.index', { booking_date: getSelectedBookingDate() }))}
-                                className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-red-gradient-overlay border-[#C65468] text-white shadow-inset-white cursor-pointer"
+                                onClick={() => {
+                                    if (!hasBookingsForTargetDate) {
+                                        showToast('No bookings for the selected date. Please choose a date with bookings.', 'info');
+                                        return;
+                                    }
+                                    if (isPastDate) {
+                                        showToast('Check-in is only available for today or future dates.', 'info');
+                                        return;
+                                    }
+                                    router.get(route('booking-questionnaire.index', { booking_date: targetDate }));
+                                }}
+                                disabled={checkinDisabled}
+                                className={`flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-red-gradient-overlay border-[#C65468] text-white shadow-inset-white ${checkinDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                             >
                                 <img src="/assets/icons/plus.svg" alt="bookings" className="w-5 h-5" />
                                 <span className="text-btn-outline-gray">Check in</span>
                             </button>
-                            <button onClick={() => router.get(route('front.feedback-questionnaire.index', { booking_date: getSelectedBookingDate() }))} className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-red-gradient-overlay border-[#C65468] text-white shadow-inset-white cursor-pointer">
+                            <button
+                                onClick={() => {
+                                    if (!hasBookingsForTargetDate) {
+                                        showToast('No bookings for the selected date. Please choose a date with bookings.', 'info');
+                                        return;
+                                    }
+                                    if (isFutureDate) {
+                                        showToast('Feedback is available after the activity date has passed.', 'info');
+                                        return;
+                                    }
+                                    if (!hasCheckinForTargetDate) {
+                                        showToast('Feedback links are available after check-in is completed for at least one guest.', 'info');
+                                        return;
+                                    }
+                                    router.get(route('front.feedback-questionnaire.index', { booking_date: targetDate }));
+                                }}
+                                disabled={feedbackDisabled}
+                                className={`flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-red-gradient-overlay border-[#C65468] text-white shadow-inset-white ${feedbackDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                            >
                                 <img src="/assets/icons/plus.svg" alt="bookings" className="w-5 h-5" />
                                 <span className="text-btn-outline-gray">Feedback</span>
                             </button>

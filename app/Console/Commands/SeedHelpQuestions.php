@@ -513,7 +513,8 @@ class SeedHelpQuestions extends Command
                 'question' => 'How do we send a check-in link?',
                 'description' => 'Check-in links are signed and shared with guests.',
                 'where' => 'Booking tools in <a href="/admin/bookings">Admin > Bookings</a>',
-                'business_rules' => 'Signed links required; questionnaires auto-seed if missing. After submit, guests are redirected back to booking date context.',
+                'business_rules' => 'Signed links required; questionnaires auto-seed if missing. After submit, guests are redirected back to booking date context. The top Check-in button on Admin > Bookings is disabled if there are no bookings for the selected date or if the selected date is in the past.',
+                'examples' => 'If you pick a day with no bookings, the Check-in button is disabled. If you pick yesterday, Check-in is disabled and a message explains that Check-in is only available for today or future dates.',
                 'is_internal' => true,
             ],
             [
@@ -529,7 +530,8 @@ class SeedHelpQuestions extends Command
                 'question' => 'When are feedback forms available?',
                 'description' => 'Guest feedback forms.',
                 'where' => '<a href="/front/feedback-questionnaire">Front > Feedback Questionnaire</a>',
-                'business_rules' => 'Links are signed and available after activity dates.',
+                'business_rules' => 'Links are signed and available after activity dates. The top Feedback button on Admin > Bookings is disabled if there are no bookings for the selected date, if the date is in the future, or if no check-ins have been completed for that date.',
+                'examples' => 'If a booking is for next week, Feedback is disabled until the activity date passes. If there are bookings today but no guests have completed check-in, Feedback remains disabled.',
                 'is_internal' => true,
             ],
             [
