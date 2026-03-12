@@ -9,7 +9,6 @@ const CustomInputText = ({ title, name, value, mode, type = "text", width = "w-f
             </label>
             <input
                 type={type}
-                id={name}
                 name={name}
                 value={value ?? ""}
                 onChange={onChange}

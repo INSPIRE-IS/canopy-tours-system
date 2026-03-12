@@ -119,7 +119,14 @@ class BookingsController extends Controller
         }
     }
 
-    private function logAudit(string $description, Booking $booking, ?BookingItem $bookingItem = null, array $properties = []): void
+    private function logAudit(
+        string $description,
+        Booking $booking,
+        ?BookingItem $bookingItem = null,
+        array $properties = [],
+        bool $logBooking = true,
+        bool $logBookingItem = true
+    ): void
     {
         $payload = [
             'description' => $description,
@@ -128,12 +135,14 @@ class BookingsController extends Controller
             'host' => request()->ip(),
         ];
 
-        AuditLog::create(array_merge($payload, [
-            'subject_type' => Booking::class,
-            'subject_id' => $booking->id,
-        ]));
+        if ($logBooking) {
+            AuditLog::create(array_merge($payload, [
+                'subject_type' => Booking::class,
+                'subject_id' => $booking->id,
+            ]));
+        }
 
-        if ($bookingItem) {
+        if ($logBookingItem && $bookingItem) {
             AuditLog::create(array_merge($payload, [
                 'subject_type' => BookingItem::class,
                 'subject_id' => $bookingItem->id,
@@ -2378,6 +2387,29 @@ class BookingsController extends Controller
                 'reasons' => $reasons,
             ]);
         }
+    }
+
+    public function logCheckinAction(Request $request)
+    {
+        $validated = $request->validate([
+            'booking_id' => 'required|integer',
+            'booking_item_id' => 'required|integer',
+            'customer_id' => 'nullable|integer',
+            'action' => 'required|string',
+        ]);
+
+        $booking = Booking::find($validated['booking_id']);
+        $bookingItem = BookingItem::find($validated['booking_item_id']);
+        if (!$booking || !$bookingItem) {
+            return response()->json(['success' => false], 404);
+        }
+
+        $this->logAudit('Check-in action', $booking, $bookingItem, [
+            'action' => $validated['action'],
+            'customer_id' => $validated['customer_id'] ?? null,
+        ], false, true);
+
+        return response()->json(['success' => true]);
     }
 
     public function editOld(Request $request, Booking $booking)

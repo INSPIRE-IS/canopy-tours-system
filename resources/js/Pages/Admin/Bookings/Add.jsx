@@ -47,6 +47,7 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
     const [noteAuthorFilter, setNoteAuthorFilter] = useState('all');
     const [noteLimit, setNoteLimit] = useState(5);
     const [emailTypeFilter, setEmailTypeFilter] = useState('all');
+    const [attendanceOverrides, setAttendanceOverrides] = useState({});
 
     const noteAuthorOptions = [
         { id: 'all', name: 'All Authors' },
@@ -142,8 +143,22 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
         setIsManifestsModalOpen(true);
     };
 
+    const logCheckInAction = (action, manifestRow = null) => {
+        const bookingId = booking?.id;
+        const bookingItemId = bookingItem?.id;
+        if (!bookingId || !bookingItemId || !window?.axios) return;
+        const customerId = manifestRow?.customer?.id ?? manifestRow?.customer_id ?? null;
+        window.axios.post(route('admin.bookings.log-checkin'), {
+            booking_id: bookingId,
+            booking_item_id: bookingItemId,
+            customer_id: customerId,
+            action,
+        }).catch(() => {});
+    };
+
     const handleManifestCheckIn = (manifestRow) => {
         const answers = manifestRow?.question_answers || [];
+        logCheckInAction(answers.length ? 'view_checkin_detail' : 'open_checkin_options', manifestRow);
         if (answers.length) {
             setCheckInAnswersTarget({
                 manifest: manifestRow,
@@ -159,6 +174,65 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
             lead_phone: data.lead_mobile,
             lead_email: data.lead_email,
         });
+    };
+
+    const resolveAttendanceKey = (bookingItemId, customerId) => `${bookingItemId || 'na'}-${customerId || 'na'}`;
+
+    const attendanceNextStatus = (currentStatus) => {
+        if (currentStatus === 'arrived') return 'cancelled';
+        if (currentStatus === 'cancelled') return 'no_show';
+        return 'arrived';
+    };
+
+    const attendanceLabel = (status) => {
+        if (status === 'arrived') return 'Yes';
+        if (status === 'cancelled') return 'Cancelled';
+        return 'No';
+    };
+
+    const attendanceButtonClass = (status, disabled) => {
+        const base = ' px-[9px] rounded-[6px] border transition';
+        if (disabled) {
+            return `${base} border-gray-200 text-gray-400 bg-gray-100 cursor-not-allowed`;
+        }
+        if (status === 'arrived') {
+            return `${base} text-booking-card-manifest-yes border-gray-300 bg-[#00FF044D] hover:bg-green-50`;
+        }
+        if (status === 'cancelled') {
+            return `${base} text-booking-card-manifest-no border-gray-300 bg-[#FCE4DF4D] hover:bg-gray-50`;
+        }
+        return `${base} text-booking-card-manifest-no border-gray-300  bg-[#FCE4DF4D] hover:bg-gray-50`;
+    };
+
+    const handleAttendanceStatus = (manifestRow, status) => {
+        const customerId = manifestRow?.customer?.id ?? manifestRow?.customer_id ?? null;
+        const bookingItemId = manifestRow?.booking_item_id ?? bookingItem?.id ?? null;
+
+        if (!customerId || !bookingItemId) {
+            showToast('Attendance status requires a customer record.', 'error');
+            return;
+        }
+
+        const key = resolveAttendanceKey(bookingItemId, customerId);
+
+        router.put(
+            route('admin.customer-manifests.status'),
+            {
+                booking_item_id: bookingItemId,
+                customer_id: customerId,
+                attendance_status: status,
+            },
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    setAttendanceOverrides((prev) => ({ ...prev, [key]: status }));
+                    showToast('Attendance status updated.', 'success');
+                },
+                onError: () => {
+                    showToast('Unable to update attendance status.', 'error');
+                },
+            }
+        );
     };
 
     const handleIndividualCheckin = async (e, index) => {
@@ -219,15 +293,16 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                         </button>*/}
                         <button
                             type="button"
-                            onClick={() =>
+                            onClick={() => {
+                                logCheckInAction('open_checkin_options');
                                 setCheckInTarget({
                                     booking_item_id: bookingItem?.id,
                                     reference: booking?.reference,
                                     lead_name: data.lead_person,
                                     lead_phone: data.lead_mobile,
                                     lead_email: data.lead_email,
-                                })
-                            }
+                                });
+                            }}
                             className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-red-gradient-overlay border-[#C65468] text-white shadow-inset-white cursor-pointer"
                         >
                             <img src="/assets/icons/plus.svg" alt="bookings" className="w-5 h-5" />
@@ -249,15 +324,16 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                             width="w-[158.8px]"
                             height="h-[31px]"
                             className="mt-4"
-                            onClick={() =>
+                            onClick={() => {
+                                logCheckInAction('open_checkin_options');
                                 setCheckInTarget({
                                     booking_item_id: bookingItem?.id,
                                     reference: booking?.reference,
                                     lead_name: data.lead_person,
                                     lead_phone: data.lead_mobile,
                                     lead_email: data.lead_email,
-                                })
-                            }
+                                });
+                            }}
                         />
                         {/* <WhiteButton
                             title="Send Invoice"
@@ -456,6 +532,15 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                                                     const hasIndemnity = Boolean(manifest?.is_indemnity);
                                                     const hasCheckIn = hasIndemnity || (manifest?.question_answers?.length > 0);
                                                     const manifest_id = (i + 1) + '(' + (i + 1) + ')';
+                                                    const customerId = manifestCustomer?.id ?? manifest?.customer_id ?? null;
+                                                    const bookingItemId = manifest?.booking_item_id ?? bookingItem?.id ?? null;
+                                                    const attendanceKey = resolveAttendanceKey(bookingItemId, customerId);
+                                                    const attendanceStatus =
+                                                        attendanceOverrides[attendanceKey] ??
+                                                        manifest?.attendance_status ??
+                                                        manifestCustomer?.attendance_status ??
+                                                        'no_show';
+                                                    const canUpdateAttendance = Boolean(customerId && bookingItemId);
                                                     console.log('manifest', manifest);
                                                     return (
                                                         <div key={i} className="flex flex-col px-6 py-6 gap-2 border-b border-gray-100">
@@ -469,11 +554,11 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                                                                 </div>
                                                                 <div className='basis-[75%] items-center'>
                                                                     <CustomInputText
-                                                                        title="Email"
-                                                                        name="customer_email"
-                                                                        value={manifestCustomer?.email_address || manifest?.email_address || ''}
+                                                                        title="Name"
+                                                                        name="customer_name"
+                                                                        value={manifestCustomer?.full_name || manifest?.full_name || manifestCustomer?.email_address || manifest?.email_address || ''}
                                                                         height="h-[48px]"
-                                                                        type="email"
+                                                                        type="text"
                                                                         mode="view"
                                                                         onChange={(e) => setData('customer_email', e.target.value)}
                                                                         errors={errors}
@@ -481,7 +566,7 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                                                                 </div>
                                                                 <div className='basis-[20%] items-center pt-2 ' >
                                                                     <WhiteButton
-                                                                        title={hasCheckIn ? "View Check-In" : "Check-In"}
+                                                                        title={hasCheckIn ? "Checked-In" : "Check-In"}
                                                                         icon={true}
                                                                         iconName={icons.check_in}
                                                                         textColor='text-[#4D81E7]'
@@ -512,7 +597,7 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                                                                         name="customer_notes"
                                                                         value={manifest?.notes || ''}
                                                                         height="h-[48px]"
-                                                                        type="email"
+                                                                        type="text"
                                                                         mode="view"
                                                                         onChange={(e) => setData('customer_notes', e.target.value)}
                                                                         errors={errors}
@@ -527,13 +612,25 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                                                                             <span className="text-booking-card-manifest-no px-[9px] bg-[#FCE4DF4D] rounded-[6px] border border-gray-300">No</span>
                                                                         )}
                                                                     </div>
-                                                                    <div className="flex gap-4">
-                                                                        <span className="text-booking-card-manifest-lbl w-[69px]">Checked-in</span>
-                                                                        {hasCheckIn ? (
-                                                                            <span className="text-booking-card-manifest-yes px-[9px] bg-[#00FF044D] rounded-[6px] border border-gray-300">Yes</span>
-                                                                        ) : (
-                                                                            <span className="text-booking-card-manifest-no px-[9px] bg-[#FCE4DF4D] rounded-[6px] border border-gray-300">No</span>
-                                                                        )}
+                                                                    <div className="flex gap-4 items-start">
+                                                                        <span
+                                                                            className="text-booking-card-manifest-lbl w-[69px]"
+                                                                            title="Click to cycle: No → Yes → Cancelled → No"
+                                                                        >
+                                                                            Arrived
+                                                                        </span>
+                                                                        <button
+                                                                            type="button"
+                                                                            disabled={!canUpdateAttendance}
+                                                                            className={attendanceButtonClass(attendanceStatus, !canUpdateAttendance)}
+                                                                            onClick={() => {
+                                                                                const nextStatus = attendanceNextStatus(attendanceStatus);
+                                                                                handleAttendanceStatus(manifest, nextStatus);
+                                                                            }}
+                                                                            title="Click to cycle: No → Yes → Cancelled → No"
+                                                                        >
+                                                                            {attendanceLabel(attendanceStatus)}
+                                                                        </button>
                                                                     </div>
                                                                 </div>
                                                             </div>

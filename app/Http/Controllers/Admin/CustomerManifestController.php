@@ -6,11 +6,14 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\MassDestroyCustomerManifestRequest;
 use App\Http\Requests\StoreCustomerManifestRequest;
 use App\Http\Requests\UpdateCustomerManifestRequest;
-use App\Models\Booking;
 use App\Models\BookingItem;
 use App\Models\Customer;
 use App\Models\CustomerDiscount;
 use App\Models\CustomerManifest;
+use App\Models\AuditLog;
+use App\Models\Booking;
+use App\Models\Question;
+use App\Models\QuestionAnswer;
 use Gate;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -19,6 +22,36 @@ use Symfony\Component\HttpFoundation\Response;
 
 class CustomerManifestController extends Controller
 {
+    private function logAudit(
+        string $description,
+        ?Booking $booking,
+        ?BookingItem $bookingItem = null,
+        array $properties = [],
+        bool $logBooking = true,
+        bool $logBookingItem = true
+    ): void
+    {
+        $payload = [
+            'description' => $description,
+            'user_id' => auth()->id(),
+            'properties' => json_encode($properties),
+            'host' => request()->ip(),
+        ];
+
+        if ($logBooking && $booking) {
+            AuditLog::create(array_merge($payload, [
+                'subject_type' => Booking::class,
+                'subject_id' => $booking->id,
+            ]));
+        }
+
+        if ($logBookingItem && $bookingItem) {
+            AuditLog::create(array_merge($payload, [
+                'subject_type' => BookingItem::class,
+                'subject_id' => $bookingItem->id,
+            ]));
+        }
+    }
 
     public function add(StoreCustomerManifestRequest $request)
     {
@@ -102,6 +135,12 @@ class CustomerManifestController extends Controller
             ]
         );
 
+        $this->logAudit('Customer manifest added', $bookingItem->booking ?? null, $bookingItem, [
+            'customer_id' => $customer->id,
+            'booking_item_id' => $validated['booking_item_id'],
+            'is_indemnity' => $validated['is_indemnity'] ?? null,
+        ], false, true);
+
         return redirect()->route('admin.customer-manifests.index');
     }
 
@@ -168,6 +207,13 @@ class CustomerManifestController extends Controller
                             'team_id' => $bookingItem->booking->team_id,
                         ]
                     );
+
+                    $this->logAudit('Customer manifest updated', $bookingItem->booking ?? null, $bookingItem, [
+                        'customer_id' => $customer->id,
+                        'booking_item_id' => $detail['booking_item_id'],
+                        'is_indemnity' => $detail['is_indemnity'] ?? null,
+                        'position' => $detail['position'] ?? null,
+                    ], false, true);
                 }
                 return $details;
             });
@@ -239,15 +285,80 @@ class CustomerManifestController extends Controller
             ]
         );
 
+        $this->logAudit('Customer manifest updated', $bookingItem->booking ?? null, $bookingItem, [
+            'customer_id' => $customer->id,
+            'booking_item_id' => $detail['booking_item_id'],
+            'is_indemnity' => $detail['is_indemnity'] ?? null,
+            'position' => $detail['position'] ?? null,
+        ], false, true);
+
         return redirect()->back()->with('success', 'Customer manifests updated successfully.');
     }
 
     public function destroy(CustomerManifest $customerManifest)
     {
-        abort_if(Gate::denies('customer_manifest_delete'), Response::HTTP_FORBIDDEN, '403 Forbidden');
+        abort_if(Gate::denies('customer_manifests_delete'), Response::HTTP_FORBIDDEN, '403 Forbidden');
 
         $customerManifest->delete();
 
         return back();
+    }
+
+    public function updateStatus(Request $request)
+    {
+        abort_if(Gate::denies('customer_manifests_edit'), Response::HTTP_FORBIDDEN, '403 Forbidden');
+
+        $validated = $request->validate([
+            'booking_item_id' => 'required|exists:booking_items,id',
+            'customer_id' => 'required|exists:customers,id',
+            'attendance_status' => 'required|in:' . implode(',', CustomerManifest::ATTENDANCE_STATUSES),
+            'notes' => 'nullable|string',
+            'lunch_option' => 'nullable|string',
+        ]);
+
+        $bookingItem = BookingItem::with('booking')->findOrFail($validated['booking_item_id']);
+
+        $manifestData = [
+            'attendance_status' => $validated['attendance_status'],
+            'team_id' => $bookingItem->booking->team_id,
+        ];
+
+        if ($request->has('notes')) {
+            $manifestData['notes'] = $validated['notes'];
+        }
+
+        CustomerManifest::updateOrCreate(
+            [
+                'booking_item_id' => $validated['booking_item_id'],
+                'customer_id' => $validated['customer_id'],
+            ],
+            $manifestData
+        );
+
+        if ($request->has('lunch_option')) {
+            $questionId = Question::where('slug', 'lunch_option')->value('id');
+            if ($questionId) {
+                QuestionAnswer::updateOrCreate(
+                    [
+                        'question_id' => $questionId,
+                        'booking_item_id' => $validated['booking_item_id'],
+                        'customer_id' => $validated['customer_id'],
+                    ],
+                    [
+                        'answer' => $validated['lunch_option'],
+                    ]
+                );
+            }
+        }
+
+        $this->logAudit('Check-in detail updated', $bookingItem->booking ?? null, $bookingItem, [
+            'customer_id' => $validated['customer_id'],
+            'booking_item_id' => $validated['booking_item_id'],
+            'attendance_status' => $validated['attendance_status'],
+            'notes' => $validated['notes'] ?? null,
+            'lunch_option' => $validated['lunch_option'] ?? null,
+        ], false, true);
+
+        return back()->with('success', 'Check-in details updated.');
     }
 }

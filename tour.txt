@@ -1,0 +1,285 @@
+the tourpreneur
+guide to
+-l- -r booking software
+for tour businesses
+Mitch Bach Peter Syme Chris Torres
+Ingrid Edstrom
+Welcome!
+So, you're looking for booking software for your tour & activity business. You're not alone! The #1 question we see posted in the 13,000-member Tourpreneur Facebook Group is: "What booking software should I use for my tour business?" 
+And we always respond the same way: It depends.
+Are you a multi-day adventure operator? A watersports activity operator with boats? A walking tour business with dozens of guides? Every business comes with its unique needs, and that's why there are 100+ software systems to support you.
+Which one you choose depends on your unique needs. But what are your needs? That's the point of this guide: to help you uncover your needs, and learn what's possible with booking software.
+This first-of-a-kind guide to software features covers 21 core questions to ask yourself when choosing software. Below each question you'll find 229 more granular features and questions to consider.
+With this Tourpreneur guide in hand, you'll learn the possibilities out there, helping you become a more informed customer as you talk with potential software companies.
+How to use this guide
+Here are some pointers to guide you on your booking software search.
+There's no single 'holy grail' piece of software out there for you. Almost  all tour operators use booking software plus other solutions in their 'tech stack'. A lot of tour operators waste a lot of their time continually looking for new software solutions.
+Listen to, but don't be swayed by others' recommendations. Every company is different, and what works well for another operator may be a  bad idea for you.
+If you're a new business, think about where you're headed. Will you need to schedule guides in the future, or manage vehicles? Do you plan to connect to major OTAs and resellers? Your needs may be simple now, but they'll get complex down the road.
+If you're a current business, map out the state of your systems. How do your tours work? What could be more streamlined? What would your team like to see improved?
+Use this guide to decide on the must-have and nice-to-have features you need. This guide is a comprehensive list of potential software features. No software will do it all, but use the lists that follow to narrow down the core needs of your business. Be willing to give up 'nice to have' features. 
+Schedule company demos once you have your needs in order. Plus, if you join Tourprenur as a Professional Member, you'll have access to our software directory of 400+ companies offering services to tour operators that you can browse to find the perfect candidate.
+ 
+What kinds of tours & activities can the software handle?
+What kind of business are you? Your conversation with a software provider should start by understanding that not every booking software handles every kind of tours.
+Most importantly, booking software is very different in both features and pricing for day and multi-day tours. It is very common for an operator who offers both kinds of tours to  use different booking systems for each kind of tour.
+Start by examining the kinds of tour & activities that you offer, or will offer. Different software handles different kinds of experiences.
+0 Day Tours o Multi-Day Tours o Transportation Services o Rentals o Equipment o Private Tours o Public Tours o Fixed Date Tours o Custom FIT Tours 0 Package Tours o Adventure/Expeditions
+#2
+What is the company's 'culture'?
+By 'culture', we mean everything from a booking software company's approach to support and sustainability to their vision for where our industry is headed.
+0 What is the onboarding experience if I sign up?
+What training resources are there as I continue to learn your product?
+Can you tell me about the ownership structure of your company?
+Who are your financial investors (VC, OTA, Private Equity, Bootstrapped)?
+How are you approaching Al innovations in your company and product? 0 What are your sustainability practices?
+How do you handle support tickets?
+Will I have a dedicated support representative?
+Can I reach support via email and/or phone?
+What are your support hours?
+Do you have service tiers, and are there costs?
+How do you approach new feature requests? 
+ 
+How large is your customer base?
+How quick does an average inquiry take to resolve?
+0 Do you have someone that can help set up advanced marketing/conversion tracking?
+What costs & fees are involved? 
+Most companies will charge you either a monthly fee, a percentage of the booking cost,  or a combination of both. But there may be hidden fees, too. Make sure you pay close attention to small differences in fee percentages, because they can add up very quickly!
+0 Is there a monthly fee? If so, what is the cost range?
+o What happens to the monthly fee as my business grows?
+0 What is the booking fee percentage?
+What is the credit card processing fee?
+Is the monthly fee discounted when paid annually?
+Is there an option to pass fees on to the customer? Which ones?
+Are there fees for processing refunds?
+Are there fees for payouts?
+How often are you paid?
+0 Is there a free trial?
+Are there minimum contract term requirements?
+What are the ACH/Wire Fees?
+Is there a fee for direct/manual bookings?
+Does the software charge a setup Fee? 0 Who Is Merchant Of Record?
+How many team seats can I add? Are there any per user fees?
+Are there extra costs for certain software 'modules'?
+#4
+How does the software handle customer communication?
+Your software should meet you needs for how you want to communicate with your customers, across emails, text, and other channels.
+Are there built-in 'lite' customer relationship management (CRM) capabilities?
+Are there more advanced built-in CRM capabilities?
+Can the software integrate with third-party CRMs? If so, who, and how? (Zapier, etc.) o Does the software's back end have a customer database?
+Are there waitlist tools?
+How does the software send automatic emails? 0 Can you customize the standard emails?
+Can you send manual emails to customers?
+Can you filter, sort, and email clients in bulk?
+Is there native SMS, Whatsapp, or Messenger integration? Third party? 
+Can you send automatic pre-tour reminders to customers?
+Is there a customer-facing account dashboard, for changes, cancellations?
+Is there membership capabilities?
+Can the customer upload secure documents? 
+Can you send out a pre-tour wavier?
+0 Do you have ways to capture all guests information (or just the main booker)?
+Are there Language translation capabilities?
+ 
+What can the software do post-tour?
+Once the tour is finished, there's still a lot of communication and follow-up that might happen.
+Can the software collect reviews post-tour?
+0 Does it support smart reviews?
+What review platforms does it integrate with? Tripadvisor? Google?
+Can the software send automated post-tour email messages?
+Can the software send automated post-tour SMS/WhatsApp messages?
+Can post-tour messages be customized both in timing and content?
+Can a guide be tipped through a post-tour prompt?
+What kinds of payment options are supported?
+Accepting payments through your software should work for both you as a business and be easy for your customer.
+Do you work with businesses in my country?
+#6
+What kinds of payment platforms do you integrate with? 
+Can you integrate my current payment processor?
+Which currencies are supported?
+0 Can guests pay by Apple Pay / Google Pay / Venmo?
+Can guests pay by ACH or E-Check?
+Can guests pay by wire transfer?
+Can I generate gift cards/gift certificates/coupons/promo codes?
+Can a guest pay cash or credit card on the day of activity?
+Is there a physical swiper integration available?
+How can the software handle pricing & invoicing?
+Think of your tour booking flow. In the previous section we looked at basic pricing and payment options you may need. In this section we look at invoicing: are you often sending invoices to receive payment? If so, you might want to think about some of the additional features below that could make your operational life easier.
+Can I set a booking deadline/cutoff before the tour start? o Can I set discounts based on party size?
+0 Can I set variable pricing based on customer type, age, or group size, etc.? o Can I vary pricing based on tour time, day, or season?
+Does the software offer more advanced dynamic or variable pricing options? 0 Can I set tour minimums?
+Can pricing, payment options and email content be customized per booking or tour? 0 Are there built-in customer invoicing tools?
+Can you create customized invoices and forms?
+Can you support a multi-currency invoice?
+Do you accept deposits + multiple payments per customer?
+Can you create bundles and packages?
+0 Is there an option for automatically recurring charges?
+o Can one 'group leader' pay for some or all of the travelers on a trip?
+How does the software handle on-site sales?
+If your business also sells merchandise or other upsells in-person, you might benefit from software that handles both tours and other kinds of sales.
+#8
+If you do a lot of walk-up sales, or use waivers, you might also want a system that supports in-person transactions in a robust and seamless way.
+0 Is there a point of sale service for in-person purchases/walk-ins o Do you have cash drawer integration for POS?
+Are walk-in bookings supported?
+Can you scan a barcodes for purchases?
+Can you accept on-site waiver signatures?
+Can you take a credit card booking over the phone?
+How does the software integrate with your website?
+Your website is the front door of your business, and a seamless integration of your booking software with the customer booking journey on your site is crucial. 
+Can the software integrate with Wordpress/Wix/Squarespace?
+Is there a dedicated Wordpress plugin?
+Can I integrate via a code snippet?
+Can my site list a catalog of the tours connected to the back end? 0 Can I add a calendar widget to my website?
+Does the booking page take the customer off-site?
+Can the whole booking process happen via a pop-up?
+Do you offer website building/hosting? 
+Will you evaluate my website?
+Do you offer website development upgrades, if needed?
+If you build my site, do I still own it?
+What happens if I leave your software/free website, can I get the data?
+Can I integrate Google Analytics URL Tracking?
+0 Can I add Google Tag Manager or Facebook Pixel to track the booking journey?
+0 Is there abandoned cart recovery functionality? o Is there full API Booking Process integration?
+Are there Multilingual Website/widget options?
+ 
+What kind of connectivity & distribution options does the software offer?
+#10
+Booking software is often part of many different pieces of software and platforms an operator will use to run their business. Connectivity to reseller platforms might be important to your business strategy. You may also want a robust Zapier integration to connect with your CRM or guide scheduling software.
+Which OTAs do integrate with? (Viator, GetYourGuide, Groupon, Klook, etc.) o Can I connect to Airbnb Experiences (via Zapex or another tool)?
+What other tour & activity OTAs (Online Travel Agencies) can I connect with?
+0 Do you offer other API connectivity, such as to hotels, transfers, etc.?
+0 Will you load my tours onto Google 'Things to Do'? How robust is your integration?
+Do you have a Zapier integration to connect with my other software?
+Which Zapier triggers are there?
+Is there an API service charge for receiving bookings via a third party?
+0 Do you support the emerging OCTO connectivity standards, or any others?
+How can the software handle partnerships & vendors?
+One of the best ways an operator can sell their tours is through B2B partners such as travel agents, local concierges, or other partners. Some booking software offers robust functionality to help support these sales channels, including offering a built-in channel manager.
+#11
+If you run a tour with vendor partners included (such as food walking tours), you may also want to consider finding software that allows vendors to be payed.
+0 Does the software have affiliate/travel agent/concierge access tools?
+Can you create special bookable links or codes for partners to use?
+Do you offer a partner/distribution network of other operators using your software?
+Can I offer variable commission structures?
+Do you offer a channel manager that offers distribution opportunities?
+Are there tools to manage my vendor payouts?
+What kind of calendar functionality is included?
+Your tour calendar is the beating heart of your business—your guides and customers alike will use to to make sure everyone stays on the same page. Think
+#12
+Can you create a tour calendar and embed it on your website?
+Can you filter different calendar views?
+Is there automatic calendar roll-over?
+Google Calendar Integration?
+0 iCal Integration?
+Outlook Integration?
+Can the calendar integration offer two-way synchronization?
+Is there support for multi-day calendar blocking?
+ 
+Is there a smartphone app?
+If you have guides who need to check in guests, or manage waivers on-site, or take walkup payments, then a native app might be indespensable.
+Is there a native iPhone app? Android?
+Native iPad App?
+If not native, what is the mobile web app experience like?
+Can you check-in guests using the app?
+Can guides see the itinerary/tour info on the app?
+#13
+0 Does the app offer guest messaging? 0 Can guests sign waivers on the app?
+Can you process payments on the app?
+Can guides and staff check in with time-clock functionality?
+Can the app be used offline?
+Can you book on-Site in App?
+Can the app run reports?
+Is there mobile calendar integration?
+Can the app handle team & guest communication/messaging?
+Is there an ability to handle dispatch and scheduling logistics in-app? 0 Does the app have to-do checklists?
+How can the software handle teams?
+Think of your internal and guide teams, and whether you need the flexibility of managing how your staff interacts with the software.
+Can multiple users all have their own accounts?
+#14
+Are there role or user-based access restrictions? o Can you create and assign unique privileges to certain team users? 
+Can each individual maintain a different calendar?
+Is there a built-in guide scheduling tool?
+0 Can you automatically assign guides based on their availability? 0 Can you track edits made by team members? (who, what, when, etc.) o How can your software communicate across teams in different locations?
+Are you able to manage and assign tasks to different team members?
+Can the software manage waivers?
+Waivers aren't always necessary for a tour business, but they are crucial when there's added level of risk associated with the experience. In that case, having the guest sign a waiver is paramount.
+#15
+Does the software include an integrated waiver solution?
+If not, can it connect with a third-party solution?
+Is there an additional charge for the waivers feature? o Can I generate reports based on waiver information? 0 What is the user experience of digitally signing a waiver?
+Can a guest sign a waiver in-person easily?
+What data is stored along with the signature? (IP address, location, etc.)
+What specific multi-day tour specific features does the software have?
+Most features important to multi-day operators are included across this whole guide. However we wanted to highlight some extra features to consider for multi-day. 
+Is there an attractive itinerary landing page builder?
+Can the software handle private, FIT and set-date public tours?
+Can the software handle recurring payments? Can it notify and auto-bill customers?
+Can you create custom payment plans? 0 Can you accept a deposit to hold a spot?
+#16
+Can you accept more than one payment type?
+Is there a fee cap on the Booking Fee/Commission at a certain level?
+Is there variable pricing based on final group size?
+Can the customer log in to manage their tour (optionals, payments. etc.)?
+Can the operator manage the trip using bulk actions?
+Can you send emails to all or certain members of the group?
+Can the customer download a PDF trip itinerary?
+Is there integration with travel insurance providers/options?
+0 Can a guest group leader help manage the trip?
+0 Can you load in contacted suppliers, services, rates, and markup?
+Can the software handle rooming lists and other manifests? 
+Can expenses be tracked per customer and trip?
+ 
+How can the software handle extras and add-ons?
+The customer booking process is a great moment to offer additional products or create bundles. 
+#17
+Can the software support extra add-ons, upsells, or cross-sells?
+Can I offer specials and promotions?
+Can I create product bundles?
+Can I sell digital goods (virtual tours, e-books)?
+0 Are there e-commerce tools for selling merchandise? o Do you have e-commerce integrations?
+Can I offer a pre-paid guide gratuity as part of the booking process?
+How does the software handle rentals & resource management?
+#18
+If your business uses a lot of equipment, guides or vehicles, then you may want to ask questions about whether your booking software can automatically handle resource management and allocation.
+Does the software offer basic resource allocation (guides, buses, equipment)? 
+Does the software offer advanced resource management?
+Do you have combined resource management for tours / rentals? 0 Do you offer any sort of hotel/lodging rooming allocation?
+Can I set alerts for low/zero resources?
+Do you offer an option for one single purchase to 'sells out' the entire resources?
+What accounting & reporting features does the software have?
+Your accountant is one of the most important parts of your operation. Keep them happy by making sure your booking software can generate the correct reports, and integrate with your accounting software.
+Do you integrate with accounting software? (Quickbooks, Xero, Wave, Freshbooks)  o Can I generate transaction reports by Payment Type?
+#19
+Can I generate reports across different dashboards in one place? 0 Sales report by team member (helpful for incentives/quotas/KPls) o Upcoming Revenue Report (how much future money coming in) o Are there custom reporting tools?
+Can I export a CSV or Excel export of various reports?
+How about promo/discount code tracking?
+Can I generate a commission Report?
+Can I classify your transactions by tour (or class) for my accounting software?
+Are there payroll calculation tools?
+Do you have payroll processing integration?
+0 Are gift cards tracked properly as liability in accounting?
+Do you have an escrow account for unearned income?
+Can I generate a per-trip profit/loss statement?
+Can I export my entire customer data?
+ 
+Can the software handle physical inventory?
+#20
+If you have a shop connected to your company, and sell anything from t-shirts to magnets, then some kind of retail inventory management features may be important. You may also use a completely separate system, but integrating it with your restech also means the potential for upsells and cross-sells within the tour booking flow.
+Can the software handle physical inventory (for retail sales)?
+0 'Quantity on Hand' for inventory purposes?
+0 Will it generate vendor purchase orders for physical inventory?
+Inventory Valuation Tracking?
+Retail Inventory SOX compliance? 
+Inventory Valuation Reports for Accounting?
+How does the software handle tour reports & alerts?
+Reports aren't just for accounting. Being notified of key metrics and alerts on a daily level keeps you on top of your business operations, both on the short and long term. Do you need to know if a tour hasn't met its minimums? What kind of reports do you rely on?
+Make sure your booking software is delivering the information you need, when you need
+#21
+it.
+0 Can the software send an alert when the minimum booking has not been reached?
+Are tour count reports possible?
+Can I easily see guest counts?
+Can I run a report for each tour?
+Can I easily see what revenue I'm generating each day?
+Can I run marketing reports?
+Can I run affiliate reports to help understand my affiliate sales?
+Can I see revenues and usage by resource inventory item (i.e. transfers)?

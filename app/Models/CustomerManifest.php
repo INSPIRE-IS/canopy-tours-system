@@ -15,6 +15,14 @@ class CustomerManifest extends Model
 
     public $table = 'customer_manifests';
 
+    public const ATTENDANCE_STATUSES = [
+        'no_show',
+        'arrived',
+        'cancelled',
+    ];
+
+    public const ATTENDANCE_DEFAULT = 'no_show';
+
     protected $dates = [
         'created_at',
         'updated_at',
@@ -31,6 +39,7 @@ class CustomerManifest extends Model
         'notes',
         'is_indemnity',
         'is_feedback',
+        'attendance_status',
         'customer_id',
         'booking_item_id',
         'created_at',
