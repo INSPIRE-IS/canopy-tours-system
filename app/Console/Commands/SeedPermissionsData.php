@@ -213,26 +213,7 @@ class SeedPermissionsData extends Command
             ]);
             Team::updateOrCreate(['id' => 2], ['name' => 'Drakensberg', 'team_id' => 2,]);
             Team::updateOrCreate(['id' => 3], ['name' => 'Karkloof', 'team_id' => 3,]);
-            Team::updateOrCreate([
-                'id' => 4
-            ], [
-                'name' => 'Magaliesberg',
-                'team_id' => 1,
-                'team_id' => 4,
-                // 'full_name' => 'Tsitsikamma',
-                // 'description' => '<h3 style="color:white;">Stormriver Adventures </h3> <p style="color:white;">Come and Experience a World of Diversity in One Forest </p> <p style="color:white;">A Unique Tsitsikamma Experience You’ll Never Forget!.</p>',
-                // 'logo' => '/images/teams/tsitsikamma.jpg',
-                // 'image' => '/images/teams/tsitsikamma.jpg',
-                // 'color' => '#31B700',
-                // 'reg_no' => '2008/018998/07',
-                // 'address' => 'PO Box 3132, Tzaneen',
-                // 'address_code' => '0850',
-                // 'owner' => 'Magoebaskloof Canopy Tours',
-                // 'number' => '1234567890',
-                // 'type'   => 'Cheque',
-                // 'name'   => 'ABSA',
-                // 'branch_code' => '632005',        
-            ]);
+            Team::updateOrCreate(['id' => 4], ['name' => 'Magaliesberg', 'team_id' => 4,]);
             Team::updateOrCreate(['id' => 5], ['name' => 'Magoebaskloof', 'team_id' => 5,]);
             // 
             Team::updateOrCreate(['id' => 6], [
@@ -252,7 +233,23 @@ class SeedPermissionsData extends Command
                 'branch_code' => '50001',
                 'team_id' => 6,
             ]);
-            Team::updateOrCreate(['id' => 7], ['name' => 'Test Team', 'team_id' => 7,]);
+            Team::updateOrCreate(['id' => 7], [
+                'name' => 'Test Team',
+                'team_id' => 7,
+                // 'full_name' => 'Tsitsikamma',
+                // 'description' => '<h3 style="color:white;">Stormriver Adventures </h3> <p style="color:white;">Come and Experience a World of Diversity in One Forest </p> <p style="color:white;">A Unique Tsitsikamma Experience You’ll Never Forget!.</p>',
+                // 'logo' => '/images/teams/tsitsikamma.jpg',
+                // 'image' => '/images/teams/tsitsikamma.jpg',
+                // 'color' => '#31B700',
+                // 'reg_no' => '2008/018998/07',
+                // 'address' => 'PO Box 3132, Tzaneen',
+                // 'address_code' => '0850',
+                // 'owner' => 'Magoebaskloof Canopy Tours',
+                // 'number' => '1234567890',
+                // 'type'   => 'Cheque',
+                // 'name'   => 'ABSA',
+                // 'branch_code' => '632005',
+            ]);
             // Users
             DB::statement('SET FOREIGN_KEY_CHECKS=0;');
             DB::table('users')->truncate();
@@ -301,8 +298,8 @@ class SeedPermissionsData extends Command
                 ],
                 [ // Karkloof
                     'id'             => 5,
-                    'name'           => 'Rose',
-                    'surname'        => '',
+                    'name'           => 'Rose-Lynn',
+                    'surname'        => 'Paine',
                     'email'          => 'info@karkloofcanopytour.co.za', // Rose-Lynn Paine Admin Reception Manager, Karkloof Canopy Tour 076 241 2888
                     'password'       => bcrypt('info@karkloofcanopytour1'),
                     'team_id'        => 3,
@@ -319,7 +316,7 @@ class SeedPermissionsData extends Command
                     'is_admin'       => false,
                     'is_email_recipient' => false,
                 ],
-                [ // magaliesberg
+                [ // Magoebaskloof
                     'id'             => 7,
                     'name'           => 'Jane',
                     'surname'        => 'Allison',

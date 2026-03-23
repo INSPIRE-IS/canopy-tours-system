@@ -816,7 +816,7 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                                         <th className="w-[164px] p-3 flex justify-between items-center gap-2">
                                             <span className='flex items-center gap-2'>
                                                 <span className="w-5 h-5 block border border-gray-500 rounded-md"></span>
-                                                Time
+                                                Date Time
                                             </span>
                                         </th>
                                         <th className="w-[95px] p-3">PAX</th>
@@ -830,10 +830,10 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                                 <tbody className="divide-y divide-gray-100">
                                     {slotRows?.map((row, i) => {
                                         const startLabel = formatTimeValue(row.time_start);
-                                        const endLabel = formatTimeValue(row.time_end);
-                                        const timeLabel = startLabel && endLabel
-                                            ? `${startLabel} - ${endLabel}`
-                                            : 'Time N/A';
+                                        const dateLabel = row.booking_date || '';
+                                        const timeLabel = startLabel
+                                            ? `${dateLabel} ${startLabel}`.trim()
+                                            : `${dateLabel}`.trim() || 'Time N/A';
                                         const nextRow = slotRows?.[i + 1];
                                         const isLastInTimeGroup = !nextRow || formatTimeValue(nextRow.time_start) !== startLabel;
                                         return (
@@ -1106,8 +1106,6 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
         </AuthenticatedLayout>
     );
 }
-
-
 
 
 
