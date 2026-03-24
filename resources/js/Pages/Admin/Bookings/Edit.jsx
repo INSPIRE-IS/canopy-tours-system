@@ -90,6 +90,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
     const [pricing, setPricing] = useState(null);
     const lastSlotWarningRef = useRef('');
     const lastCapacityWarningRef = useRef('');
+    const lastPricingKeyRef = useRef('');
     const canOverrideCapacity = !!selectedService?.allow_internal_capacity_override;
     const canOverrideRates = !!selectedSeason?.allow_internal_price_override;
     const canOverrideTimeSlots = !!selectedSeason?.inventory?.allow_internal_override;
@@ -227,7 +228,8 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
     const hasWholesalers = Array.isArray(serviceWholesalers) && serviceWholesalers.length > 0;
     const hasPromo = !!promoCode;
     const hasDiscountSelection = !!discountId;
-    const hasDiscounts = (data.discount_lines?.length || 0) > 0 || paxGroups.some(g => g.discount_id) || hasDiscountSelection;
+    const hasInvoiceDiscount = !!pricing?.applied_discounts?.some(d => d.applied_to === 'invoice');
+    const hasDiscounts = (data.discount_lines?.length || 0) > 0 || paxGroups.some(g => g.discount_id) || hasDiscountSelection || hasInvoiceDiscount;
     const computedMode = data.override_rates
         ? PRICING_MODES.OVERRIDE
         : (data.is_wholesaler || data.wholesaler_id)
@@ -266,9 +268,12 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
             let rate_per_child = data?.rate_per_child || 0;
             let rate_per_guide = data?.rate_per_guide || 0;
 
-            const shouldAutoTotal = computedMode === PRICING_MODES.STANDARD
+            const hasPricingOverride = !!pricing?.applied_promotion || (pricing?.applied_discounts?.length || 0) > 0;
+            const shouldAutoTotal = !hasPricingOverride && (
+                computedMode === PRICING_MODES.STANDARD
                 || computedMode === PRICING_MODES.WHOLESALER
-                || computedMode === PRICING_MODES.OVERRIDE;
+                || computedMode === PRICING_MODES.OVERRIDE
+            );
             if (shouldAutoTotal) {
                 const adult_total = (parseFloat(data.adults || 0) * parseFloat(rate_per_adult));
                 const child_total = (parseFloat(data.children || 0) * parseFloat(rate_per_child));
@@ -294,25 +299,11 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
                 groups.push({ type: "guide", count: parseInt(data.guides), discount_id: null, base_rate: rate_per_guide, final_rate: rate_per_guide });
             }
             const existingDiscountLines = Array.isArray(data.discount_lines) ? data.discount_lines : [];
-            let handledDiscountLines = false;
-            if (existingDiscountLines.length > 0) {
-                if (skipDiscountResetRef.current) {
-                    setPaxGroups(mergeDiscountLinesWithBase(groups, existingDiscountLines));
-                    skipDiscountResetRef.current = false;
-                } else {
-                    setData(prev => ({
-                        ...prev,
-                        discount_lines: []
-                    }));
-                    setPaxGroups(groups);
-                    skipDiscountResetRef.current = false;
-                }
-                handledDiscountLines = true;
-            }
-            if (!handledDiscountLines) {
-                setPaxGroups(groups);
-                skipDiscountResetRef.current = false;
-            }
+            const mergedGroups = existingDiscountLines.length > 0
+                ? mergeDiscountLinesWithBase(groups, existingDiscountLines)
+                : groups;
+            setPaxGroups(mergedGroups);
+            skipDiscountResetRef.current = false;
         }
         if (!selectedService) {
             setDiscountList([]);
@@ -320,7 +311,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
         }
         console.log('data', data);
 
-    }, [selectedService, selectedSeason, data.adults, data.children, data.guides, data.booking_date, data.start_time, data.rate_per_adult, data.rate_per_child, data.rate_per_guide, computedMode]);
+    }, [selectedService, selectedSeason, data.adults, data.children, data.guides, data.booking_date, data.start_time, data.rate_per_adult, data.rate_per_child, data.rate_per_guide, computedMode, pricing]);
     //, promoCode
 
     useEffect(() => {
@@ -468,6 +459,76 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
             console.error(err.response?.data || err);
         }
     };
+
+    useEffect(() => {
+        if (!selectedService || !selectedSeason || !data.booking_date || !data.start_time) return;
+        if ((Number(data.adults || 0) + Number(data.children || 0)) < 1) return;
+
+        if (promoCode) {
+            const key = `promo|${promoCode}|${data.adults}|${data.children}|${data.guides}|${data.booking_date}|${data.start_time}`;
+            if (lastPricingKeyRef.current !== key) {
+                lastPricingKeyRef.current = key;
+                const promoGroups = buildBasePaxGroups(
+                    Number(data.adults || 0),
+                    Number(data.children || 0),
+                    Number(data.guides || 0),
+                    {
+                        adult: Number(data.rate_per_adult || 0),
+                        child: Number(data.rate_per_child || 0),
+                        guide: Number(data.rate_per_guide || 0),
+                    }
+                );
+                handleCalculate('promo', promoGroups);
+            }
+            return;
+        }
+
+        if (paxGroups.some(g => g.discount_id)) {
+            const discountKey = paxGroups
+                .filter(g => g.discount_id)
+                .map(g => `${g.type}:${g.discount_id}:${g.count}`)
+                .join('|');
+            const key = `discount|${discountKey}|${data.adults}|${data.children}|${data.guides}|${data.booking_date}|${data.start_time}`;
+            if (lastPricingKeyRef.current !== key) {
+                lastPricingKeyRef.current = key;
+                handleCalculate('discount', paxGroups);
+            }
+            return;
+        }
+
+        if (hasInvoiceDiscount) {
+            const invoiceDiscountId = pricing?.applied_discounts?.find(d => d.applied_to === 'invoice')?.id;
+            if (invoiceDiscountId) {
+                const baseGroups = buildBasePaxGroups(
+                    Number(data.adults || 0),
+                    Number(data.children || 0),
+                    Number(data.guides || 0),
+                    {
+                        adult: Number(data.rate_per_adult || 0),
+                        child: Number(data.rate_per_child || 0),
+                        guide: Number(data.rate_per_guide || 0),
+                    }
+                );
+                const key = `invoice|${invoiceDiscountId}|${data.adults}|${data.children}|${data.guides}|${data.booking_date}|${data.start_time}`;
+                if (lastPricingKeyRef.current !== key) {
+                    lastPricingKeyRef.current = key;
+                    handleCalculate('discount', baseGroups, invoiceDiscountId);
+                }
+            }
+        }
+    }, [
+        promoCode,
+        paxGroups,
+        data.adults,
+        data.children,
+        data.guides,
+        data.booking_date,
+        data.start_time,
+        selectedService,
+        selectedSeason,
+        hasInvoiceDiscount,
+        pricing,
+    ]);
 
     useEffect(() => {
         console.log('wholesaler_id', data.wholesaler_id);
@@ -1448,6 +1509,14 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
             return sum + (g.count * effectiveRate);
         }, 0);
     const total = Number(data.booking_total || 0);
+
+    useEffect(() => {
+        if (pricing) return;
+        const nextTotal = (Number(totalAdult || 0) + Number(totalChild || 0) + Number(totalGuide || 0)).toFixed(2);
+        if (Number(data.booking_total || 0).toFixed(2) !== nextTotal) {
+            setData('booking_total', nextTotal);
+        }
+    }, [pricing, totalAdult, totalChild, totalGuide, data.booking_total, setData]);
 
     // find currently selected discount from the list
     const selectedDiscount = discountList?.find(d => d.id === parseInt(discountId));

@@ -88,6 +88,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
     const [pricing, setPricing] = useState(null);
     const lastSlotWarningRef = useRef('');
     const lastCapacityWarningRef = useRef('');
+    const lastPricingKeyRef = useRef('');
     const canOverrideCapacity = !!selectedService?.allow_internal_capacity_override;
     const canOverrideRates = !!selectedSeason?.allow_internal_price_override;
     const canOverrideTimeSlots = !!selectedSeason?.inventory?.allow_internal_override;
@@ -258,7 +259,8 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
     const hasWholesalers = Array.isArray(serviceWholesalers) && serviceWholesalers.length > 0;
     const hasPromo = !!promoCode;
     const hasDiscountSelection = !!discountId;
-    const hasDiscounts = (data.discount_lines?.length || 0) > 0 || paxGroups.some(g => g.discount_id) || hasDiscountSelection;
+    const hasInvoiceDiscount = !!pricing?.applied_discounts?.some(d => d.applied_to === 'invoice');
+    const hasDiscounts = (data.discount_lines?.length || 0) > 0 || paxGroups.some(g => g.discount_id) || hasDiscountSelection || hasInvoiceDiscount;
     const computedMode = data.override_rates
         ? PRICING_MODES.OVERRIDE
         : (data.is_wholesaler || data.wholesaler_id)
@@ -297,9 +299,12 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
             let rate_per_child = data?.rate_per_child || 0;
             let rate_per_guide = data?.rate_per_guide || 0;
 
-            const shouldAutoTotal = computedMode === PRICING_MODES.STANDARD
+            const hasPricingOverride = !!pricing?.applied_promotion || (pricing?.applied_discounts?.length || 0) > 0;
+            const shouldAutoTotal = !hasPricingOverride && (
+                computedMode === PRICING_MODES.STANDARD
                 || computedMode === PRICING_MODES.WHOLESALER
-                || computedMode === PRICING_MODES.OVERRIDE;
+                || computedMode === PRICING_MODES.OVERRIDE
+            );
             if (shouldAutoTotal) {
                 const adult_total = (parseFloat(data.adults || 0) * parseFloat(rate_per_adult));
                 const child_total = (parseFloat(data.children || 0) * parseFloat(rate_per_child));
@@ -324,13 +329,8 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
             if (data.guides > 0) {
                 groups.push({ type: "guide", count: parseInt(data.guides), discount_id: null, base_rate: rate_per_guide, final_rate: rate_per_guide });
             }
-            setPaxGroups(groups);
-            if (data.discount_lines.length != 0) {
-                setData(prev => ({
-                    ...prev,
-                    discount_lines: []
-                }));
-            }
+            const mergedGroups = data.discount_lines?.length ? mergeDiscountLinesWithBase(groups, data.discount_lines) : groups;
+            setPaxGroups(mergedGroups);
         }
         if (!selectedService) {
             setDiscountList([]);
@@ -338,7 +338,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
         }
         console.log('data', data);
 
-    }, [selectedService, selectedSeason, data.adults, data.children, data.guides, data.booking_date, data.start_time, data.rate_per_adult, data.rate_per_child, data.rate_per_guide, computedMode]);
+    }, [selectedService, selectedSeason, data.adults, data.children, data.guides, data.booking_date, data.start_time, data.rate_per_adult, data.rate_per_child, data.rate_per_guide, computedMode, pricing]);
     //, promoCode
 
     useEffect(() => {
@@ -485,6 +485,76 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
             console.error(err.response?.data || err);
         }
     };
+
+    useEffect(() => {
+        if (!selectedService || !selectedSeason || !data.booking_date || !data.start_time) return;
+        if ((Number(data.adults || 0) + Number(data.children || 0)) < 1) return;
+
+        if (promoCode) {
+            const key = `promo|${promoCode}|${data.adults}|${data.children}|${data.guides}|${data.booking_date}|${data.start_time}`;
+            if (lastPricingKeyRef.current !== key) {
+                lastPricingKeyRef.current = key;
+                const promoGroups = buildBasePaxGroups(
+                    Number(data.adults || 0),
+                    Number(data.children || 0),
+                    Number(data.guides || 0),
+                    {
+                        adult: Number(data.rate_per_adult || 0),
+                        child: Number(data.rate_per_child || 0),
+                        guide: Number(data.rate_per_guide || 0),
+                    }
+                );
+                handleCalculate('promo', promoGroups);
+            }
+            return;
+        }
+
+        if (paxGroups.some(g => g.discount_id)) {
+            const discountKey = paxGroups
+                .filter(g => g.discount_id)
+                .map(g => `${g.type}:${g.discount_id}:${g.count}`)
+                .join('|');
+            const key = `discount|${discountKey}|${data.adults}|${data.children}|${data.guides}|${data.booking_date}|${data.start_time}`;
+            if (lastPricingKeyRef.current !== key) {
+                lastPricingKeyRef.current = key;
+                handleCalculate('discount', paxGroups);
+            }
+            return;
+        }
+
+        if (hasInvoiceDiscount) {
+            const invoiceDiscountId = pricing?.applied_discounts?.find(d => d.applied_to === 'invoice')?.id;
+            if (invoiceDiscountId) {
+                const baseGroups = buildBasePaxGroups(
+                    Number(data.adults || 0),
+                    Number(data.children || 0),
+                    Number(data.guides || 0),
+                    {
+                        adult: Number(data.rate_per_adult || 0),
+                        child: Number(data.rate_per_child || 0),
+                        guide: Number(data.rate_per_guide || 0),
+                    }
+                );
+                const key = `invoice|${invoiceDiscountId}|${data.adults}|${data.children}|${data.guides}|${data.booking_date}|${data.start_time}`;
+                if (lastPricingKeyRef.current !== key) {
+                    lastPricingKeyRef.current = key;
+                    handleCalculate('discount', baseGroups, invoiceDiscountId);
+                }
+            }
+        }
+    }, [
+        promoCode,
+        paxGroups,
+        data.adults,
+        data.children,
+        data.guides,
+        data.booking_date,
+        data.start_time,
+        selectedService,
+        selectedSeason,
+        hasInvoiceDiscount,
+        pricing,
+    ]);
 
     useEffect(() => {
         console.log('wholesaler_id', data.wholesaler_id);
@@ -665,6 +735,41 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
             groups.push({ type: "guide", count: guideCount, discount_id: null, base_rate: rates.guide, final_rate: rates.guide });
         }
         return groups;
+    };
+
+    const mergeDiscountLinesWithBase = (baseGroups, discountLines) => {
+        const remainingCounts = {};
+        baseGroups.forEach(group => {
+            remainingCounts[group.type] = (remainingCounts[group.type] || 0) + Number(group.count || 0);
+        });
+
+        const merged = [];
+        (discountLines || []).forEach(line => {
+            const type = line.type;
+            if (!['adult', 'child', 'guide'].includes(type)) return;
+            const count = Math.min(Number(line.count || 0), Number(remainingCounts[type] || 0));
+            if (count <= 0) return;
+            remainingCounts[type] = Math.max(0, (remainingCounts[type] || 0) - count);
+            merged.push({
+                type,
+                count,
+                discount_id: line.discount_id ?? null,
+                base_rate: Number(line.base_rate ?? 0),
+                final_rate: Number(line.final_rate ?? line.base_rate ?? 0),
+            });
+        });
+
+        baseGroups.forEach(group => {
+            const remaining = Number(remainingCounts[group.type] || 0);
+            if (remaining > 0) {
+                merged.push({
+                    ...group,
+                    count: remaining,
+                });
+            }
+        });
+
+        return merged;
     };
 
     const resetPromoDiscountAndRates = () => {
@@ -1213,6 +1318,14 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
         }, 0);
     const total = Number(data.booking_total || 0);
 
+    useEffect(() => {
+        if (pricing) return;
+        const nextTotal = (Number(totalAdult || 0) + Number(totalChild || 0) + Number(totalGuide || 0)).toFixed(2);
+        if (Number(data.booking_total || 0).toFixed(2) !== nextTotal) {
+            setData('booking_total', nextTotal);
+        }
+    }, [pricing, totalAdult, totalChild, totalGuide, data.booking_total, setData]);
+
     // find currently selected discount from the list
     const selectedDiscount = discountList?.find(d => d.id === parseInt(discountId));
     const selectedPromo = promoList?.find(d => d.id === parseInt(promotionId));
@@ -1370,6 +1483,8 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                                                                 setActivityDate(parseDate(cell.date));
                                                                                 const time = row.time.slice(0, 5);
                                                                                 const slot = timeslots.find(s => s.name === time);
+                                                                                console.log("slot", slot);
+                                                                                if (!slot) { showToast(flash.warning, "Please select a slot"); return; }
                                                                                 setData('start_time', slot.id);
                                                                                 console.log("SelectedSlot--------------------:", selectedSlot);
                                                                                 console.log("sDatalot:-----------------------", data);
@@ -1623,8 +1738,8 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                         {/* Rates */}
                         <div className={`${toggleRate ? 'block' : 'hidden'} mt-10 p-6 bg-white rounded-[10px] border border-secondary-100 shadow space-y-4`}>
 
-                            <div className="flex items-center gap-[66px] mt-4">
-                                <div className="flex w-[50%] items-center justify-start space-x-4 ">
+                            <div className="flex items-center gap-4 mt-4">
+                                <div className="flex  items-center justify-start space-x-4 ">
                                     <CustomCheckbox
                                         label="Override Rates"
                                         name="override_rates"
@@ -1650,8 +1765,9 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                         />
                                     </div>
                                 </div>
-                                <div className="flex w-[50%] items-center justify-start ">
-                                    {showDiscount && (
+                                {showDiscount && (
+                                    <div className="flex  items-center justify-start ">
+
                                         <div className="flex flex-none items-center gap-2">
                                             <CustomSelect
                                                 label="Discount"
@@ -1683,10 +1799,11 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                                     disabled={processing}
                                                     type="button" />
                                             </div>
-                                        </div>)}
-                                </div>
-                                <div className="flex w-[50%] items-center justify-start ">
-                                    {showPromo && (
+                                        </div>
+                                    </div>)}
+                                {showPromo && (
+                                    <div className="flex items-center justify-start ">
+
                                         <div className="flex flex-none items-center gap-2">
                                             <CustomInputText
                                                 title="Promo Code"
@@ -1704,10 +1821,11 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                                     {icons.info}
                                                 </div>
                                             </div>
-                                        </div>)}
-                                </div>
-                                <div className="flex w-[50%] items-center justify-start ">
-                                    {showWholesaler && data.is_wholesaler && (
+                                        </div>
+                                    </div>)}
+                                {showWholesaler && data.is_wholesaler && (
+                                    <div className="flex  items-center justify-start ">
+
                                         <div className="flex flex-col items-center space-y-2">
                                             <span className="text-[#161618] font-poppins text-[12px] font-normal leading-[130%]">
                                                 Wholesaler Discount
@@ -1719,8 +1837,8 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                                     onClick={() => handleCalculate('saler')}
                                                 />
                                             </div>
-                                        </div>)}
-                                </div>
+                                        </div>
+                                    </div>)}
 
                                 {/* {paxGroups?.map((g, i) => (
                                     <div key={i}>
@@ -1738,7 +1856,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                         </div>
                                         <div className="flex flex-col">
                                             <span className="text-booking-card-title">Adult</span>
-                                            <div className="flex items-center justify-start w-[417px] h-[43px] gap-2">
+                                            <div className="flex items-center justify-start w-full h-[43px] gap-2">
                                                 <span className="text-booking-card-title-sub">
                                                     Rack Rate:
                                                 </span>
@@ -1828,7 +1946,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                         </div>
                                         <div className="flex flex-col">
                                             <span className="text-booking-card-title">Child</span>
-                                            <div className="flex items-center justify-start w-[417px] h-[43px] gap-2">
+                                            <div className="flex items-center justify-start w-full h-[43px] gap-2">
                                                 <span className="text-booking-card-title-sub">
                                                     Rack Rate:
                                                 </span>
@@ -1918,7 +2036,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                         </div>
                                         <div className="flex flex-col">
                                             <span className="text-booking-card-title">Guide</span>
-                                            <div className="flex items-center justify-start w-[417px] h-[43px] gap-2">
+                                            <div className="flex items-center justify-start w-full h-[43px] gap-2">
                                                 <span className="text-booking-card-title-sub">
                                                     Rack Rate:
                                                 </span>
@@ -2002,7 +2120,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                             </div>
                             <div className="flex items-center space-x-4">
                                 <span className="text-booking-lbl-main">Booking Total</span>
-                                <div className="flex items-center justify-between w-[417px] h-[43px] bg-[#DBECFD4D] pl-[7px] pr-[7px] py-[7px] rounded-[6px]">
+                                <div className="flex items-center justify-between w-[20%] h-[43px] bg-[#DBECFD4D] pl-[7px] pr-[7px] py-[7px] rounded-[6px]">
                                     <span className="text-booking-lbl-main-sub">R {total.toFixed(2) || '0.00'}</span>
                                     {(hasPromo || hasDiscounts || data.is_wholesaler || !!invoiceDiscountPct) && (
                                         <WhiteButton
