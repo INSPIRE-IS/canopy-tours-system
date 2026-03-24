@@ -231,12 +231,12 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
     const computedMode = data.override_rates
         ? PRICING_MODES.OVERRIDE
         : (data.is_wholesaler || data.wholesaler_id)
-        ? PRICING_MODES.WHOLESALER
-        : hasPromo
-            ? PRICING_MODES.PROMO
-            : hasDiscounts
-                ? PRICING_MODES.DISCOUNT
-                : PRICING_MODES.STANDARD;
+            ? PRICING_MODES.WHOLESALER
+            : hasPromo
+                ? PRICING_MODES.PROMO
+                : hasDiscounts
+                    ? PRICING_MODES.DISCOUNT
+                    : PRICING_MODES.STANDARD;
     const slotOverrideTimeErrorRaw = slotOverrideErrors?.time || slotOverrideErrors?.time_slots || slotOverrideErrors?.time_slot;
     const slotOverrideTimeError = Array.isArray(slotOverrideTimeErrorRaw) ? slotOverrideTimeErrorRaw[0] : slotOverrideTimeErrorRaw;
     const bookingToggleItems = [
@@ -1066,7 +1066,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
             is_wholesaler: isWholesaler,
             wholesaler_id: bookingItem?.wholesaler_id || '',
             service_id: bookingItem?.service_id || '',
-            override_capacity: false,
+            override_capacity: !!bookingDetail?.is_override_capacity,
             capacity: service?.capacity || 0,
             duration: service?.duration || 0,
             season_id: bookingItem?.season_id || '',
@@ -1606,6 +1606,8 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
                                                                                 setActivityDate(parseDate(cell.date));
                                                                                 const time = row.time.slice(0, 5);
                                                                                 const slot = timeslots.find(s => s.name === time);
+                                                                                console.log("slot", slot);
+                                                                                if (!slot) { showToast(flash.warning, "Please select a slot"); return; }
                                                                                 setData('start_time', slot.id);
                                                                                 console.log("SelectedSlot--------------------:", selectedSlot);
                                                                                 console.log("sDatalot:-----------------------", data);

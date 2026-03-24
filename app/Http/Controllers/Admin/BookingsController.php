@@ -643,6 +643,7 @@ class BookingsController extends Controller
                     'is_web_booking' => $validated['web_booking'],
                     'is_videos_photos' => $validated['include_media'],
                     'is_exclusive_resource_use' => $validated['exclusive_resource'],
+                    'is_override_capacity' => $validated['override_capacity'] ?? false,
                     'is_override_time_slots' => $validated['override_timeslots'],
                     'team_id'        => auth()->user()->team_id,
                 ]);
@@ -1437,6 +1438,7 @@ class BookingsController extends Controller
                     'is_web_booking' => $validated['web_booking'],
                     'is_videos_photos' => $validated['include_media'],
                     'is_exclusive_resource_use' => $validated['exclusive_resource'],
+                    'is_override_capacity' => $validated['override_capacity'] ?? false,
                     'is_override_time_slots' => $validated['override_timeslots'],
                     'team_id' => auth()->user()->team_id,
                 ];

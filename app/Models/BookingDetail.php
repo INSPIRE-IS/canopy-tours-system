@@ -30,6 +30,7 @@ class BookingDetail extends Model
         'is_web_booking',
         'is_videos_photos',
         'is_exclusive_resource_use',
+        'is_override_capacity',
         'is_override_time_slots',
         'created_at',
         'updated_at',
