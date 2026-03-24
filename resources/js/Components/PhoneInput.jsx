@@ -61,18 +61,28 @@ export default function PhoneInput({
     const [localNumber, setLocalNumber] = useState('');
     const initializedRef = useRef(false);
     const lastEmittedRef = useRef(value ?? '');
+    const syncingRef = useRef(false);
+    const lastCountryRef = useRef(null);
 
     useEffect(() => {
         if (!phonecodeOptions.length) return;
         if (initializedRef.current && value === lastEmittedRef.current) return;
         const parsed = splitPhoneNumber(value, phonecodeOptions, resolvedDefault);
+        if (initializedRef.current && parsed.code === countryCode && parsed.local === localNumber) {
+            return;
+        }
+        syncingRef.current = true;
         setCountryCode(parsed.code || resolvedDefault);
         setLocalNumber(parsed.local || '');
         initializedRef.current = true;
-    }, [phonecodeOptions.length, value, resolvedDefault]);
+    }, [phonecodeOptions.length, value, resolvedDefault, countryCode, localNumber]);
 
     useEffect(() => {
         if (!initializedRef.current) return;
+        if (syncingRef.current) {
+            syncingRef.current = false;
+            return;
+        }
         const local = (localNumber || '').replace(/\D/g, '').replace(/^0+/, '');
         if (!local) {
             if (value) {
@@ -92,6 +102,8 @@ export default function PhoneInput({
     useEffect(() => {
         if (!onCountryChange) return;
         const selected = phonecodeOptions.find(o => o.id === String(countryCode));
+        if (selected?.countryId === lastCountryRef.current) return;
+        lastCountryRef.current = selected?.countryId ?? null;
         onCountryChange(selected || null);
     }, [countryCode, onCountryChange, phonecodeOptions]);
 
