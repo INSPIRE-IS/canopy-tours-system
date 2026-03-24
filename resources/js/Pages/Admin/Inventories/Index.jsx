@@ -11,7 +11,7 @@ import Pagination from '@/Components/Pagination';
 import HeaderServices from '@/Components/HeaderServices';
 
 
-export default function Index({ permissions, seasons, services, inventories, day_slots, auth, searchTerm, sortColumn, sortDirection }) {
+export default function Index({ permissions, seasons, services, inventories, day_slots, auth, searchTerm, sortColumn, sortDirection, inventorySeasonIdsByService }) {
     const [selectedInventory, setSelectedInventory] = useState(null);
     const { props } = usePage();
     console.log('inventory:', inventories);
@@ -164,6 +164,7 @@ export default function Index({ permissions, seasons, services, inventories, day
                         services={services}
                         day_slots={day_slots}
                         auth={auth}
+                        inventorySeasonIdsByService={inventorySeasonIdsByService}
                     />
                 </div>
             </div>

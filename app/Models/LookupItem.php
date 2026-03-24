@@ -95,6 +95,7 @@ class LookupItem extends Model
             'enable_assign_staff' => true,
             'show_send_invoice_checkbox' => false,
             'show_send_quote_checkbox' => false,
+            'show_booking_information' => true,
         ];
 
         $lookup = Lookup::where('slug', 'settings')->first();

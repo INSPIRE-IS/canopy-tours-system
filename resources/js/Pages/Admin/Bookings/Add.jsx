@@ -38,6 +38,7 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
     const [toggleEmail, setToggleEmail] = useState(true);
     const pickupEnabled = settings?.enable_pickup_dropoff ?? true;
     const assignStaffEnabled = settings?.enable_assign_staff ?? true;
+    const bookingInformationEnabled = settings?.show_booking_information ?? true;
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalMode, setModalMode] = useState("create");
     const [total, setTotal] = useState(null);
@@ -642,111 +643,112 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                                         )}
                                     </div>
                                 </div>
-                                {/* Booking Information */}
-                                <div className=" overflow-hidden shadow-medium sm:rounded-lg">
-                                    <div className="flex flex-col justify-between items-center ">
-                                        <span className='flex items-center justify-between w-full px-6 py-4 border-b border-gray-300'>
-                                            <span className="text-booking-card-heading block text-start">Booking Information</span>
-                                            <div className="flex gap-4">
-                                                {isDirty ? (
-                                                    <button onClick={(e) => handleSubmit(e)} className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-blue-gradient-overlay border-[#3863C6] text-white shadow-inset-white cursor-pointer">
-                                                        <span className="text-btn-outline-gray">Save</span>
-                                                    </button>
-                                                )
-                                                    : ''}
-                                                <span onClick={() => setToggleInformation(!toggleCustomer)}>
-                                                    {toggleCustomer ? icons.cheveron_down : icons.cheveron_up}
-                                                </span>
-                                            </div>
-                                        </span>
-                                        {toggleInformation && (
-                                            <div className="flex flex-col w-full  gap-2 ">
-                                                <div className="flex flex-col px-6 py-6 gap-2 border-b border-gray-100">
-                                                    {pickupEnabled && (
-                                                        <div className="flex w-full items-center justify-between gap-5">
-                                                            <CustomInputText
-                                                                title="Pickup Location"
-                                                                name="pickup_location"
-                                                                value={data.pickup_location}
-                                                                height="h-[48px]"
-                                                                type="text"
-                                                                onChange={(e) => setData('pickup_location', e.target.value)}
-                                                                errors={errors}
-                                                            />
-                                                            <CustomTimePicker
-                                                                label="Pickup Time"
-                                                                value={data.pickup_time}
-                                                                meridiem={data.pickup_time}
-                                                                onChange={(time) => setData('pickup_time', time)}
-                                                                onMeridiemChange={(mer) => setData('pickup_meridiem', mer)}
-                                                            />
-                                                        </div>
-                                                    )}
-
-                                                    <div className="flex w-full items-center justify-between gap-5">
-                                                        <CustomInputText
-                                                            title="Start Location"
-                                                            name="start_location"
-                                                            value={data.start_location}
-                                                            height="h-[48px]"
-                                                            type="text"
-                                                            onChange={(e) => setData('start_location', e.target.value)}
-                                                            errors={errors}
-                                                        />
-                                                        <CustomTimePicker
-                                                            label="Start Time"
-                                                            value={data.start_time}
-                                                            meridiem={data.start_time}
-                                                            onChange={(time) => setData('start_time', time)}
-                                                            onMeridiemChange={(mer) => setData('start_meridiem', mer)}
-                                                        />
-                                                    </div>
-                                                    <div className="flex w-full gap-5">
-                                                        {/* <div className="basis-[65%]"></div> */}
-                                                        <CustomInputText
-                                                            title="End Location"
-                                                            name="end_location"
-                                                            value={data.end_location}
-                                                            height="h-[48px]"
-                                                            type="email"
-                                                            onChange={(e) => setData('end_location', e.target.value)}
-                                                            errors={errors}
-                                                        />
-
-                                                        <CustomTimePicker
-                                                            label="End Time"
-                                                            value={data.end_time}
-                                                            meridiem={data.end_time}
-                                                            onChange={(time) => setData('end_time', time)}
-                                                            onMeridiemChange={(mer) => setData('end_meridiem', mer)}
-                                                        />
-
-                                                    </div>
-                                                    {pickupEnabled && (
-                                                        <div className="flex w-full items-center justify-between gap-5">
-                                                            <CustomInputText
-                                                                title="Dropoff Location"
-                                                                name="dropoff_location"
-                                                                value={data.dropoff_location}
-                                                                height="h-[48px]"
-                                                                type="text"
-                                                                onChange={(e) => setData('dropoff_location', e.target.value)}
-                                                                errors={errors}
-                                                            />
-                                                            <CustomTimePicker
-                                                                label="Dropoff Time"
-                                                                value={data.dropoff_time}
-                                                                meridiem={data.dropoff_time}
-                                                                onChange={(time) => setData('dropoff_time', time)}
-                                                                onMeridiemChange={(mer) => setData('dropoff_meridiem', mer)}
-                                                            />
-                                                        </div>
-                                                    )}
+                                {bookingInformationEnabled && (
+                                    <div className=" overflow-hidden shadow-medium sm:rounded-lg">
+                                        <div className="flex flex-col justify-between items-center ">
+                                            <span className='flex items-center justify-between w-full px-6 py-4 border-b border-gray-300'>
+                                                <span className="text-booking-card-heading block text-start">Booking Information</span>
+                                                <div className="flex gap-4">
+                                                    {isDirty ? (
+                                                        <button onClick={(e) => handleSubmit(e)} className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-blue-gradient-overlay border-[#3863C6] text-white shadow-inset-white cursor-pointer">
+                                                            <span className="text-btn-outline-gray">Save</span>
+                                                        </button>
+                                                    )
+                                                        : ''}
+                                                    <span onClick={() => setToggleInformation(!toggleInformation)}>
+                                                        {toggleInformation ? icons.cheveron_down : icons.cheveron_up}
+                                                    </span>
                                                 </div>
-                                            </div>
-                                        )}
+                                            </span>
+                                            {toggleInformation && (
+                                                <div className="flex flex-col w-full  gap-2 ">
+                                                    <div className="flex flex-col px-6 py-6 gap-2 border-b border-gray-100">
+                                                        {pickupEnabled && (
+                                                            <div className="flex w-full items-center justify-between gap-5">
+                                                                <CustomInputText
+                                                                    title="Pickup Location"
+                                                                    name="pickup_location"
+                                                                    value={data.pickup_location}
+                                                                    height="h-[48px]"
+                                                                    type="text"
+                                                                    onChange={(e) => setData('pickup_location', e.target.value)}
+                                                                    errors={errors}
+                                                                />
+                                                                <CustomTimePicker
+                                                                    label="Pickup Time"
+                                                                    value={data.pickup_time}
+                                                                    meridiem={data.pickup_time}
+                                                                    onChange={(time) => setData('pickup_time', time)}
+                                                                    onMeridiemChange={(mer) => setData('pickup_meridiem', mer)}
+                                                                />
+                                                            </div>
+                                                        )}
+
+                                                        <div className="flex w-full items-center justify-between gap-5">
+                                                            <CustomInputText
+                                                                title="Start Location"
+                                                                name="start_location"
+                                                                value={data.start_location}
+                                                                height="h-[48px]"
+                                                                type="text"
+                                                                onChange={(e) => setData('start_location', e.target.value)}
+                                                                errors={errors}
+                                                            />
+                                                            <CustomTimePicker
+                                                                label="Start Time"
+                                                                value={data.start_time}
+                                                                meridiem={data.start_time}
+                                                                onChange={(time) => setData('start_time', time)}
+                                                                onMeridiemChange={(mer) => setData('start_meridiem', mer)}
+                                                            />
+                                                        </div>
+                                                        <div className="flex w-full gap-5">
+                                                            {/* <div className="basis-[65%]"></div> */}
+                                                            <CustomInputText
+                                                                title="End Location"
+                                                                name="end_location"
+                                                                value={data.end_location}
+                                                                height="h-[48px]"
+                                                                type="email"
+                                                                onChange={(e) => setData('end_location', e.target.value)}
+                                                                errors={errors}
+                                                            />
+
+                                                            <CustomTimePicker
+                                                                label="End Time"
+                                                                value={data.end_time}
+                                                                meridiem={data.end_time}
+                                                                onChange={(time) => setData('end_time', time)}
+                                                                onMeridiemChange={(mer) => setData('end_meridiem', mer)}
+                                                            />
+
+                                                        </div>
+                                                        {pickupEnabled && (
+                                                            <div className="flex w-full items-center justify-between gap-5">
+                                                                <CustomInputText
+                                                                    title="Dropoff Location"
+                                                                    name="dropoff_location"
+                                                                    value={data.dropoff_location}
+                                                                    height="h-[48px]"
+                                                                    type="text"
+                                                                    onChange={(e) => setData('dropoff_location', e.target.value)}
+                                                                    errors={errors}
+                                                                />
+                                                                <CustomTimePicker
+                                                                    label="Dropoff Time"
+                                                                    value={data.dropoff_time}
+                                                                    meridiem={data.dropoff_time}
+                                                                    onChange={(time) => setData('dropoff_time', time)}
+                                                                    onMeridiemChange={(mer) => setData('dropoff_meridiem', mer)}
+                                                                />
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
-                                </div>
+                                )}
 
                             </div>
                         </div>

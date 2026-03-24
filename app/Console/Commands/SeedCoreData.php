@@ -264,6 +264,18 @@ class SeedCoreData extends Command
                 'team_id' => null,
                 'lookup_id' => 4,
             ],
+            [
+                'id' => 10,
+                'name' => 'Show Booking Information',
+                'slug' => 'show_booking_information',
+                'rate' => null,
+                'multiplier' => 1.00,
+                'effective_from' => '2020-01-01',
+                'is_default' => 1,
+                'is_active' => 1,
+                'team_id' => null,
+                'lookup_id' => 4,
+            ],
         ];
 
         foreach ($lookup_items as $lookup_item) {

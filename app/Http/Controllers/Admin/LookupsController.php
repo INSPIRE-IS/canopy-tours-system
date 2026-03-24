@@ -11,54 +11,6 @@ use Inertia\Inertia;
 
 class LookupsController extends Controller
 {
-    private function settingsDefinition(): array
-    {
-        return [
-            [
-                'slug' => 'enable_pickup_dropoff',
-                'name' => 'Enable Pickup/Dropoff',
-                'description' => 'Show pickup/dropoff fields on booking forms.',
-                'info' => 'Show pickup/dropoff fields on booking forms.',
-                'default' => true,
-            ],
-            [
-                'slug' => 'auto_send_invoice_on_booking',
-                'name' => 'Auto Send Invoice on Booking',
-                'description' => 'Send the invoice email automatically when a booking is created or updated.',
-                'info' => 'Send the invoice email automatically when a booking is created or updated.',
-                'default' => true,
-            ],
-            [
-                'slug' => 'auto_send_quote_on_booking',
-                'name' => 'Auto Send Quote on Booking',
-                'description' => 'Send a quote email automatically when a booking is created or updated.',
-                'info' => 'Send a quote email automatically when a booking is created or updated.',
-                'default' => false,
-            ],
-            [
-                'slug' => 'enable_assign_staff',
-                'name' => 'Enable Assign Staff',
-                'description' => 'Show assigned staff section on booking add view.',
-                'info' => 'Show assigned staff section on booking add view.',
-                'default' => true,
-            ],
-            [
-                'slug' => 'show_send_invoice_checkbox',
-                'name' => 'Show Send Invoice Checkbox',
-                'description' => 'Show a per-booking checkbox to send the invoice email on save.',
-                'info' => 'If enabled, staff can choose to send the invoice on save. Auto-send still applies when enabled.',
-                'default' => false,
-            ],
-            [
-                'slug' => 'show_send_quote_checkbox',
-                'name' => 'Show Send Quote Checkbox',
-                'description' => 'Show a per-booking checkbox to send the quote email on save.',
-                'info' => 'If enabled, staff can choose to send the quote on save. Auto-send still applies when enabled.',
-                'default' => false,
-            ],
-        ];
-    }
-
     public function index()
     {
         abort_if(Gate::denies('teams_access'), 403);
@@ -66,23 +18,24 @@ class LookupsController extends Controller
         $teamId = auth()->user()->team_id;
         $lookup = Lookup::where('slug', 'settings')->first();
 
-        $definitions = $this->settingsDefinition();
         $items = $lookup
             ? LookupItem::defaultsForTeam($teamId, $lookup->id)
             : collect();
 
-        $settings = collect($definitions)->map(function ($setting) use ($items) {
-            $item = $items->firstWhere('slug', $setting['slug']);
-            $value = $item?->multiplier;
-
-            return [
-                'slug' => $setting['slug'],
-                'name' => $setting['name'],
-                'description' => $setting['description'],
-                'info' => $item?->info ?? $setting['info'] ?? $setting['description'],
-                'value' => $value === null ? (bool) $setting['default'] : (bool) $value,
-            ];
-        })->values();
+        $settings = $items
+            ->sortBy('id')
+            ->map(function ($item) {
+                $label = $item->name ?? $item->slug;
+                $info = $item->info ?? $label;
+                return [
+                    'slug' => $item->slug,
+                    'name' => $label,
+                    'description' => $info,
+                    'info' => $info,
+                    'value' => (bool) ($item->multiplier ?? 0),
+                ];
+            })
+            ->values();
 
         return Inertia::render('Admin/Settings/Index', [
             'settings' => $settings,
@@ -93,15 +46,6 @@ class LookupsController extends Controller
     {
         abort_if(Gate::denies('teams_access'), 403);
 
-        $validated = $request->validate([
-            'enable_pickup_dropoff' => 'boolean',
-            'auto_send_invoice_on_booking' => 'boolean',
-            'auto_send_quote_on_booking' => 'boolean',
-            'enable_assign_staff' => 'boolean',
-            'show_send_invoice_checkbox' => 'boolean',
-            'show_send_quote_checkbox' => 'boolean',
-        ]);
-
         $lookup = Lookup::firstOrCreate(
             ['slug' => 'settings'],
             ['name' => 'Settings', 'team_id' => null]
@@ -110,9 +54,13 @@ class LookupsController extends Controller
         $teamId = auth()->user()->team_id;
         $today = now()->toDateString();
 
-        foreach ($this->settingsDefinition() as $setting) {
-            $slug = $setting['slug'];
-            $value = (bool) ($validated[$slug] ?? $setting['default']);
+        $items = LookupItem::defaultsForTeam($teamId, $lookup->id);
+        $rules = $items->mapWithKeys(fn($item) => [$item->slug => 'boolean'])->all();
+        $validated = $request->validate($rules);
+
+        foreach ($items as $item) {
+            $slug = $item->slug;
+            $value = (bool) ($validated[$slug] ?? $item->multiplier ?? 0);
 
             LookupItem::updateOrCreate(
                 [
@@ -121,8 +69,8 @@ class LookupsController extends Controller
                     'team_id' => $teamId,
                 ],
                 [
-                    'name' => $setting['name'],
-                    'info' => $setting['info'] ?? $setting['description'],
+                    'name' => $item->name ?? $slug,
+                    'info' => $item->info ?? $item->name ?? $slug,
                     'rate' => null,
                     'multiplier' => $value ? 1 : 0,
                     'effective_from' => $today,

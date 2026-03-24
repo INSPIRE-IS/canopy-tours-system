@@ -7,7 +7,7 @@ import OutlineButton from "@/Components/OutlineButton";
 import BlueButton from "@/Components/BlueButton";
 
 
-const InventoryModal = ({ isOpen, onClose, mode, inventory = null, services, seasons, day__slots, auth, team }) => {
+const InventoryModal = ({ isOpen, onClose, mode, inventory = null, services, seasons, day__slots, auth, team, inventorySeasonIdsByService }) => {
     // console.log("mode", mode);
     console.log("inventory", inventory);
     console.log('inventory.time_slots', inventory?.time_slots);
@@ -53,15 +53,19 @@ const InventoryModal = ({ isOpen, onClose, mode, inventory = null, services, sea
         console.log('data.service_id', data.service_id);
         console.log('seasons', seasons);
         if (data.service_id) {
-            const filtered = seasons.filter(
-                (item) => item.service_id == data.service_id
-            );
+            const takenSeasonIds = inventorySeasonIdsByService?.[data.service_id] || [];
+            const currentSeasonId = inventory?.season_id || null;
+            const filtered = seasons.filter((item) => {
+                if (item.service_id != data.service_id) return false;
+                if (!takenSeasonIds.includes(item.id)) return true;
+                return item.id === currentSeasonId;
+            });
             console.log('filtered', filtered);
             setFilteredSeasons(filtered);
         } else {
             setFilteredSeasons([]);
         }
-    }, [data.service_id, seasons]);
+    }, [data.service_id, seasons, inventory, inventorySeasonIdsByService]);
 
     const handleChange = (target, value) => {
         setData(target, value);

@@ -6,6 +6,7 @@ use App\Models\Inventory;
 use Gate;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Response;
+use Illuminate\Validation\Rule;
 
 class UpdateInventoryRequest extends FormRequest
 {
@@ -24,6 +25,22 @@ class UpdateInventoryRequest extends FormRequest
      */
     public function rules(): array
     {
+        $teamId = auth()->user()->team_id;
+        $inventoryId = optional($this->route('inventory'))->id;
+        $seasonUniqueRule = Rule::unique('inventories', 'season_id')
+            ->ignore($inventoryId)
+            ->where(function ($query) use ($teamId) {
+                $query->whereNull('deleted_at');
+                if ($teamId === null) {
+                    $query->whereNull('team_id');
+                    return;
+                }
+                $query->where(function ($scoped) use ($teamId) {
+                    $scoped->where('team_id', $teamId)
+                        ->orWhereNull('team_id');
+                });
+            });
+
         return [
             'service_id' => [
                 'required',
@@ -32,6 +49,7 @@ class UpdateInventoryRequest extends FormRequest
             'season_id' => [
                 'required',
                 'integer',
+                $seasonUniqueRule,
             ],
             // 'day_slots.*' => [
             //     'integer',

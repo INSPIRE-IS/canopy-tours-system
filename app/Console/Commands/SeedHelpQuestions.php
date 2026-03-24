@@ -266,7 +266,7 @@ class SeedHelpQuestions extends Command
                 'question' => 'How do Date Overrides work?',
                 'description' => 'Date overrides replace the weekly schedule for specific dates without changing the base inventory.',
                 'where' => '<a href="/admin/inventory-slot-ranges">Admin > Inventory > Date Overrides</a>',
-                'business_rules' => 'Weekly schedule is the default. If a date override exists for a date, only those override slots are used for that date. Overrides can use custom times not present in weekly inventory. Internal-only overrides show on admin calendars only. Closeouts still apply after overrides.',
+                'business_rules' => 'Weekly schedule is the default. Custom/one-off slots must be created via Date Overrides, which take precedence over the weekly schedule for those dates. If a date override exists for a date, only those override slots are used for that date. Overrides can use custom times not present in weekly inventory. Internal-only overrides show on admin calendars only. Closeouts still apply after overrides.',
                 'examples' => 'Weekly schedule: Mon/Wed/Fri 09:00 + 13:00. Date override: May 5-7 with only 10:00. Result: May 5-7 shows only 10:00; all other Mon/Wed/Fri still show 09:00 + 13:00. If you mark the override internal-only, it appears in admin calendars but not on the front booking calendar.',
                 'is_internal' => true,
             ],

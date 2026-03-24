@@ -41,6 +41,11 @@ class InventoryController extends Controller
         // dd($inventories->items()[0]);
         $services = Service::select('name', 'id')->get();
         $seasons = Season::select('name', 'id', 'service_id')->get();
+        $inventorySeasonIdsByService = Inventory::select('service_id', 'season_id')
+            ->get()
+            ->groupBy('service_id')
+            ->map(fn($rows) => $rows->pluck('season_id')->unique()->values())
+            ->toArray();
         $day_slots = TypeDay::select('name', 'id')->get();
         //$time_slots = TypeTimeSlot::select('name', 'id')->get();
         //dd($services);
@@ -50,6 +55,7 @@ class InventoryController extends Controller
             'seasons' => $seasons,
             'inventories' => $inventories,
             'day_slots' => $day_slots,
+            'inventorySeasonIdsByService' => $inventorySeasonIdsByService,
             'searchTerm' => $searchTerm,
             'sortColumn' => $sortColumn,
             'sortDirection' => $sortDirection,
