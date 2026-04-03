@@ -3,9 +3,16 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Exports\Reports\BookingsReportExport;
+use App\Exports\Reports\PaymentsReportExport;
+use App\Jobs\SendReportReadyEmail;
+use App\Models\Service;
+use App\Models\TypePayment;
 use App\Models\BookingQuestionnaire;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Illuminate\Support\Facades\Storage;
+use Maatwebsite\Excel\Facades\Excel;
 
 class ReportsController extends Controller
 {
@@ -79,9 +86,71 @@ class ReportsController extends Controller
         //     Pricing Adjustment – the value of the pricing adjustment on that booking (discounts or promotions)
         //     Net Value – value after the pricing adjustment
 
+        $services = Service::select('id', 'name')->orderBy('name')->get();
+        $paymentTypes = TypePayment::select('id', 'name')->orderBy('name')->get();
+
         return Inertia::render('Admin/Reports/Index', [
             'title' => 'All',
+            'services' => $services,
+            'paymentTypes' => $paymentTypes,
         ]);
+    }
+
+    public function export(Request $request)
+    {
+        $validated = $request->validate([
+            'report' => 'required|in:bookings,payments',
+            'start_date' => 'nullable|date',
+            'end_date' => 'nullable|date',
+            'service_id' => 'nullable|exists:services,id',
+            'type_payment_id' => 'nullable|exists:type_payments,id',
+            'delivery' => 'nullable|in:download,email',
+        ]);
+
+        $teamId = auth()->user()->team_id;
+        $serviceId = $validated['service_id'] ?? null;
+        $startDate = $validated['start_date'] ?? null;
+        $endDate = $validated['end_date'] ?? null;
+
+        if ($validated['report'] === 'bookings') {
+            $export = new BookingsReportExport($teamId, $startDate, $endDate, $serviceId ? (int) $serviceId : null);
+            $label = 'Bookings';
+        } else {
+            $typePaymentId = $validated['type_payment_id'] ?? null;
+            $export = new PaymentsReportExport(
+                $teamId,
+                $startDate,
+                $endDate,
+                $serviceId ? (int) $serviceId : null,
+                $typePaymentId ? (int) $typePaymentId : null
+            );
+            $label = 'Payments';
+        }
+
+        $delivery = $validated['delivery'] ?? 'download';
+        $filename = strtolower($label) . '-report-' . now()->format('Ymd-His') . '.xlsx';
+
+        if ($delivery === 'email') {
+            $path = 'reports/' . $filename;
+            $disk = 'public';
+            $user = $request->user();
+            $downloadUrl = Storage::disk($disk)->url($path);
+
+            Excel::queue($export, $path, $disk)->chain([
+                new SendReportReadyEmail(
+                    $user->email,
+                    $user->name ?? $user->email,
+                    $downloadUrl,
+                    $label
+                ),
+            ]);
+
+            return response()->json([
+                'message' => 'Report queued. You will receive an email when it is ready.',
+            ]);
+        }
+
+        return Excel::download($export, $filename);
     }
 
     /**

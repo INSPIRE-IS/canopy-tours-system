@@ -26,7 +26,7 @@ class AuthServiceProvider extends ServiceProvider
     public function boot(): void
     {
         if (app()->environment(['local', 'staging', 'development'])) {
-            log::info('Mail is set to sandbox');
+            // log::info('Mail is set to sandbox');
             Mail::alwaysTo('sandbox@inspireonline.co.za'); // O@BczDAVgrz2{89e
         }
 

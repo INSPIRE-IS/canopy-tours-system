@@ -249,6 +249,7 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['auth', 'v
     Route::get('messenger/{topic}/showReply', [MessengerController::class, 'showReply'])->name('messenger.showReply');
 
     // reports
+    Route::match(['get', 'post'], 'reports/export', [ReportsController::class, 'export'])->name('reports.export');
     Route::resource('reports', ReportsController::class);
 
     // Help Questions
