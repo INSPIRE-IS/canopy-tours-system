@@ -1317,6 +1317,17 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
             return sum + (g.count * effectiveRate);
         }, 0);
     const total = Number(data.booking_total || 0);
+    const graduatedPromo = pricing?.applied_promotion?.type === 'graduated';
+    const promoTotal = Number(pricing?.total_price ?? data.booking_total ?? 0);
+    const promoAdjustmentTarget = graduatedPromo
+        ? (totalAdult > 0 ? 'adult' : totalChild > 0 ? 'child' : 'guide')
+        : null;
+    const displayAdjustment = graduatedPromo
+        ? Number((promoTotal - (totalAdult + totalChild + totalGuide)).toFixed(2))
+        : 0;
+    const displayTotalAdult = totalAdult + (graduatedPromo && promoAdjustmentTarget === 'adult' ? displayAdjustment : 0);
+    const displayTotalChild = totalChild + (graduatedPromo && promoAdjustmentTarget === 'child' ? displayAdjustment : 0);
+    const displayTotalGuide = totalGuide + (graduatedPromo && promoAdjustmentTarget === 'guide' ? displayAdjustment : 0);
 
     useEffect(() => {
         if (pricing) return;
@@ -1892,6 +1903,9 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                                 const baseRate = Number(group.final_rate ?? data?.rate_per_adult ?? 0);
                                                 const rate = invoiceDiscountPct && !group.discount_id ? (baseRate * invoiceMultiplier) : baseRate;
                                                 const amount = group.count * rate;
+                                                const adjustedAmount = (graduatedPromo && promoAdjustmentTarget === 'adult' && i === 0)
+                                                    ? amount + displayAdjustment
+                                                    : amount;
 
                                                 return (
                                                     <div key={i} className="mb-4 flex items-center justify-between gap-2">
@@ -1908,11 +1922,11 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                                         <input
                                                             type="text"
                                                             disabled='disabled'
-                                                            value={amount?.toFixed(2)}
+                                                            value={adjustedAmount?.toFixed(2)}
                                                             className={`mt-1 block w-full h-[34px] border-gray-300 shadow-sm text-booking-card-body rounded-xl
-                                                            hover:border-black  active:border-blue-600 
-                                                            focus:outline-none focus:ring-0 focus:border-black
-                                                            `}
+                                                        hover:border-black  active:border-blue-600 
+                                                        focus:outline-none focus:ring-0 focus:border-black
+                                                        `}
                                                         />
                                                     </div>
                                                 );
@@ -1928,7 +1942,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                         <input
                                             type="text"
                                             disabled='disabled'
-                                            value={totalAdult?.toFixed(2)}
+                                            value={displayTotalAdult?.toFixed(2)}
                                             className={`mt-1 block w-full h-[34px] border-gray-300 shadow-sm input-text rounded-xl
                                                 hover:border-black  active:border-blue-600 
                                                 focus:outline-none focus:ring-0 focus:border-black
@@ -1982,6 +1996,9 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                                 const baseRate = Number(group.final_rate ?? data?.rate_per_child ?? 0);
                                                 const rate = invoiceDiscountPct && !group.discount_id ? (baseRate * invoiceMultiplier) : baseRate;
                                                 const amount = group.count * rate;
+                                                const adjustedAmount = (graduatedPromo && promoAdjustmentTarget === 'child' && i === 0)
+                                                    ? amount + displayAdjustment
+                                                    : amount;
 
                                                 return (
                                                     <div key={i} className="mb-4 flex items-center justify-between gap-2">
@@ -1998,11 +2015,11 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                                         <input
                                                             type="text"
                                                             disabled='disabled'
-                                                            value={amount?.toFixed(2)}
+                                                            value={adjustedAmount?.toFixed(2)}
                                                             className={`mt-1 block w-full h-[34px] border-gray-300 shadow-sm text-booking-card-body rounded-xl
-                                                            hover:border-black  active:border-blue-600 
-                                                            focus:outline-none focus:ring-0 focus:border-black
-                                                            `}
+                                                        hover:border-black  active:border-blue-600 
+                                                        focus:outline-none focus:ring-0 focus:border-black
+                                                        `}
                                                         />
                                                     </div>
                                                 );
@@ -2018,7 +2035,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                         <input
                                             type="text"
                                             disabled='disabled'
-                                            value={totalChild?.toFixed(2)}
+                                            value={displayTotalChild?.toFixed(2)}
                                             className={`mt-1 block w-full h-[34px] border-gray-300 shadow-sm input-text rounded-xl
                                                 hover:border-black  active:border-blue-600 
                                                 focus:outline-none focus:ring-0 focus:border-black
@@ -2072,6 +2089,9 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                                 const baseRate = Number(group.final_rate ?? data?.rate_per_guide ?? 0);
                                                 const rate = invoiceDiscountPct && !group.discount_id ? (baseRate * invoiceMultiplier) : baseRate;
                                                 const amount = group.count * rate;
+                                                const adjustedAmount = (graduatedPromo && promoAdjustmentTarget === 'guide' && i === 0)
+                                                    ? amount + displayAdjustment
+                                                    : amount;
 
                                                 return (
                                                     <div key={i} className="mb-4 flex items-center justify-between gap-2">
@@ -2088,11 +2108,11 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                                         <input
                                                             type="text"
                                                             disabled='disabled'
-                                                            value={amount?.toFixed(2)}
+                                                            value={adjustedAmount?.toFixed(2)}
                                                             className={`mt-1 block w-full h-[34px] border-gray-300 shadow-sm text-booking-card-body rounded-xl
-                                                            hover:border-black  active:border-blue-600 
-                                                            focus:outline-none focus:ring-0 focus:border-black
-                                                            `}
+                                                        hover:border-black  active:border-blue-600 
+                                                        focus:outline-none focus:ring-0 focus:border-black
+                                                        `}
                                                         />
                                                     </div>
                                                 );
@@ -2108,7 +2128,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                         <input
                                             type="text"
                                             disabled='disabled'
-                                            value={totalGuide?.toFixed(2)}
+                                            value={displayTotalGuide?.toFixed(2)}
                                             className={`mt-1 block w-full h-[34px] border-gray-300 shadow-sm input-text rounded-xl
                                                 hover:border-black  active:border-blue-600 
                                                 focus:outline-none focus:ring-0 focus:border-black

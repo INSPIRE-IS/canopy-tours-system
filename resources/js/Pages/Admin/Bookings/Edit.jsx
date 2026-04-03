@@ -29,7 +29,7 @@ const PRICING_MODES = {
     OVERRIDE: 'OVERRIDE',
 };
 
-export default function Dashboard({ auth, wholesalers = [], services = [], booking, booking_items, schedule, start_date, view_mode, days, type_affiliates, vouchers, discounts, wholesaler_rates, promos, lookups, countries = [], settings = {} }) {
+export default function Dashboard({ auth, wholesalers = [], services = [], booking, booking_items, schedule, start_date, view_mode, days, type_affiliates, vouchers, discounts, wholesaler_rates, promos, lookups, countries = [], settings = {}, note_defaults = {} }) {
     //seasons = [],, adults, children, guides
     console.log('---------------auth----create------------ ', auth);
     console.log('---------------auth----vouchers------------ ', vouchers);
@@ -95,6 +95,8 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
     const canOverrideRates = !!selectedSeason?.allow_internal_price_override;
     const canOverrideTimeSlots = !!selectedSeason?.inventory?.allow_internal_override;
     const hasSlotInteractionRef = useRef(false);
+    const prevIsWholesalerRef = useRef(null);
+    const initialPromoCodeRef = useRef(null);
     const skipServiceResetRef = useRef(true);
     const skipBookingDateResetRef = useRef(true);
     const initialServiceIdRef = useRef(null);
@@ -146,9 +148,9 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
         redeem_voucher: '',
         redeem_discount: '',
         redeem_wholesaler_rate: '',
-        invoice_note: '',
-        email_reminder: '',
-        booking_note: '',
+            invoice_note: note_defaults?.invoice_note || '',
+            email_reminder: note_defaults?.email_reminder || '',
+            booking_note: note_defaults?.booking_note || '',
         // booking details
         corporate_customer: false,
         send_sms: false,
@@ -389,6 +391,9 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
         const booking_date = data.booking_date ? data.booking_date : (alert('Please select a date'));
         const promo_code = type === 'promo' ? (promoCode || null) : null;
         const pax_groups = paxGroupsOverride || paxGroups || (alert('Please select a pax group'));
+        const shouldUsePromotionId = type === 'promo'
+            && promotionId
+            && (!promoCode || promoCode === initialPromoCodeRef.current);
         if (!selectedService || !selectedSeason || !data.booking_date || !data.start_time) return;
         if ((Number(data.adults || 0) + Number(data.children || 0)) < 1) return;
 
@@ -406,6 +411,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
                 wholesaler_id: wholesaler_id,
                 booking_date: booking_date,
                 promo_code: promo_code,
+                promotion_id: shouldUsePromotionId ? promotionId : null,
                 pax_groups: pax_groups,
                 invoice_discount_id: type === 'discount' ? invoiceDiscountId : null,
             };
@@ -464,8 +470,9 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
         if (!selectedService || !selectedSeason || !data.booking_date || !data.start_time) return;
         if ((Number(data.adults || 0) + Number(data.children || 0)) < 1) return;
 
-        if (promoCode) {
-            const key = `promo|${promoCode}|${data.adults}|${data.children}|${data.guides}|${data.booking_date}|${data.start_time}`;
+        if (promoCode || promotionId) {
+            const promoKey = promoCode || promotionId;
+            const key = `promo|${promoKey}|${data.adults}|${data.children}|${data.guides}|${data.booking_date}|${data.start_time}`;
             if (lastPricingKeyRef.current !== key) {
                 lastPricingKeyRef.current = key;
                 const promoGroups = buildBasePaxGroups(
@@ -535,7 +542,10 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
         console.log('selectedWholesaler, data.is_wholesaler 391', wholesaler_rates);
         console.log('selectedWholesaler, data.is_wholesaler 391', data.wholesaler_id);
         console.log('selectedWholesaler, data.is_wholesaler 391', data.is_wholesaler);
-        if (isInitializing) return;
+        if (isInitializing) {
+            prevIsWholesalerRef.current = data.is_wholesaler;
+            return;
+        }
         if (data.wholesaler_id && data.is_wholesaler && wholesalerApplied) {
             //setPricingMode(PRICING_MODES.WHOLESALER);
             //resetPricingState('wholesaler');
@@ -562,17 +572,19 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
             });
             setWholesalerRateList(wholesalerList);
         }
+        const wasWholesaler = prevIsWholesalerRef.current;
         if (!data.is_wholesaler) {
             setWholesalerRateList([]);
-            setWholesalerApplied(false);
-            setData(prev => ({
-                ...prev,
-                wholesaler_id: null,
-                discount_lines: [],
-                promoCode: null,
-                redeem_voucher: null,
-            }));
+            if (wasWholesaler) {
+                setWholesalerApplied(false);
+                setData(prev => ({
+                    ...prev,
+                    wholesaler_id: null,
+                }));
+                resetPromoDiscountAndRates();
+            }
         }
+        prevIsWholesalerRef.current = data.is_wholesaler;
 
     }, [data.wholesaler_id, data.is_wholesaler, wholesalerApplied, isInitializing]);
 
@@ -1116,12 +1128,13 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
         const leadMobile = leadCustomer?.contact_number || booking?.customer?.contact_number || '';
         const isWholesaler = !!bookingItem?.wholesaler_id || !!bookingDetail?.is_wholesaler_booking;
         const promo = bookingItem?.promotion_id
-            ? promos.find(p => p.id === bookingItem.promotion_id)
+            ? promos.find(p => Number(p.id) === Number(bookingItem.promotion_id))
             : null;
-        const promoCodeValue = promo?.promo_code || null;
+        const promoCodeValue = promo?.promo_code || bookingItem?.promotion?.promo_code || null;
 
         setPromoCode(promoCodeValue);
         setPromotionId(bookingItem?.promotion_id || null);
+        initialPromoCodeRef.current = promoCodeValue;
         setData(prev => ({
             ...prev,
             is_wholesaler: isWholesaler,
@@ -1151,9 +1164,9 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
             needs_pickup: !!bookingDetail?.is_needs_pickup,
             exclusive_resource: !!bookingDetail?.is_exclusive_resource_use,
             booking_total: Number(bookingFee?.tot_amount || 0),
-            invoice_note: '',
-            email_reminder: '',
-            booking_note: '',
+            invoice_note: note_defaults?.invoice_note || '',
+            email_reminder: note_defaults?.email_reminder || '',
+            booking_note: note_defaults?.booking_note || '',
             redeem_voucher: bookingFee?.voucher_code || '',
             corporate_customer: !!booking?.is_corporate,
             send_sms: !!booking?.is_sms,
@@ -1161,6 +1174,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
             lead_email: leadEmail,
             lead_mobile: leadMobile,
             nationality_id: leadCustomer?.nationality_id || '',
+            referral_source: bookingDetail?.referral_source_id || '',
             promoCode: promoCodeValue,
             override_rates: hasOverrideRates,
             override_reason: inventoryOverride?.note || '',
@@ -1509,6 +1523,17 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
             return sum + (g.count * effectiveRate);
         }, 0);
     const total = Number(data.booking_total || 0);
+    const graduatedPromo = pricing?.applied_promotion?.type === 'graduated';
+    const promoTotal = Number(pricing?.total_price ?? data.booking_total ?? 0);
+    const promoAdjustmentTarget = graduatedPromo
+        ? (totalAdult > 0 ? 'adult' : totalChild > 0 ? 'child' : 'guide')
+        : null;
+    const displayAdjustment = graduatedPromo
+        ? Number((promoTotal - (totalAdult + totalChild + totalGuide)).toFixed(2))
+        : 0;
+    const displayTotalAdult = totalAdult + (graduatedPromo && promoAdjustmentTarget === 'adult' ? displayAdjustment : 0);
+    const displayTotalChild = totalChild + (graduatedPromo && promoAdjustmentTarget === 'child' ? displayAdjustment : 0);
+    const displayTotalGuide = totalGuide + (graduatedPromo && promoAdjustmentTarget === 'guide' ? displayAdjustment : 0);
 
     useEffect(() => {
         if (pricing) return;
@@ -2081,6 +2106,9 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
                                                 const baseRate = Number(group.final_rate ?? data?.rate_per_adult ?? 0);
                                                 const rate = invoiceDiscountPct && !group.discount_id ? (baseRate * invoiceMultiplier) : baseRate;
                                                 const amount = group.count * rate;
+                                                const adjustedAmount = (graduatedPromo && promoAdjustmentTarget === 'adult' && i === 0)
+                                                    ? amount + displayAdjustment
+                                                    : amount;
 
                                                 return (
                                                     <div key={i} className="mb-4 flex items-center justify-between gap-2">
@@ -2097,11 +2125,11 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
                                                         <input
                                                             type="text"
                                                             disabled='disabled'
-                                                            value={amount?.toFixed(2)}
+                                                            value={adjustedAmount?.toFixed(2)}
                                                             className={`mt-1 block w-full h-[34px] border-gray-300 shadow-sm text-booking-card-body rounded-xl
-                                                            hover:border-black  active:border-blue-600 
-                                                            focus:outline-none focus:ring-0 focus:border-black
-                                                            `}
+                                                        hover:border-black  active:border-blue-600 
+                                                        focus:outline-none focus:ring-0 focus:border-black
+                                                        `}
                                                         />
                                                     </div>
                                                 );
@@ -2117,7 +2145,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
                                         <input
                                             type="text"
                                             disabled='disabled'
-                                            value={totalAdult?.toFixed(2)}
+                                            value={displayTotalAdult?.toFixed(2)}
                                             className={`mt-1 block w-full h-[34px] border-gray-300 shadow-sm input-text rounded-xl
                                                 hover:border-black  active:border-blue-600 
                                                 focus:outline-none focus:ring-0 focus:border-black
@@ -2171,6 +2199,9 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
                                                 const baseRate = Number(group.final_rate ?? data?.rate_per_child ?? 0);
                                                 const rate = invoiceDiscountPct && !group.discount_id ? (baseRate * invoiceMultiplier) : baseRate;
                                                 const amount = group.count * rate;
+                                                const adjustedAmount = (graduatedPromo && promoAdjustmentTarget === 'child' && i === 0)
+                                                    ? amount + displayAdjustment
+                                                    : amount;
 
                                                 return (
                                                     <div key={i} className="mb-4 flex items-center justify-between gap-2">
@@ -2187,11 +2218,11 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
                                                         <input
                                                             type="text"
                                                             disabled='disabled'
-                                                            value={amount?.toFixed(2)}
+                                                            value={adjustedAmount?.toFixed(2)}
                                                             className={`mt-1 block w-full h-[34px] border-gray-300 shadow-sm text-booking-card-body rounded-xl
-                                                            hover:border-black  active:border-blue-600 
-                                                            focus:outline-none focus:ring-0 focus:border-black
-                                                            `}
+                                                        hover:border-black  active:border-blue-600 
+                                                        focus:outline-none focus:ring-0 focus:border-black
+                                                        `}
                                                         />
                                                     </div>
                                                 );
@@ -2207,7 +2238,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
                                         <input
                                             type="text"
                                             disabled='disabled'
-                                            value={totalChild?.toFixed(2)}
+                                            value={displayTotalChild?.toFixed(2)}
                                             className={`mt-1 block w-full h-[34px] border-gray-300 shadow-sm input-text rounded-xl
                                                 hover:border-black  active:border-blue-600 
                                                 focus:outline-none focus:ring-0 focus:border-black
@@ -2261,6 +2292,9 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
                                                 const baseRate = Number(group.final_rate ?? data?.rate_per_guide ?? 0);
                                                 const rate = invoiceDiscountPct && !group.discount_id ? (baseRate * invoiceMultiplier) : baseRate;
                                                 const amount = group.count * rate;
+                                                const adjustedAmount = (graduatedPromo && promoAdjustmentTarget === 'guide' && i === 0)
+                                                    ? amount + displayAdjustment
+                                                    : amount;
 
                                                 return (
                                                     <div key={i} className="mb-4 flex items-center justify-between gap-2">
@@ -2277,11 +2311,11 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
                                                         <input
                                                             type="text"
                                                             disabled='disabled'
-                                                            value={amount?.toFixed(2)}
+                                                            value={adjustedAmount?.toFixed(2)}
                                                             className={`mt-1 block w-full h-[34px] border-gray-300 shadow-sm text-booking-card-body rounded-xl
-                                                            hover:border-black  active:border-blue-600 
-                                                            focus:outline-none focus:ring-0 focus:border-black
-                                                            `}
+                                                        hover:border-black  active:border-blue-600 
+                                                        focus:outline-none focus:ring-0 focus:border-black
+                                                        `}
                                                         />
                                                     </div>
                                                 );
@@ -2297,7 +2331,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
                                         <input
                                             type="text"
                                             disabled='disabled'
-                                            value={totalGuide?.toFixed(2)}
+                                            value={displayTotalGuide?.toFixed(2)}
                                             className={`mt-1 block w-full h-[34px] border-gray-300 shadow-sm input-text rounded-xl
                                                 hover:border-black  active:border-blue-600 
                                                 focus:outline-none focus:ring-0 focus:border-black

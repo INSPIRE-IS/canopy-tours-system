@@ -414,6 +414,7 @@ class BookingsController extends Controller
             'lead_email' => 'required|email', //   "lead_email" => "Lead Email"
             'lead_mobile' => 'required|string', //   "lead_mobile" => "Lead Mobile"
             'nationality_id' => 'nullable|exists:countries,id',
+            'referral_source' => 'nullable|exists:type_referrals,id',
             'selected_slot' => 'required|array', //   "selected_slot" => array:3 [â–¶] date "2025-07-28" "selected_slot" => array:3 [â–¶] time "08:00:00"
 
             'service_id' => 'required|integer', //   "season_id" => "2"
@@ -442,9 +443,9 @@ class BookingsController extends Controller
             'adults' => 'required|integer|min:0', //   "adults" => "1"
             'children' => 'nullable|integer|min:0', //   "children" => "2"      
             'guides' => 'nullable|integer|min:0', //   "guides" => "2"
-            'adult' => 'integer|nullable',
-            'child' => 'integer|nullable',
-            'guide' => 'integer|nullable',
+            'adult' => 'numeric|nullable',
+            'child' => 'numeric|nullable',
+            'guide' => 'numeric|nullable',
             'rate_per_adult' => 'numeric|nullable',
             'rate_per_child' => 'numeric|nullable',
             'rate_per_guide' => 'numeric|nullable',
@@ -645,6 +646,7 @@ class BookingsController extends Controller
                     'is_exclusive_resource_use' => $validated['exclusive_resource'],
                     'is_override_capacity' => $validated['override_capacity'] ?? false,
                     'is_override_time_slots' => $validated['override_timeslots'],
+                    'referral_source_id' => $validated['referral_source'] ?? null,
                     'team_id'        => auth()->user()->team_id,
                 ]);
 
@@ -1071,6 +1073,7 @@ class BookingsController extends Controller
             'service',
             'season',
             'inventory',
+            'promotion',
             'customers', // :id,name,email,contact_number
             'customer_manifests.customer.booking_questionnaire', // :id,position,notes,is_indemnity,customer_id,booking_id\
             'booking_infos', // :id,booking_id,type_location_id,location,time,created_at,updated_at,deleted_at
@@ -1082,6 +1085,18 @@ class BookingsController extends Controller
             'booking_staff', // :id,booking_id,user_id
             'booking_staff.user', // :id,name,email,contact_number
         ])->where('booking_id', $booking->id)->first();
+
+        $noteDefaults = [];
+        if ($booking_items) {
+            $noteDefaults = BookingNote::where('booking_id', $booking->id)
+                ->where('booking_item_id', $booking_items->id)
+                ->whereIn('type', ['invoice_note', 'email_reminder', 'booking_note'])
+                ->orderByDesc('created_at')
+                ->get()
+                ->groupBy('type')
+                ->map(fn($notes) => $notes->first()?->note)
+                ->toArray();
+        }
 
         $users = User::select('name', 'id')->get();
         $today = now()->toDateString();
@@ -1135,7 +1150,9 @@ class BookingsController extends Controller
 
         $vouchers = Voucher::select('id', 'voucher_code as name', 'amount', 'note', 'expire_date', 'season_id', 'service_id')->with('season', 'service')->get();
         $discounts = Discount::select('id', 'name', 'applies_to', 'percent_off')->with('services')->get();
-        $wholesaler_rates = WholesalerRate::select('id', 'wholesaler_id', 'season_id', 'price_adult', 'price_child', 'price_guide')->with('season', 'wholesaler')->get();
+        $wholesaler_rates = WholesalerRate::select('id', 'wholesaler_id', 'service_id', 'season_id', 'price_adult', 'price_child', 'price_guide')
+            ->with('service', 'season', 'wholesaler')
+            ->get();
         $promos = Promotion::select('id', 'name', 'promo_code', 'type', 'value', 'service_id', 'booking_start_date', 'booking_end_date', 'activity_start_date', 'activity_end_date')
             ->with('service')
             ->get();
@@ -1177,6 +1194,7 @@ class BookingsController extends Controller
             'lookups' => $lookups,
             'settings' => $settings,
             'countries' => $countries,
+            'note_defaults' => $noteDefaults,
         ]);
 
 
@@ -1209,6 +1227,7 @@ class BookingsController extends Controller
             'lead_email' => 'required|email',
             'lead_mobile' => 'required|string',
             'nationality_id' => 'nullable|exists:countries,id',
+            'referral_source' => 'nullable|exists:type_referrals,id',
             'selected_slot' => 'required|array',
 
             'service_id' => 'required|integer',
@@ -1237,9 +1256,9 @@ class BookingsController extends Controller
             'adults' => 'required|integer|min:0',
             'children' => 'nullable|integer|min:0',
             'guides' => 'nullable|integer|min:0',
-            'adult' => 'integer|nullable',
-            'child' => 'integer|nullable',
-            'guide' => 'integer|nullable',
+            'adult' => 'numeric|nullable',
+            'child' => 'numeric|nullable',
+            'guide' => 'numeric|nullable',
             'rate_per_adult' => 'numeric|nullable',
             'rate_per_child' => 'numeric|nullable',
             'rate_per_guide' => 'numeric|nullable',
@@ -1440,6 +1459,7 @@ class BookingsController extends Controller
                     'is_exclusive_resource_use' => $validated['exclusive_resource'],
                     'is_override_capacity' => $validated['override_capacity'] ?? false,
                     'is_override_time_slots' => $validated['override_timeslots'],
+                    'referral_source_id' => $validated['referral_source'] ?? null,
                     'team_id' => auth()->user()->team_id,
                 ];
                 if ($bookingItem->booking_detail) {
@@ -2551,6 +2571,14 @@ class BookingsController extends Controller
             if ($note === '') {
                 continue;
             }
+            $existing = BookingNote::where('booking_id', $booking->id)
+                ->where('booking_item_id', $bookingItem->id)
+                ->where('type', $type)
+                ->orderByDesc('created_at')
+                ->first();
+            if ($existing && trim((string) $existing->note) === $note) {
+                continue;
+            }
 
             BookingNote::create([
                 'booking_id' => $booking->id,
@@ -3355,6 +3383,7 @@ class BookingsController extends Controller
             'season_id'    => 'required|exists:seasons,id',
             'wholesaler_id' => 'nullable|exists:wholesalers,id',
             'promo_code'   => 'nullable|string',
+            'promotion_id' => 'nullable|exists:promotions,id',
             'invoice_discount_id' => 'nullable|exists:discounts,id',
             'pax_groups'   => 'required|array|min:1',
             'pax_groups.*.type' => 'required|in:adult,child,guide',
@@ -3400,10 +3429,12 @@ class BookingsController extends Controller
             $appliedPromo = null;
             $appliedDiscounts = [];
             $total = 0.0;
+            $forcedTotal = null;
 
             // Enforce exclusivity: wholesaler cannot combine with promo/discounts
             if (!empty($data['wholesaler_id'])) {
                 $data['promo_code'] = null;
+                $data['promotion_id'] = null;
                 $data['invoice_discount_id'] = null;
                 $data['pax_groups'] = array_map(function ($g) {
                     $g['discount_id'] = null;
@@ -3411,7 +3442,7 @@ class BookingsController extends Controller
                 }, $data['pax_groups']);
             }
             // Enforce exclusivity: promo cannot combine with discounts
-            if (!empty($data['promo_code'])) {
+            if (!empty($data['promo_code']) || !empty($data['promotion_id'])) {
                 $data['invoice_discount_id'] = null;
                 $data['pax_groups'] = array_map(function ($g) {
                     $g['discount_id'] = null;
@@ -3427,7 +3458,7 @@ class BookingsController extends Controller
             }
 
             // Step 3: Check if promotion is applied (mutually exclusive with discounts)
-            if (!empty($data['promo_code'])) {
+            if (!empty($data['promo_code']) || !empty($data['promotion_id'])) {
                 // $promo = Promotion::where('promo_code', $data['promo_code'])
                 //     ->where('service_id', $data['service_id'])
                 //     ->whereDate('booking_start_date', '<=', $data['booking_date'])
@@ -3448,15 +3479,29 @@ class BookingsController extends Controller
                 $today = now()->toDateString();
                 $activityDate = $data['booking_date'];
 
-                $promo = Promotion::where('promo_code', $data['promo_code'])
-                    ->where('service_id', $data['service_id'])
-                    // Booking period check (today is when booking is made)
-                    ->whereDate('booking_start_date', '<=', $today)
-                    ->whereDate('booking_end_date', '>=', $today)
-                    // Activity period check (customer’s chosen date)
-                    ->whereDate('activity_start_date', '<=', $activityDate)
-                    ->whereDate('activity_end_date', '>=', $activityDate)
-                    ->first();
+                $promo = null;
+                if (!empty($data['promotion_id'])) {
+                    $promo = Promotion::where('id', $data['promotion_id'])
+                        ->where('service_id', $data['service_id'])
+                        ->first();
+                    if ($promo && $promo->activity_start_date && $promo->activity_end_date) {
+                        if ($activityDate < $promo->activity_start_date || $activityDate > $promo->activity_end_date) {
+                            $promo = null;
+                        }
+                    }
+                }
+
+                if (!$promo) {
+                    $promo = Promotion::where('promo_code', $data['promo_code'])
+                        ->where('service_id', $data['service_id'])
+                        // Booking period check (today is when booking is made)
+                        ->whereDate('booking_start_date', '<=', $today)
+                        ->whereDate('booking_end_date', '>=', $today)
+                        // Activity period check (customer’s chosen date)
+                        ->whereDate('activity_start_date', '<=', $activityDate)
+                        ->whereDate('activity_end_date', '>=', $activityDate)
+                        ->first();
+                }
                 if ($promo) {
                     logger()->info('promo ' . $promo->id);
                     $appliedPromo = [
@@ -3562,6 +3607,7 @@ class BookingsController extends Controller
 
                             if ($paxRate !== null) {
                                 $applyBookingTotal($paxRate);
+                                $forcedTotal = (float) $paxRate;
                                 logger()->info('graduated promo applied (booking total) ' . var_export($rates, true));
                             }
                             // If there’s no exact lookup, fall through to normal per-pax multiplication.
@@ -3669,6 +3715,9 @@ class BookingsController extends Controller
                         'final_rate'  => null,
                     ];
                 }
+            }
+            if ($forcedTotal !== null) {
+                $total = round($forcedTotal, 2);
             }
 
             $formatRates = fn(array $values) => array_map(

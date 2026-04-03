@@ -25,6 +25,7 @@ class BookingDetail extends Model
         'booking_item_id',
         'service_id',
         'season_id',
+        'referral_source_id',
         'is_wholesaler_booking',
         'is_needs_pickup',
         'is_web_booking',
