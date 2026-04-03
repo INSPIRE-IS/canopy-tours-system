@@ -23,7 +23,7 @@ class BookingsReportExport implements FromQuery, WithHeadings, WithMapping, Shou
 
     public function query(): Builder
     {
-        $query = BookingItem::query()
+        $query = BookingItem::withTrashed()
             ->select('booking_items.*')
             ->addSelect([
                 'latest_booking_note' => BookingNote::select('note')
@@ -34,11 +34,19 @@ class BookingsReportExport implements FromQuery, WithHeadings, WithMapping, Shou
                     ->limit(1),
             ])
             ->with([
-                'booking:id,reference,lead_name,user_id,type_booking_id,created_at',
+                'booking' => function ($query) {
+                    $query->withTrashed()
+                        ->select('id', 'reference', 'lead_name', 'user_id', 'created_at', 'deleted_at');
+                },
                 'booking.user:id,name',
-                'booking.type_booking:id,name',
-                'booking_detail:id,booking_item_id,is_web_booking',
-                'booking_fee:id,booking_item_id,tot_amount,tot_paid',
+                'booking_detail' => function ($query) {
+                    $query->withTrashed()
+                        ->select('id', 'booking_item_id', 'is_web_booking', 'deleted_at');
+                },
+                'booking_fee' => function ($query) {
+                    $query->withTrashed()
+                        ->select('id', 'booking_item_id', 'tot_amount', 'tot_paid', 'deleted_at');
+                },
                 'booking_inventory:id,booking_item_id,date',
                 'service:id,name',
             ])
@@ -90,10 +98,11 @@ class BookingsReportExport implements FromQuery, WithHeadings, WithMapping, Shou
         $amountPaid = (float) ($fee?->tot_paid ?? 0);
         $fullyPaid = $totalAmount > 0 && $amountPaid >= $totalAmount ? 'Yes' : 'No';
         $source = $bookingItem->booking_detail?->is_web_booking ? 'Web' : 'Manual';
+        $bookingStatus = ($bookingItem->booking?->deleted_at || $bookingItem->deleted_at) ? 'Cancelled' : 'Active';
 
         return [
             $bookingItem->booking?->reference ?? '',
-            $bookingItem->booking?->type_booking?->name ?? '',
+            $bookingStatus,
             $source,
             $bookingItem->booking?->lead_name ?? '',
             optional($bookingItem->booking?->created_at)?->format('Y-m-d') ?? '',

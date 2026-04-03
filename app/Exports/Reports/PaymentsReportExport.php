@@ -26,11 +26,18 @@ class PaymentsReportExport implements FromQuery, WithHeadings, WithMapping, Shou
         $query = BookingPayment::query()
             ->select('booking_payments.*')
             ->with([
-                'booking:id,reference,lead_name,type_booking_id,created_at,grand_tot_due,tot_paid',
-                'booking.type_booking:id,name',
+                'booking' => function ($query) {
+                    $query->withTrashed()
+                        ->select('id', 'reference', 'lead_name', 'created_at', 'grand_tot_due', 'tot_paid', 'deleted_at');
+                },
+                'booking.booking_items' => function ($query) {
+                    $query->withTrashed()->select('id', 'booking_id', 'service_id');
+                },
                 'booking.booking_items.service:id,name',
                 'booking.booking_items.booking_inventory:id,booking_item_id,date',
-                'booking.booking_items.booking_detail:id,booking_item_id,is_web_booking',
+                'booking.booking_items.booking_detail' => function ($query) {
+                    $query->withTrashed()->select('id', 'booking_item_id', 'is_web_booking', 'deleted_at');
+                },
                 'type_payment:id,name',
             ])
             ->where('team_id', $this->teamId);
@@ -99,9 +106,11 @@ class PaymentsReportExport implements FromQuery, WithHeadings, WithMapping, Shou
             $totalAmount = $exVat + $vatAmount;
         }
 
+        $bookingStatus = $booking?->deleted_at ? 'Cancelled' : 'Active';
+
         return [
             $booking?->reference ?? '',
-            $booking?->type_booking?->name ?? '',
+            $bookingStatus,
             $source,
             $booking?->lead_name ?? '',
             optional($booking?->created_at)?->format('Y-m-d') ?? '',
