@@ -598,8 +598,8 @@ class SeedHelpQuestions extends Command
                 'question' => 'Which reports are available right now?',
                 'description' => 'Operational exports available to staff.',
                 'where' => '<a href="/admin/reports">Admin > Reports</a>',
-                'business_rules' => 'Currently available reports are Bookings and Payments exports. Additional reports (Check-in/Manifest and Booking Adjustment) are planned but not yet implemented.',
-                'examples' => 'Use Bookings to export pax and totals by activity date. Use Payments to export payment transactions by payment date.',
+                'business_rules' => 'Currently available reports are Bookings, Payments, Check-in/Manifest, and Booking Adjustment exports. All reports are team-scoped and support download or queued email delivery.',
+                'examples' => 'Use Bookings to export pax and totals by activity date. Use Payments to export payment transactions by payment date. Use Check-in/Manifest to export guest check-in status and optional manifest fields. Use Booking Adjustment to compare rack totals vs adjusted totals.',
                 'is_internal' => true,
             ],
             [
@@ -609,6 +609,15 @@ class SeedHelpQuestions extends Command
                 'where' => '<a href="/admin/reports">Admin > Reports</a>',
                 'business_rules' => 'The export includes stored `ex_vat_amount` and `vat_amount` values. Some admin payment flows store an inflated `vat_amount` (ex_vat_amount * vat), so the report total falls back to `ex_vat_amount` when `vat_amount` is larger than `ex_vat_amount`. Front/simulated payments store VAT as a portion, so total = ex_vat_amount + vat_amount in those cases.',
                 'examples' => 'If ex_vat_amount is 2505.00 and vat_amount is 941253.75, the report total will use 2505.00. If ex_vat_amount is 1000.00 and vat_amount is 150.00, the report total will be 1150.00.',
+                'is_internal' => true,
+            ],
+            [
+                'category' => 'Reports',
+                'question' => 'How do the Check-in/Manifest optional fields work?',
+                'description' => 'Optional columns for group type, nationality, and meal choice.',
+                'where' => '<a href="/admin/reports">Admin > Reports</a>',
+                'business_rules' => 'The optional columns pull from questionnaire answers by slug: `type_group_id` for Group Type, `country_id`/`nationality_id` for Nationality (fallback to customer nationality if missing), and `lunch_option` for Meal. If a value is missing, the column is left blank. Checked-in is based on indemnity completion; Arrived is based on attendance status.',
+                'examples' => 'If a guest never completed the questionnaire, Group Type and Meal will be blank. If they completed check-in but were marked No Show, Checked-in = Yes and Arrived = No.',
                 'is_internal' => true,
             ],
             [

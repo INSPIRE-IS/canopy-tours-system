@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Exports\Reports\BookingsReportExport;
+use App\Exports\Reports\BookingAdjustmentReportExport;
+use App\Exports\Reports\CheckInManifestReportExport;
 use App\Exports\Reports\PaymentsReportExport;
 use App\Jobs\SendReportReadyEmail;
 use App\Models\Service;
@@ -99,11 +101,14 @@ class ReportsController extends Controller
     public function export(Request $request)
     {
         $validated = $request->validate([
-            'report' => 'required|in:bookings,payments',
+            'report' => 'required|in:bookings,payments,checkin_manifest,booking_adjustment',
             'start_date' => 'nullable|date',
             'end_date' => 'nullable|date',
             'service_id' => 'nullable|exists:services,id',
             'type_payment_id' => 'nullable|exists:type_payments,id',
+            'include_group_type' => 'nullable|in:0,1,true,false',
+            'include_nationality' => 'nullable|in:0,1,true,false',
+            'include_meal' => 'nullable|in:0,1,true,false',
             'delivery' => 'nullable|in:download,email',
         ]);
 
@@ -111,11 +116,14 @@ class ReportsController extends Controller
         $serviceId = $validated['service_id'] ?? null;
         $startDate = $validated['start_date'] ?? null;
         $endDate = $validated['end_date'] ?? null;
+        $includeGroupType = filter_var($validated['include_group_type'] ?? false, FILTER_VALIDATE_BOOLEAN);
+        $includeNationality = filter_var($validated['include_nationality'] ?? false, FILTER_VALIDATE_BOOLEAN);
+        $includeMeal = filter_var($validated['include_meal'] ?? false, FILTER_VALIDATE_BOOLEAN);
 
         if ($validated['report'] === 'bookings') {
             $export = new BookingsReportExport($teamId, $startDate, $endDate, $serviceId ? (int) $serviceId : null);
             $label = 'Bookings';
-        } else {
+        } elseif ($validated['report'] === 'payments') {
             $typePaymentId = $validated['type_payment_id'] ?? null;
             $export = new PaymentsReportExport(
                 $teamId,
@@ -125,6 +133,25 @@ class ReportsController extends Controller
                 $typePaymentId ? (int) $typePaymentId : null
             );
             $label = 'Payments';
+        } elseif ($validated['report'] === 'checkin_manifest') {
+            $export = new CheckInManifestReportExport(
+                $teamId,
+                $startDate,
+                $endDate,
+                $serviceId ? (int) $serviceId : null,
+                $includeGroupType,
+                $includeNationality,
+                $includeMeal
+            );
+            $label = 'Check-in Manifest';
+        } else {
+            $export = new BookingAdjustmentReportExport(
+                $teamId,
+                $startDate,
+                $endDate,
+                $serviceId ? (int) $serviceId : null
+            );
+            $label = 'Booking Adjustment';
         }
 
         $delivery = $validated['delivery'] ?? 'download';
