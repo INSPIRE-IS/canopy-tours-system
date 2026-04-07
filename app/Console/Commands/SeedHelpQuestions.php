@@ -707,6 +707,15 @@ class SeedHelpQuestions extends Command
                 'examples' => 'If Auto Send Invoice is OFF and Show Send Invoice Checkbox is ON, staff will see a checkbox and can choose to send. If Auto Send Invoice is ON and Show Send Invoice Checkbox is OFF, invoices always send automatically.',
                 'is_internal' => true,
             ],
+            [
+                'category' => 'System / Settings',
+                'question' => 'How are booking settings stored and applied?',
+                'description' => 'Settings are stored as lookup items per team.',
+                'where' => 'Admin > Settings and booking create/edit/add',
+                'business_rules' => 'Settings use `lookup_items.value` (boolean) under the `settings` lookup. Booking Create/Edit reads the settings map via `LookupItem::settingsForTeam()` for UI toggles, and BookingsController uses it for auto‑send invoice/quote logic. Use `php artisan settings:backfill` to create missing rows (note: backfill resets values to off).',
+                'examples' => 'If a team has no settings rows, backfill will create them and default all toggles to Off, then staff can enable only what they need.',
+                'is_internal' => true,
+            ],
         ];
     }
 

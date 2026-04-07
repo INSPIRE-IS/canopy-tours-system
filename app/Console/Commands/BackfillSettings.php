@@ -17,9 +17,26 @@ class BackfillSettings extends Command
         $teamId = $this->option('team');
 
         LookupItem::ensureSettingsForTeam(null);
+        $lookupId = \App\Models\Lookup::where('slug', 'settings')->value('id');
+        if (!$lookupId) {
+            $this->warn('Settings lookup not found.');
+            return self::FAILURE;
+        }
 
         if ($teamId) {
             LookupItem::ensureSettingsForTeam((int) $teamId);
+            LookupItem::where('lookup_id', $lookupId)
+                ->where('team_id', (int) $teamId)
+                ->update([
+                    'value' => 0,
+                    'multiplier' => null,
+                ]);
+            LookupItem::where('lookup_id', $lookupId)
+                ->whereNull('team_id')
+                ->update([
+                    'value' => 0,
+                    'multiplier' => null,
+                ]);
             $this->info("Settings backfilled for team {$teamId}.");
             return self::SUCCESS;
         }
@@ -27,7 +44,19 @@ class BackfillSettings extends Command
         $teams = Team::select('id')->get();
         foreach ($teams as $team) {
             LookupItem::ensureSettingsForTeam($team->id);
+            LookupItem::where('lookup_id', $lookupId)
+                ->where('team_id', $team->id)
+                ->update([
+                    'value' => 0,
+                    'multiplier' => null,
+                ]);
         }
+        LookupItem::where('lookup_id', $lookupId)
+            ->whereNull('team_id')
+            ->update([
+                'value' => 0,
+                'multiplier' => null,
+            ]);
 
         $this->info('Settings backfilled for all teams.');
 

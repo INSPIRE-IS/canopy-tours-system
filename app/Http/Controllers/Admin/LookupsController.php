@@ -36,7 +36,7 @@ class LookupsController extends Controller
                     'name' => $label,
                     'description' => $info,
                     'info' => $info,
-                    'value' => (bool) ($item->multiplier ?? 0),
+                    'value' => (bool) ($item->value ?? 0),
                 ];
             })
             ->values();
@@ -65,7 +65,7 @@ class LookupsController extends Controller
 
         foreach ($items as $item) {
             $slug = $item->slug;
-            $value = (bool) ($validated[$slug] ?? $item->multiplier ?? 0);
+            $value = (bool) ($validated[$slug] ?? $item->value ?? 0);
 
             LookupItem::updateOrCreate(
                 [
@@ -77,7 +77,8 @@ class LookupsController extends Controller
                     'name' => $item->name ?? $slug,
                     'info' => $item->info ?? $item->name ?? $slug,
                     'rate' => null,
-                    'multiplier' => $value ? 1 : 0,
+                    'multiplier' => null,
+                    'value' => $value ? 1 : 0,
                     'effective_from' => $today,
                     'effective_to' => null,
                     'is_default' => true,

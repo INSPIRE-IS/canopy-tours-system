@@ -6,12 +6,18 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use App\Models\Lookup;
+use App\Traits\Auditable;
+use App\Traits\MultiTenantModelTrait;
 
 class LookupItem extends Model
 {
-    use HasFactory;
+    use HasFactory, Auditable, MultiTenantModelTrait;
 
     public $table = 'lookup_items';
+
+    protected $casts = [
+        'value' => 'boolean',
+    ];
 
     protected $dates = [
         'created_at',
@@ -25,6 +31,7 @@ class LookupItem extends Model
         'slug',
         'rate',
         'multiplier',
+        'value',
         'effective_from',
         'effective_to',
         'is_default',
@@ -88,33 +95,18 @@ class LookupItem extends Model
 
     public static function settingsForTeam(?int $teamId): array
     {
-        $defaults = [
-            'enable_pickup_dropoff' => true,
-            'auto_send_invoice_on_booking' => true,
-            'auto_send_quote_on_booking' => false,
-            'enable_assign_staff' => true,
-            'show_send_invoice_checkbox' => false,
-            'show_send_quote_checkbox' => false,
-            'show_booking_information' => true,
-        ];
-
         static::ensureSettingsForTeam($teamId);
 
         $lookup = Lookup::where('slug', 'settings')->first();
         if (!$lookup) {
-            return $defaults;
+            return [];
         }
 
         $items = static::defaultsForTeam($teamId, $lookup->id);
-        $bySlug = $items->keyBy('slug');
-
-        $settings = [];
-        foreach ($defaults as $slug => $default) {
-            $value = $bySlug->get($slug)?->multiplier;
-            $settings[$slug] = $value === null ? $default : (bool) $value;
-        }
-
-        return $settings;
+        return $items
+            ->keyBy('slug')
+            ->map(fn($item) => (bool) ($item->value ?? 0))
+            ->all();
     }
 
     private static function settingsDefinitions(): array
@@ -123,12 +115,12 @@ class LookupItem extends Model
             [
                 'slug' => 'enable_pickup_dropoff',
                 'name' => 'Enable Pickup/Dropoff',
-                'default' => true,
+                'default' => false,
             ],
             [
                 'slug' => 'auto_send_invoice_on_booking',
                 'name' => 'Auto Send Invoice on Booking',
-                'default' => true,
+                'default' => false,
             ],
             [
                 'slug' => 'auto_send_quote_on_booking',
@@ -138,7 +130,7 @@ class LookupItem extends Model
             [
                 'slug' => 'enable_assign_staff',
                 'name' => 'Enable Assign Staff',
-                'default' => true,
+                'default' => false,
             ],
             [
                 'slug' => 'show_send_invoice_checkbox',
@@ -153,7 +145,7 @@ class LookupItem extends Model
             [
                 'slug' => 'show_booking_information',
                 'name' => 'Show Booking Information',
-                'default' => true,
+                'default' => false,
             ],
         ];
     }
@@ -180,7 +172,8 @@ class LookupItem extends Model
                     'name' => $definition['name'],
                     'info' => $definition['name'],
                     'rate' => null,
-                    'multiplier' => $definition['default'] ? 1 : 0,
+                    'multiplier' => null,
+                    'value' => $definition['default'] ? 1 : 0,
                     'effective_from' => $today,
                     'effective_to' => null,
                     'is_default' => true,
@@ -196,9 +189,31 @@ class LookupItem extends Model
                 ->get();
         }
 
+        $defaults->each(function ($item) {
+            if ($item->value === null) {
+                $fallback = $item->multiplier;
+                $item->value = 0;
+                $item->multiplier = null;
+                $item->save();
+            }
+        });
+
         if (!$teamId) {
             return;
         }
+
+        static::query()
+            ->where('lookup_id', $lookup->id)
+            ->where('team_id', $teamId)
+            ->get()
+            ->each(function ($item) {
+                if ($item->value === null) {
+                    $fallback = $item->multiplier;
+                    $item->value = 0;
+                    $item->multiplier = null;
+                    $item->save();
+                }
+            });
 
         foreach ($defaults as $default) {
             static::firstOrCreate(
@@ -211,7 +226,8 @@ class LookupItem extends Model
                     'name' => $default->name ?? $default->slug,
                     'info' => $default->info ?? $default->name ?? $default->slug,
                     'rate' => $default->rate,
-                    'multiplier' => $default->multiplier ?? 0,
+                    'multiplier' => null,
+                    'value' => $default->value ?? 0,
                     'effective_from' => $default->effective_from ?? now()->toDateString(),
                     'effective_to' => $default->effective_to,
                     'is_default' => true,

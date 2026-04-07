@@ -4,10 +4,12 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Traits\Auditable;
+use App\Traits\MultiTenantModelTrait;
 
 class Lookup extends Model
 {
-    use HasFactory;
+    use HasFactory, Auditable, MultiTenantModelTrait;
 
     public $table = 'lookups';
 
