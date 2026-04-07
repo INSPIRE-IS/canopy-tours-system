@@ -105,9 +105,9 @@ export default function Index({ permissions, seasons, services, auth, searchTerm
                                             <tr className='flex justify-between items-center'>
                                                 <th className="w-[95px] p-3">ID</th>
                                                 <th className="w-[95px] p-3">Name</th>
-                                                <th className="w-[132px] p-3">service_id</th>
-                                                <th className="w-[132px] p-3">start_date</th>
-                                                <th className="w-[132px] p-3">start_date</th>
+                                                <th className="w-[132px] p-3">Service</th>
+                                                <th className="w-[132px] p-3">Start date</th>
+                                                <th className="w-[132px] p-3">End date</th>
                                                 <th className="w-[185px] p-3">Actions</th>
                                             </tr>
                                         </thead>
