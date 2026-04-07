@@ -1,15 +1,32 @@
-import { useState } from 'react';
-import { usePage } from '@inertiajs/react';
+import { useMemo, useEffect, useState } from 'react';
+import { useForm, usePage } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head } from '@inertiajs/react';
 import SettingsHeader from '@/Components/HeaderSites';
 import BlueButton from '@/Components/BlueButton';
-import SettingsModal from './SettingsModal';
 
 export default function Index({ permissions, settings = [] }) {
     const { props } = usePage();
     const [isOpenTab, setIsOpenTab] = useState('Settings');
-    const [isModalOpen, setIsModalOpen] = useState(false);
+
+    const settingsMap = useMemo(() => (
+        settings.reduce((acc, item) => {
+            acc[item.slug] = !!item.value;
+            return acc;
+        }, {})
+    ), [settings]);
+
+    const { data, setData, post, processing, isDirty } = useForm(settingsMap);
+
+    useEffect(() => {
+        setData(settingsMap);
+    }, [settingsMap, setData]);
+
+    const handleSubmit = () => {
+        post(route("admin.settings.store"), {
+            preserveScroll: true,
+        });
+    };
 
     return (
         <AuthenticatedLayout
@@ -24,7 +41,7 @@ export default function Index({ permissions, settings = [] }) {
                 <div className="flex justify-between items-center mb-6">
                     <div className="text-gray-600">Team settings for booking features.</div>
                     <span className="flex gap-2">
-                        <BlueButton title="Edit Settings" onClick={() => setIsModalOpen(true)} icon={true} />
+                        <BlueButton title="Save Changes" onClick={handleSubmit} icon={true} disabled={processing || !isDirty} />
                     </span>
                 </div>
 
@@ -49,9 +66,17 @@ export default function Index({ permissions, settings = [] }) {
                                     {settings.map((setting) => (
                                         <tr key={setting.slug} className="flex justify-between items-center hover:bg-gray-50">
                                             <td className="w-[35%] p-3">{setting.name}</td>
-                                            <td className="w-[45%] p-3 text-gray-600">{setting.description}</td>
+                                            <td className="w-[45%] p-3 text-gray-600">{setting.description || '-'}</td>
                                             <td className="w-[20%] p-3">
-                                                {setting.value ? 'Enabled' : 'Disabled'}
+                                                <label className="flex items-center gap-3 text-xs text-gray-500">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={!!data[setting.slug]}
+                                                        onChange={(event) => setData(setting.slug, event.target.checked)}
+                                                        className="h-5 w-5 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                                                    />
+                                                    <span>{data[setting.slug] ? 'Enabled' : 'Disabled'}</span>
+                                                </label>
                                             </td>
                                         </tr>
                                     ))}
@@ -62,11 +87,6 @@ export default function Index({ permissions, settings = [] }) {
                 </div>
             </div>
 
-            <SettingsModal
-                isOpen={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
-                settings={settings}
-            />
         </AuthenticatedLayout>
     );
 }
