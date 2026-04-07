@@ -205,9 +205,9 @@ class BookingsController extends Controller
                 if (!$leadCustomer && $booking_item->booking?->customer_id) {
                     $leadCustomer = Customer::find($booking_item->booking->customer_id);
                 }
-                $leadName = $leadCustomer?->full_name ?? $booking_item->booking->lead_name ?? 'Test Customer';
+                $leadName = $leadCustomer?->full_name ?? $booking_item->booking->lead_name ?? '';
                 $leadEmail = $leadCustomer?->email_address ?? '';
-                $leadPhone = $leadCustomer?->contact_number ?: 'Test Phone';
+                $leadPhone = $leadCustomer?->contact_number ?? '';
                 $leadRow = [
                     'customer_id' => $leadCustomer?->id,
                     'full_name' => $leadName,
@@ -547,16 +547,12 @@ class BookingsController extends Controller
                 $booking = null; // Booking::where('id', $validated['booking_id'])->where('status_payment_id', 1)->first();
                 if (!$booking) {
                     // 1. Create or find customer
-                    $customer = Customer::firstOrCreate([
+                    $customer = Customer::create([
                         'email_address' => $validated['lead_email'],
-                    ], [
                         'full_name' => $validated['lead_person'],
                         'contact_number' => $validated['lead_mobile'],
                         'nationality_id' => $validated['nationality_id'] ?? null,
                     ]);
-                    if (!empty($validated['nationality_id']) && $customer->nationality_id !== (int) $validated['nationality_id']) {
-                        $customer->update(['nationality_id' => (int) $validated['nationality_id']]);
-                    }
                     $vatLookup = LookupItem::findDefaultForTeam('vat_rate', auth()->user()->team_id);
                     $vatMultiplier = $vatLookup?->multiplier ?? 1.15;
                     // 2. Create booking
@@ -1393,30 +1389,31 @@ class BookingsController extends Controller
                     }
                 }
 
-                $customer = Customer::firstOrCreate(
-                    [
+                $customer = $bookingItem->customers->firstWhere('pivot.is_lead', 1);
+                if (!$customer && $booking->customer_id) {
+                    $customer = Customer::find($booking->customer_id);
+                }
+                if (!$customer) {
+                    $customer = Customer::create([
                         'email_address' => $validated['lead_email'],
-                    ],
-                    [
                         'full_name' => $validated['lead_person'],
                         'contact_number' => $validated['lead_mobile'],
                         'nationality_id' => $validated['nationality_id'] ?? null,
-                    ]
-                );
-
-                $customerUpdates = [];
-                if (!empty($validated['lead_person']) && $customer->full_name !== $validated['lead_person']) {
-                    $customerUpdates['full_name'] = $validated['lead_person'];
-                }
-                if (!empty($validated['lead_mobile']) && $customer->contact_number !== $validated['lead_mobile']) {
-                    $customerUpdates['contact_number'] = $validated['lead_mobile'];
-                }
-                if (!empty($validated['nationality_id']) && $customer->nationality_id !== (int) $validated['nationality_id']) {
-                    $customerUpdates['nationality_id'] = (int) $validated['nationality_id'];
-                }
-                if (!empty($customerUpdates)) {
+                    ]);
+                } else {
+                    $customerUpdates = [
+                        'email_address' => $validated['lead_email'],
+                        'full_name' => $validated['lead_person'],
+                        'contact_number' => $validated['lead_mobile'],
+                        'nationality_id' => $validated['nationality_id'] ?? null,
+                    ];
                     $customer->update($customerUpdates);
                 }
+
+                $booking->update([
+                    'lead_name' => $customer->full_name,
+                    'customer_id' => $customer->id,
+                ]);
 
                 $promotion = !empty($validated['promoCode'])
                     ? Promotion::where('promo_code', $validated['promoCode'])->first()

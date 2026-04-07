@@ -580,10 +580,9 @@ class ActivityController extends Controller
 
                 $booking = Booking::where('session_id', $sessionId)->where('status_payment_id', 1)->first();
                 if (!$booking) {
-                    // 1. Create or find customer
-                    $customer = Customer::firstOrCreate([
+                    // 1. Always create a new customer for a new booking
+                    $customer = Customer::create([
                         'email_address' => $validated['email'],
-                    ], [
                         'full_name' => $validated['full_name'],
                         'contact_number' => $validated['phone'],
                     ]);
