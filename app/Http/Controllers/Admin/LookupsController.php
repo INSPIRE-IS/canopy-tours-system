@@ -16,6 +16,7 @@ class LookupsController extends Controller
         abort_if(Gate::denies('teams_access'), 403);
 
         $teamId = auth()->user()->team_id;
+        LookupItem::ensureSettingsForTeam($teamId);
         $lookup = Lookup::where('slug', 'settings')->first();
 
         $items = $lookup
@@ -26,7 +27,10 @@ class LookupsController extends Controller
             ->sortBy('id')
             ->map(function ($item) {
                 $label = $item->name ?? $item->slug;
-                $info = $item->info ?? $label;
+                $info = $item->info ?? $item->description ?? '';
+                if (trim((string) $info) === trim((string) $label)) {
+                    $info = '';
+                }
                 return [
                     'slug' => $item->slug,
                     'name' => $label,
@@ -54,6 +58,7 @@ class LookupsController extends Controller
         $teamId = auth()->user()->team_id;
         $today = now()->toDateString();
 
+        LookupItem::ensureSettingsForTeam($teamId);
         $items = LookupItem::defaultsForTeam($teamId, $lookup->id);
         $rules = $items->mapWithKeys(fn($item) => [$item->slug => 'boolean'])->all();
         $validated = $request->validate($rules);

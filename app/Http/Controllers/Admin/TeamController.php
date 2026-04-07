@@ -7,10 +7,12 @@ use App\Http\Requests\MassDestroyTeamRequest;
 use App\Http\Requests\StoreTeamRequest;
 use App\Http\Requests\UpdateTeamRequest;
 use App\Models\File;
+use App\Models\LookupItem;
 use App\Models\Team;
 use App\Models\User;
 use Gate;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\URL;
 use Inertia\Inertia;
@@ -52,7 +54,11 @@ class TeamController extends Controller
         $data             = $request->all();
 
         $data['owner_id'] = auth()->user()->id;
-        $team             = Team::create($data);
+        $team = null;
+        DB::transaction(function () use ($data, &$team) {
+            $team = Team::create($data);
+            LookupItem::ensureSettingsForTeam($team->id);
+        });
 
         if ($request->hasFile('logo')) {
             $uploaded = $request->file('logo');

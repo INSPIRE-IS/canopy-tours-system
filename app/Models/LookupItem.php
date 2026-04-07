@@ -98,6 +98,8 @@ class LookupItem extends Model
             'show_booking_information' => true,
         ];
 
+        static::ensureSettingsForTeam($teamId);
+
         $lookup = Lookup::where('slug', 'settings')->first();
         if (!$lookup) {
             return $defaults;
@@ -113,5 +115,109 @@ class LookupItem extends Model
         }
 
         return $settings;
+    }
+
+    private static function settingsDefinitions(): array
+    {
+        return [
+            [
+                'slug' => 'enable_pickup_dropoff',
+                'name' => 'Enable Pickup/Dropoff',
+                'default' => true,
+            ],
+            [
+                'slug' => 'auto_send_invoice_on_booking',
+                'name' => 'Auto Send Invoice on Booking',
+                'default' => true,
+            ],
+            [
+                'slug' => 'auto_send_quote_on_booking',
+                'name' => 'Auto Send Quote on Booking',
+                'default' => false,
+            ],
+            [
+                'slug' => 'enable_assign_staff',
+                'name' => 'Enable Assign Staff',
+                'default' => true,
+            ],
+            [
+                'slug' => 'show_send_invoice_checkbox',
+                'name' => 'Show Send Invoice Checkbox',
+                'default' => false,
+            ],
+            [
+                'slug' => 'show_send_quote_checkbox',
+                'name' => 'Show Send Quote Checkbox',
+                'default' => false,
+            ],
+            [
+                'slug' => 'show_booking_information',
+                'name' => 'Show Booking Information',
+                'default' => true,
+            ],
+        ];
+    }
+
+    public static function ensureSettingsForTeam(?int $teamId): void
+    {
+        $lookup = Lookup::firstOrCreate(
+            ['slug' => 'settings'],
+            ['name' => 'Settings', 'team_id' => null]
+        );
+
+        $defaults = static::query()
+            ->where('lookup_id', $lookup->id)
+            ->where('is_default', true)
+            ->whereNull('team_id')
+            ->get();
+
+        if ($defaults->isEmpty()) {
+            $today = now()->toDateString();
+            foreach (static::settingsDefinitions() as $definition) {
+                static::create([
+                    'lookup_id' => $lookup->id,
+                    'slug' => $definition['slug'],
+                    'name' => $definition['name'],
+                    'info' => $definition['name'],
+                    'rate' => null,
+                    'multiplier' => $definition['default'] ? 1 : 0,
+                    'effective_from' => $today,
+                    'effective_to' => null,
+                    'is_default' => true,
+                    'is_active' => true,
+                    'team_id' => null,
+                ]);
+            }
+
+            $defaults = static::query()
+                ->where('lookup_id', $lookup->id)
+                ->where('is_default', true)
+                ->whereNull('team_id')
+                ->get();
+        }
+
+        if (!$teamId) {
+            return;
+        }
+
+        foreach ($defaults as $default) {
+            static::firstOrCreate(
+                [
+                    'lookup_id' => $lookup->id,
+                    'slug' => $default->slug,
+                    'team_id' => $teamId,
+                ],
+                [
+                    'name' => $default->name ?? $default->slug,
+                    'info' => $default->info ?? $default->name ?? $default->slug,
+                    'rate' => $default->rate,
+                    'multiplier' => $default->multiplier ?? 0,
+                    'effective_from' => $default->effective_from ?? now()->toDateString(),
+                    'effective_to' => $default->effective_to,
+                    'is_default' => true,
+                    'is_active' => true,
+                ]
+            );
+        }
     }
 }

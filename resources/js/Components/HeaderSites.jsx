@@ -33,7 +33,7 @@ export default function HeaderSites({ permissions, isOpenTab, setIsOpenTab }) {
       {permissions?.boarding_pass_templates_access && (
         <button id="Boarding-Pass-tab" className={` ${isOpenTab === 'Boarding_Pass' ? 'border-b-[5px] border-primary-7' : ''} tab-button px-4 py-[11px] text-tab-inactive pb-2 cursor-pointer flex items-center gap-1`} onClick={() => toggleDropdown('Boarding_Pass', 'admin.boardingpass.index')} >Boarding Pass</button>
       )}
-      {permissions?.help_questions_access && (
+      {permissions?.help_questions_access && false && (
         <button id="help-question-tab" className={` ${isOpenTab === 'Help_Question' ? 'border-b-[5px] border-primary-7' : ''} tab-button px-4 py-[11px] text-tab-inactive pb-2 cursor-pointer flex items-center gap-1`} onClick={() => toggleDropdown('Help_Question', 'admin.help-questions.index')} >Help Question</button>
       )}
 
@@ -54,8 +54,8 @@ export default function HeaderSites({ permissions, isOpenTab, setIsOpenTab }) {
       {permissions?.booking_vouchers_access && false && (
         <button id="vouchers-tab" className={` ${isOpenTab === 'vouchers' ? 'border-b-[5px] border-primary-7' : ''} tab-button px-4 py-[11px] text-tab-inactive pb-2 cursor-pointer flex items-center gap-1`} onClick={() => toggleDropdown('vouchers', 'admin.booking_vouchers.index')} >Booking Details</button>
       )}
-      {permissions?.questionnaires_access && false && (
-        <button id="Questionnaires-tab" className={` ${isOpenTab === 'Questionnaires' ? 'border-b-[5px] border-primary-7' : ''} tab-button px-4 py-[11px] text-tab-inactive pb-2 cursor-pointer flex items-center gap-1`} onClick={() => toggleDropdown('Questionnaires', 'admin.questionnaire.index')} >Questionnaires</button>
+      {permissions?.questionnaires_access && (
+        <button id="Questionnaires-tab" className={` ${isOpenTab === 'Questionnaires' ? 'border-b-[5px] border-primary-7' : ''} tab-button px-4 py-[11px] text-tab-inactive pb-2 cursor-pointer flex items-center gap-1`} onClick={() => toggleDropdown('Questionnaires', 'admin.dynamic-questionnaires.index')} >Questionnaires</button>
       )}
       {permissions?.manifests_access && false && (
         <button id="Manifests-tab" className={` ${isOpenTab === 'Manifests' ? 'border-b-[5px] border-primary-7' : ''} tab-button px-4 py-[11px] text-tab-inactive pb-2 cursor-pointer flex items-center gap-1`} onClick={() => toggleDropdown('Manifests', 'admin.manifests.index')} >Manifests</button>
