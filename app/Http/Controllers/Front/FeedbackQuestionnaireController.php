@@ -183,31 +183,58 @@ class FeedbackQuestionnaireController extends Controller
                     app(QuestionnaireSeeder::class)->seedForSeason($season);
                 }
             }
-            $questions = Question::whereHas('question_sites', function ($q) use ($bookingItem) {
-                $q->where('service_id', $bookingItem->service_id)
-                    ->where('enabled', 1);
-            })
-                ->with(['question_sites' => function ($q) use ($bookingItem) {
-                    $q->where('service_id', $bookingItem->service_id)
-                        ->where('enabled', 1)
-                        ->orderBy('sort_order');
+            $serviceId = $bookingItem->service_id;
+            $seasonId = $bookingItem->season_id;
+            if ($seasonId && !QuestionSite::where('service_id', $serviceId)->where('season_id', $seasonId)->exists()) {
+                $season = Season::find($seasonId);
+                if ($season) {
+                    app(QuestionnaireSeeder::class)->seedForSeason($season);
+                }
+            }
+
+            $questions = Question::where('is_visible', true)
+                ->whereHas('question_sites', function ($q) use ($serviceId, $seasonId) {
+                    $q->where('service_id', $serviceId)
+                        ->where('season_id', $seasonId);
+                })
+                ->with(['question_sites' => function ($q) use ($serviceId, $seasonId) {
+                    $q->where('service_id', $serviceId)
+                        ->where('season_id', $seasonId);
                 }])
                 ->where('type', 'feedback')
-                ->get()->map(function ($question) {
-                    //dd($question);
+                ->get()
+                ->map(function ($question) {
+                    $site = $question->question_sites->first();
+                    if (!$site) {
+                        return null;
+                    }
+
+                    $enabled = $question->is_disabled ? true : (bool) $site->enabled;
+                    if (!$enabled) {
+                        return null;
+                    }
+
+                    $options = $question->options;
+                    if ($question->is_custom && !empty($site->custom_options)) {
+                        $options = $site->custom_options;
+                    }
+
                     return collect([
                         "id" => $question->id,
-                        "enabled" => $question->question_sites->first()->enabled,
-                        "sort_order" => $question->question_sites->first()->sort_order,
+                        "enabled" => $enabled,
+                        "sort_order" => $site->sort_order,
                         "service_id" => $question->service_id,
                         "name" => $question->name,
                         "description" => $question->description,
                         "slug" => $question->slug,
-                        "options" => $question->options,
+                        "options" => $options,
                         "conditional_logic" => $question->conditional_logic,
                         "type" => $question->type,
                     ]);
-                });
+                })
+                ->filter()
+                ->sortBy('sort_order')
+                ->values();
 
             $answers = QuestionAnswer::where('booking_item_id', $bookingItem->id)->get();
 
@@ -424,17 +451,35 @@ class FeedbackQuestionnaireController extends Controller
                 $customer = Customer::find($validated['customer_id']);
 
 
-                $questions = Question::whereHas('question_sites', function ($q) use ($bookingItem) {
-                    $q->where('service_id', $bookingItem->service_id)
-                        ->where('enabled', 1);
-                })
-                    ->with(['question_sites' => function ($q) use ($bookingItem) {
-                        $q->where('service_id', $bookingItem->service_id)
-                            ->where('enabled', 1)
-                            ->orderBy('sort_order');
+                $serviceId = $bookingItem->service_id;
+                $seasonId = $bookingItem->season_id;
+                if ($seasonId && !QuestionSite::where('service_id', $serviceId)->where('season_id', $seasonId)->exists()) {
+                    $season = Season::find($seasonId);
+                    if ($season) {
+                        app(QuestionnaireSeeder::class)->seedForSeason($season);
+                    }
+                }
+
+                $questions = Question::where('is_visible', true)
+                    ->whereHas('question_sites', function ($q) use ($serviceId, $seasonId) {
+                        $q->where('service_id', $serviceId)
+                            ->where('season_id', $seasonId);
+                    })
+                    ->with(['question_sites' => function ($q) use ($serviceId, $seasonId) {
+                        $q->where('service_id', $serviceId)
+                            ->where('season_id', $seasonId);
                     }])
                     ->where('type', 'feedback')
-                    ->get();
+                    ->get()
+                    ->filter(function ($question) {
+                        $site = $question->question_sites->first();
+                        if (!$site) {
+                            return false;
+                        }
+
+                        return $question->is_disabled ? true : (bool) $site->enabled;
+                    })
+                    ->values();
                 $flagged = [];
                 foreach ($validated as $key => $value) {
                     if ($key == 'customer_id') continue;

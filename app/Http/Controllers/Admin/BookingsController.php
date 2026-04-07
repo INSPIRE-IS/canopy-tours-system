@@ -68,6 +68,7 @@ use App\Models\TypeBooking;
 use App\Models\TypeConfirmation;
 use App\Models\TypeGroup;
 use App\Models\LookupItem;
+use App\Models\QuestionSite;
 use App\Services\RendererService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Spatie\Browsershot\Browsershot;
@@ -126,8 +127,7 @@ class BookingsController extends Controller
         array $properties = [],
         bool $logBooking = true,
         bool $logBookingItem = true
-    ): void
-    {
+    ): void {
         $payload = [
             'description' => $description,
             'user_id' => auth()->id(),
@@ -949,10 +949,6 @@ class BookingsController extends Controller
                         'team_id'        => $bookingItem->team_id,
                     ]);
                     $this->logAudit('Email sent (boarding pass)', $booking, $bookingItem, [
-                        'receiver' => $customer->email_address,
-                        'attachment' => $fileName,
-                    ]);
-                    $this->logAudit('Email sent (boarding pass)', $booking, $booking_item, [
                         'receiver' => $customer->email_address,
                         'attachment' => $fileName,
                     ]);
@@ -2796,6 +2792,19 @@ class BookingsController extends Controller
                     ->values()
                     ->all(),
             ];
+            $customOptionMaps = QuestionSite::with('question:id,slug,is_custom')
+                ->where('service_id', $bookingItem->service_id)
+                ->where('season_id', $bookingItem->season_id)
+                ->get()
+                ->filter(fn($site) => $site->question?->is_custom)
+                ->mapWithKeys(function ($site) {
+                    $options = $site->custom_options ?? [];
+                    return [$site->question->slug => is_array($options) ? $options : []];
+                })
+                ->all();
+            if (!empty($customOptionMaps)) {
+                $optionMaps = array_merge($optionMaps, $customOptionMaps);
+            }
 
             $resolveAnswer = function ($value, $slug) use ($optionMaps) {
                 if ($value === null || $value === '') {
@@ -2843,17 +2852,21 @@ class BookingsController extends Controller
 
             $answersByCustomer = QuestionAnswer::with([
                 'question.question_sites' => function ($query) use ($bookingItem) {
-                    $query->where('service_id', $bookingItem->service_id);
+                    $query->where('service_id', $bookingItem->service_id)
+                        ->where('season_id', $bookingItem->season_id);
                 },
             ])
                 ->where('booking_item_id', $bookingItem->id)
                 ->get()
                 ->groupBy('customer_id');
 
-            $bookingItem->customer_manifests?->each(function ($customerManifest) use ($answersByCustomer, $resolveAnswer, $optionMaps) {
+            $bookingItem->customer_manifests?->each(function ($customerManifest) use ($answersByCustomer, $resolveAnswer, $optionMaps, $bookingItem) {
                 $answers = $answersByCustomer->get($customerManifest->customer_id, collect())
-                    ->map(function ($answer) use ($resolveAnswer, $optionMaps) {
-                        $site = $answer->question?->question_sites?->first();
+                    ->map(function ($answer) use ($resolveAnswer, $optionMaps, $bookingItem) {
+                        $seasonId = $bookingItem?->season_id;
+                        $site = $seasonId
+                            ? $answer->question?->question_sites?->firstWhere('season_id', $seasonId)
+                            : null;
                         $slug = $answer->question?->slug;
                         $mappedOptions = $slug ? ($optionMaps[$slug] ?? null) : null;
                         return [
@@ -2954,7 +2967,37 @@ class BookingsController extends Controller
             })
             ->orderByDesc('created_at');
 
-        $auditLogs = $auditLogsQuery->get()
+        $rawAuditLogs = $auditLogsQuery->get();
+        $auditLogKey = function ($log) {
+            $createdAt = $log->created_at?->format('Y-m-d H:i:s') ?? (string) $log->created_at;
+            $properties = (string) $log->properties;
+            return implode('|', [
+                $log->description,
+                $createdAt,
+                (string) $log->user_id,
+                (string) $log->host,
+                $properties,
+            ]);
+        };
+        $seenAuditKeys = [];
+        $dedupedAuditLogs = collect();
+        foreach ($rawAuditLogs->where('subject_type', Booking::class) as $log) {
+            $key = $auditLogKey($log);
+            if (!isset($seenAuditKeys[$key])) {
+                $seenAuditKeys[$key] = true;
+                $dedupedAuditLogs->push($log);
+            }
+        }
+        foreach ($rawAuditLogs->where('subject_type', BookingItem::class) as $log) {
+            $key = $auditLogKey($log);
+            if (!isset($seenAuditKeys[$key])) {
+                $seenAuditKeys[$key] = true;
+                $dedupedAuditLogs->push($log);
+            }
+        }
+        $auditLogs = $dedupedAuditLogs
+            ->sortByDesc('created_at')
+            ->values()
             ->map(function ($log) {
                 $userName = User::where('id', $log->user_id)->value('name');
                 return [

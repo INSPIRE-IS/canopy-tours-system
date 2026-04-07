@@ -8,6 +8,7 @@ use DateTimeInterface;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Models\QuestionSite;
 
 class Service extends Model
 {
@@ -96,5 +97,10 @@ class Service extends Model
     public function team()
     {
         return $this->belongsTo(Team::class, 'team_id');
+    }
+
+    public function question_sites()
+    {
+        return $this->hasMany(QuestionSite::class, 'service_id');
     }
 }

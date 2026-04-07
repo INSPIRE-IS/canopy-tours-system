@@ -79,19 +79,45 @@ export default function CheckInAnswersModal({ isOpen, onClose, manifest, answers
         () => resolvedAnswers.find((entry) => entry?.question?.slug === 'lunch_option'),
         [resolvedAnswers]
     );
+    const lunchOptions = useMemo(() => {
+        const options = Array.isArray(lunchAnswer?.question?.options) ? lunchAnswer.question.options : [];
+        return options
+            .map((option, index) => ({
+                id: option?.id ?? option?.value ?? option?.slug ?? option?.name,
+                name: option?.name ?? option?.label ?? option?.id ?? '',
+                sort: option?.sort ?? option?.order ?? null,
+                show: option?.show,
+                index,
+            }))
+            .filter((option) => option.id !== null && option.id !== undefined && option.name)
+            .filter((option) => option.show !== 0)
+            .sort((a, b) => {
+                const aSort = a.sort ?? a.index;
+                const bSort = b.sort ?? b.index;
+                return aSort - bSort;
+            });
+    }, [lunchAnswer?.question?.options]);
+
+    const resolveLunchValue = (value) => {
+        if (!lunchOptions.length) return value ?? '';
+        const byId = lunchOptions.find((option) => String(option.id) === String(value));
+        if (byId) return byId.id;
+        const byName = lunchOptions.find((option) => String(option.name) === String(value));
+        return byName ? byName.id : (value ?? '');
+    };
 
     const [notes, setNotes] = useState(manifest?.notes ?? '');
-    const [lunchOption, setLunchOption] = useState(lunchAnswer?.answer ?? '');
+    const [lunchOption, setLunchOption] = useState(resolveLunchValue(lunchAnswer?.answer));
     const [attendanceStatus, setAttendanceStatus] = useState(manifest?.attendance_status ?? 'no_show');
     const [isSaving, setIsSaving] = useState(false);
     const [saveMessage, setSaveMessage] = useState('');
 
     useEffect(() => {
         setNotes(manifest?.notes ?? '');
-        setLunchOption(lunchAnswer?.answer ?? '');
+        setLunchOption(resolveLunchValue(lunchAnswer?.answer));
         setAttendanceStatus(manifest?.attendance_status ?? 'no_show');
         setSaveMessage('');
-    }, [manifest, lunchAnswer?.answer]);
+    }, [manifest, lunchAnswer?.answer, lunchOptions]);
 
     const customerId = customer?.id ?? manifest?.customer_id ?? null;
     const bookingItemId = manifest?.booking_item_id ?? null;
@@ -207,12 +233,21 @@ export default function CheckInAnswersModal({ isOpen, onClose, manifest, answers
                         <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
                             <label className="flex flex-col gap-2 text-sm text-gray-700">
                                 Lunch option
-                                <input
-                                    type="text"
-                                    value={lunchOption}
+                                <select
+                                    value={lunchOption ?? ''}
                                     onChange={(event) => setLunchOption(event.target.value)}
-                                    className="h-10 rounded-md border border-gray-300 px-3 text-sm focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-200"
-                                />
+                                    disabled={!canSave || lunchOptions.length === 0}
+                                    className="h-10 rounded-md border border-gray-300 bg-white px-3 text-sm focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-200 disabled:cursor-not-allowed disabled:bg-gray-100"
+                                >
+                                    <option value="">
+                                        {lunchOptions.length === 0 ? 'No lunch options configured' : 'Select an option'}
+                                    </option>
+                                    {lunchOptions.map((option) => (
+                                        <option key={option.id} value={option.id}>
+                                            {option.name}
+                                        </option>
+                                    ))}
+                                </select>
                             </label>
 
                             <div className="flex flex-col gap-2 text-sm text-gray-700">

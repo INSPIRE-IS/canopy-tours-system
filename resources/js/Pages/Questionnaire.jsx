@@ -317,10 +317,43 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
     return q ? q.enabled == 1 : false;
   };
 
-  const questionStepsBase = [1, 2, 3, 6, 7, 8, 9, 10, 11, 12, 13];
-  const questionSteps = isEnabled('age_id')
+  const getQuestionOptions = (slug) => {
+    if (!questions || !questions.length) return [];
+    const q = questions.find(q => q.slug === slug);
+    const options = Array.isArray(q?.options) ? q.options : [];
+    return options
+      .map((option, index) => ({
+        id: option?.id ?? option?.value ?? option?.slug ?? option?.name,
+        name: option?.name ?? option?.label ?? option?.id ?? '',
+        sort: option?.sort ?? option?.order ?? null,
+        show: option?.show,
+        index,
+      }))
+      .filter((option) => option.id !== null && option.id !== undefined && option.name)
+      .filter((option) => option.show !== 0)
+      .sort((a, b) => {
+        const aSort = a.sort ?? a.index;
+        const bSort = b.sort ?? b.index;
+        return aSort - bSort;
+      });
+  };
+
+  const resolveOptionLabel = (options, value) => {
+    if (!options || !options.length || value === null || value === undefined) return value;
+    const match = options.find((option) => String(option.id) === String(value));
+    return match?.name ?? value;
+  };
+
+  const lunchOptions = getQuestionOptions('lunch_option');
+  const hasLunch = isEnabled('lunch_option') && lunchOptions.length > 0;
+
+  const questionStepsBase = [1, 2, 3, 6, 7, 8, 9, 10, 11, 12, 13, 14];
+  let questionSteps = isEnabled('age_id')
     ? questionStepsBase
     : questionStepsBase.filter((step) => step !== 2);
+  if (!hasLunch) {
+    questionSteps = questionSteps.filter((step) => step !== 12);
+  }
 
   const selectedManifest = selected != null ? data.customer_manifests?.[selected] : null;
   const isStep2Disabled = !selectedManifest?.age_id;
@@ -364,8 +397,9 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
   const isStep9Disabled = !selectedManifest?.medical_id || (requiresMedicalDetail && !hasMedicalDetail);
   const isStep10Disabled = !selectedManifest?.gender || (selectedManifest?.gender == "2" && !selectedManifest?.pregnant);
   const isStep11Disabled = !selectedManifest?.is_fit;
-  const isStep12Disabled = selectedManifest?.is_agree !== true;
-  const isStep13Disabled = !selectedManifest?.signature;
+  const isStep12Disabled = hasLunch && !selectedManifest?.lunch_option;
+  const isStep13Disabled = selectedManifest?.is_agree !== true;
+  const isStep14Disabled = !selectedManifest?.signature;
 
   const getNextButtonClass = (disabled) => (
     `flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px]
@@ -982,15 +1016,46 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
                 <button type='button' onClick={() => handlePrevNext(10, selected)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border border-primary-14 text-primary-14 cursor-pointer">
                   <span className="text-btn-outline-gray">Prev</span>
                 </button>
-                <button type='button' disabled={isStep11Disabled} onClick={() => handlePrevNext(12, selected)} className={getNextButtonClass(isStep11Disabled)} >
+                <button type='button' disabled={isStep11Disabled} onClick={() => handlePrevNext(hasLunch ? 12 : 13, selected)} className={getNextButtonClass(isStep11Disabled)} >
                   <span className="text-btn-outline-gray">Next</span>
                 </button>
               </div>
 
             </div>
           )}
+          {/* Lunch option */}
+          {prevNext == 12 && hasLunch && (
+            <div className="flex flex-col w-[90%] h-full min-h-0 mb-[26px]">
+              <div className="flex flex-col w-full flex-1 overflow-auto scrollbar-elegant gap-2 mb-2">
+                <span className="text-welcome-card-title-mb text-center w-full mt-[42px] mb-[26px] px-6 sm:px-[39px]">
+                  Please select your lunch option
+                </span>
+                <div className="h-auto w-full pl-7 sm:pl-0 overflow-x-auto scrollbar-elegant">
+                  {lunchOptions.map((option) => (
+                    <CustomRadio
+                      key={option.id}
+                      label={option.name}
+                      name="lunch_option"
+                      value={option.id}
+                      checked={data.customer_manifests[selected].lunch_option == option.id?.toString()}
+                      onChange={handleIndemnityChange}
+                      errors={errors}
+                    />
+                  ))}
+                </div>
+              </div>
+              <div className="flex items-center justify-center gap-6">
+                <button type='button' onClick={() => handlePrevNext(11, selected)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border border-primary-14 text-primary-14 cursor-pointer">
+                  <span className="text-btn-outline-gray">Prev</span>
+                </button>
+                <button type='button' disabled={isStep12Disabled} onClick={() => handlePrevNext(13, selected)} className={getNextButtonClass(isStep12Disabled)} >
+                  <span className="text-btn-outline-gray">Next</span>
+                </button>
+              </div>
+            </div>
+          )}
           {/* Agree */}
-          {prevNext == 12 && (
+          {prevNext == 13 && (
             <div className="flex flex-col w-[90%] h-full min-h-0 mb-[26px]">
               <div className="flex flex-col w-full flex-1 overflow-auto scrollbar-elegant gap-2 mb-2" >
                 <span className="text-welcome-card-title-mb text-center w-full mt-[42px] mb-2 px-6 sm:px-[39px]">
@@ -1013,14 +1078,14 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
               </div>
 
               <div className="flex items-center justify-center gap-6">
-                <button type='button' onClick={() => handlePrevNext(11, selected)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border border-primary-14 text-primary-14 cursor-pointer">
+                <button type='button' onClick={() => handlePrevNext(hasLunch ? 12 : 11, selected)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border border-primary-14 text-primary-14 cursor-pointer">
                   <span className="text-btn-outline-gray">Prev</span>
                 </button>
                 <button type='button'
-                  disabled={isStep12Disabled}
-                  onClick={() => handlePrevNext(13, selected)}
+                  disabled={isStep13Disabled}
+                  onClick={() => handlePrevNext(14, selected)}
                   className={`flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px]
-                    ${!isStep12Disabled
+                    ${!isStep13Disabled
                       ? "bg-green-gradient-overlay border-[#31B700] text-white shadow-inset-white cursor-pointer"
                       : "border-primary-14 text-primary-14 cursor-not-allowed opacity-50"
                     }`}
@@ -1030,12 +1095,11 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
               </div>
             </div>
           )}
-          {/* Lunch order (optional) */}
           {/* Full indemnity legal text from CTSA */}
           {/* Guardian shows only if age < 18 */}
 
           {/* signature */}
-          {prevNext == 13 && (
+          {prevNext == 14 && (
             <div className="flex flex-col w-[90%] h-full min-h-0 mb-[26px]">
               <div className="flex flex-col w-full flex-1 overflow-auto scrollbar-elegant gap-2 mb-2" >
                 <span className="text-welcome-card-title-mb text-center w-full mt-[42px] mb-[26px] px-6 sm:px-[39px]">
@@ -1050,18 +1114,18 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
                 </div>
               </div>
               <div className="flex items-center justify-center gap-6">
-                <button type='button' onClick={() => handlePrevNext(12, selected)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border border-primary-14 text-primary-14 cursor-pointer">
+                <button type='button' onClick={() => handlePrevNext(13, selected)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border border-primary-14 text-primary-14 cursor-pointer">
                   <span className="text-btn-outline-gray">Prev</span>
 
                 </button>
-                <button type='button' disabled={isStep13Disabled} onClick={() => handlePrevNext(14, selected)} className={getNextButtonClass(isStep13Disabled)} >
+                <button type='button' disabled={isStep14Disabled} onClick={() => handlePrevNext(15, selected)} className={getNextButtonClass(isStep14Disabled)} >
                   <span className="text-btn-outline-gray">Next</span>
                 </button>
               </div>
             </div>
           )}
           {/* submit */}
-          {prevNext == 14 && (
+          {prevNext == 15 && (
             <div className="flex flex-col  w-[90%] h-full min-h-0 mb-[26px]">
               <div className="flex flex-col w-full flex-1 overflow-auto scrollbar-elegant gap-2 mb-2" >
                 <span className="text-welcome-card-title-mb text-center w-full mt-[42px] px-6 sm:px-[39px]">
@@ -1079,6 +1143,9 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
                   <span className='flex flex-col items-center gap-2'><span className='text-booking-subheading capitalize'>full name</span> {data.customer_manifests[selected]?.full_name}</span>
                   <span className='flex flex-col items-center gap-2'><span className='text-booking-subheading capitalize'>age</span> {ageGroups?.find(g => g.id == data.customer_manifests[selected]?.age_id)?.name}</span>
                   <span className='flex flex-col items-center gap-2'><span className='text-booking-subheading capitalize'>referral</span> {typeReferral?.find(r => r.id == data.customer_manifests[selected]?.referral_id)?.name}</span>
+                  {hasLunch && (
+                    <span className='flex flex-col items-center gap-2'><span className='text-booking-subheading capitalize'>lunch option</span> {resolveOptionLabel(lunchOptions, data.customer_manifests[selected]?.lunch_option)}</span>
+                  )}
                   <span className='flex flex-col items-center gap-2'><span className='text-booking-subheading capitalize'>continent</span> {continents?.find(c => c.id == data.customer_manifests[selected]?.continent_id)?.name}</span>
                   <span className='flex flex-col items-center gap-2'><span className='text-booking-subheading capitalize'>country</span> {countries?.find(c => c.id == data.customer_manifests[selected]?.country_id)?.name}</span>
                   <span className='flex flex-col items-center gap-2'><span className='text-booking-subheading capitalize'>province</span> {states?.find(s => s.id == data.customer_manifests[selected]?.province_id)?.name}</span>
@@ -1098,7 +1165,7 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
 
               </div>
               <div className="flex items-center justify-center gap-6">
-                <button type='button' disabled={isStep12Disabled} onClick={() => handlePrevNext(13, selected)} className={getNextButtonClass(isStep12Disabled)} >
+                <button type='button' disabled={isStep14Disabled} onClick={() => handlePrevNext(14, selected)} className={getNextButtonClass(isStep14Disabled)} >
                   <span className="text-btn-outline-gray">Prev</span>
 
                 </button>

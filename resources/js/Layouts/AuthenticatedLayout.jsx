@@ -123,8 +123,13 @@ export default function AppLayout({ user, children }) {
             showBack: false,
         },
         {
-            match: 'admin.questionnaire.index',
+            match: 'admin.dynamic-questionnaires.index',
             title: 'Questionnaires',
+            showBack: false,
+        },
+        {
+            match: 'admin.questionnaire.index',
+            title: 'Questionnaires (Legacy)',
             showBack: false,
         },
         {

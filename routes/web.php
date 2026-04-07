@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\CheckinsController;
 use App\Http\Controllers\Admin\CloseoutsController;
 use App\Http\Controllers\Admin\CustomerManifestController;
 use App\Http\Controllers\Admin\DiscountController;
+use App\Http\Controllers\Admin\DynamicQuestionnaireController;
 use App\Http\Controllers\Admin\HelpQuestionsController;
 use App\Http\Controllers\Admin\HomeController;
 use App\Http\Controllers\Admin\InventoryController;
@@ -251,6 +252,12 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['auth', 'v
     // reports
     Route::match(['get', 'post'], 'reports/export', [ReportsController::class, 'export'])->name('reports.export');
     Route::resource('reports', ReportsController::class);
+
+    // Dynamic questionnaires (option 1)
+    Route::get('dynamic-questionnaires', [DynamicQuestionnaireController::class, 'index'])->name('dynamic-questionnaires.index');
+    Route::put('dynamic-questionnaires/update/{service}', [DynamicQuestionnaireController::class, 'update'])->name('dynamic-questionnaires.update');
+    Route::post('dynamic-questionnaires/questions/store', [DynamicQuestionnaireController::class, 'storeQuestion'])->name('dynamic-questionnaires.questions.store');
+    Route::put('dynamic-questionnaires/questions/update', [DynamicQuestionnaireController::class, 'updateQuestions'])->name('dynamic-questionnaires.questions.update');
 
     // Help Questions
     Route::resource('help-questions', HelpQuestionsController::class);

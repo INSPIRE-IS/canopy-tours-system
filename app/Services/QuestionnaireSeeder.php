@@ -41,10 +41,6 @@ class QuestionnaireSeeder
 
     public function seedForExisting(): void
     {
-        Service::query()->each(function (Service $service) {
-            $this->ensureQuestionSites($service);
-        });
-
         Season::with('service')->each(function (Season $season) {
             $this->seedForSeason($season);
         });
@@ -58,7 +54,7 @@ class QuestionnaireSeeder
         }
 
         $this->seedDefinitions();
-        $this->ensureQuestionSites($service);
+        $this->ensureQuestionSitesForSeason($service, $season);
 
         $questionnaireExists = Questionnaire::where('service_id', $service->id)
             ->where('season_id', $season->id)
@@ -97,25 +93,44 @@ class QuestionnaireSeeder
         }
     }
 
-    private function ensureQuestionSites(Service $service): void
+    private function ensureQuestionSitesForSeason(Service $service, Season $season): void
     {
-        $existingSites = QuestionSite::where('service_id', $service->id)->exists();
-        if ($existingSites) {
-            return;
-        }
+        $siteMap = $this->defaultQuestionSiteMap();
 
-        foreach ($this->defaultQuestionSites() as $site) {
-            QuestionSite::updateOrCreate(
+        Question::orderBy('id')->each(function (Question $question, int $index) use ($service, $season, $siteMap) {
+            $defaults = $siteMap[$question->id] ?? [];
+            $enabled = $question->is_disabled
+                ? true
+                : ($question->is_enabled ?? ($defaults['enabled'] ?? false));
+            $sortOrder = $defaults['sort_order'] ?? ($index + 1);
+
+            QuestionSite::firstOrCreate(
                 [
-                    'question_id' => $site['question_id'],
+                    'question_id' => $question->id,
                     'service_id' => $service->id,
+                    'season_id' => $season->id,
                 ],
                 [
-                    'enabled' => $site['enabled'],
-                    'sort_order' => $site['sort_order'],
+                    'enabled' => $enabled,
+                    'sort_order' => $sortOrder,
                 ]
             );
+        });
+    }
+
+    private function defaultQuestionSiteMap(): array
+    {
+        $map = [];
+        foreach ($this->defaultQuestionSites() as $site) {
+            $map[$site['question_id']] = $site;
         }
+        return $map;
+    }
+
+    private function defaultQuestionEnabled(int $questionId): bool
+    {
+        $map = $this->defaultQuestionSiteMap();
+        return (bool) ($map[$questionId]['enabled'] ?? false);
     }
 
     private function defaultQuestionnaireName(Service $service): string
@@ -401,7 +416,7 @@ class QuestionnaireSeeder
 
     private function defaultQuestions(): array
     {
-        return [
+        $questions = [
             [
                 'id' => 1,
                 'name' => 'Select your Lead Guide',
@@ -682,6 +697,13 @@ class QuestionnaireSeeder
                 'type' => 'feedback',
             ],
         ];
+
+        foreach ($questions as &$question) {
+            $question['is_enabled'] = $this->defaultQuestionEnabled($question['id']);
+        }
+        unset($question);
+
+        return $questions;
     }
 
     private function defaultQuestionSites(): array

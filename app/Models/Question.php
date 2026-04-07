@@ -15,6 +15,10 @@ class Question extends Model
     protected $casts = [
         'options' => 'array',
         'conditional_logic' => 'array',
+        'is_visible' => 'boolean',
+        'is_disabled' => 'boolean',
+        'is_enabled' => 'boolean',
+        'is_custom' => 'boolean',
     ];
 
 
@@ -25,6 +29,10 @@ class Question extends Model
         'options',
         'conditional_logic',
         'type',
+        'is_visible',
+        'is_disabled',
+        'is_enabled',
+        'is_custom',
     ];
 
     const AGES = [

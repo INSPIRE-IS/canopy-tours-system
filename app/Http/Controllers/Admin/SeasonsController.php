@@ -16,6 +16,7 @@ use App\Models\SeasonField;
 use App\Models\SeasonFieldValue;
 use App\Models\Service;
 use App\Services\QuestionnaireSeeder;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
 class SeasonsController extends Controller
@@ -54,8 +55,10 @@ class SeasonsController extends Controller
     public function store(StoreSeasonRequest $request)
     {
         //dd($request->all());
-        $season = Season::create($request->all());
-        app(QuestionnaireSeeder::class)->seedForSeason($season);
+        DB::transaction(function () use ($request, &$season) {
+            $season = Season::create($request->all());
+            app(QuestionnaireSeeder::class)->seedForSeason($season);
+        });
         //return redirect()->back()->with('success', 'Season created successfully');
 
         return redirect()->route('admin.seasons.index');
