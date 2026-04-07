@@ -9,7 +9,7 @@ use Illuminate\Console\Command;
 class BackfillSettings extends Command
 {
     protected $signature = 'settings:backfill {--team= : Backfill a single team id}';
-
+    // php artisan settings:backfill --team=1
     protected $description = 'Ensure settings lookup rows exist for all teams.';
 
     public function handle(): int

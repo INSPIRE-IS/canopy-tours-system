@@ -410,7 +410,7 @@ export default function DynamicIndex({ services, questions, permissions, isAdmin
                             <span className="font-semibold text-lg text-gray-800 block text-start">Questionnaires</span>
                         </span>
                     </div>
-                    {permissions?.questionnaires_create && (
+                    {isAdmin && permissions?.questionnaires_create && (
                         <div className="flex justify-end px-4 pb-2">
                             <BlueButton title="Add Question" onClick={() => setIsQuestionModalOpen(true)} width="w-[160px]" />
                         </div>

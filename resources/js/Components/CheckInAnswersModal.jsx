@@ -109,6 +109,7 @@ export default function CheckInAnswersModal({ isOpen, onClose, manifest, answers
     const [notes, setNotes] = useState(manifest?.notes ?? '');
     const [lunchOption, setLunchOption] = useState(resolveLunchValue(lunchAnswer?.answer));
     const [attendanceStatus, setAttendanceStatus] = useState(manifest?.attendance_status ?? 'no_show');
+    const [localAnswers, setLocalAnswers] = useState(resolvedAnswers);
     const [isSaving, setIsSaving] = useState(false);
     const [saveMessage, setSaveMessage] = useState('');
 
@@ -116,6 +117,7 @@ export default function CheckInAnswersModal({ isOpen, onClose, manifest, answers
         setNotes(manifest?.notes ?? '');
         setLunchOption(resolveLunchValue(lunchAnswer?.answer));
         setAttendanceStatus(manifest?.attendance_status ?? 'no_show');
+        setLocalAnswers(resolvedAnswers);
         setSaveMessage('');
     }, [manifest, lunchAnswer?.answer, lunchOptions]);
 
@@ -141,6 +143,39 @@ export default function CheckInAnswersModal({ isOpen, onClose, manifest, answers
             {
                 preserveScroll: true,
                 onSuccess: () => {
+                    const lunchLabel = lunchOption ? resolveOptionLabel(lunchOption, lunchOptions) : '';
+                    setLocalAnswers((prev) => {
+                        let found = false;
+                        const updated = prev.map((entry) => {
+                            if (entry?.question?.slug !== 'lunch_option') {
+                                return entry;
+                            }
+                            found = true;
+                            return {
+                                ...entry,
+                                answer: lunchOption ?? '',
+                                resolved_answer: lunchLabel,
+                                question: {
+                                    ...entry.question,
+                                    options: lunchOptions,
+                                },
+                            };
+                        });
+                        if (!found && lunchOption) {
+                            updated.push({
+                                id: `local-lunch-${Date.now()}`,
+                                answer: lunchOption,
+                                resolved_answer: lunchLabel,
+                                question: lunchAnswer?.question ?? {
+                                    name: 'Lunch option',
+                                    slug: 'lunch_option',
+                                    options: lunchOptions,
+                                },
+                                sort_order: 999,
+                            });
+                        }
+                        return updated;
+                    });
                     setIsSaving(false);
                     setSaveMessage('Saved.');
                 },
@@ -173,13 +208,13 @@ export default function CheckInAnswersModal({ isOpen, onClose, manifest, answers
 
                 <div className="max-h-[70vh] space-y-6 overflow-y-auto px-6 py-4">
                     <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-                        {resolvedAnswers.length === 0 ? (
+                        {localAnswers.length === 0 ? (
                             <div className="text-sm text-gray-600">
                                 No check-in answers found for this guest.
                             </div>
                         ) : (
                             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                                {resolvedAnswers.map((entry) => {
+                                {localAnswers.map((entry) => {
                                     const question = entry?.question || {};
                                     const isSignature = question?.slug === 'signature' || question?.type === 'signature';
                                     const answerValue = entry?.answer;

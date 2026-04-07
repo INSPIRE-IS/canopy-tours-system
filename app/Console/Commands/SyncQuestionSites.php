@@ -9,6 +9,7 @@ use Illuminate\Console\Command;
 class SyncQuestionSites extends Command
 {
     protected $signature = 'question-sites:sync';
+    // php artisan question-sites:sync
     protected $description = 'Sync question_sites.enabled with question library defaults';
 
     public function handle(): int
