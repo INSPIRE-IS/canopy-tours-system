@@ -301,9 +301,23 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
                 groups.push({ type: "guide", count: parseInt(data.guides), discount_id: null, base_rate: rate_per_guide, final_rate: rate_per_guide });
             }
             const existingDiscountLines = Array.isArray(data.discount_lines) ? data.discount_lines : [];
-            const mergedGroups = existingDiscountLines.length > 0
+            let mergedGroups = existingDiscountLines.length > 0
                 ? mergeDiscountLinesWithBase(groups, existingDiscountLines)
                 : groups;
+            if (Array.isArray(pricing?.applied_discounts) && pricing.applied_discounts.length > 0) {
+                const discountRateMap = new Map(
+                    pricing.applied_discounts.map(d => [`${d.applied_to}:${d.id}`, Number(d.final_rate || 0)])
+                );
+                mergedGroups = mergedGroups.map(group => {
+                    if (group.discount_id) {
+                        const key = `${group.type}:${group.discount_id}`;
+                        if (discountRateMap.has(key)) {
+                            return { ...group, final_rate: discountRateMap.get(key) };
+                        }
+                    }
+                    return group;
+                });
+            }
             setPaxGroups(mergedGroups);
             skipDiscountResetRef.current = false;
         }
@@ -421,27 +435,26 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
                 .post(route("admin.booking.calculate"), payload)
                 .then((res) => {
                     console.log('Calculation result:', res.data);
-                    const applied_discounts = res.data.applied_rates;
                     const applied_promotion = res.data.applied_promotion;
-                    const applied_rates = res.data.applied_rates;
-                    const base_rates = res.data.applied_rates;
+                    const applied_rates = res.data.applied_rates || {};
+                    const base_rates = res.data.base_rates || {};
                     const total_price = res.data.total_price;
                     setPricing(res.data);
                     setData(prev => ({
                         ...prev,
                         override_price: false,
                         override_rates: false,
-                        rate_per_adult: applied_rates.adult,
-                        rate_per_child: applied_rates.child,
-                        rate_per_guide: applied_rates.guide,
+                        rate_per_adult: applied_rates.adult ?? prev.rate_per_adult,
+                        rate_per_child: applied_rates.child ?? prev.rate_per_child,
+                        rate_per_guide: applied_rates.guide ?? prev.rate_per_guide,
                         booking_total: total_price || 0,
                     }));
                     if (Array.isArray(res.data.applied_discounts)) {
                         const discountRateMap = new Map(
                             res.data.applied_discounts.map(d => [`${d.applied_to}:${d.id}`, Number(d.final_rate || 0)])
                         );
-                        setPaxGroups(prev =>
-                            prev.map(g => {
+                        const sourceGroups = Array.isArray(pax_groups) ? pax_groups : [];
+                        setPaxGroups(sourceGroups.map(g => {
                                 if (g.discount_id) {
                                     const key = `${g.type}:${g.discount_id}`;
                                     if (discountRateMap.has(key)) {
@@ -449,13 +462,12 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
                                     }
                                 }
                                 const fallbackRate = g.type === "adult"
-                                    ? Number(applied_rates.adult || 0)
+                                    ? Number(applied_rates.adult ?? base_rates.adult ?? 0)
                                     : g.type === "child"
-                                        ? Number(applied_rates.child || 0)
-                                        : Number(applied_rates.guide || 0);
+                                        ? Number(applied_rates.child ?? base_rates.child ?? 0)
+                                        : Number(applied_rates.guide ?? base_rates.guide ?? 0);
                                 return { ...g, final_rate: fallbackRate };
-                            })
-                        );
+                            }));
                     }
                 })
                 .catch((err) => {
@@ -704,6 +716,27 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
             return (parseFloat(adult_total || 0) + parseFloat(child_total || 0) + parseFloat(guide_total || 0)).toFixed(2);
         }
         return 0;
+    };
+
+    const buildDiscountLinesPayload = (groups) => {
+        return (groups || [])
+            .filter(g => g.discount_id)
+            .map(g => {
+                const fallbackBase = g.type === 'adult'
+                    ? Number(data.rate_per_adult || 0)
+                    : g.type === 'child'
+                        ? Number(data.rate_per_child || 0)
+                        : Number(data.rate_per_guide || 0);
+                const baseRate = Number(g.base_rate ?? fallbackBase);
+                const finalRate = Number(g.final_rate ?? baseRate);
+                return {
+                    type: g.type,
+                    count: Number(g.count || 0),
+                    discount_id: g.discount_id,
+                    base_rate: baseRate,
+                    final_rate: finalRate,
+                };
+            });
     };
 
     const buildBasePaxGroups = (adultCount, childCount, guideCount, rates) => {
@@ -1417,7 +1450,13 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
             showToast('Please add at least 1 adult or 1 child.', 'info');
             return;
         }
-        put(route('admin.bookings.update', booking.id));
+        const discountLinesPayload = buildDiscountLinesPayload(paxGroups);
+        put(route('admin.bookings.update', booking.id), {
+            transform: (payload) => ({
+                ...payload,
+                discount_lines: discountLinesPayload,
+            }),
+        });
     };
 
     const addDiscountGroup = () => {
