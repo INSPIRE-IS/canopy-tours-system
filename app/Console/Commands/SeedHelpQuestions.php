@@ -591,8 +591,8 @@ class SeedHelpQuestions extends Command
                 'question' => 'When are feedback forms available?',
                 'description' => 'Guest feedback forms.',
                 'where' => '<a href="/front/feedback-questionnaire">Front > Feedback Questionnaire</a>',
-                'business_rules' => 'Links are signed and available after activity dates. The top Feedback button on Admin > Bookings is disabled if there are no bookings for the selected date, if the date is in the future, or if no check-ins have been completed for that date.',
-                'examples' => 'If a booking is for next week, Feedback is disabled until the activity date passes. If there are bookings today but no guests have completed check-in, Feedback remains disabled.',
+                'business_rules' => 'Links are signed and available after activity dates. Feedback links expire 7 days after the activity completes (booking date + time slot + service duration; end-of-day fallback if no start time). The top Feedback button on Admin > Bookings is disabled if there are no bookings for the selected date, if the date is in the future, or if no check-ins have been completed for that date.',
+                'examples' => 'If a booking is for next week, Feedback is disabled until the activity date passes. If there are bookings today but no guests have completed check-in, Feedback remains disabled. If a guest opens the link after the 7‑day window, they see the expired screen with the team contact email.',
                 'is_internal' => true,
             ],
             [
