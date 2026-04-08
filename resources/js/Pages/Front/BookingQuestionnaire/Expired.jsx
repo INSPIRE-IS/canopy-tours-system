@@ -1,7 +1,7 @@
 import React from 'react';
 import { Head } from '@inertiajs/react';
 
-export default function BookingQuestionnaireExpired({ message, activityDate, activityOver }) {
+export default function BookingQuestionnaireExpired({ message, activityDate, activityOver, contactEmail }) {
   const formattedDate = activityDate
     ? new Date(`${activityDate}T00:00:00`).toLocaleDateString('en-ZA', {
         year: 'numeric',
@@ -41,9 +41,14 @@ export default function BookingQuestionnaireExpired({ message, activityDate, act
               Activity date: {formattedDate}
             </p>
           )}
-          {!activityOver && (
+          {!activityOver && !contactEmail && (
             <p className="text-gray-600 text-sm">
               Please contact your booking agent to request a new check-in link.
+            </p>
+          )}
+          {!activityOver && contactEmail && (
+            <p className="text-gray-600 text-sm">
+              Please contact {contactEmail} to request a new link.
             </p>
           )}
         </div>

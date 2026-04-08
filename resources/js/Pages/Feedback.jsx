@@ -32,10 +32,6 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
   const [adults, setAdults] = useState([]);
   const [selected, setSelected] = useState(null);
   const SIGNED_STORAGE_KEY = 'feedback_questionnaire_signed';
-  const [signedParams, setSignedParams] = useState(null);
-  const [linkExpiresAt, setLinkExpiresAt] = useState(null);
-  const [linkTimeLeft, setLinkTimeLeft] = useState(null);
-  const [linkExpired, setLinkExpired] = useState(false);
   const [hasUserChanges, setHasUserChanges] = useState(false);
   const [confirmConfig, setConfirmConfig] = useState(null);
 
@@ -151,11 +147,6 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
         payload.customer_id = String(customerId);
       }
       sessionStorage.setItem(SIGNED_STORAGE_KEY, JSON.stringify(payload));
-      setSignedParams(payload);
-      const expiresMs = Number(expires) * 1000;
-      if (Number.isFinite(expiresMs)) {
-        setLinkExpiresAt(expiresMs);
-      }
       return;
     }
 
@@ -167,11 +158,7 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
       if (!saved?.signature || !saved?.expires || !saved?.booking_item_id || !saved?.reference) {
         return;
       }
-      setSignedParams(saved);
       const savedExpiresMs = Number(saved.expires) * 1000;
-      if (Number.isFinite(savedExpiresMs)) {
-        setLinkExpiresAt(savedExpiresMs);
-      }
       const isExpired = Number.isFinite(savedExpiresMs) ? savedExpiresMs <= Date.now() : false;
       if (isExpired) return;
 
@@ -184,46 +171,6 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
     }
   }, [bookingItem?.id, booking?.reference]);
 
-  useEffect(() => {
-    if (!linkExpiresAt) return;
-    const updateTimeLeft = () => {
-      const msLeft = linkExpiresAt - Date.now();
-      setLinkTimeLeft(msLeft);
-      setLinkExpired(msLeft <= 0);
-    };
-    updateTimeLeft();
-    const intervalId = setInterval(updateTimeLeft, 30000);
-    return () => clearInterval(intervalId);
-  }, [linkExpiresAt]);
-
-  const formatTimeLeft = (ms) => {
-    if (ms === null || ms === undefined) return null;
-    const totalSeconds = Math.max(0, Math.floor(ms / 1000));
-    const totalMinutes = Math.floor(totalSeconds / 60);
-    const hours = Math.floor(totalMinutes / 60);
-    const minutes = totalMinutes % 60;
-    if (hours > 0) {
-      return `${hours}h ${minutes}m`;
-    }
-    return `${minutes}m`;
-  };
-
-  const handleRefreshLink = () => {
-    const bookingItemId = signedParams?.booking_item_id ?? bookingItem?.id;
-    const reference = signedParams?.reference ?? booking?.reference;
-    if (!bookingItemId || !reference) return;
-    const params = {
-      booking_item_id: bookingItemId,
-      reference,
-    };
-    if (signedParams?.customer_id) {
-      params.customer_id = signedParams.customer_id;
-    }
-    router.get(route('front.feedback-questionnaire.signed', params));
-  };
-
-  const timeLeftLabel = formatTimeLeft(linkTimeLeft);
-  const canRefreshLink = Boolean((signedParams?.booking_item_id ?? bookingItem?.id) && (signedParams?.reference ?? booking?.reference));
   const hasUnsavedChanges = isDirty && hasUserChanges;
 
   const openConfirm = (config) => {
@@ -342,32 +289,6 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
               onClose={closeConfirm}
             />
           )}
-          {linkExpiresAt && (
-            <div className="w-full px-4 pt-4">
-              <div
-                className={`rounded-lg border px-4 py-3 text-sm flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between ${linkExpired
-                  ? 'border-amber-200 bg-amber-50 text-amber-800'
-                  : 'border-blue-200 bg-blue-50 text-blue-700'
-                  }`}
-              >
-                <span>
-                  {linkExpired
-                    ? 'This feedback link has expired. You can refresh it to continue.'
-                    : `This feedback link expires in ${timeLeftLabel || 'a few minutes'}.`}
-                </span>
-                {canRefreshLink && (
-                  <button
-                    type="button"
-                    onClick={handleRefreshLink}
-                    className="inline-flex items-center justify-center rounded-lg border border-current px-3 py-1 text-sm font-medium hover:bg-white/60"
-                  >
-                    Refresh link
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
-
           {currentSlug === "customer_id" && (
             <div className="flex w-[90%] flex-col h-full mb-[26px]">
               <div className="flex flex-col w-full h-[90%] gap-2" >

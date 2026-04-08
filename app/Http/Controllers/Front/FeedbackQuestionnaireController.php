@@ -39,12 +39,65 @@ use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Routing\Exceptions\InvalidSignatureException;
+use Carbon\CarbonInterval;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
 use Storage;
 
 class FeedbackQuestionnaireController extends Controller
 {
+    protected function resolveFeedbackExpiry(?BookingItem $bookingItem): ?Carbon
+    {
+        if (!$bookingItem) {
+            return null;
+        }
+
+        $bookingItem->loadMissing(['booking_inventory.inventory_time_slot', 'service']);
+        $bookingInventory = $bookingItem->booking_inventory;
+        $bookingDate = $bookingInventory?->getRawOriginal('date') ?? $bookingInventory?->date;
+        $startTime = $bookingInventory?->inventory_time_slot?->start_time;
+
+        if (!$bookingDate) {
+            return null;
+        }
+
+        try {
+            $startDateTime = $startTime
+                ? Carbon::parse(trim("{$bookingDate} {$startTime}"), config('app.timezone'))
+                : Carbon::parse($bookingDate, config('app.timezone'))->startOfDay();
+        } catch (\Throwable $e) {
+            return null;
+        }
+
+        $endDateTime = $startDateTime->copy();
+        $duration = $bookingItem->service?->duration;
+        if ($startTime && $duration) {
+            try {
+                $interval = CarbonInterval::createFromFormat('H:i:s', $duration);
+                $endDateTime = $startDateTime->copy()->addSeconds($interval->totalSeconds);
+            } catch (\Throwable $e) {
+                $endDateTime = $startDateTime->copy();
+            }
+        } elseif (!$startTime) {
+            $endDateTime = Carbon::parse($bookingDate, config('app.timezone'))->endOfDay();
+        }
+
+        return $endDateTime->addDays(7);
+    }
+
+    protected function expiredFeedbackResponse(?BookingItem $bookingItem, string $fallbackMessage = null)
+    {
+        $team = $bookingItem ? Team::with('owner')->find($bookingItem->team_id) : null;
+        $contactEmail = $team?->owner?->email;
+        $message = $fallbackMessage ?: 'This feedback link has expired. Please contact your booking agent to continue.';
+
+        return Inertia::render('Front/BookingQuestionnaire/Expired', [
+            'message' => $message,
+            'activityDate' => $bookingItem?->booking_inventory?->getRawOriginal('date'),
+            'activityOver' => false,
+            'contactEmail' => $contactEmail,
+        ]);
+    }
 
     public function index(Request $request)
     {
@@ -142,9 +195,18 @@ class FeedbackQuestionnaireController extends Controller
             $params['customer_id'] = $request->customer_id;
         }
 
+        $bookingItem = BookingItem::with(['booking_inventory.inventory_time_slot', 'service'])->find($request->booking_item_id);
+        if (!$bookingItem) {
+            return $this->expiredFeedbackResponse(null, 'Booking not found. Please contact your booking agent for assistance.');
+        }
+        $expiresAt = $this->resolveFeedbackExpiry($bookingItem);
+        if (!$expiresAt) {
+            return $this->expiredFeedbackResponse($bookingItem, 'Activity date is not set. Please contact your booking agent to continue.');
+        }
+
         $url = URL::temporarySignedRoute(
             'front.feedback-questionnaire.feedback',
-            now()->addMinutes(80),
+            $expiresAt,
             $params
         );
         return Inertia::location($url);
@@ -397,10 +459,11 @@ class FeedbackQuestionnaireController extends Controller
                 'bookings' => $formatted,
             ]);
         } catch (InvalidSignatureException $e) {
-            return Inertia::render('Front/BookingQuestionnaire/Expired', [
-                'message' => 'Your feedback link has expired. Please restart the process.'
-            ]);
-            return redirect()->route('feedback-questionnaire.index');
+            $bookingItem = null;
+            if ($request->filled('booking_item_id')) {
+                $bookingItem = BookingItem::with(['booking_inventory', 'service'])->find($request->booking_item_id);
+            }
+            return $this->expiredFeedbackResponse($bookingItem, 'This feedback link has expired. Please contact your booking agent to continue.');
         }
     }
 
