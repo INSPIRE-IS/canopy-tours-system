@@ -40,6 +40,7 @@ class RepairBookingPricing extends Command
 
     // Dry‑run + CSV (no DB writes):
     // php artisan bookings:repair-pricing --team=5 --from=2026-01-01 --to=2026-06-30 --dry-run --fix-leads
+    // php artisan bookings:repair-pricing --from=2026-01-01 --to=2026-06-30 --dry-run --fix-leads
     // This writes a CSV under storage/app/reports/ by default.
 
     // Apply fixes + reissue invoices:
@@ -66,7 +67,7 @@ class RepairBookingPricing extends Command
 
         $pricingService = app(PricingService::class);
 
-        $csvPath = $this->resolveCsvPath();
+        $csvPath = $this->resolveCsvPath($dryRun);
         $csvHandle = null;
         if ($csvPath) {
             $csvHandle = $this->openCsv($csvPath);
@@ -351,11 +352,14 @@ class RepairBookingPricing extends Command
         }
     }
 
-    protected function resolveCsvPath(): ?string
+    protected function resolveCsvPath(bool $dryRun): ?string
     {
         $csvPath = $this->option('csv');
         if ($csvPath) {
             return $csvPath;
+        }
+        if (!$dryRun) {
+            return null;
         }
         $dir = storage_path('app/reports');
         if (!is_dir($dir)) {

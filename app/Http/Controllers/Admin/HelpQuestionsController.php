@@ -14,6 +14,30 @@ use Symfony\Component\HttpFoundation\Response;
 
 class HelpQuestionsController extends Controller
 {
+    protected function applyHelpSearch($query, string $searchTerm): void
+    {
+        $searchTerm = trim($searchTerm);
+        if ($searchTerm === '') {
+            return;
+        }
+
+        $terms = preg_split('/\s+/', $searchTerm, -1, PREG_SPLIT_NO_EMPTY);
+        if (empty($terms)) {
+            return;
+        }
+
+        $query->where(function ($outer) use ($terms) {
+            foreach ($terms as $term) {
+                $like = '%' . $term . '%';
+                $outer->orWhere(function ($inner) use ($like) {
+                    $inner->where('help_questions.question', 'like', $like)
+                        ->orWhere('ha.answer', 'like', $like)
+                        ->orWhere('thq.name', 'like', $like);
+                });
+            }
+        });
+    }
+
     /**
      * Display a listing of the resource.
      */
@@ -32,8 +56,9 @@ class HelpQuestionsController extends Controller
         $teamFilter = $request->input('team_id');
         $query = HelpQuestion::with(['typeHelpQuestion', 'answer', 'team'])
             ->leftJoin('type_help_questions as thq', 'help_questions.type_help_question_id', '=', 'thq.id')
+            ->leftJoin('help_answers as ha', 'help_questions.id', '=', 'ha.help_question_id')
             ->select('help_questions.*')
-            ->where('question', 'like', '%' . $searchTerm . '%')
+            ->distinct()
             ->when(!$isAdmin && $teamId, function ($query) use ($teamId) {
                 $query->where(function ($sub) use ($teamId) {
                     $sub->whereNull('team_id')
@@ -46,6 +71,7 @@ class HelpQuestionsController extends Controller
                         ->orWhere('team_id', $teamFilter);
                 });
             });
+        $this->applyHelpSearch($query, $searchTerm);
 
         if (!$isAdmin) {
             $query->where(function ($sub) use ($roleIds) {
@@ -166,8 +192,9 @@ class HelpQuestionsController extends Controller
         }
         $helpQuestions = HelpQuestion::with(['typeHelpQuestion', 'answer', 'team'])
             ->leftJoin('type_help_questions as thq', 'help_questions.type_help_question_id', '=', 'thq.id')
+            ->leftJoin('help_answers as ha', 'help_questions.id', '=', 'ha.help_question_id')
             ->select('help_questions.*')
-            ->where('question', 'like', '%' . $searchTerm . '%')
+            ->distinct()
             ->when(!$isAdmin && $teamId, function ($query) use ($teamId) {
                 $query->where(function ($sub) use ($teamId) {
                     $sub->whereNull('team_id')
@@ -181,7 +208,9 @@ class HelpQuestionsController extends Controller
                         $sub->orWhereJsonContains('thq.role_ids', (int) $roleId);
                     }
                 });
-            })
+            });
+        $this->applyHelpSearch($helpQuestions, $searchTerm);
+        $helpQuestions = $helpQuestions
             ->orderByRaw('coalesce(thq.order_id, 9999)')
             ->orderBy('question')
             ->get();
