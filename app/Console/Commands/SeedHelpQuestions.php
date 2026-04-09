@@ -92,7 +92,13 @@ class SeedHelpQuestions extends Command
             $where = $item['where'] ?? '';
             $businessRules = $item['business_rules'] ?? '';
             $examples = $item['examples'] ?? '';
-            $formattedAnswer = $this->formatAnswer($description, $where, $businessRules, $examples);
+            $formattedAnswer = $this->formatAnswer(
+                $description,
+                $where,
+                $businessRules,
+                $examples,
+                $item['related'] ?? ''
+            );
 
             $question = HelpQuestion::updateOrCreate(
                 [
@@ -165,6 +171,7 @@ class SeedHelpQuestions extends Command
                 'description' => 'Wholesalers are trade partners with contracted rates.',
                 'where' => '<a href="/admin/wholesalers">Admin > Wholesalers</a>',
                 'business_rules' => 'Wholesaler rates override standard rates when a booking is marked as wholesaler. Rates are matched by service + season; if no rate exists, standard pricing applies.',
+                'related' => 'wholesaler rates, booking pricing, discounts, promotions, service, season',
                 'is_internal' => true,
             ],
             [
@@ -181,6 +188,7 @@ class SeedHelpQuestions extends Command
                 'description' => 'Wholesaler rates apply by service and season.',
                 'where' => '<a href="/admin/wholesaler-rates">Admin > Wholesaler Rates</a>',
                 'business_rules' => 'Rates apply only when a booking is marked as wholesaler.',
+                'related' => 'wholesaler, booking pricing, service, season, discounts, promotions',
                 'is_internal' => true,
             ],
             [
@@ -190,6 +198,7 @@ class SeedHelpQuestions extends Command
                 'where' => '<a href="/admin/services">Admin > Services</a>',
                 'business_rules' => 'Capacity is enforced on bookings; duration drives the time-range displayed on calendars. Services also use visibility (Draft/Bookable/Gift/Both) to control where they appear (front booking vs gift flow).',
                 'examples' => 'If a service capacity is 8, bookings cannot exceed 8 unless Override Capacity is enabled for that service and selected on the booking.',
+                'related' => 'seasons, inventory, capacity, bookings, time slots, override capacity',
                 'is_internal' => true,
             ],
             [
@@ -232,6 +241,7 @@ class SeedHelpQuestions extends Command
                 'description' => 'Seasons control availability dates for services.',
                 'where' => '<a href="/admin/seasons">Admin > Seasons</a>',
                 'business_rules' => 'Bookings must fall within season dates. New seasons auto-seed questionnaires; booking/feedback check-in will auto-seed if missing.',
+                'related' => 'inventory, closeouts, date overrides, availability, questionnaires',
                 'is_internal' => true,
             ],
             [
@@ -241,6 +251,7 @@ class SeedHelpQuestions extends Command
                 'where' => '<a href="/admin/inventories">Admin > Inventory</a>',
                 'business_rules' => 'Weekly day selections + time slots generate availability across a season. Closeouts remove specific days/times from availability.',
                 'examples' => 'If a season runs 1-31 May and you select Mondays + Wednesdays with 09:00 and 13:00, those two slots appear on every Monday and Wednesday in May. To block 13:00 on May 15, add a closeout for that date/time.',
+                'related' => 'seasons, closeouts, date overrides, availability, time slots',
                 'is_internal' => true,
             ],
             [
@@ -250,6 +261,7 @@ class SeedHelpQuestions extends Command
                 'where' => '<a href="/admin/inventories">Admin > Inventory</a> and <a href="/admin/closeouts">Admin > Closeouts</a>',
                 'business_rules' => 'Inventory defines the recurring weekly schedule for a season. Closeouts are exceptions that block specific dates/times without changing the base schedule.',
                 'examples' => 'If Fridays at 10:00 are available all season, add a closeout for 2026-06-12 at 10:00 to block only that one slot.',
+                'related' => 'inventory, closeouts, date overrides, availability',
                 'is_internal' => true,
             ],
             [
@@ -268,6 +280,7 @@ class SeedHelpQuestions extends Command
                 'where' => '<a href="/admin/inventory-slot-ranges">Admin > Inventory > Date Overrides</a>',
                 'business_rules' => 'Weekly schedule is the default. Custom/one-off slots must be created via Date Overrides, which take precedence over the weekly schedule for those dates. If a date override exists for a date, only those override slots are used for that date. Overrides can use custom times not present in weekly inventory. Internal-only overrides show on admin calendars only. Closeouts still apply after overrides.',
                 'examples' => 'Weekly schedule: Mon/Wed/Fri 09:00 + 13:00. Date override: May 5-7 with only 10:00. Result: May 5-7 shows only 10:00; all other Mon/Wed/Fri still show 09:00 + 13:00. If you mark the override internal-only, it appears in admin calendars but not on the front booking calendar.',
+                'related' => 'inventory, closeouts, availability, capacity override, internal only',
                 'is_internal' => true,
             ],
             [
@@ -277,6 +290,7 @@ class SeedHelpQuestions extends Command
                 'where' => '<a href="/admin/inventory-slot-ranges">Admin > Inventory > Date Overrides</a>',
                 'business_rules' => 'Overrides apply only to the selected dates and replace the weekly schedule for those dates. Override-only slots are hidden on other dates. Internal-only overrides show on admin calendars only. If a capacity override is set, that capacity is used for those override slots. Closeouts can still block slots after overrides are applied.',
                 'examples' => 'If your weekly schedule is 09:00 + 13:00 but you need 12:00 + 14:00 on Mar 23-25, add a date override for those dates with 12:00 + 14:00. Those dates show only 12:00 + 14:00; the rest of the season remains 09:00 + 13:00. If you set capacity override = 6, those slots cap at 6 seats even if the service capacity is higher.',
+                'related' => 'inventory, closeouts, availability, capacity override, internal only',
                 'is_internal' => true,
             ],
             [
@@ -295,6 +309,7 @@ class SeedHelpQuestions extends Command
                 'where' => '<a href="/admin/inventories-overrides">Admin > Inventory Overrides</a>',
                 'business_rules' => 'Allowed only when season.allow_internal_price_override is true. Overrides clear promos/discounts/wholesaler pricing for that booking.',
                 'examples' => 'If a private group needs a custom price on 10 June at 09:00, create an inventory override for that inventory record. The booking will use the override price and will ignore promos/discounts/wholesaler rates.',
+                'related' => 'inventory, overrides, pricing, promotions, discounts, wholesalers',
                 'is_internal' => true,
             ],
             [
@@ -304,6 +319,7 @@ class SeedHelpQuestions extends Command
                 'where' => '<a href="/admin/closeouts">Admin > Closeouts</a>',
                 'business_rules' => 'Closed slots are unavailable in admin and front calendars. Closeouts can target specific weekdays and time slots over a date range.',
                 'examples' => 'If you select a date range 10-14 July, weekdays Mon-Fri, and time slot 09:00, then 09:00 is blocked on every weekday in that range. Leaving time slots empty blocks all slots for those dates. To close all Mondays and Tuesdays for a season, set the closeout date range to the full season, pick Mon + Tue, and leave time slots empty.',
+                'related' => 'inventory, date overrides, availability, time slots, seasons',
                 'is_internal' => true,
             ],
             [
@@ -321,6 +337,7 @@ class SeedHelpQuestions extends Command
                 'description' => 'Marketing includes discounts and promotions.',
                 'where' => '<a href="/admin/discounts">Admin > Marketing (Discounts)</a>',
                 'business_rules' => 'Discounts and promos are managed separately.',
+                'related' => 'promotions, discounts, promo codes, booking pricing',
                 'is_internal' => true,
             ],
             [
@@ -330,6 +347,7 @@ class SeedHelpQuestions extends Command
                 'where' => '<a href="/admin/discounts">Admin > Discounts</a>',
                 'business_rules' => 'Discounts are separate from promo codes. Discounts can be per-line (per pax) or invoice-level. Per-line discounts reduce individual rates; invoice-level discounts apply to the total after all per-line logic. Discounts do not have booking/activity windows.',
                 'examples' => 'A 10% line discount for Adults reduces adult rates only. A 10% invoice discount reduces the full total after line-level discounts are applied.',
+                'related' => 'promotions, promo codes, booking pricing, invoice discounts, line discounts',
                 'is_internal' => true,
             ],
             [
@@ -339,6 +357,7 @@ class SeedHelpQuestions extends Command
                 'where' => '<a href="/admin/discounts">Admin > Discounts</a> and Admin booking create/edit',
                 'business_rules' => 'Line discounts reduce the selected pax type rates (adult/child/guide). Invoice discounts apply once to the total after line discounts. Only one invoice discount should be applied at a time.',
                 'examples' => 'If a booking has 2 Adults + 1 Child and you apply a 15% Child line discount, only the child rate is reduced. If you then apply a 5% invoice discount, it applies to the new total.',
+                'related' => 'discounts, invoice discount, line item, promotions, booking totals',
                 'is_internal' => true,
             ],
             [
@@ -366,6 +385,7 @@ class SeedHelpQuestions extends Command
                 'where' => 'Admin booking create/edit',
                 'business_rules' => 'Discounts only appear for services they are linked to. If a promotion is selected, per-line discounts are not applied. Invoice discounts are exclusive and apply only when selected.',
                 'examples' => 'If a discount is linked to “Canopy Tour A” but the booking is for “Canopy Tour B”, it will not show. If a promo code is applied, the discount list may be empty.',
+                'related' => 'promotions, promo codes, service, booking pricing, line discounts',
                 'is_internal' => true,
             ],
             [
@@ -375,6 +395,7 @@ class SeedHelpQuestions extends Command
                 'where' => '<a href="/admin/promotions">Admin > Promotions</a>',
                 'business_rules' => 'Booking window uses today; activity window uses the booking date (activity date). Admin sees all; front only shows active promos with internal_use_only=false. If the activity date is outside the promo activity window, the promo will be invalid.',
                 'examples' => 'If a promo’s booking window is Feb 1–Feb 28 and today is March 3, it will be expired (not selectable). If today is within the booking window but the activity date is May 5 and the promo activity window is April only, it will show as invalid.',
+                'related' => 'promo codes, booking window, activity window, discounts, booking pricing',
                 'is_internal' => true,
             ],
             [
@@ -384,6 +405,7 @@ class SeedHelpQuestions extends Command
                 'where' => '<a href="/admin/promotions">Admin > Promotions</a>',
                 'business_rules' => 'Booking window controls when the promo can be used (today must be within booking range). Activity window controls which activity dates are eligible (booking date must fall within activity range). Booking dates are not tied to seasons; activity dates must be within a season for the selected service.',
                 'examples' => 'Booking window: Feb 1–Feb 28. Activity window: May 1–May 31. You can book in February for a May activity date. Booking in March won’t allow the promo even if the activity date is in May.',
+                'related' => 'promo codes, booking window, activity window, seasons, discounts',
                 'is_internal' => true,
             ],
             [
@@ -414,6 +436,7 @@ class SeedHelpQuestions extends Command
                 'where' => 'Admin booking create/edit',
                 'business_rules' => 'When a promotion is applied, per-line discounts are skipped. This prevents double-discounting. Invoice-level discounts can still apply if explicitly selected.',
                 'examples' => 'If a promo is selected, you will not see line discounts apply. To discount further, use the invoice discount selector.',
+                'related' => 'discounts, invoice discount, line discounts, booking pricing',
                 'is_internal' => true,
             ],
             [
@@ -515,6 +538,7 @@ class SeedHelpQuestions extends Command
                 'where' => 'Booking Add > Customer Manifest',
                 'business_rules' => 'The Indemnity badge maps to `customer_manifests.is_indemnity`. It is set when the guest completes the check-in/waiver (signature). It is not the same as Arrived.',
                 'examples' => 'A guest can complete Indemnity online but still be marked as No Show/Cancelled in Arrived.',
+                'related' => 'check-in, questionnaire, waiver, signature, manifest, booking add',
                 'is_internal' => true,
             ],
             [
@@ -524,6 +548,7 @@ class SeedHelpQuestions extends Command
                 'where' => 'Booking tools in <a href="/admin/bookings">Admin > Bookings</a>',
                 'business_rules' => 'Signed links required; questionnaires auto-seed if missing. Check-in links expire at activity start time + 3 hours (booking date + time slot). If the signature expires but the activity window is still valid, the link is reissued automatically on open. The top Check-in button on Admin > Bookings is disabled if there are no bookings for the selected date or if the selected date is in the past.',
                 'examples' => 'If you pick a day with no bookings, the Check-in button is disabled. If a guest opens an old link before the 3‑hour window ends, the system reissues a signed link automatically.',
+                'related' => 'indemnity, questionnaire, manifest, signed link, booking add, feedback',
                 'is_internal' => true,
             ],
             [
@@ -533,6 +558,7 @@ class SeedHelpQuestions extends Command
                 'where' => 'Booking Add > Customer Manifest (Arrived toggle) and Checkin Detail modal.',
                 'business_rules' => 'Arrival status is stored on `customer_manifests.attendance_status` with values `no_show`, `arrived`, `cancelled` (default `no_show`). On the Booking Add list, Arrived toggles in a cycle (No → Yes → Cancelled → No). In Checkin Detail, you can select the status with 3 buttons and also update notes/lunch option, then Save.',
                 'examples' => 'If a guest checks in but does not arrive, set Arrived to No. If they arrived, set Yes. If the guest cancels, set Cancelled.',
+                'related' => 'manifest, check-in, indemnity, attendance, booking add',
                 'is_internal' => true,
             ],
             [
@@ -542,6 +568,7 @@ class SeedHelpQuestions extends Command
                 'where' => '<a href="/admin/dynamic-questionnaires">Admin > Questionnaires</a>',
                 'business_rules' => 'Questions live in `questions` and are enabled per service + season via `question_site` (enabled + sort order). There is no default fallback: each season has its own question_sites and those rows are the source of truth. The front check-in and feedback flows read this list directly, so toggles here immediately affect what guests see. Use Type = indemnity for check-in and Type = feedback for feedback. Services without seasons are hidden from the list.',
                 'examples' => 'If a service should ask for meal preference, enable the `lunch_option` question for that service and set its sort order. Leave it disabled for services that do not offer meals.',
+                'related' => 'indemnity, check-in, feedback, question_site, service, season, dynamic questionnaires',
                 'is_internal' => true,
             ],
             [
@@ -551,6 +578,7 @@ class SeedHelpQuestions extends Command
                 'where' => '<a href="/admin/dynamic-questionnaires">Admin > Questionnaires</a> (Season settings) and Booking Add > Checkin Detail',
                 'business_rules' => 'Enable `lunch_option` for the service + season and provide custom options (CSV) in the season settings. When enabled, guests must pick a lunch option during check-in. Admin Checkin Detail shows a dropdown sourced from the same options and saves the selected value to `question_answers`.',
                 'examples' => 'If a season offers Vegetarian/Fish/Chicken, enter those options and enable `lunch_option`. Guests cannot proceed without choosing one.',
+                'related' => 'lunch_option, meal, questionnaire, check-in, booking add, question_site',
                 'is_internal' => true,
             ],
             [
@@ -560,6 +588,7 @@ class SeedHelpQuestions extends Command
                 'where' => '<a href="/admin/dynamic-questionnaires">Admin > Questionnaires</a> (Question Library)',
                 'business_rules' => 'Visible controls whether a question appears in the service toggle list. Default On sets the starting enabled state when a new season is created. Compulsory (is_disabled) locks a question on; it is always enabled and cannot be turned off in service settings.',
                 'examples' => 'If Marketing Source should be optional, keep Compulsory off and Default On off. If Signature must always be present, mark it Compulsory.',
+                'related' => 'question library, question_site, defaults, compulsory, is_visible, is_disabled',
                 'is_internal' => true,
             ],
             [
@@ -568,6 +597,7 @@ class SeedHelpQuestions extends Command
                 'description' => 'Only services with seasons are listed.',
                 'where' => '<a href="/admin/dynamic-questionnaires">Admin > Questionnaires</a>',
                 'business_rules' => 'The dynamic list hides services with no seasons. Create a season for the service first, then manage its questions per season.',
+                'related' => 'services, seasons, question_site, questionnaires',
                 'is_internal' => true,
             ],
             [
@@ -576,6 +606,7 @@ class SeedHelpQuestions extends Command
                 'description' => 'Use the sync command to reset enabled flags across all seasons.',
                 'where' => 'CLI: php artisan question-sites:sync',
                 'business_rules' => 'The sync updates question_sites.enabled to match question library defaults: enabled = Compulsory ? true : (Visible ? Default On : false). This is useful after changing library defaults.',
+                'related' => 'question_site, question library, seasons, defaults, questionnaires',
                 'is_internal' => true,
             ],
             [
@@ -593,6 +624,7 @@ class SeedHelpQuestions extends Command
                 'where' => '<a href="/front/feedback-questionnaire">Front > Feedback Questionnaire</a>',
                 'business_rules' => 'Links are signed and available after activity dates. Feedback links expire 7 days after the activity completes (booking date + time slot + service duration; end-of-day fallback if no start time). The top Feedback button on Admin > Bookings is disabled if there are no bookings for the selected date, if the date is in the future, or if no check-ins have been completed for that date.',
                 'examples' => 'If a booking is for next week, Feedback is disabled until the activity date passes. If there are bookings today but no guests have completed check-in, Feedback remains disabled. If a guest opens the link after the 7‑day window, they see the expired screen with the team contact email.',
+                'related' => 'feedback, check-in, indemnity, questionnaires, signed links',
                 'is_internal' => true,
             ],
             [
@@ -719,12 +751,19 @@ class SeedHelpQuestions extends Command
         ];
     }
 
-    protected function formatAnswer(string $description, string $where = '', string $businessRules = '', string $examples = ''): string
+    protected function formatAnswer(
+        string $description,
+        string $where = '',
+        string $businessRules = '',
+        string $examples = '',
+        string $related = ''
+    ): string
     {
         $description = trim($description);
         $where = trim($where);
         $businessRules = trim($businessRules);
         $examples = trim($examples);
+        $related = trim($related);
 
         $parts = [];
         $parts[] = '<p><strong>Description:</strong> ' . ($description !== '' ? $description : 'N/A') . '</p>';
@@ -732,6 +771,9 @@ class SeedHelpQuestions extends Command
         $parts[] = '<p><strong>Business Rules:</strong> ' . ($businessRules !== '' ? $businessRules : 'N/A') . '</p>';
         if ($examples !== '') {
             $parts[] = '<p><strong>Example:</strong> ' . $examples . '</p>';
+        }
+        if ($related !== '') {
+            $parts[] = '<p><strong>Related:</strong> ' . $related . '</p>';
         }
 
         return implode('', $parts);
