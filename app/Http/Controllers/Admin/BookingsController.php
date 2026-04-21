@@ -467,6 +467,7 @@ class BookingsController extends Controller
             'is_wholesaler' => 'boolean', //   "is_wholesaler" => "true"
             'wholesaler_id' => 'integer|nullable', //   "wholesaler_id" => "1"
             'discount_lines' => 'array|nullable',
+            'invoice_discount_id' => 'nullable|exists:discounts,id',
             'promoCode' => 'nullable|string',
             'redeem_voucher' => 'string|nullable', //   "redeem_voucher" => "Voucher Code"
             'pay_later' => 'boolean', //   "pay_later" => "true"
@@ -501,6 +502,12 @@ class BookingsController extends Controller
                     ]);
                 }
                 if ($overrideRates) {
+                    $validated['promoCode'] = null;
+                    $validated['discount_lines'] = [];
+                    $validated['wholesaler_id'] = null;
+                    $validated['is_wholesaler'] = false;
+                }
+                if (!empty($validated['invoice_discount_id'])) {
                     $validated['promoCode'] = null;
                     $validated['discount_lines'] = [];
                     $validated['wholesaler_id'] = null;
@@ -542,6 +549,7 @@ class BookingsController extends Controller
                     'booking_date' => $validated['booking_date'],
                     'wholesaler_id' => $validated['is_wholesaler'] ? ($validated['wholesaler_id'] ?? null) : null,
                     'promo_code' => $validated['promoCode'] ?? null,
+                    'invoice_discount_id' => $validated['invoice_discount_id'] ?? null,
                     'adults' => $adultsCount,
                     'children' => $childrenCount,
                     'guides' => $guidesCount,
@@ -559,6 +567,21 @@ class BookingsController extends Controller
                 $amount_children = round((float) ($pricing['totals_by_type']['child'] ?? 0), 2);
                 $amount_guides = round((float) ($pricing['totals_by_type']['guide'] ?? 0), 2);
                 $discountLines = $pricing['discount_lines'] ?? [];
+                $invoiceDiscountId = (int) ($validated['invoice_discount_id'] ?? 0);
+                if ($invoiceDiscountId && empty($discountLines)) {
+                    // Persist invoice-level discounts as per-type discount lines so booking_discount_items can represent them.
+                    $discountLines = collect($pricing['line_items'] ?? [])
+                        ->filter(fn($line) => in_array($line['type'] ?? null, ['adult', 'child', 'guide'], true) && (int) ($line['count'] ?? 0) > 0)
+                        ->map(fn($line) => [
+                            'type' => $line['type'],
+                            'count' => (int) ($line['count'] ?? 0),
+                            'discount_id' => $invoiceDiscountId,
+                            'base_rate' => (float) ($line['base_rate'] ?? 0),
+                            'final_rate' => (float) ($line['final_rate'] ?? 0),
+                        ])
+                        ->values()
+                        ->all();
+                }
                 $requestedPax = $adultsCount + $childrenCount;
                 $canOverrideCapacity = !empty($validated['override_capacity']) && (bool) $service->allow_internal_capacity_override;
                 if (!$canOverrideCapacity) {
@@ -1290,6 +1313,7 @@ class BookingsController extends Controller
             'is_wholesaler' => 'boolean',
             'wholesaler_id' => 'integer|nullable',
             'discount_lines' => 'array|nullable',
+            'invoice_discount_id' => 'nullable|exists:discounts,id',
             'promoCode' => 'nullable|string',
             'redeem_voucher' => 'string|nullable',
             'pay_later' => 'boolean',
@@ -1328,6 +1352,12 @@ class BookingsController extends Controller
                     ]);
                 }
                 if ($overrideRates) {
+                    $validated['promoCode'] = null;
+                    $validated['discount_lines'] = [];
+                    $validated['wholesaler_id'] = null;
+                    $validated['is_wholesaler'] = false;
+                }
+                if (!empty($validated['invoice_discount_id'])) {
                     $validated['promoCode'] = null;
                     $validated['discount_lines'] = [];
                     $validated['wholesaler_id'] = null;
@@ -1375,6 +1405,7 @@ class BookingsController extends Controller
                     'booking_date' => $validated['booking_date'],
                     'wholesaler_id' => $validated['is_wholesaler'] ? ($validated['wholesaler_id'] ?? null) : null,
                     'promo_code' => $validated['promoCode'] ?? null,
+                    'invoice_discount_id' => $validated['invoice_discount_id'] ?? null,
                     'adults' => $adultsCount,
                     'children' => $childrenCount,
                     'guides' => $guidesCount,
@@ -1392,6 +1423,20 @@ class BookingsController extends Controller
                 $amount_children = round((float) ($pricing['totals_by_type']['child'] ?? 0), 2);
                 $amount_guides = round((float) ($pricing['totals_by_type']['guide'] ?? 0), 2);
                 $discountLines = $pricing['discount_lines'] ?? [];
+                $invoiceDiscountId = (int) ($validated['invoice_discount_id'] ?? 0);
+                if ($invoiceDiscountId && empty($discountLines)) {
+                    $discountLines = collect($pricing['line_items'] ?? [])
+                        ->filter(fn($line) => in_array($line['type'] ?? null, ['adult', 'child', 'guide'], true) && (int) ($line['count'] ?? 0) > 0)
+                        ->map(fn($line) => [
+                            'type' => $line['type'],
+                            'count' => (int) ($line['count'] ?? 0),
+                            'discount_id' => $invoiceDiscountId,
+                            'base_rate' => (float) ($line['base_rate'] ?? 0),
+                            'final_rate' => (float) ($line['final_rate'] ?? 0),
+                        ])
+                        ->values()
+                        ->all();
+                }
                 $requestedPax = $adultsCount + $childrenCount;
                 $canOverrideCapacity = !empty($validated['override_capacity']) && (bool) $service->allow_internal_capacity_override;
                 if (!$canOverrideCapacity) {

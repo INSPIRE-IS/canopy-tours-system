@@ -156,6 +156,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
         referral_source: '',
         // booking payment
         booking_total: 0,
+        invoice_discount_id: null,
         deposit_due: lookups.find(l => l.slug == 'deposit_due')?.multiplier || 1,
         due_today: lookups.find(l => l.slug == 'due_today')?.multiplier || 1,
         rack_value: 1,
@@ -171,6 +172,12 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
             showToast(flash.error, "error");
         }
     }, [flash, showToast]);
+
+    useEffect(() => {
+        if (errors?.booking_total) {
+            showToast(errors.booking_total, 'error');
+        }
+    }, [errors?.booking_total, showToast]);
 
     useEffect(() => {
         loadCalendar();
@@ -451,50 +458,48 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
             };
 
             console.log('==============Payload:========== ', payload);
-            axios
-                .post(route("admin.booking.calculate"), payload)
-                .then((res) => {
-                    console.log('Calculation result:', res.data);
-                    const applied_promotion = res.data.applied_promotion;
-                    const applied_rates = res.data.applied_rates || {};
-                    const base_rates = res.data.base_rates || {};
-                    const total_price = res.data.total_price;
-                    setPricing(res.data);
-                    setData(prev => ({
-                        ...prev,
-                        override_price: false,
-                        override_rates: false,
-                        rate_per_adult: applied_rates.adult ?? prev.rate_per_adult,
-                        rate_per_child: applied_rates.child ?? prev.rate_per_child,
-                        rate_per_guide: applied_rates.guide ?? prev.rate_per_guide,
-                        booking_total: total_price || 0,
-                    }));
-                    if (Array.isArray(res.data.applied_discounts)) {
-                        const discountRateMap = new Map(
-                            res.data.applied_discounts.map(d => [`${d.applied_to}:${d.id}`, Number(d.final_rate || 0)])
-                        );
-                        const sourceGroups = Array.isArray(pax_groups) ? pax_groups : [];
-                        setPaxGroups(sourceGroups.map(g => {
-                                if (g.discount_id) {
-                                    const key = `${g.type}:${g.discount_id}`;
-                                    if (discountRateMap.has(key)) {
-                                        return { ...g, final_rate: discountRateMap.get(key) };
-                                    }
-                                }
-                                const fallbackRate = g.type === "adult"
-                                    ? Number(applied_rates.adult ?? base_rates.adult ?? 0)
-                                    : g.type === "child"
-                                        ? Number(applied_rates.child ?? base_rates.child ?? 0)
-                                        : Number(applied_rates.guide ?? base_rates.guide ?? 0);
-                                return { ...g, final_rate: fallbackRate };
-                            }));
+            const res = await axios.post(route("admin.booking.calculate"), payload);
+
+            console.log('Calculation result:', res.data);
+            const applied_rates = res.data.applied_rates || {};
+            const base_rates = res.data.base_rates || {};
+            const total_price = res.data.total_price;
+            setPricing(res.data);
+            setData(prev => ({
+                ...prev,
+                override_price: false,
+                override_rates: false,
+                rate_per_adult: applied_rates.adult ?? prev.rate_per_adult,
+                rate_per_child: applied_rates.child ?? prev.rate_per_child,
+                rate_per_guide: applied_rates.guide ?? prev.rate_per_guide,
+                booking_total: total_price || 0,
+            }));
+            if (Array.isArray(res.data.applied_discounts)) {
+                const discountRateMap = new Map(
+                    res.data.applied_discounts.map(d => [`${d.applied_to}:${d.id}`, Number(d.final_rate || 0)])
+                );
+                const sourceGroups = Array.isArray(pax_groups) ? pax_groups : [];
+                setPaxGroups(sourceGroups.map(g => {
+                    if (g.discount_id) {
+                        const key = `${g.type}:${g.discount_id}`;
+                        if (discountRateMap.has(key)) {
+                            return { ...g, final_rate: discountRateMap.get(key) };
+                        }
                     }
-                })
-                .catch((err) => {
-                    console.error(err)
-                });
+                    const fallbackRate = g.type === "adult"
+                        ? Number(applied_rates.adult ?? base_rates.adult ?? 0)
+                        : g.type === "child"
+                            ? Number(applied_rates.child ?? base_rates.child ?? 0)
+                            : Number(applied_rates.guide ?? base_rates.guide ?? 0);
+                    return { ...g, final_rate: fallbackRate };
+                }));
+            }
+
+            return res.data;
         } catch (err) {
             console.error(err.response?.data || err);
+            showToast('Pricing recalculation failed. Please try again.', 'error');
+            return null;
         }
     };
 
@@ -830,6 +835,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
             ...prev,
             promoCode: null,
             discount_lines: [],
+            invoice_discount_id: null,
             override_rates: false,
             override_price: false,
             rate_per_adult: baseRates.adult,
@@ -869,6 +875,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
             ...prev,
             promoCode: null,
             discount_lines: [],
+            invoice_discount_id: null,
             is_wholesaler: false,
             wholesaler_id: '',
         }));
@@ -1238,16 +1245,36 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
         setActivityDate(newDate);
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
         if ((Number(data.adults || 0) + Number(data.children || 0)) < 1) {
             showToast('Please add at least 1 adult or 1 child.', 'info');
             return;
         }
+
+        // Avoid "Pricing mismatch" by ensuring server-calculated totals are current for promo/wholesaler/invoice-discount flows.
+        let serverCalculatedTotal = null;
+        let invoiceDiscountIdToSend = data.invoice_discount_id || null;
+        try {
+            const invoiceDiscountId = pricing?.applied_discounts?.find(d => d.applied_to === 'invoice')?.id ?? null;
+            invoiceDiscountIdToSend = invoiceDiscountId || invoiceDiscountIdToSend;
+            const shouldRecalc = Boolean(data.is_wholesaler || promoCode || invoiceDiscountIdToSend || pricing?.applied_promotion);
+            if (shouldRecalc) {
+                const calcType = promoCode ? 'promo' : data.is_wholesaler ? 'saler' : invoiceDiscountIdToSend ? 'discount' : 'base';
+                const result = await handleCalculate(calcType, paxGroups, invoiceDiscountIdToSend);
+                serverCalculatedTotal = Number(result?.total_price ?? 0) || null;
+            }
+        } catch (err) {
+            // If we can't recalc, still allow submit; backend will return a clear error and we surface it via toast.
+            console.error(err);
+        }
+
         const discountLinesPayload = buildDiscountLinesPayload(paxGroups);
         post(route('admin.bookings.store'), {
             transform: (payload) => ({
                 ...payload,
+                booking_total: serverCalculatedTotal ?? payload.booking_total,
+                invoice_discount_id: invoiceDiscountIdToSend,
                 discount_lines: discountLinesPayload,
             }),
         });
@@ -1274,6 +1301,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
             setData(prev => ({
                 ...prev,
                 discount_lines: [],
+                invoice_discount_id: selectedDiscount,
             }));
             handleCalculate('discount', paxGroups, selectedDiscount);
             setDiscountId(null);
@@ -1389,6 +1417,11 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                 <div className="space-y-6 max-w-full overflow-hidden mx-auto p-6 bg-white shadow rounded">
                     <h1 className="text-booking-heading">New Booking</h1>
                     {page.props.error && <div className="text-red-600">{page.props.error}</div>}
+                    {errors?.booking_total && (
+                        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                            {errors.booking_total}
+                        </div>
+                    )}
 
 
                     {/* Service + Date */}
