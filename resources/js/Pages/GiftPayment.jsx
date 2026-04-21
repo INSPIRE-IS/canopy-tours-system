@@ -4,7 +4,7 @@ import { usePage, Link, Head, router } from '@inertiajs/react';
 import CustomSelect from '@/Components/CustomSelect';
 import NavSelect from '@/Components/NavSelect';
 
-export default function ReviewPayment({ auth, gift }) {
+export default function ReviewPayment({ auth, gift, payfastStatus }) {
   //const { props, booking } = usePage();
   console.log('auth ', auth);
   console.log('gift ', gift);
@@ -65,10 +65,7 @@ export default function ReviewPayment({ auth, gift }) {
   };
 
   const handlePayFast = () => {
-    // Fake redirect to a placeholder "PayFast" screen
-    router.get(route('front.payment.simulated'), {
-      gift_id: gift.id, type: 'voucher',
-    });
+    window.location.href = route('front.payment.payfast.gift', gift.id);
   };
 
   return (
@@ -81,6 +78,16 @@ export default function ReviewPayment({ auth, gift }) {
         <h1 className="text-2xl font-bold mb-4">Complete Your Purchase</h1>
 
         <div className="bg-white shadow p-6 rounded-xl space-y-6">
+          {payfastStatus && (
+            <div className="text-xs text-gray-600">
+              <div>PayFast status: {payfastStatus.enabled ? 'enabled' : 'disabled'} | {payfastStatus.is_sandbox ? 'sandbox' : 'live'} | source: {payfastStatus.source}</div>
+              <div>Endpoint: {payfastStatus.endpoint_url}</div>
+              <div>Return: {payfastStatus.return_url}</div>
+              <div>Cancel: {payfastStatus.cancel_url}</div>
+              <div>Notify: {payfastStatus.notify_url}</div>
+              <div>Trust return: {payfastStatus.trust_return ? 'yes' : 'no'}</div>
+            </div>
+          )}
           <div>
             <h2 className="font-semibold">Gift Voucher Details</h2>
             <p><strong>Name:</strong> {gift.full_name}</p>
@@ -100,7 +107,7 @@ export default function ReviewPayment({ auth, gift }) {
                   checked={method === 'payfast'}
                   onChange={() => setMethod('payfast')}
                 />{' '}
-                Pay Online (Simulated)
+                Pay Online (PayFast)
               </label>
 
               <label>

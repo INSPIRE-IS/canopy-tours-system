@@ -106,6 +106,13 @@ Route::get('/payment/gift/{gift}', [PaymentController::class, 'gift'])->name('fr
 // Fake PayFast screen
 Route::get('/payment/simulated', [PaymentController::class, 'simulated'])->name('front.payment.simulated');
 
+// PayFast redirect + callbacks
+Route::get('/payment/payfast/booking/{booking}', [PaymentController::class, 'payfastBooking'])->name('front.payment.payfast.booking');
+Route::get('/payment/payfast/gift/{gift}', [PaymentController::class, 'payfastGift'])->name('front.payment.payfast.gift');
+Route::post('/payment/payfast/notify', [PaymentController::class, 'payfastNotify'])->name('front.payment.payfast.notify');
+Route::get('/payment/payfast/return', [PaymentController::class, 'payfastReturn'])->name('front.payment.payfast.return');
+Route::get('/payment/payfast/cancel', [PaymentController::class, 'payfastCancel'])->name('front.payment.payfast.cancel');
+
 // Handle offline submission
 Route::post('/payment/offline', [PaymentController::class, 'offline'])->name('front.payment.offline');
 Route::get('front/invoices/download/{booking}', [PaymentController::class, 'invoiceDownload'])->name('front.invoices.download');

@@ -5,7 +5,7 @@ import CustomSelect from '@/Components/CustomSelect';
 import NavSelect from '@/Components/NavSelect';
 import TopNav from '@/Components/TopNav';
 
-export default function ReviewPayment({ auth, booking, lookups }) {
+export default function ReviewPayment({ auth, booking, lookups, payfastStatus }) {
   //const { props, booking } = usePage();
   console.log('auth ', auth);
   console.log('booking ', booking);
@@ -100,10 +100,7 @@ export default function ReviewPayment({ auth, booking, lookups }) {
 
 
   const handlePayFast = () => {
-    // Fake redirect to a placeholder "PayFast" screen
-    router.get(route('front.payment.simulated'), {
-      booking: booking.id, type: 'booking',
-    });
+    window.location.href = route('front.payment.payfast.booking', booking.id);
   };
 
   return (
@@ -116,6 +113,16 @@ export default function ReviewPayment({ auth, booking, lookups }) {
         <h1 className="text-2xl font-bold mb-4">Complete Your Booking</h1>
 
         <div className="bg-white shadow p-6 rounded-xl space-y-6">
+          {payfastStatus && (
+            <div className="text-xs text-gray-600">
+              <div>PayFast status: {payfastStatus.enabled ? 'enabled' : 'disabled'} | {payfastStatus.is_sandbox ? 'sandbox' : 'live'} | source: {payfastStatus.source}</div>
+              <div>Endpoint: {payfastStatus.endpoint_url}</div>
+              <div>Return: {payfastStatus.return_url}</div>
+              <div>Cancel: {payfastStatus.cancel_url}</div>
+              <div>Notify: {payfastStatus.notify_url}</div>
+              <div>Trust return: {payfastStatus.trust_return ? 'yes' : 'no'}</div>
+            </div>
+          )}
           <div>
             <h2 className="font-semibold">Booking Details</h2>
             <p className='flex w-auto'><strong className='w-[200px] capitalize'>Name:</strong> {booking.lead_name}</p>
@@ -137,7 +144,7 @@ export default function ReviewPayment({ auth, booking, lookups }) {
                   checked={method === 'payfast'}
                   onChange={() => setMethod('payfast')}
                 />{' '}
-                Pay Online (Simulated)
+                Pay Online (PayFast)
               </label>
 
               <label>
