@@ -8,7 +8,7 @@ import Header from '@/Components/Header';
 import { icons } from '@/icons';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import ManifestsModal from './ManifestsModal';
 import ManifestModal from './ManifestModal';
 import EditTimeSlotModal from './EditTimeSlotModal';
@@ -619,6 +619,20 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
         const nextDate = addDays(baseDate, direction);
         setSelectedDate(format(nextDate, 'yyyy-MM-dd'));
     };
+
+    const overallTotals = useMemo(() => {
+        const rows = Array.isArray(slotRows) ? slotRows : [];
+        return rows.reduce(
+            (acc, row) => {
+                acc.pax += Number(row?.totalPax || 0);
+                acc.price += Number(row?.totalPrice || 0);
+                acc.paid += Number(row?.totalPaid || 0);
+                acc.due += Number(row?.totalDue || 0);
+                return acc;
+            },
+            { pax: 0, price: 0, paid: 0, due: 0 }
+        );
+    }, [slotRows]);
     return (
         <AuthenticatedLayout
             user={auth.user}
@@ -999,6 +1013,19 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                                             </React.Fragment>
                                         );
                                     })}
+                                    <tr className="bg-white border-t-2 border-gray-200">
+                                        <td className="w-[164px] p-3 font-semibold">Totals:</td>
+                                        <td className="w-[95px] p-3 font-semibold">{overallTotals.pax}</td>
+                                        <td className="w-[268px] p-3"></td>
+                                        <td className="w-[132px] p-3 font-semibold">R{Number(overallTotals.price || 0).toFixed(2)}</td>
+                                        <td className="w-[111px] p-3 font-semibold">R{Number(overallTotals.paid || 0).toFixed(2)}</td>
+                                        <td className="w-[107px] p-3 font-semibold">
+                                            <span className={`${overallTotals.due > 0 ? 'text-red-600' : 'text-gray-800'}`}>
+                                                R{Number(overallTotals.due || 0).toFixed(2)}
+                                            </span>
+                                        </td>
+                                        <td className="w-[185px] p-3"></td>
+                                    </tr>
                                 </tbody>
                             </table>
 
@@ -1106,8 +1133,6 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
         </AuthenticatedLayout>
     );
 }
-
-
 
 
 
