@@ -596,13 +596,11 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
     }, [showEmptySlots]);
 
     const handleTodayClick = () => {
-
-        if (viewMode === VIEW_MODES.RANGE) {
-            setRangeStart(today);
-            setRangeEnd(today);
-            return;
-        }
+        // "Today" should reset the UI into a consistent state regardless of current view.
+        setViewMode(VIEW_MODES.DAY);
         setSelectedDate(today);
+        setRangeStart(today);
+        setRangeEnd(today);
     };
 
     const handleCloseModal = () => {
@@ -1133,6 +1131,5 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
         </AuthenticatedLayout>
     );
 }
-
 
 
