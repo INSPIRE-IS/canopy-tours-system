@@ -284,7 +284,9 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                 <div className="flex justify-between items-center mb-6">
                     <span>
                         <span className="font-semibold text-lg text-gray-800 block text-start">{bookingItem?.service?.name} - {bookingItem?.season?.name}</span>
-                        <span className="font-semibold text-lg text-gray-800 block text-start">{bookingItem?.inventory?.start_date}</span>
+                        <span className="font-semibold text-lg text-gray-800 block text-start">
+                            Booking Date: {bookingItem?.booking_inventory?.date || '—'}
+                        </span>
                         {isDirty && (<p className="text-yellow-600 text-sm mt-1">You have unsaved changes</p>)}
                     </span>
                     <span className="flex gap-2">
