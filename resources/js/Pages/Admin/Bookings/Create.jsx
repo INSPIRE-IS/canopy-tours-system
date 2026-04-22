@@ -174,12 +174,6 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
     }, [flash, showToast]);
 
     useEffect(() => {
-        if (errors?.booking_total) {
-            showToast(errors.booking_total, 'error');
-        }
-    }, [errors?.booking_total, showToast]);
-
-    useEffect(() => {
         loadCalendar();
     }, [activityId, activityDate, view_mode, data.start_time, data.adults, data.children]);
 
@@ -267,6 +261,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
     const hasPromo = !!promoCode;
     const hasDiscountSelection = !!discountId;
     const hasInvoiceDiscount = !!pricing?.applied_discounts?.some(d => d.applied_to === 'invoice');
+    const invoiceDiscountFromPricing = pricing?.applied_discounts?.find(d => d.applied_to === 'invoice')?.id ?? null;
     const hasDiscounts = (data.discount_lines?.length || 0) > 0 || paxGroups.some(g => g.discount_id) || hasDiscountSelection || hasInvoiceDiscount;
     const computedMode = data.override_rates
         ? PRICING_MODES.OVERRIDE
@@ -286,6 +281,14 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
         { key: 'override_timeslots', label: 'Override Time Slots', disabled: !canOverrideTimeSlots },
         { key: 'exclusive_resource', label: 'Exclusive Resource use' },
     ];
+
+    useEffect(() => {
+        // Keep the submitted invoice_discount_id aligned with what pricing currently shows,
+        // so Store/Update applies the same discount used in UI calculation.
+        if (invoiceDiscountFromPricing && String(data.invoice_discount_id || '') !== String(invoiceDiscountFromPricing)) {
+            setData('invoice_discount_id', invoiceDiscountFromPricing);
+        }
+    }, [invoiceDiscountFromPricing, data.invoice_discount_id, setData]);
 
     useEffect(() => {
         // if (selectedService && selectedSeason) {
@@ -1258,9 +1261,10 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
         try {
             const invoiceDiscountId = pricing?.applied_discounts?.find(d => d.applied_to === 'invoice')?.id ?? null;
             invoiceDiscountIdToSend = invoiceDiscountId || invoiceDiscountIdToSend;
-            const shouldRecalc = Boolean(data.is_wholesaler || promoCode || invoiceDiscountIdToSend || pricing?.applied_promotion);
+            const hasLineDiscounts = paxGroups.some(g => g.discount_id);
+            const shouldRecalc = Boolean(data.is_wholesaler || promoCode || invoiceDiscountIdToSend || hasLineDiscounts || pricing?.applied_promotion);
             if (shouldRecalc) {
-                const calcType = promoCode ? 'promo' : data.is_wholesaler ? 'saler' : invoiceDiscountIdToSend ? 'discount' : 'base';
+                const calcType = promoCode ? 'promo' : data.is_wholesaler ? 'saler' : (invoiceDiscountIdToSend || hasLineDiscounts) ? 'discount' : 'base';
                 const result = await handleCalculate(calcType, paxGroups, invoiceDiscountIdToSend);
                 serverCalculatedTotal = Number(result?.total_price ?? 0) || null;
             }
@@ -1277,6 +1281,11 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                 invoice_discount_id: invoiceDiscountIdToSend,
                 discount_lines: discountLinesPayload,
             }),
+            onError: (errs) => {
+                const msg = errs?.booking_total || errs?.start_time || errs?.booking_date || 'Please fix the highlighted fields and try again.';
+                showToast(msg, 'error');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            },
         });
     };
 
@@ -2649,7 +2658,6 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
         </AuthenticatedLayout>
     );
 }
-
 
 
 

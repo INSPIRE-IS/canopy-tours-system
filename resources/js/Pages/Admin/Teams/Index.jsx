@@ -150,6 +150,7 @@ export default function Index({ permissions, teams, auth, searchTerm, sortColumn
                 mode={modalMode}
                 team={selectedTeam}
                 teams={teams}
+                permissions={permissions}
                 user={auth.user}
             />
 

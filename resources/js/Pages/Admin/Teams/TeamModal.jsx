@@ -7,12 +7,20 @@ import OutlineButton from "@/Components/OutlineButton";
 import BlueButton from "@/Components/BlueButton";
 import InputRichText from "@/Components/InputRichText";
 
-const TeamModal = ({ isOpen, onClose, mode, team = null, teams }) => {
+const TeamModal = ({ isOpen, onClose, mode, team = null, teams, permissions = {}, user = null }) => {
     // console.log("mode", mode);
     // console.log("teams", teams);
     const [logo, setLogo] = useState(null);
     const [image, setImage] = useState(null);
-    const { data, setData, post, put, errors, reset, processing } = useForm({
+
+    const canEditGateways = !!permissions?.gateways_edit;
+    const isAdminUser = !!user?.is_admin || user?.roles?.some((role) => role?.id === 1);
+    const payfast = team?.payfast || null;
+
+    const [replacePayfastMerchantKey, setReplacePayfastMerchantKey] = useState(false);
+    const [replacePayfastPassphrase, setReplacePayfastPassphrase] = useState(false);
+
+    const { data, setData, post, put, errors, reset, processing, setError, clearErrors } = useForm({
         name: "",
         full_name: "",
         description: "",
@@ -31,6 +39,13 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams }) => {
         vat_no: "",
         team_id: team?.team_id,
         owner_id: "",
+
+        // PayFast (per-site)
+        payfast_is_enabled: false,
+        payfast_is_sandbox: true,
+        payfast_merchant_id: "",
+        payfast_merchant_key: "",
+        payfast_passphrase: "",
 
     });
     useEffect(() => {
@@ -54,12 +69,20 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams }) => {
                 vat_no: team.vat_no || "",
                 team_id: team.team_id,
                 owner_id: team.owner_id,
+
+                payfast_is_enabled: payfast?.is_enabled ?? false,
+                payfast_is_sandbox: payfast?.is_sandbox ?? true,
+                payfast_merchant_id: payfast?.merchant_id ?? "",
+                payfast_merchant_key: isAdminUser ? (payfast?.merchant_key ?? "") : "",
+                payfast_passphrase: isAdminUser ? (payfast?.passphrase ?? "") : "",
             });
         } else if (mode === "create") {
             reset(); // Clear form for create mode
         }
         setLogo(null);
         setImage(null);
+        setReplacePayfastMerchantKey(false);
+        setReplacePayfastPassphrase(false);
     }, [mode, team]);
 
     const handleChange = (target, value) => {
@@ -70,6 +93,7 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams }) => {
     const handleSubmit = (e) => {
         e.preventDefault();
         console.log('data ', data);
+        clearErrors();
 
         const requestConfig = {
             headers: {
@@ -96,6 +120,23 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams }) => {
         formData.append('vat_no', data.vat_no);
         formData.append('team_id', data.team_id);
 
+        if (canEditGateways) {
+            formData.append('payfast_is_enabled', data.payfast_is_enabled ? 1 : 0);
+            formData.append('payfast_is_sandbox', data.payfast_is_sandbox ? 1 : 0);
+            formData.append('payfast_merchant_id', data.payfast_merchant_id);
+
+            const merchantKeyConfigured = !!payfast?.merchant_key_configured;
+            if (isAdminUser || replacePayfastMerchantKey || !merchantKeyConfigured) {
+                formData.append('payfast_merchant_key', data.payfast_merchant_key);
+            }
+
+            const passphraseSet = !!payfast?.passphrase_set;
+            if (isAdminUser || replacePayfastPassphrase || (!passphraseSet && data.payfast_passphrase)) {
+                // Passphrase can be intentionally blank (sandbox accounts often have no passphrase).
+                formData.append('payfast_passphrase', data.payfast_passphrase);
+            }
+        }
+
 
         // File (if present)
         if (logo) {
@@ -121,6 +162,10 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams }) => {
                     });
                 })
                 .catch(error => {
+                    if (error?.response?.status === 422 && error?.response?.data?.errors) {
+                        setError(error.response.data.errors);
+                        return;
+                    }
                     console.error(error.response ?? error);
                 });
         } else {
@@ -135,6 +180,10 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams }) => {
                     });
                 })
                 .catch(error => {
+                    if (error?.response?.status === 422 && error?.response?.data?.errors) {
+                        setError(error.response.data.errors);
+                        return;
+                    }
                     console.error(error.response ?? error);
                 });
         }
@@ -287,6 +336,115 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams }) => {
                             errors={errors}
                         />
                     </div>
+
+                    {canEditGateways && (
+                        <>
+                            <label className="block font-semibold mb-1">PayFast Gateway</label>
+                            <span className="border-bottom border-[1px] border-black flex flex-row w-full items-center gap-2 justify-start mb-4"></span>
+
+                            {payfast && (
+                                <p className="text-xs text-gray-500 mb-4">
+                                    Current config: {payfast?.scope === 'team' ? 'Team-specific' : 'Default'} ({payfast?.is_sandbox ? 'Sandbox' : 'Live'})
+                                </p>
+                            )}
+
+                            <div className="flex flex-row w-full items-center gap-8 justify-start mb-2">
+                                <CustomCheckbox
+                                    label="Enable PayFast"
+                                    name="payfast_is_enabled"
+                                    checked={!!data.payfast_is_enabled}
+                                    mode={mode}
+                                    onChange={handleChange}
+                                    errors={errors}
+                                    disabled={mode === "view"}
+                                />
+                                <CustomCheckbox
+                                    label="Sandbox"
+                                    name="payfast_is_sandbox"
+                                    checked={!!data.payfast_is_sandbox}
+                                    mode={mode}
+                                    onChange={handleChange}
+                                    errors={errors}
+                                    disabled={mode === "view"}
+                                />
+                            </div>
+
+                            <div className="flex flex-row w-full items-center gap-2 justify-start mb-4">
+                                <InputText
+                                    title="Merchant ID"
+                                    field="payfast_merchant_id"
+                                    value={data.payfast_merchant_id}
+                                    mode={mode}
+                                    handleChange={handleChange}
+                                    errors={errors}
+                                />
+                            </div>
+
+                            <div className="flex flex-row w-full items-center gap-2 justify-start mb-4">
+                                {!isAdminUser && payfast?.merchant_key_configured && !replacePayfastMerchantKey ? (
+                                    <div className="mb-3 w-full">
+                                        <label className="text-[#161618] font-poppins text-[12px] font-normal leading-[130%]">
+                                            Merchant Key
+                                        </label>
+                                        <div className="mt-1 flex items-center justify-between w-full h-[42px] px-3 bg-[#FBF9F7] border border-gray-300 rounded-[10px]">
+                                            <span className="text-sm text-gray-500">Configured</span>
+                                            {mode !== "view" && (
+                                                <OutlineButton
+                                                    title="Replace"
+                                                    width="w-[140px]"
+                                                    onClick={() => setReplacePayfastMerchantKey(true)}
+                                                    props={{ type: "button" }}
+                                                />
+                                            )}
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <InputText
+                                        title="Merchant Key"
+                                        field="payfast_merchant_key"
+                                        value={data.payfast_merchant_key}
+                                        mode={mode}
+                                        handleChange={handleChange}
+                                        errors={errors}
+                                        type={isAdminUser ? "text" : "password"}
+                                        placeholder={!isAdminUser ? "Paste new key to replace" : ""}
+                                    />
+                                )}
+                            </div>
+
+                            <div className="flex flex-row w-full items-center gap-2 justify-start mb-4">
+                                {!isAdminUser && payfast?.passphrase_set && !replacePayfastPassphrase ? (
+                                    <div className="mb-3 w-full">
+                                        <label className="text-[#161618] font-poppins text-[12px] font-normal leading-[130%]">
+                                            Passphrase (optional)
+                                        </label>
+                                        <div className="mt-1 flex items-center justify-between w-full h-[42px] px-3 bg-[#FBF9F7] border border-gray-300 rounded-[10px]">
+                                            <span className="text-sm text-gray-500">Configured</span>
+                                            {mode !== "view" && (
+                                                <OutlineButton
+                                                    title="Replace"
+                                                    width="w-[140px]"
+                                                    onClick={() => setReplacePayfastPassphrase(true)}
+                                                    props={{ type: "button" }}
+                                                />
+                                            )}
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <InputText
+                                        title="Passphrase (optional)"
+                                        field="payfast_passphrase"
+                                        value={data.payfast_passphrase}
+                                        mode={mode}
+                                        handleChange={handleChange}
+                                        errors={errors}
+                                        type={isAdminUser ? "text" : "password"}
+                                        placeholder="Leave blank if your PayFast account does not use a passphrase"
+                                    />
+                                )}
+                            </div>
+                        </>
+                    )}
                     <label className="block font-semibold mb-1">Site/Invoice/Quote Icon</label>
                     <span className="border-bottom border-[1px] border-black flex flex-row w-full items-center gap-2 justify-start mb-4">
 

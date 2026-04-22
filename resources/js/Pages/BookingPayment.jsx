@@ -12,8 +12,32 @@ export default function ReviewPayment({ auth, booking, lookups, payfastStatus })
   const [submitting, setSubmitting] = useState(false);
   const [teamId, setTeamId] = useState(booking.team_id);
   const totalDue = Number(booking?.grand_tot_due || 0);
-  const vatRate = Number(lookups?.rate || 0);
-  const vatMultiplier = vatRate > 0 ? (1 + (vatRate / 100)) : (1 + Number(lookups?.multiplier || 0));
+
+  // VAT lookup has had multiple historical shapes:
+  // - `rate` sometimes stored as percent (15) and sometimes as fraction (0.15)
+  // - `multiplier` sometimes stored as full multiplier (1.15) and sometimes as fraction (0.15)
+  // We normalize here so the payment page always matches the invoice breakdown.
+  const vatRateRaw = Number(lookups?.rate ?? 0);
+  const vatMultiplierRaw = Number(lookups?.multiplier ?? 0);
+
+  let vatMultiplier = 1.15;
+  let vatPercent = 15;
+
+  if (vatMultiplierRaw > 1 && vatMultiplierRaw < 3) {
+    vatMultiplier = vatMultiplierRaw;
+    vatPercent = Math.max(0, (vatMultiplierRaw - 1) * 100);
+  } else if (vatRateRaw > 0 && vatRateRaw < 1) {
+    vatPercent = vatRateRaw * 100;
+    vatMultiplier = 1 + vatRateRaw;
+  } else if (vatRateRaw >= 1 && vatRateRaw <= 100) {
+    vatPercent = vatRateRaw;
+    vatMultiplier = 1 + (vatRateRaw / 100);
+  } else if (vatMultiplierRaw > 0 && vatMultiplierRaw < 1) {
+    // legacy "multiplier" stored as delta/fraction (0.15)
+    vatPercent = vatMultiplierRaw * 100;
+    vatMultiplier = 1 + vatMultiplierRaw;
+  }
+
   const amountExVat = totalDue > 0 ? (totalDue / vatMultiplier) : 0;
   const vatAmount = totalDue > 0 ? Math.max(0, totalDue - amountExVat) : 0;
 
@@ -109,7 +133,7 @@ export default function ReviewPayment({ auth, booking, lookups, payfastStatus })
             <p className='flex w-auto'><strong className='w-[200px] capitalize'>Due Date:</strong> {booking.due_date}</p>
             <p className='flex w-auto'><strong className='w-[200px] capitalize'>Refererence:</strong> {booking.reference}</p>
             <p className='flex w-auto'><strong className='w-[200px] capitalize'>Amount (Excl VAT):</strong> R{amountExVat.toFixed(2)}</p>
-            <p className='flex w-auto'><strong className='w-[200px] capitalize'>VAT:</strong> {vatRate.toFixed(2)}%</p>
+            <p className='flex w-auto'><strong className='w-[200px] capitalize'>VAT:</strong> {vatPercent.toFixed(2)}%</p>
             <p className='flex w-auto'><strong className='w-[200px] capitalize'>VAT Amount:</strong> R{vatAmount.toFixed(2)}</p>
             <p className='flex w-auto'><strong className='w-[200px] capitalize'>Total:</strong> R{totalDue.toFixed(2)}</p>
           </div>

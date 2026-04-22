@@ -1,4 +1,4 @@
-import React, { use, useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { set } from 'date-fns';
 import { useForm, usePage } from '@inertiajs/react';
@@ -12,6 +12,13 @@ export default function BookingModal({ isOpen, onClose, activity, slot, adults, 
   const { flash } = props;
   const [total, setTotal] = useState(0.00);
   const [promo, setPromo] = useState(selectedPromo);
+  const debugPhone = useMemo(() => {
+    try {
+      return window?.localStorage?.getItem('debug_phone') === '1';
+    } catch {
+      return false;
+    }
+  }, []);
   const mode = 'create';
   const { data, setData, post, put, errors, reset, processing } = useForm({
     adults: adults,
@@ -33,17 +40,21 @@ export default function BookingModal({ isOpen, onClose, activity, slot, adults, 
   }, [flash, showToast]);
 
   useEffect(() => {
+    // Important: auth object identity can change across renders, so only prefill once per customer.
+    if (!auth?.customer?.id) return;
+    setData((prev) => ({
+      ...prev,
+      full_name: auth.customer.full_name ?? prev.full_name,
+      email: auth.customer.email_address ?? prev.email,
+      phone: auth.customer.contact_number ?? prev.phone,
+    }));
+  }, [auth?.customer?.id, setData]);
 
-    if (auth && auth?.customer) {
-      console.log('add customer ', auth.customer);
-      setData({
-        ...data,
-        full_name: auth.customer.full_name,
-        email: auth.customer.email_address,
-        phone: auth.customer.contact_number,
-      });
-    }
-  }, [auth]);
+  useEffect(() => {
+    if (!debugPhone) return;
+    // eslint-disable-next-line no-console
+    console.log('[BookingModal] phone changed', { phone: data.phone });
+  }, [debugPhone, data.phone]);
 
   useEffect(() => {
 
@@ -151,6 +162,7 @@ export default function BookingModal({ isOpen, onClose, activity, slot, adults, 
             countries={countries}
             error={errors.phone}
             defaultCountryCode="27"
+            stacked
           />
         </div>
         <div className="flex justify-between mt-6">

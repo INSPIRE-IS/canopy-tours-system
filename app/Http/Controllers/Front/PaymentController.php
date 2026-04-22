@@ -41,6 +41,47 @@ use Str;
 
 class PaymentController extends Controller
 {
+    private function vatBreakdownForTeam(?int $teamId, float $totalDue): array
+    {
+        // VAT lookup has had multiple historical shapes:
+        // - `rate` sometimes stored as percent (15) and sometimes as fraction (0.15)
+        // - `multiplier` sometimes stored as full multiplier (1.15) and sometimes as fraction (0.15)
+        // Normalize so payment records + UI match the invoice "reverse VAT" breakdown.
+        $vatItem = LookupItem::findDefaultForTeam('vat_rate', $teamId)
+            ?? LookupItem::where('is_default', true)->where('slug', '=', 'vat_rate')->first();
+
+        $rateRaw = (float) ($vatItem?->rate ?? 0);
+        $multRaw = (float) ($vatItem?->multiplier ?? 0);
+
+        $vatMultiplier = 1.15;
+        $vatPercent = 15.0;
+
+        if ($multRaw > 1 && $multRaw < 3) {
+            $vatMultiplier = $multRaw;
+            $vatPercent = max(0.0, ($multRaw - 1) * 100);
+        } elseif ($rateRaw > 0 && $rateRaw < 1) {
+            $vatPercent = $rateRaw * 100;
+            $vatMultiplier = 1 + $rateRaw;
+        } elseif ($rateRaw >= 1 && $rateRaw <= 100) {
+            $vatPercent = $rateRaw;
+            $vatMultiplier = 1 + ($rateRaw / 100);
+        } elseif ($multRaw > 0 && $multRaw < 1) {
+            $vatPercent = $multRaw * 100;
+            $vatMultiplier = 1 + $multRaw;
+        }
+
+        $amountExVat = $vatMultiplier > 0 ? round($totalDue / $vatMultiplier, 2) : $totalDue;
+        $vatAmount = round($totalDue - $amountExVat, 2);
+
+        return [
+            'vat_item' => $vatItem,
+            'vat_percent' => $vatPercent,
+            'vat_multiplier' => $vatMultiplier,
+            'ex_vat_amount' => $amountExVat,
+            'vat_amount' => $vatAmount,
+        ];
+    }
+
     public function booking(Booking $booking)
     {
         //dd($booking);
@@ -221,7 +262,6 @@ class PaymentController extends Controller
                 $booking = DB::transaction(function () use ($validated) {
                     $renderService = app(RendererService::class);
                     $booking = Booking::findOrFail($validated['booking']);
-                    $vatRate = LookupItem::findDefaultForTeam('vat_rate', $booking->team_id);
                     // Mark as paid (in real app, you'd validate PayFast response)
                     $booking->update([
                         'status_payment_id' => 2, // e.g., "paid"
@@ -229,12 +269,8 @@ class PaymentController extends Controller
                     ]);
 
                     $totalDue = (float) $booking->grand_tot_due;
-                    $vatRateValue = (float) ($vatRate->rate ?? 0);
-                    $vatMultiplier = $vatRateValue > 0
-                        ? (1 + ($vatRateValue / 100))
-                        : (1 + (float) ($vatRate->multiplier ?? 0));
-                    $amountExVat = $vatMultiplier > 0 ? round($totalDue / $vatMultiplier, 2) : $totalDue;
-                    $vatAmount = round($totalDue - $amountExVat, 2);
+                    $vat = $this->vatBreakdownForTeam($booking->team_id, $totalDue);
+                    $vatItem = $vat['vat_item'];
 
                     $payment = BookingPayment::updateOrCreate(
                         ['booking_id' => $booking->id,],
@@ -242,10 +278,10 @@ class PaymentController extends Controller
                             'type_pay_option_id'   => 2,     // or 'Pay Offline'
                             'type_payment_id' => 3, // credit card
                             'status_payment_id' => 2,  // 'paid', 'failed', 'cancelled'
-                            'ex_vat_amount'         => $amountExVat, // total excl VAT
-                            'lookup_item_id' => $vatRate->id,
-                            'vat' => $vatRate->rate,
-                            'vat_amount' => $vatAmount,
+                            'ex_vat_amount'         => $vat['ex_vat_amount'], // total excl VAT
+                            'lookup_item_id' => $vatItem?->id,
+                            'vat' => $vat['vat_percent'],
+                            'vat_amount' => $vat['vat_amount'],
                             'reference'      => $booking->reference, // Str::uuid(),      // can be order ref or external tx
                             'gateway_id'        => 1,        // PayFast
                             'meta'           => json_encode(['ip' => request()->ip()]),
@@ -684,7 +720,12 @@ class PaymentController extends Controller
         }
 
         if ($signature && $payfast && $config) {
-            $signatureValid = $payfast->verifySignature($payload, $signature, $config['passphrase']);
+            $signatureValid = $payfast->verifySignature(
+                $payload,
+                $signature,
+                $config['passphrase'],
+                $event === 'notify'
+            );
         }
 
         if ($event === 'notify') {
@@ -748,7 +789,7 @@ class PaymentController extends Controller
         }
 
         if ($context['booking'] && $context['booking']->status_payment_id != 2) {
-            $this->completeBookingPayment($context['booking'], $context['gateway_id'], [
+            $meta = [
                 'ip' => $request->ip(),
                 'payfast' => Arr::only($payload, [
                     'pf_payment_id',
@@ -760,7 +801,14 @@ class PaymentController extends Controller
                     'custom_str2',
                 ]),
                 'event' => $event,
-            ]);
+            ];
+
+            // Never do long-running PDF/email work in the ITN callback. It can time out and roll back payment.
+            if ($event === 'notify') {
+                $this->completeBookingPaymentDbOnly($context['booking'], $context['gateway_id'], $meta);
+            } else {
+                $this->completeBookingPayment($context['booking'], $context['gateway_id'], $meta);
+            }
         }
 
         if ($context['voucher'] && $context['voucher']->status_payment_id != 2) {
@@ -928,12 +976,77 @@ class PaymentController extends Controller
         return $gift->gift_voucher_items()->value('team_id');
     }
 
-    private function completeBookingPayment(Booking $booking, ?int $gatewayId, array $meta = []): Booking
+    private function completeBookingPaymentDbOnly(Booking $booking, ?int $gatewayId, array $meta = []): Booking
     {
-        $vatRate = LookupItem::where('is_default', true)->where('slug', '=', 'vat_rate')->first();
+        // Fast path for PayFast ITN: record payment and mark booking paid. No PDFs, no emails, no Browsershot.
         $meta = array_merge(['ip' => request()->ip()], $meta);
 
-        return DB::transaction(function () use ($booking, $vatRate, $gatewayId, $meta) {
+        return DB::transaction(function () use ($booking, $gatewayId, $meta) {
+            $booking = Booking::with('booking_items.booking_fee')->findOrFail($booking->id);
+
+            $booking->update([
+                'status_payment_id' => 2,
+                'tot_paid' => $booking->grand_tot_due,
+            ]);
+
+            $vat = $this->vatBreakdownForTeam($booking->team_id, (float) $booking->grand_tot_due);
+            $vatItem = $vat['vat_item'];
+
+            BookingPayment::updateOrCreate(
+                ['booking_id' => $booking->id],
+                [
+                    'type_pay_option_id' => 2,
+                    'type_payment_id' => 3,
+                    'status_payment_id' => 2,
+                    'ex_vat_amount' => $vat['ex_vat_amount'],
+                    'lookup_item_id' => $vatItem?->id,
+                    'vat' => $vat['vat_percent'],
+                    'vat_amount' => $vat['vat_amount'],
+                    'reference' => $booking->reference,
+                    'gateway_id' => $gatewayId,
+                    'meta' => json_encode($meta),
+                    'payment_date' => now(),
+                    'redeemer_name' => '',
+                    'voucher_code' => null,
+                    'note' => '',
+                    'updated_by_id' => null,
+                    'team_id' => $booking->team_id,
+                ]
+            );
+
+            $grandTot = (float) $booking->grand_tot_due;
+            foreach ($booking->booking_items as $item) {
+                $fee = $item->booking_fee;
+                if (! $fee) {
+                    continue;
+                }
+                $fee->tot_paid = min((float) $fee->tot_amount, $grandTot);
+                $fee->save();
+                $grandTot -= (float) $fee->tot_paid;
+            }
+
+            AuditLog::create([
+                'description' => 'Payment recorded (PayFast ITN)',
+                'subject_id' => $booking->id,
+                'subject_type' => Booking::class,
+                'user_id' => null,
+                'properties' => json_encode([
+                    'amount' => $booking->grand_tot_due,
+                    'gateway_id' => $gatewayId,
+                    'meta' => $meta,
+                ]),
+                'host' => request()->ip(),
+            ]);
+
+            return $booking;
+        });
+    }
+
+    private function completeBookingPayment(Booking $booking, ?int $gatewayId, array $meta = []): Booking
+    {
+        $meta = array_merge(['ip' => request()->ip()], $meta);
+
+        return DB::transaction(function () use ($booking, $gatewayId, $meta) {
             $renderService = app(RendererService::class);
             $booking = Booking::findOrFail($booking->id);
             // Mark as paid (in real app, you'd validate PayFast response)
@@ -942,16 +1055,19 @@ class PaymentController extends Controller
                 'tot_paid' => $booking->grand_tot_due,
             ]);
 
+            $vat = $this->vatBreakdownForTeam($booking->team_id, (float) $booking->grand_tot_due);
+            $vatItem = $vat['vat_item'];
+
             BookingPayment::updateOrCreate(
                 ['booking_id' => $booking->id,],
                 [
                     'type_pay_option_id'   => 2,     // or 'Pay Offline'
                     'type_payment_id' => 3, // credit card
                     'status_payment_id' => 2,  // 'paid', 'failed', 'cancelled'
-                    'ex_vat_amount'         => $booking->grand_tot_due, // full amount due or partial
-                    'lookup_item_id' => $vatRate->id,
-                    'vat' => $vatRate->rate,
-                    'vat_amount' => ($booking->grand_tot_due * $vatRate->multiplier),
+                    'ex_vat_amount'         => $vat['ex_vat_amount'],
+                    'lookup_item_id' => $vatItem?->id,
+                    'vat' => $vat['vat_percent'],
+                    'vat_amount' => $vat['vat_amount'],
                     'reference'      => $booking->reference, // Str::uuid(),      // can be order ref or external tx
                     'gateway_id'        => $gatewayId,        // PayFast
                     'meta'           => json_encode($meta),

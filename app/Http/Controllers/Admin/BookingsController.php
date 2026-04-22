@@ -155,6 +155,32 @@ class BookingsController extends Controller
     {
         $tolerance = 0.01;
         if (abs($frontendTotal - $serverTotal) > $tolerance) {
+            if (config('app.debug')) {
+                $discountLines = request()->input('discount_lines', []);
+                Log::warning('Booking pricing mismatch', [
+                    'frontend_total' => $frontendTotal,
+                    'server_total' => $serverTotal,
+                    'delta' => round($frontendTotal - $serverTotal, 2),
+                    'service_id' => request()->input('service_id'),
+                    'season_id' => request()->input('season_id'),
+                    'booking_date' => request()->input('booking_date'),
+                    'start_time' => data_get(request()->input('selected_slot'), 'time') ?? request()->input('start_time'),
+                    'promoCode' => request()->input('promoCode'),
+                    'invoice_discount_id' => request()->input('invoice_discount_id'),
+                    'discount_lines_count' => is_array($discountLines) ? count($discountLines) : null,
+                    'discount_lines' => collect(is_array($discountLines) ? $discountLines : [])
+                        ->map(fn ($line) => [
+                            'type' => $line['type'] ?? null,
+                            'count' => $line['count'] ?? null,
+                            'discount_id' => $line['discount_id'] ?? null,
+                        ])
+                        ->values()
+                        ->all(),
+                    'is_wholesaler' => request()->boolean('is_wholesaler'),
+                    'wholesaler_id' => request()->input('wholesaler_id'),
+                    'override_rates' => request()->boolean('override_rates'),
+                ]);
+            }
             throw ValidationException::withMessages([
                 'booking_total' => 'Pricing mismatch. Please recalculate the totals and try again.',
             ]);

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Traits\Auditable;
 use DateTimeInterface;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -9,7 +10,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class GatewayConfig extends Model
 {
-    use SoftDeletes, HasFactory;
+    use SoftDeletes, HasFactory, Auditable;
 
     public $table = 'payment_gateway_configs';
 
