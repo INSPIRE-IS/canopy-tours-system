@@ -406,6 +406,17 @@ class ActivityController extends Controller
             'activity_id' => 'required|integer',
         ]);
         // dd($validated);
+        if (config('app.debug')) {
+            Log::info('Front booking store request', [
+                'session_id' => session()->getId(),
+                'activity_id' => $validated['activity_id'] ?? null,
+                'slot_date' => $validated['slot_date'] ?? null,
+                'slot_time' => $validated['slot_time'] ?? null,
+                'adults' => (int) ($validated['adults'] ?? 0),
+                'children' => (int) ($validated['children'] ?? 0),
+                'promo_code' => $validated['promo_code'] ?? null,
+            ]);
+        }
         try {
             $booking = DB::transaction(function () use ($validated) {
                 $activity_id = $validated['activity_id'];
@@ -578,6 +589,19 @@ class ActivityController extends Controller
                     abort(404, 'This inventory has no time slot.');
                 }
 
+                if (config('app.debug')) {
+                    Log::info('Front booking resolved context', [
+                        'session_id' => $sessionId,
+                        'season_id' => $season->id,
+                        'service_id' => $season->service_id,
+                        'team_id' => $season->team_id,
+                        'inventory_id' => $inventory?->id,
+                        'inventory_time_slot_id' => $inventoryTimeSlot->id,
+                        'slot_date' => $validated['slot_date'],
+                        'slot_time' => $validated['slot_time'],
+                    ]);
+                }
+
                 $booking = Booking::where('session_id', $sessionId)->where('status_payment_id', 1)->first();
                 if (!$booking) {
                     // 1. Always create a new customer for a new booking
@@ -612,6 +636,18 @@ class ActivityController extends Controller
                     $customer = Customer::findOrFail($booking->customer_id);
                 }
 
+                if (config('app.debug')) {
+                    Log::info('Front booking saved booking row', [
+                        'booking_id' => $booking->id,
+                        'booking_reference' => $booking->reference,
+                        'booking_team_id' => $booking->team_id,
+                        'booking_session_id' => $booking->session_id,
+                        'status_payment_id' => $booking->status_payment_id,
+                        'grand_tot_due' => (float) $booking->grand_tot_due,
+                        'customer_id' => $booking->customer_id,
+                    ]);
+                }
+
                 $bookingItem = BookingItem::updateOrCreate([
                     'id' => $booking->id,
                     'service_id' => $season->service_id,
@@ -626,6 +662,35 @@ class ActivityController extends Controller
                     'pax_children' => $children,
                     'pax_guides' => 0,
                 ]);
+
+                // Admin bookings index is team-scoped on `booking_items.team_id`.
+                // Front bookings historically created booking items without a team_id, causing them to "disappear" in Admin.
+                if (empty($bookingItem->team_id)) {
+                    $bookingItem->team_id = $season->team_id;
+                    $bookingItem->save();
+                }
+
+                if (config('app.debug')) {
+                    Log::info('Front booking saved booking item', [
+                        'booking_item_id' => $bookingItem->id,
+                        'booking_id' => $bookingItem->booking_id,
+                        'booking_item_team_id' => $bookingItem->team_id,
+                        'service_id' => $bookingItem->service_id,
+                        'season_id' => $bookingItem->season_id,
+                        'inventory_id' => $bookingItem->inventory_id,
+                        'promotion_id' => $bookingItem->promotion_id,
+                        'pax' => [
+                            'adults' => (int) $bookingItem->pax_adults,
+                            'children' => (int) $bookingItem->pax_children,
+                            'guides' => (int) $bookingItem->pax_guides,
+                        ],
+                        'rates' => [
+                            'adult' => (float) $bookingItem->price_adult,
+                            'child' => (float) $bookingItem->price_child,
+                            'guide' => (float) $bookingItem->price_guide,
+                        ],
+                    ]);
+                }
 
                 // Prepare pivot data
                 $pivotData = [];
