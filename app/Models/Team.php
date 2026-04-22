@@ -67,6 +67,11 @@ class Team extends Model
         return $this->belongsTo(Team::class, 'team_id');
     }
 
+    public function gatewayConfigs()
+    {
+        return $this->hasMany(GatewayConfig::class);
+    }
+
     // public function bookingItemCustomers()
     // {
     //     return $this->hasMany(bookingItemCustomers::class);

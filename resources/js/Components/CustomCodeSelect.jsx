@@ -1,9 +1,22 @@
 import React from "react";
 
-const CustomCodeSelect = ({ label, name, value = null, width = "w-full", height = "h-[48px]", onChange, showOption = true, optionText = " -- Select an option --", errors = {}, mode, options }) => {
+const CustomCodeSelect = ({
+  label,
+  name,
+  value = null,
+  width = "w-full",
+  containerWidth = "w-[30%]",
+  height = "h-[48px]",
+  onChange,
+  showOption = true,
+  optionText = " -- Select an option --",
+  errors = {},
+  mode,
+  options,
+}) => {
   //console.log('options ', options);
   return (
-    <div className={`mb-4 w-[30%]`}>
+    <div className={`mb-4 ${containerWidth}`}>
       {label && (
         <label
           htmlFor={name}

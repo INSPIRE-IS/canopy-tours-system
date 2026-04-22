@@ -51,6 +51,8 @@ export default function PhoneInput({
     error,
     defaultCountryCode = '27',
     name = 'phone',
+    placeholder = 'e.g. 0762412888 or 762412888',
+    stacked = false,
 }) {
     const phonecodeOptions = useMemo(() => normalizeCountries(countries), [countries]);
     const resolvedDefault = phonecodeOptions.find(o => o.id === String(defaultCountryCode))?.id
@@ -64,6 +66,20 @@ export default function PhoneInput({
     const syncingRef = useRef(false);
     const lastCountryRef = useRef(null);
 
+    const debug = useMemo(() => {
+        try {
+            return window?.localStorage?.getItem('debug_phone') === '1';
+        } catch {
+            return false;
+        }
+    }, []);
+
+    const dbg = (...args) => {
+        if (!debug) return;
+        // eslint-disable-next-line no-console
+        console.log('[PhoneInput]', ...args);
+    };
+
     useEffect(() => {
         if (!phonecodeOptions.length) return;
         if (initializedRef.current && value === lastEmittedRef.current) return;
@@ -72,6 +88,7 @@ export default function PhoneInput({
             return;
         }
         syncingRef.current = true;
+        dbg('sync from value', { value, parsed, resolvedDefault });
         setCountryCode(parsed.code || resolvedDefault);
         setLocalNumber(parsed.local || '');
         initializedRef.current = true;
@@ -83,18 +100,19 @@ export default function PhoneInput({
             syncingRef.current = false;
             return;
         }
-        const local = (localNumber || '').replace(/\D/g, '').replace(/^0+/, '');
-        if (!local) {
-            if (value) {
-                lastEmittedRef.current = '';
-                onChange?.('');
-            }
+        const raw = (localNumber || '').replace(/\D/g, '');
+        // Allow users to type a local leading "0" (common in SA) without the input wiping itself.
+        // Only strip leading zeros once at least one non-zero digit is present.
+        const local = raw.length > 1 ? raw.replace(/^0+/, '') : raw;
+        if (!local || local === '0') {
+            dbg('emit skipped', { countryCode, localNumber, raw, local, reason: 'empty_or_single_zero' });
             return;
         }
         const code = countryCode || resolvedDefault;
         const formatted = code ? `+${code}${local}` : local;
         if (value !== formatted) {
             lastEmittedRef.current = formatted;
+            dbg('emit', { countryCode: code, localNumber, raw, local, formatted });
             onChange?.(formatted);
         }
     }, [countryCode, localNumber, resolvedDefault, value, onChange]);
@@ -126,14 +144,15 @@ export default function PhoneInput({
 
     return (
         <div className="w-full">
-            <div className="flex flex-col sm:flex-row w-full gap-2">
+            <div className={`flex w-full gap-2 ${stacked ? 'flex-col' : 'flex-col sm:flex-row'}`}>
                 <CustomCodeSelect
                     label="Country Code"
                     name={`${name}_country`}
                     value={countryCode}
                     height="h-12"
+                    containerWidth={stacked ? 'w-full' : undefined}
                     onChange={(e) => setCountryCode(e.target.value)}
-                    error={error}
+                    errors={{ [`${name}_country`]: error }}
                     options={phonecodeOptions}
                 />
                 <CustomInputText
@@ -145,12 +164,20 @@ export default function PhoneInput({
                     value={localNumber}
                     height="h-12"
                     onKeyDown={allowPhoneKey}
-                    onChange={(e) => setLocalNumber(e.target.value.replace(/\D/g, ''))}
+                    onChange={(e) => {
+                        const next = e.target.value.replace(/\D/g, '');
+                        dbg('local change', { prev: localNumber, next });
+                        setLocalNumber(next);
+                    }}
                     errors={{ [name]: error }}
+                    placeholder={placeholder}
                 />
             </div>
             <p className="text-xs text-gray-500 mt-2">
                 Saved as: {value || '-'} (international format)
+            </p>
+            <p className="text-xs text-gray-500 mt-1">
+                Tip: You can type with or without a leading 0; we&apos;ll save it as +{countryCode || resolvedDefault}.
             </p>
         </div>
     );
