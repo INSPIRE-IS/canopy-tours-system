@@ -77,7 +77,9 @@ class BookingInventory extends Model
 
     public function inventory_time_slot()
     {
-        return $this->belongsTo(InventoryTimeSlot::class, 'inventory_time_slot_id');
+        // BookingInventory records may reference time slots that were later soft-deleted.
+        // We still need the start_time for historical bookings (check-in expiry, admin views).
+        return $this->belongsTo(InventoryTimeSlot::class, 'inventory_time_slot_id')->withTrashed();
     }
 
     public function inventory_override()

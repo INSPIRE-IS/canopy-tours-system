@@ -139,12 +139,33 @@ class BookingQuestionnaireController extends Controller
         $startTime = $bookingInventory?->inventory_time_slot?->start_time;
 
         if (!$bookingDate || !$startTime) {
+            if (config('app.debug')) {
+                Log::info('Check-in expiry could not be resolved', [
+                    'booking_item_id' => $bookingItem->id,
+                    'booking_id' => $bookingItem->booking_id ?? null,
+                    'team_id' => $bookingItem->team_id ?? $bookingItem->booking?->team_id ?? null,
+                    'booking_inventory_id' => $bookingInventory?->id,
+                    'booking_date' => $bookingDate,
+                    'inventory_time_slot_id' => $bookingInventory?->inventory_time_slot_id,
+                    'has_inventory_time_slot' => (bool) $bookingInventory?->inventory_time_slot,
+                    'inventory_time_slot_start_time' => $bookingInventory?->inventory_time_slot?->start_time,
+                    'inventory_override_id' => $bookingInventory?->inventory_override_id,
+                ]);
+            }
             return null;
         }
 
         try {
             $startDateTime = Carbon::parse(trim("{$bookingDate} {$startTime}"), config('app.timezone'));
         } catch (\Throwable $e) {
+            if (config('app.debug')) {
+                Log::warning('Check-in expiry date parse failed', [
+                    'booking_item_id' => $bookingItem->id,
+                    'booking_date' => $bookingDate,
+                    'start_time' => $startTime,
+                    'exception' => $e->getMessage(),
+                ]);
+            }
             return null;
         }
 
