@@ -29,6 +29,10 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
         RANGE: 'range',
         WEEK: 'week',
     };
+
+    // Keep the legacy dropdown-style search code in place (disabled for now),
+    // but the primary UX is: filter the bookings table to matching results.
+    const ENABLE_SEARCH_DROPDOWN = false;
     const { props } = usePage();
     const { flash } = props;
     const { showToast } = useToast();
@@ -67,6 +71,8 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
         return sessionStorage.getItem('bookings.showEmptySlots') === 'true';
     });
     const [showServices, setShowServices] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [searchOpen, setSearchOpen] = useState(false);
     const [confirmOpen, setConfirmOpen] = useState(false);
     const [confirmAction, setConfirmAction] = useState(null); // { type: 'booking' | 'slot', booking }
     const [slotRows, setSlotRows] = useState([]);
@@ -74,6 +80,7 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
     const [checkInTarget, setCheckInTarget] = useState(null);
     const [feedbackTarget, setFeedbackTarget] = useState(null);
     const servicesRef = useRef();
+    const searchRef = useRef();
     useEffect(() => {
         if (flash?.success) {
             showToast(flash.success, "success");
@@ -440,16 +447,98 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
             if (servicesRef.current && !servicesRef.current.contains(event.target)) {
                 setShowServices(false);
             }
+            if (searchRef.current && !searchRef.current.contains(event.target)) {
+                setSearchOpen(false);
+            }
         };
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
+    const searchResults = useMemo(() => {
+        const term = (searchQuery || '').trim().toLowerCase();
+        if (!term) return [];
+        const digits = term.replace(/\D/g, '');
+
+        const matches = (Array.isArray(bookings) ? bookings : []).filter((booking) => {
+            const haystack = [
+                booking?.reference,
+                booking?.lead_name,
+                booking?.lead_email,
+                booking?.service,
+                booking?.booking_date,
+                booking?.time_start,
+            ]
+                .filter(Boolean)
+                .map((v) => String(v).toLowerCase());
+
+            if (haystack.some((v) => v.includes(term))) {
+                return true;
+            }
+
+            if (digits) {
+                const leadDigits = String(booking?.lead_phone || '').replace(/\D/g, '');
+                if (leadDigits && leadDigits.includes(digits)) {
+                    return true;
+                }
+            }
+
+            const customers = Array.isArray(booking?.customers) ? booking.customers : [];
+            return customers.some((cust) => {
+                const custHaystack = [
+                    cust?.full_name,
+                    cust?.email_address,
+                ]
+                    .filter(Boolean)
+                    .map((v) => String(v).toLowerCase());
+                if (custHaystack.some((v) => v.includes(term))) {
+                    return true;
+                }
+                if (digits) {
+                    const custDigits = String(cust?.contact_number || '').replace(/\D/g, '');
+                    return custDigits && custDigits.includes(digits);
+                }
+                return false;
+            });
+        });
+
+        const parseDate = (dateStr) => {
+            if (!dateStr) return 0;
+            const parsed = parseISO(dateStr);
+            return isValid(parsed) ? parsed.getTime() : 0;
+        };
+        const parseTime = (timeStr) => {
+            if (!timeStr) return 0;
+            const [hours, minutes] = String(timeStr).split(':');
+            return (Number(hours || 0) * 60) + Number(minutes || 0);
+        };
+
+        matches.sort((a, b) => {
+            const dateDiff = parseDate(b?.booking_date) - parseDate(a?.booking_date);
+            if (dateDiff !== 0) return dateDiff;
+            return parseTime(b?.time_start) - parseTime(a?.time_start);
+        });
+
+        return matches;
+    }, [bookings, searchQuery]);
+
     const handleFilterBookings = (activity_id) => {
         setSelectedServiceId(activity_id);
     };
 
+    const isSearchActive = (searchQuery || '').trim().length >= 3;
+
     const applyFilters = () => {
+        // When searching, we intentionally ignore the current date/day/week/range view.
+        // Search is "global" across this site's bookings.
+        if (isSearchActive) {
+            let next = Array.isArray(searchResults) ? searchResults : [];
+            if (selectedServiceId !== '0') {
+                next = next.filter((booking) => Number(booking.service_id) === Number(selectedServiceId));
+            }
+            return next;
+        }
+
         let next = Array.isArray(bookings) ? bookings : [];
         if (selectedServiceId !== '0') {
             next = next.filter(booking => Number(booking.service_id) === Number(selectedServiceId));
@@ -523,7 +612,7 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
             grouped.set(key, existing);
         });
 
-        if (viewMode === VIEW_MODES.DAY && showEmptySlots) {
+        if (!isSearchActive && viewMode === VIEW_MODES.DAY && showEmptySlots) {
             const day = selectedDate || today;
             services?.forEach((service) => {
                 const activeSeason = service?.seasons?.find((season) => isDateWithinSeason(day, season));
@@ -553,8 +642,21 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
         }
 
         const rows = Array.from(grouped.values())
-            .filter((row) => showEmptySlots || row.bookings.length > 0);
+            .filter((row) => (isSearchActive ? row.bookings.length > 0 : showEmptySlots || row.bookings.length > 0));
         rows.sort((a, b) => {
+            const aDate = a.booking_date || '';
+            const bDate = b.booking_date || '';
+            if (aDate !== bDate) {
+                // Search results: newest bookings first.
+                if (isSearchActive) {
+                    return bDate.localeCompare(aDate);
+                }
+                // Range/week: show in chronological order.
+                if (viewMode !== VIEW_MODES.DAY) {
+                    return aDate.localeCompare(bDate);
+                }
+            }
+
             const aTime = timeToMinutes(a.time_start);
             const bTime = timeToMinutes(b.time_start);
             if (aTime !== bTime) return aTime - bTime;
@@ -565,7 +667,7 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
 
     useEffect(() => {
         setFilteredBookings(applyFilters());
-    }, [bookings, selectedServiceId, viewMode, selectedDate, rangeStart, rangeEnd]);
+    }, [bookings, selectedServiceId, viewMode, selectedDate, rangeStart, rangeEnd, searchQuery]);
 
     useEffect(() => {
         setSlotRows(buildSlotRows());
@@ -808,10 +910,100 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                                     )}
                                 </div>
 
-                                <button className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] border-primary-14 text-primary-14 cursor-pointer">
-                                    <img src="/assets/icons/search-normal.svg" alt="bookings" className="w-5 h-5" />
-                                    <span className="text-btn-outline-gray">Search here</span>
-                                </button>
+                                <div className="relative" ref={searchRef}>
+                                    <div className="flex items-center w-[280px] h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] border-primary-14 text-primary-14 bg-white hover:border-black focus-within:border-black">
+                                        <img src="/assets/icons/search-normal.svg" alt="search" className="w-5 h-5" />
+                                        <input
+                                            type="text"
+                                            value={searchQuery}
+                                            placeholder="Search guest / reference (min 3)"
+                                            onChange={(e) => {
+                                                setSearchQuery(e.target.value);
+                                                if (ENABLE_SEARCH_DROPDOWN) {
+                                                    setSearchOpen(true);
+                                                }
+                                            }}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Escape') {
+                                                    if (ENABLE_SEARCH_DROPDOWN) {
+                                                        setSearchOpen(false);
+                                                    }
+                                                    setSearchQuery('');
+                                                    return;
+                                                }
+                                                if (e.key === 'Enter') {
+                                                    e.preventDefault();
+                                                    // In-table filtering is the primary UX; Enter does not auto-open a booking.
+                                                }
+                                            }}
+                                            className="w-full min-w-0 appearance-none bg-transparent border-0 p-0 m-0 shadow-none text-[#161618] placeholder:text-gray-400 focus:outline-none focus:ring-0 focus:ring-offset-0"
+                                        />
+                                        {searchQuery?.trim() && (
+                                            <button
+                                                type="button"
+                                                className="text-gray-400 hover:text-gray-700"
+                                                onClick={() => {
+                                                    setSearchQuery('');
+                                                    setSearchOpen(false);
+                                                }}
+                                                aria-label="Clear search"
+                                            >
+                                                ×
+                                            </button>
+                                        )}
+                                    </div>
+
+                                    {ENABLE_SEARCH_DROPDOWN && searchOpen && searchQuery.trim() && (
+                                        <div className="absolute top-full mt-2 w-[520px] bg-white border rounded shadow-lg z-50 overflow-hidden">
+                                            <div className="px-4 py-2 text-xs text-gray-500 border-b">
+                                                Searching across all bookings for this site.
+                                            </div>
+                                            {searchResults.length === 0 ? (
+                                                <div className="px-4 py-3 text-sm text-gray-700">
+                                                    No results found.
+                                                </div>
+                                            ) : (
+                                                <div className="max-h-[320px] overflow-y-auto">
+                                                    {searchResults.map((result) => {
+                                                        const timeLabel = result?.time_start ? formatTimeValue(result.time_start) : '';
+                                                        const dateLabel = result?.booking_date || '';
+                                                        const when = [dateLabel, timeLabel].filter(Boolean).join(' ');
+                                                        return (
+                                                            <button
+                                                                key={`${result.id}-${result.booking_item_id}`}
+                                                                type="button"
+                                                                className="w-full text-left px-4 py-3 hover:bg-gray-50 border-b last:border-b-0"
+                                                                onClick={() => {
+                                                                    setSearchOpen(false);
+                                                                    setSearchQuery('');
+                                                                    ViewBookingClick(result);
+                                                                }}
+                                                            >
+                                                                <div className="flex justify-between gap-3">
+                                                                    <div className="min-w-0">
+                                                                        <div className="text-sm font-semibold text-gray-900 truncate">
+                                                                            {result?.lead_name || 'Unknown guest'}
+                                                                        </div>
+                                                                        <div className="text-xs text-gray-600 truncate">
+                                                                            {result?.lead_email || result?.lead_phone || '—'}
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="text-right shrink-0">
+                                                                        <div className="text-xs text-gray-600">{when || '—'}</div>
+                                                                        <div className="text-xs font-semibold text-gray-900">{result?.reference || ''}</div>
+                                                                    </div>
+                                                                </div>
+                                                                <div className="mt-1 text-xs text-gray-600 truncate">
+                                                                    {result?.service || ''}
+                                                                </div>
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
 
                                 <button onClick={() => handleExportCSV(filteredBookings)} className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] border-primary-14 text-primary-14 cursor-pointer">
                                     <img src="/assets/icons/export.svg" alt="export" className="w-5 h-5" />
@@ -848,6 +1040,7 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                                             : `${dateLabel}`.trim() || 'Time N/A';
                                         const nextRow = slotRows?.[i + 1];
                                         const isLastInTimeGroup = !nextRow || formatTimeValue(nextRow.time_start) !== startLabel;
+                                        const isRowExpanded = isSearchActive || expanded === row.key;
                                         return (
                                             <React.Fragment key={row.key}>
                                                 <tr className="hover:bg-gray-50">
@@ -858,10 +1051,13 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                                                                 {timeLabel}
                                                             </div>
                                                             <img
-                                                                src={`/assets/icons/${expanded === row.key ? 'arrow-down' : 'arrow-left'}.svg`}
+                                                                src={`/assets/icons/${isRowExpanded ? 'arrow-down' : 'arrow-left'}.svg`}
                                                                 alt="toggle"
-                                                                className="w-5 h-5 cursor-pointer"
-                                                                onClick={() => setExpanded(expanded === row.key ? null : row.key)}
+                                                                className={`w-5 h-5 ${isSearchActive ? 'cursor-default opacity-60' : 'cursor-pointer'}`}
+                                                                onClick={() => {
+                                                                    if (isSearchActive) return;
+                                                                    setExpanded(isRowExpanded ? null : row.key);
+                                                                }}
                                                             />
                                                         </div>
                                                     </td>
@@ -897,7 +1093,7 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                                                     </td>
                                                 </tr>
 
-                                                {expanded === row.key && (
+                                                {isRowExpanded && (
                                                     row.bookings.length > 0 ? (
                                                         <>
                                                             {row.bookings.map((booking, index) => (
@@ -1131,5 +1327,3 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
         </AuthenticatedLayout>
     );
 }
-
-

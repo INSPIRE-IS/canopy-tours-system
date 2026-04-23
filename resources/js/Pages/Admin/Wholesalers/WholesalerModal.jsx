@@ -102,11 +102,11 @@ const WholesalerModal = ({ isOpen, onClose, mode, wholesaler = null, wholesalerF
                     <div className="flex flex-col w-full items-center gap-2 justify-between mb-4">
                         <CustomTextarea
                             label="Address"
-                            field="address"
                             value={data.address}
                             mode={mode}
-                            handleChange={handleChange}
-                            errors={errors}
+                            name="address"
+                            onChange={(e) => handleChange(e.target.name, e.target.value)}
+                            error={errors.address}
                         />
                         {/* <CustomTextarea
                             label="Description"
@@ -144,4 +144,3 @@ const WholesalerModal = ({ isOpen, onClose, mode, wholesaler = null, wholesalerF
 };
 
 export default WholesalerModal;
-
