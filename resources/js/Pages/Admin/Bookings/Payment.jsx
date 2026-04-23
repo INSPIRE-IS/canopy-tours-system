@@ -19,6 +19,24 @@ export default function Dashboard({ auth, booking, lookups, mode, gateways, stat
     const { showToast } = useToast();
     // console.log("type_pay_options", type_pay_options);
     // console.log("type_payments", type_payments);
+    const payOptionList = Array.isArray(type_pay_options) ? type_pay_options : [];
+    const paymentMethodList = Array.isArray(type_payments) ? type_payments : [];
+
+    // We currently keep certain legacy/unused options seeded in the DB, but hide them in the admin UI.
+    // This avoids breaking existing records while keeping the payment screen simple.
+    const hiddenPayOptionSlugs = new Set(['split_payments']);
+    const hiddenPaymentMethodSlugs = new Set(['masterpass', 'paypal', 'snapscan', 'zapper']);
+
+    const visiblePayOptions = payOptionList.filter((option) => {
+        const slug = (option.slug || '').toLowerCase();
+        return !hiddenPayOptionSlugs.has(slug);
+    });
+
+    const visiblePaymentMethods = paymentMethodList.filter((method) => {
+        const slug = (method.slug || '').toLowerCase();
+        return !hiddenPaymentMethodSlugs.has(slug);
+    });
+
     const lookupList = Array.isArray(lookups) ? lookups : [];
     const { data, setData, post, put, processing, errors, isDirty } = useForm({
         booking_id: booking.id,
@@ -40,9 +58,8 @@ export default function Dashboard({ auth, booking, lookups, mode, gateways, stat
         meta: '',
         team_id: booking.team_id,
     });
-    const [showPayOnlineModal, setShowPayOnlineModal] = useState(false);
-    const [payOnlineStep, setPayOnlineStep] = useState('checkout');
-    const [payOnlineProcessing, setPayOnlineProcessing] = useState(false);
+
+    const [showPayLinkModal, setShowPayLinkModal] = useState(false);
     const [payLinkSending, setPayLinkSending] = useState(false);
 
     const payOnlineOption = type_pay_options.find((option) => {
@@ -65,6 +82,7 @@ export default function Dashboard({ auth, booking, lookups, mode, gateways, stat
 
     const amountDue = Math.max(0, Number(booking.grand_tot_due) - Number(booking.tot_paid || 0));
     const isFullyPaid = amountDue <= 0;
+    const leadEmail = booking?.customer?.email_address || booking?.lead_email || '';
     useEffect(() => {
         if (flash?.success) {
             showToast(flash.success, "success");
@@ -73,12 +91,6 @@ export default function Dashboard({ auth, booking, lookups, mode, gateways, stat
             showToast(flash.error, "error");
         }
     }, [flash, showToast]);
-    useEffect(() => {
-        if (!isPayOnline) {
-            setShowPayOnlineModal(false);
-            setPayOnlineStep('checkout');
-        }
-    }, [isPayOnline]);
     useEffect(() => {
         if (!payOfflineOption || data.type_pay_option_id) return;
         setData((prev) => ({
@@ -172,33 +184,12 @@ export default function Dashboard({ auth, booking, lookups, mode, gateways, stat
             });
         }
     };
-    const openPayOnlineModal = () => {
-        setPayOnlineStep('checkout');
-        setShowPayOnlineModal(true);
-    };
-    const closePayOnlineModal = () => {
-        setShowPayOnlineModal(false);
-        setPayOnlineStep('checkout');
-    };
-    const handleSimulatedPayment = async () => {
-        setPayOnlineProcessing(true);
-        try {
-            await axios.post(route('admin.booking-payments.simulated', booking.id));
-            showToast('Payment marked as paid (simulated).', 'success');
-            closePayOnlineModal();
-            router.get(route('admin.bookings.index'));
-        } catch (error) {
-            console.error('Simulated payment failed:', error);
-            showToast('Failed to simulate payment. Please try again.', 'error');
-        } finally {
-            setPayOnlineProcessing(false);
-        }
-    };
     const handleSendPayLink = async () => {
         setPayLinkSending(true);
         try {
             await axios.post(route('admin.booking-payments.paylink', booking.id));
             showToast('PayLink sent to the client.', 'success');
+            setShowPayLinkModal(false);
         } catch (error) {
             console.error('PayLink send failed:', error);
             showToast('Failed to send PayLink. Please try again.', 'error');
@@ -244,7 +235,7 @@ export default function Dashboard({ auth, booking, lookups, mode, gateways, stat
                                     errors={errors}
                                 />
                             ))}  */}
-                            {type_pay_options.map(({ id, name }) => (
+                            {visiblePayOptions.map(({ id, name }) => (
                                 <CustomCheckbox
                                     key={id}
                                     label={name}
@@ -256,54 +247,51 @@ export default function Dashboard({ auth, booking, lookups, mode, gateways, stat
                             ))}
 
                         </div>
-                        <div className="flex flex-wrap gap-4 items-center justify-start ">
-                            {/* {type_payments.map(({ id, name, slug }) => (
-                                <CustomCheckbox
-                                    key={id}
-                                    label={name}
-                                    name={slug}
-                                    checked={data[slug] || false}
-                                    onChange={() =>
-                                        handleExclusiveChange(
-                                            type_payments.map(p => p.slug), // group keys
-                                            slug
-                                        )
-                                    }
-                                    errors={errors}
-                                />
-                            ))} */}
-                            {type_payments.map(({ id, name }) => (
-                                <CustomCheckbox
-                                    key={id}
-                                    label={name}
-                                    name={id}
-                                    checked={data.payment_methods[id] || false}
-                                    onChange={(checked) => handleCheckboxChange("payment_methods", id, checked)}
-                                    errors={errors}
-                                />
-                            ))}
-
-                        </div>
+                        {!isPayOnline && (
+                            <div className="flex flex-wrap gap-4 items-center justify-start ">
+                                {/* {type_payments.map(({ id, name, slug }) => (
+                                    <CustomCheckbox
+                                        key={id}
+                                        label={name}
+                                        name={slug}
+                                        checked={data[slug] || false}
+                                        onChange={() =>
+                                            handleExclusiveChange(
+                                                type_payments.map(p => p.slug), // group keys
+                                                slug
+                                            )
+                                        }
+                                        errors={errors}
+                                    />
+                                ))} */}
+                                {visiblePaymentMethods.map(({ id, name }) => (
+                                    <CustomCheckbox
+                                        key={id}
+                                        label={name}
+                                        name={id}
+                                        checked={data.payment_methods[id] || false}
+                                        onChange={(checked) => handleCheckboxChange("payment_methods", id, checked)}
+                                        errors={errors}
+                                    />
+                                ))}
+                            </div>
+                        )}
                     </div>
                     {isPayOnline ? (
                         <div className="flex flex-col w-full pr-[51px] gap-4">
                             <div className="flex items-center gap-4">
-                                <BlueButton
-                                    title="Pay Online (Simulated)"
-                                    width="w-[200px]"
-                                    onClick={openPayOnlineModal}
-                                    disabled={isFullyPaid}
-                                    props={{ type: 'button' }}
-                                />
                                 <OutlineButton
-                                    title={payLinkSending ? 'Sending...' : 'Send PayLink'}
-                                    onClick={handleSendPayLink}
-                                    props={{ type: 'button', disabled: payLinkSending || isFullyPaid }}
+                                    title="Send PayLink"
+                                    onClick={() => setShowPayLinkModal(true)}
+                                    props={{ type: 'button', disabled: isFullyPaid }}
                                 />
                                 {isFullyPaid && (
                                     <span className="text-sm text-red-500">Booking already paid.</span>
                                 )}
                             </div>
+                            <p className="text-sm text-gray-600">
+                                Send a secure PayLink to the client. They will complete payment via PayFast.
+                            </p>
                         </div>
                     ) : (
                         <div className="flex flex-col w-full pr-[51px]  gap-2 ">
@@ -373,61 +361,52 @@ export default function Dashboard({ auth, booking, lookups, mode, gateways, stat
                 </div>
             </div>
 
-            <Modal show={showPayOnlineModal} onClose={closePayOnlineModal} maxWidth="md">
+            <Modal show={showPayLinkModal} onClose={() => setShowPayLinkModal(false)} maxWidth="md">
                 <div className="p-6 space-y-4">
-                    {payOnlineStep === 'checkout' ? (
-                        <>
-                            <div>
-                                <h3 className="text-lg font-semibold">PayFast Checkout (Simulated)</h3>
-                                <p className="text-sm text-gray-600">Confirm the payment details below.</p>
-                            </div>
-                            <div className="space-y-2 text-sm">
-                                <div className="flex justify-between">
-                                    <span className="text-gray-600">Booking Reference</span>
-                                    <span className="font-medium">{booking.reference}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span className="text-gray-600">Lead Name</span>
-                                    <span className="font-medium">{booking.lead_name}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span className="text-gray-600">Total</span>
-                                    <span className="font-semibold">R{amountDue.toFixed(2)}</span>
-                                </div>
-                            </div>
-                            <div className="flex justify-end gap-3">
-                                <OutlineButton title="Cancel" onClick={closePayOnlineModal} props={{ type: 'button' }} />
-                                <BlueButton
-                                    title="Continue to Payment"
-                                    onClick={() => setPayOnlineStep('simulated')}
-                                    disabled={isFullyPaid}
-                                    props={{ type: 'button' }}
-                                />
-                            </div>
-                        </>
-                    ) : (
-                        <>
-                            <div>
-                                <h3 className="text-lg font-semibold">Simulated Payment</h3>
-                                <p className="text-sm text-gray-600">
-                                    Pretend you are paying R{amountDue.toFixed(2)} via PayFast.
-                                </p>
-                            </div>
-                            <div className="flex justify-end gap-3">
-                                <OutlineButton
-                                    title="Back"
-                                    onClick={() => setPayOnlineStep('checkout')}
-                                    props={{ type: 'button' }}
-                                />
-                                <BlueButton
-                                    title={payOnlineProcessing ? 'Processing...' : 'Simulate Success'}
-                                    onClick={handleSimulatedPayment}
-                                    disabled={payOnlineProcessing}
-                                    props={{ type: 'button' }}
-                                />
-                            </div>
-                        </>
+                    <div>
+                        <h3 className="text-lg font-semibold">Send PayFast PayLink</h3>
+                        <p className="text-sm text-gray-600">Confirm the payment details below.</p>
+                    </div>
+
+                    <div className="space-y-2 text-sm">
+                        <div className="flex justify-between gap-4">
+                            <span className="text-gray-600">Booking Reference</span>
+                            <span className="font-medium text-right">{booking.reference}</span>
+                        </div>
+                        <div className="flex justify-between gap-4">
+                            <span className="text-gray-600">Lead Name</span>
+                            <span className="font-medium text-right">{booking.lead_name}</span>
+                        </div>
+                        <div className="flex justify-between gap-4">
+                            <span className="text-gray-600">Lead Email</span>
+                            <span className="font-medium text-right">{leadEmail || '—'}</span>
+                        </div>
+                        <div className="flex justify-between gap-4">
+                            <span className="text-gray-600">Total</span>
+                            <span className="font-semibold text-right">R{amountDue.toFixed(2)}</span>
+                        </div>
+                    </div>
+
+                    {!leadEmail && (
+                        <div className="text-sm text-red-600">
+                            This booking does not have a customer email address. Please update the lead customer email first.
+                        </div>
                     )}
+
+                    <div className="flex justify-end gap-3 pt-2">
+                        <OutlineButton
+                            title="Cancel"
+                            onClick={() => setShowPayLinkModal(false)}
+                            props={{ type: 'button', disabled: payLinkSending }}
+                        />
+                        <BlueButton
+                            title={payLinkSending ? 'Sending...' : 'Send'}
+                            onClick={handleSendPayLink}
+                            disabled={payLinkSending || isFullyPaid || !leadEmail}
+                            props={{ type: 'button' }}
+                            width="w-[140px]"
+                        />
+                    </div>
                 </div>
             </Modal>
         </AuthenticatedLayout>

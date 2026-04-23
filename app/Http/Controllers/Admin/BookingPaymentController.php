@@ -69,7 +69,8 @@ class BookingPaymentController extends Controller
         $status_payments = StatusPayment::select('name', 'id')->get();
         $updated_bies = User::select('name', 'id')->get();
 
-        logger()->info($booking->load('booking_items'));
+        $booking->load('booking_items', 'customer');
+        logger()->info($booking);
         $lookups = LookupItem::defaultsForTeam(auth()->user()->team_id);
         return Inertia::render('Admin/Bookings/Payment', [
             'booking' => $booking,
@@ -500,7 +501,7 @@ class BookingPaymentController extends Controller
         //$booking = Booking::findOrFail($request->booking_id);
         //$bookingPayment = BookingPayment::findOrFail(1);
 
-        $booking->load('booking_payments', 'booking_payments.type_pay_option', 'booking_payments.type_payment', 'booking_payments.gateway', 'booking_payments.status_payment', 'booking_payments.updated_by', 'booking_payments.team');
+        $booking->load('customer', 'booking_payments', 'booking_payments.type_pay_option', 'booking_payments.type_payment', 'booking_payments.gateway', 'booking_payments.status_payment', 'booking_payments.updated_by', 'booking_payments.team');
         // dd($booking);
         $type_pay_options = TypePayOption::select(
             'id',
