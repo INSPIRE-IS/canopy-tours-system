@@ -2982,8 +2982,8 @@ class BookingsController extends Controller
                 ->get()
                 ->groupBy('customer_id');
 
-            $bookingItem->customer_manifests?->each(function ($customerManifest) use ($answersByCustomer, $resolveAnswer, $optionMaps, $bookingItem) {
-                $answers = $answersByCustomer->get($customerManifest->customer_id, collect())
+            $formatAnswers = function ($answers) use ($resolveAnswer, $optionMaps, $bookingItem) {
+                return collect($answers)
                     ->map(function ($answer) use ($resolveAnswer, $optionMaps, $bookingItem) {
                         $seasonId = $bookingItem?->season_id;
                         $site = $seasonId
@@ -2991,6 +2991,7 @@ class BookingsController extends Controller
                             : null;
                         $slug = $answer->question?->slug;
                         $mappedOptions = $slug ? ($optionMaps[$slug] ?? null) : null;
+
                         return [
                             'id' => $answer->id,
                             'answer' => $answer->answer,
@@ -3007,9 +3008,23 @@ class BookingsController extends Controller
                     })
                     ->sortBy('sort_order')
                     ->values();
+            };
 
+            // Attach resolved question answers to BOTH the raw manifests and the computed manifest rows.
+            $bookingItem->customer_manifests?->each(function ($customerManifest) use ($answersByCustomer, $formatAnswers) {
+                $answers = $formatAnswers($answersByCustomer->get($customerManifest->customer_id, collect()));
                 $customerManifest->setAttribute('question_answers', $answers);
             });
+
+            $manifest = collect($manifest)
+                ->map(function ($row) use ($answersByCustomer, $formatAnswers) {
+                    $customerId = $row['customer_id'] ?? null;
+                    $row['question_answers'] = $customerId
+                        ? $formatAnswers($answersByCustomer->get($customerId, collect()))
+                        : collect();
+                    return $row;
+                })
+                ->values();
         }
         //dd($manifest);
         $staff = User::with('roles:id,name')
@@ -3074,7 +3089,21 @@ class BookingsController extends Controller
                 ];
             });
 
+        // Audit logs can grow quickly; fetch a bounded set and avoid N+1 user lookups.
+        $auditLogMax = 200;
+        $auditLogFetchLimit = $auditLogMax * 3; // allow some headroom for dedupe
+
         $auditLogsQuery = AuditLog::query()
+            ->select([
+                'id',
+                'description',
+                'subject_id',
+                'subject_type',
+                'user_id',
+                'properties',
+                'host',
+                'created_at',
+            ])
             ->where(function ($query) use ($booking, $bookingItem) {
                 $query->where(function ($sub) use ($booking) {
                     $sub->where('subject_type', 'App\Models\Booking')
@@ -3087,7 +3116,8 @@ class BookingsController extends Controller
                     });
                 }
             })
-            ->orderByDesc('created_at');
+            ->orderByDesc('created_at')
+            ->limit($auditLogFetchLimit);
 
         $rawAuditLogs = $auditLogsQuery->get();
         $auditLogKey = function ($log) {
@@ -3117,11 +3147,18 @@ class BookingsController extends Controller
                 $dedupedAuditLogs->push($log);
             }
         }
-        $auditLogs = $dedupedAuditLogs
+
+        $dedupedAuditLogs = $dedupedAuditLogs
             ->sortByDesc('created_at')
             ->values()
-            ->map(function ($log) {
-                $userName = User::where('id', $log->user_id)->value('name');
+            ->take($auditLogMax);
+
+        $userNames = User::whereIn('id', $dedupedAuditLogs->pluck('user_id')->filter()->unique()->values())
+            ->pluck('name', 'id');
+
+        $auditLogs = $dedupedAuditLogs
+            ->map(function ($log) use ($userNames) {
+                $userName = $log->user_id ? ($userNames->get($log->user_id) ?? null) : null;
                 return [
                     'id' => $log->id,
                     'description' => $log->description,

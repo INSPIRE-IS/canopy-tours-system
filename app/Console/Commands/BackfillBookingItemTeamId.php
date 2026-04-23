@@ -8,8 +8,18 @@ use Illuminate\Support\Facades\DB;
 class BackfillBookingItemTeamId extends Command
 {
     // Usage:
-    //   php artisan bookings:backfill-item-team-id --dry-run
-    //   php artisan bookings:backfill-item-team-id
+    // # See what will change (no DB writes) + prints a small sample
+    // php artisan bookings:backfill-item-team-id --dry-run
+
+    // # Run it for everything (fills booking_items.team_id from bookings.team_id where team_id is NULL)
+    // php artisan bookings:backfill-item-team-id
+
+    // # Optional: only for one site/team
+    // php artisan bookings:backfill-item-team-id --team=5
+
+    // # Optional: smaller batches
+    // php artisan bookings:backfill-item-team-id --chunk=200
+
     protected $signature = 'bookings:backfill-item-team-id
         {--team= : Only backfill bookings that belong to this team id}
         {--chunk=500 : How many booking_items to update per batch}
@@ -54,7 +64,7 @@ class BackfillBookingItemTeamId extends Command
             $this->line('Sample (first 10):');
             $this->table(
                 ['booking_item_id', 'booking_id', 'booking_team_id'],
-                $sample->map(fn ($row) => [
+                $sample->map(fn($row) => [
                     $row->booking_item_id,
                     $row->booking_id,
                     $row->booking_team_id,
@@ -102,4 +112,3 @@ class BackfillBookingItemTeamId extends Command
         return self::SUCCESS;
     }
 }
-

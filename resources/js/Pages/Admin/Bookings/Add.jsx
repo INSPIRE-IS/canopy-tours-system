@@ -28,13 +28,13 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
     const { showToast } = useToast();
     const [toggleCustomer, setToggleCustomer] = useState(true);
     const [toggleManifest, setToggleManifest] = useState(true);
+    const [manifestFilter, setManifestFilter] = useState('all'); // all | checked_in
 
     const [isManifestsModalOpen, setIsManifestsModalOpen] = useState(false);
     const [selectedManifests, setSelectedManifests] = useState(null);
     const [toggleInformation, setToggleInformation] = useState(true);
     const [toggleStaff, setToggleStaff] = useState(true);
     const [toggleComments, setToggleComments] = useState(true);
-    const [togglePayment, setTogglePayment] = useState(true);
     const [toggleEmail, setToggleEmail] = useState(true);
     const pickupEnabled = settings?.enable_pickup_dropoff ?? true;
     const assignStaffEnabled = settings?.enable_assign_staff ?? true;
@@ -47,8 +47,18 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
     const [noteInput, setNoteInput] = useState('');
     const [noteAuthorFilter, setNoteAuthorFilter] = useState('all');
     const [noteLimit, setNoteLimit] = useState(5);
+    const [auditLogLimit, setAuditLogLimit] = useState(5);
     const [emailTypeFilter, setEmailTypeFilter] = useState('all');
     const [attendanceOverrides, setAttendanceOverrides] = useState({});
+
+    const manifestRows = Array.isArray(manifest) ? manifest : [];
+    const filteredManifestRows = manifestFilter === 'checked_in'
+        ? manifestRows.filter((row) => {
+            const hasIndemnity = Boolean(row?.is_indemnity);
+            const answers = Array.isArray(row?.question_answers) ? row.question_answers : [];
+            return hasIndemnity || answers.length > 0;
+        })
+        : manifestRows;
 
     const noteAuthorOptions = [
         { id: 'all', name: 'All Authors' },
@@ -68,6 +78,10 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
     const limitedBookingNotes = noteLimit === 'all'
         ? filteredBookingNotes
         : filteredBookingNotes.slice(0, Number(noteLimit));
+
+    const limitedAuditLogs = auditLogLimit === 'all'
+        ? (bookingAuditLogs || [])
+        : (bookingAuditLogs || []).slice(0, Number(auditLogLimit));
 
     const emailTypeOptions = [
         { id: 'all', name: 'All Emails' },
@@ -524,13 +538,41 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                                     <div className="flex flex-col justify-between items-center ">
                                         <span className='flex items-center justify-between w-full px-6 py-4 border-b border-gray-300'>
                                             <span className="text-booking-card-heading block text-start">Customer Manifest</span>
-                                            <span onClick={() => setToggleManifest(!toggleCustomer)}>
-                                                {toggleCustomer ? icons.cheveron_down : icons.cheveron_up}
+                                            <span className="flex items-center gap-3">
+                                                <div className="flex items-center rounded-lg border border-gray-200 bg-white p-1">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setManifestFilter('all')}
+                                                        className={`px-3 py-1 text-xs rounded-md transition ${manifestFilter === 'all'
+                                                            ? 'bg-gray-900 text-white'
+                                                            : 'text-gray-600 hover:bg-gray-50'
+                                                            }`}
+                                                    >
+                                                        All
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setManifestFilter('checked_in')}
+                                                        className={`px-3 py-1 text-xs rounded-md transition ${manifestFilter === 'checked_in'
+                                                            ? 'bg-gray-900 text-white'
+                                                            : 'text-gray-600 hover:bg-gray-50'
+                                                            }`}
+                                                    >
+                                                        Checked-in
+                                                    </button>
+                                                </div>
+                                                <span onClick={() => setToggleManifest(!toggleManifest)}>
+                                                    {toggleManifest ? icons.cheveron_down : icons.cheveron_up}
+                                                </span>
                                             </span>
                                         </span>
                                         {toggleManifest && (
                                             <div className="flex flex-col w-full  gap-2 ">
-                                                {(bookingItem?.customer_manifests?.length ? bookingItem.customer_manifests : (manifest || [])).map((manifest, i) => {
+                                                {filteredManifestRows.length === 0 ? (
+                                                    <div className="px-6 py-6 text-sm text-gray-500">
+                                                        No guests have checked in yet.
+                                                    </div>
+                                                ) : filteredManifestRows.map((manifest, i) => {
                                                     const manifestCustomer = manifest?.customer || {};
                                                     const hasIndemnity = Boolean(manifest?.is_indemnity);
                                                     const hasCheckIn = hasIndemnity || (manifest?.question_answers?.length > 0);
@@ -952,47 +994,26 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                                     <div className="flex flex-col justify-between items-center ">
                                         <span className='flex items-center justify-between w-full px-6 py-4 border-b border-gray-300'>
                                             <span className="text-booking-card-heading block text-start">Payment Information</span>
-                                            <span onClick={() => setTogglePayment(!togglePayment)}>
-                                                {togglePayment ? icons.cheveron_down : icons.cheveron_up}
-                                            </span>
                                         </span>
-                                        {togglePayment && (
 
-                                            <div className="flex flex-col w-full px-6 py-6 gap-2">
+                                        <div className="flex flex-col w-full px-6 py-6 gap-2">
 
-                                                <div className="flex items-center just space-x-4">
-                                                    <label className="text-booking-lbl-main basis-[20%]">Overdue</label>
-                                                    <div className="flex items-center justify-between w-[417px] h-[43px] bg-[#FCE4DF4D] pl-[7px] pr-[7px] py-[7px] rounded-[6px]">
-                                                        <span className="text-booking-lbl-main-sub-error inline-flex items-center gap-2">{icons.red_dot} R {totalDue.toFixed(2)}</span>
-                                                        <div className='flex items-center gap-2'>
+                                            <div className="flex items-center just space-x-4">
+                                                <label className="text-booking-lbl-main basis-[20%]">Overdue</label>
+                                                <div className="flex items-center justify-between w-[417px] h-[43px] bg-[#FCE4DF4D] pl-[7px] pr-[7px] py-[7px] rounded-[6px]">
+                                                    <span className="text-booking-lbl-main-sub-error inline-flex items-center gap-2">{icons.red_dot} R {totalDue.toFixed(2)}</span>
+                                                    <div className='flex items-center gap-2'>
 
-                                                            <WhiteButton
-                                                                title="Pay"
-                                                                icon={true}
-                                                                iconName={icons.pay}
-                                                                textColor='text-[#4D81E7]'
-                                                                width="w-[91px]"
-                                                                height="h-[31px]"
-                                                                className="mt-4"
-                                                                onClick={() => router.get(route('admin.booking-payments.create', booking?.id))}
-                                                            />
-                                                            <WhiteButton
-                                                                title="Tools"
-                                                                icon={true}
-                                                                iconName={icons.tools}
-                                                                textColor='text-[#4D81E7]'
-                                                                width="w-[91px]"
-                                                                height="h-[31px]"
-                                                                className="mt-4"
-                                                                onClick={() => handleSubmit(e)}
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div className="flex items-center space-x-4">
-                                                    <label className="text-booking-lbl-main basis-[20%]">Paid</label>
-                                                    <div className="flex items-center justify-between w-[417px] h-[43px] bg-[#DBECFD4D] pl-[7px] pr-[7px] py-[7px] rounded-[6px]">
-                                                        <span className="text-booking-lbl-main-sub inline-flex items-center gap-2">{icons.blue_dot} R {totalPaid.toFixed(2)}</span>
+                                                        <WhiteButton
+                                                            title="Pay"
+                                                            icon={true}
+                                                            iconName={icons.pay}
+                                                            textColor='text-[#4D81E7]'
+                                                            width="w-[91px]"
+                                                            height="h-[31px]"
+                                                            className="mt-4"
+                                                            onClick={() => router.get(route('admin.booking-payments.create', booking?.id))}
+                                                        />
                                                         <WhiteButton
                                                             title="Tools"
                                                             icon={true}
@@ -1006,7 +1027,23 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                                                     </div>
                                                 </div>
                                             </div>
-                                        )}
+                                            <div className="flex items-center space-x-4">
+                                                <label className="text-booking-lbl-main basis-[20%]">Paid</label>
+                                                <div className="flex items-center justify-between w-[417px] h-[43px] bg-[#DBECFD4D] pl-[7px] pr-[7px] py-[7px] rounded-[6px]">
+                                                    <span className="text-booking-lbl-main-sub inline-flex items-center gap-2">{icons.blue_dot} R {totalPaid.toFixed(2)}</span>
+                                                    <WhiteButton
+                                                        title="Tools"
+                                                        icon={true}
+                                                        iconName={icons.tools}
+                                                        textColor='text-[#4D81E7]'
+                                                        width="w-[91px]"
+                                                        height="h-[31px]"
+                                                        className="mt-4"
+                                                        onClick={() => handleSubmit(e)}
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                                 {/* Email Log */}
@@ -1066,6 +1103,30 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                                     <div className="flex flex-col w-full">
                                         <div className="flex items-center justify-between w-full px-6 py-4 border-b border-gray-300">
                                             <span className="text-booking-card-heading ">Audit Logs</span>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-xs text-gray-500">Show</span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setAuditLogLimit(5)}
+                                                    className={`px-2 py-1 text-xs rounded ${auditLogLimit === 5 ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}
+                                                >
+                                                    5
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setAuditLogLimit(10)}
+                                                    className={`px-2 py-1 text-xs rounded ${auditLogLimit === 10 ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}
+                                                >
+                                                    10
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setAuditLogLimit('all')}
+                                                    className={`px-2 py-1 text-xs rounded ${auditLogLimit === 'all' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}
+                                                >
+                                                    All
+                                                </button>
+                                            </div>
                                         </div>
                                         <div className="flex flex-col w-full px-6 py-6 gap-2">
                                             {bookingAuditLogs.length === 0 ? (
@@ -1074,7 +1135,7 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                                                 </div>
                                             ) : (
                                                 <div className="space-y-3">
-                                                    {bookingAuditLogs.map((log) => (
+                                                    {limitedAuditLogs.map((log) => (
                                                         <div key={log.id} className="bg-gray-50 border border-gray-200 rounded-md p-4 text-gray-800">
                                                             <div className="text-xs text-gray-500 mb-2">
                                                                 {log.created_at || 'Unknown date'}
