@@ -11,6 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('payment_gateway_configs')) {
+            return;
+        }
+
         Schema::create('payment_gateway_configs', function (Blueprint $table) {
             $table->id();
             $table->boolean('is_enabled')->default(false);

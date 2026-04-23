@@ -1,14 +1,16 @@
 import CustomerToolsModal from '@/Components/CustomerToolsModal';
+import GuestEmailModal from '@/Components/GuestEmailModal';
 import Header from '@/Components/Header';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { icons } from '../../../icons';
 import CustomInputText from '@/Components/CustomInputText';
 import BlueButton from '@/Components/BlueButton';
 import WhiteButton from '@/Components/WhiteButton';
 import CustomSelect from '@/Components/CustomSelect';
 import ManifestCount from '@/Components/ManifestCount';
+import CustomTextarea from '@/Components/CustomTextarea';
 import CustomTimePicker from '@/Components/CustomTimePicker';
 import ManifestModal from './ManifestsModal';
 import { useToast } from '@/Context/ToastContext';
@@ -44,12 +46,16 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
     const [total, setTotal] = useState(null);
     const [checkInTarget, setCheckInTarget] = useState(null);
     const [checkInAnswersTarget, setCheckInAnswersTarget] = useState(null);
+    const [customerToolsTarget, setCustomerToolsTarget] = useState(null);
+    const [guestEmailTarget, setGuestEmailTarget] = useState(null);
+    const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
     const [noteInput, setNoteInput] = useState('');
     const [noteAuthorFilter, setNoteAuthorFilter] = useState('all');
     const [noteLimit, setNoteLimit] = useState(5);
     const [auditLogLimit, setAuditLogLimit] = useState(5);
     const [emailTypeFilter, setEmailTypeFilter] = useState('all');
     const [attendanceOverrides, setAttendanceOverrides] = useState({});
+    const commentsRef = useRef(null);
 
     const manifestRows = Array.isArray(manifest) ? manifest : [];
     const filteredManifestRows = manifestFilter === 'checked_in'
@@ -189,6 +195,83 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
             lead_phone: data.lead_mobile,
             lead_email: data.lead_email,
         });
+    };
+
+    const buildToolsBooking = () => {
+        const leadCustomer = bookingItem?.customers?.find(c => c?.pivot?.is_lead) || bookingItem?.customers?.[0] || null;
+        const slotTime = bookingItem?.booking_inventory?.inventory_time_slot?.start_time;
+
+        return {
+            ...(booking || {}),
+            customers: bookingItem?.customers || [],
+            customer_id: leadCustomer?.id ?? booking?.customer_id ?? null,
+            lead_id: leadCustomer?.id ?? booking?.customer_id ?? null,
+            lead_name: booking?.lead_name ?? data?.lead_person ?? leadCustomer?.full_name ?? '',
+            service: bookingItem?.service?.name ?? bookingItem?.service?.title ?? '',
+            time: slotTime ?? '',
+            reference: booking?.reference,
+            files: booking?.files || [],
+        };
+    };
+
+    const openPaymentToolsModal = (event) => {
+        event.preventDefault();
+
+        const leadCustomer = bookingItem?.customers?.find(c => c?.pivot?.is_lead) || bookingItem?.customers?.[0] || null;
+        if (!leadCustomer) {
+            showToast('No customer found for tools.', 'error');
+            return;
+        }
+
+        const rect = event.currentTarget.getBoundingClientRect();
+        setCustomerToolsTarget({
+            booking: buildToolsBooking(),
+            customer: leadCustomer,
+            indexKey: 'payment-tools',
+            position: {
+                top: rect.top,
+                bottom: rect.bottom,
+                left: rect.left,
+                right: rect.right,
+            },
+        });
+    };
+
+    const CustomerToolClick = (tool, toolsBooking, customer) => {
+        if (tool === 'customer_invoice') {
+            const file = (toolsBooking?.files || []).find(f => f?.table_name === 'invoices');
+            if (!file?.path) {
+                showToast('No invoice found.', 'error');
+                return;
+            }
+            window.open(file.path, '_blank', 'noopener,noreferrer');
+            return;
+        }
+
+        if (tool === 'resend_invoice') {
+            if (!toolsBooking?.id) return;
+            router.get(route('admin.invoices.resend-invoice', { booking_id: toolsBooking.id }));
+            return;
+        }
+
+        if (tool === 'message_guest') {
+            setGuestEmailTarget({
+                ...toolsBooking,
+                customers: toolsBooking?.customers || bookingItem?.customers || [],
+                customer_id: toolsBooking?.customer_id ?? customer?.id ?? null,
+                lead_id: toolsBooking?.lead_id ?? customer?.id ?? null,
+                lead_name: toolsBooking?.lead_name ?? customer?.full_name ?? data?.lead_person ?? '',
+            });
+            setIsEmailModalOpen(true);
+            return;
+        }
+
+        if (tool === 'booking_notes') {
+            setToggleComments(false);
+            setTimeout(() => {
+                commentsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 0);
+        }
     };
 
     const resolveAttendanceKey = (bookingItemId, customerId) => `${bookingItemId || 'na'}-${customerId || 'na'}`;
@@ -862,7 +945,7 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                                     </div>
                                 )}
                                 {/* Comments */}
-                                <div className=" overflow-hidden shadow-medium sm:rounded-lg">
+                                <div ref={commentsRef} className=" overflow-hidden shadow-medium sm:rounded-lg">
                                     <div className="flex flex-col justify-between items-center ">
                                         {/* <span className='flex items-center justify-between w-full px-6 py-4 border-b border-gray-300'>
                                                 <span className="text-booking-card-heading block text-start">Comments</span>
@@ -1022,7 +1105,7 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                                                             width="w-[91px]"
                                                             height="h-[31px]"
                                                             className="mt-4"
-                                                            onClick={() => handleSubmit(e)}
+                                                            onClick={openPaymentToolsModal}
                                                         />
                                                     </div>
                                                 </div>
@@ -1039,7 +1122,7 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                                                         width="w-[91px]"
                                                         height="h-[31px]"
                                                         className="mt-4"
-                                                        onClick={() => handleSubmit(e)}
+                                                        onClick={openPaymentToolsModal}
                                                     />
                                                 </div>
                                             </div>
@@ -1180,6 +1263,31 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                     onClose={() => setCheckInAnswersTarget(null)}
                     manifest={checkInAnswersTarget?.manifest}
                     answers={checkInAnswersTarget?.answers}
+                />
+
+                {customerToolsTarget && (
+                    <CustomerToolsModal
+                        index={customerToolsTarget.indexKey}
+                        booking={customerToolsTarget.booking}
+                        customer={customerToolsTarget.customer}
+                        position={customerToolsTarget.position}
+                        onClose={() => setCustomerToolsTarget(null)}
+                        allowedTools={['customer_invoice', 'resend_invoice', 'message_guest', 'booking_notes']}
+                        CustomerToolClick={(tool, _index, bookingPayload, customerPayload) => {
+                            setCustomerToolsTarget(null);
+                            CustomerToolClick(tool, bookingPayload, customerPayload);
+                        }}
+                    />
+                )}
+
+                <GuestEmailModal
+                    isOpen={isEmailModalOpen}
+                    onClose={() => {
+                        setIsEmailModalOpen(false);
+                        setGuestEmailTarget(null);
+                    }}
+                    mode="create"
+                    booking={guestEmailTarget}
                 />
 
             </div>

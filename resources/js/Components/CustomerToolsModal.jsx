@@ -1,7 +1,7 @@
 import { icons } from '@/icons';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
-export default function CustomerToolsModal({ index, booking, customer, position, onClose, CustomerToolClick }) {
+export default function CustomerToolsModal({ index, booking, customer, position, onClose, CustomerToolClick, allowedTools = null }) {
     const modalRef = useRef();
     const [modalStyle, setModalStyle] = useState(null);
     console.log('-----customer-----', customer);
@@ -38,6 +38,22 @@ export default function CustomerToolsModal({ index, booking, customer, position,
 
     if (!customer || !position) return null;
 
+    const toolButtons = [
+        { id: 'check_in', label: 'Check-In', icon: icons.check_in, className: 'btn-tool' },
+        { id: 'feedback', label: 'Feedback', icon: icons.message, className: 'btn-tool' },
+        { id: 'customer_invoice', label: 'Customer Invoice', icon: icons.customer_invoice, className: 'btn-tool' },
+        { id: 'resend_invoice', label: 'Resend Invoice', icon: icons.resend_invoice, className: 'btn-tool' },
+        { id: 'edit_timeslot', label: 'Edit Timeslot', icon: icons.edit_timeslot, className: 'btn-tool' },
+        { id: 'edit_booking', label: 'Edit Booking', icon: icons.edit_timeslot, className: 'btn-tool' },
+        { id: 'message_guest', label: 'Message Guests', icon: icons.message, className: 'btn-tool' },
+        { id: 'booking_notes', label: 'Booking Note', icon: icons.notes, className: 'btn-tool' },
+        { id: 'cancel_booking', label: 'Cancel Booking', icon: icons.cancel_all_bookings, className: 'btn-tool-red' },
+    ];
+
+    const visibleButtons = Array.isArray(allowedTools) && allowedTools.length > 0
+        ? toolButtons.filter((btn) => allowedTools.includes(btn.id))
+        : toolButtons;
+
     return (
         <div
             ref={modalRef}
@@ -51,21 +67,16 @@ export default function CustomerToolsModal({ index, booking, customer, position,
                 </div>
 
                 <div className="flex flex-col gap-2">
-                    <button type='button' onClick={() => CustomerToolClick('check_in', index, booking, customer)} className="btn-tool">{icons.check_in} Check-In</button>
-                    <button type='button' onClick={() => CustomerToolClick('feedback', index, booking, customer)} className="btn-tool">{icons.message} Feedback</button>
-                    <button type='button' onClick={() => CustomerToolClick('customer_invoice', index, booking, customer)} className="btn-tool">{icons.customer_invoice} Customer Invoice</button>
-                    <button type='button' onClick={() => CustomerToolClick('resend_invoice', index, booking, customer)} className="btn-tool">{icons.resend_invoice} Resend Invoice</button>
-                    {/* <button type='button' onClick={() => CustomerToolClick('manifest', index, booking, customer)} className="btn-tool">{icons.manifest} Manifest</button> */}
-                    <button type='button' onClick={() => CustomerToolClick('edit_timeslot', index, booking, customer)} className="btn-tool">{icons.edit_timeslot} Edit Timeslot</button>
-                    <button type='button' onClick={() => CustomerToolClick('edit_booking', index, booking, customer)} className="btn-tool">{icons.edit_timeslot} Edit Booking</button>
-
-                    <button type='button' onClick={() => CustomerToolClick('message_guest', index, booking, customer)} className="btn-tool">{icons.message} Message Guests</button>
-                    <button type='button' onClick={() => CustomerToolClick('booking_notes', index, booking, customer)} className="btn-tool">{icons.notes} Booking Note</button>
-                    {/* <button type="button" onClick={() => router.get(route('admin.messenger.createTopic'))} className="btn-tool">{icons.message} Message Staff</button> */}
-                    {/* <button type="button" onClick={() => BookingToolClick('message_staff', booking)} className="btn-tool">{icons.message} Message Staff</button> */}
-                    {/* <button type="button" onClick={() => BookingToolClick('check_in_progress', booking)} className="btn-tool">{icons.check_in_progress} Check-In Progress</button> */}
-                    {/* <button type="button" onClick={() => BookingToolClick('manifest_edit', booking)} className="btn-tool">{icons.manifest_edit} Edit Manifest</button> */}
-                    <button type="button" onClick={() => CustomerToolClick('cancel_booking', index, booking, customer)} className="btn-tool-red">{icons.cancel_all_bookings} Cancel Booking</button>
+                    {visibleButtons.map((btn) => (
+                        <button
+                            key={btn.id}
+                            type="button"
+                            onClick={() => CustomerToolClick(btn.id, index, booking, customer)}
+                            className={btn.className}
+                        >
+                            {btn.icon} {btn.label}
+                        </button>
+                    ))}
                     {/* <button type="button" onClick={() => BookingToolClick('remove_resource', booking)} className="btn-tool">{icons.remove_resource} Remove Resources</button> */}
 
                     {/* <button type='button' onClick={() => CustomerToolClick('customer_invoice', index, booking, customer)} className="btn-tool">{icons.customer_invoice} Customer Invoice</button>

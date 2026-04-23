@@ -11,6 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('payment_gateway_logs')) {
+            return;
+        }
+
         Schema::create('payment_gateway_logs', function (Blueprint $table) {
             $table->id();
             $table->string('event')->nullable();
