@@ -310,13 +310,57 @@ class CustomerManifestController extends Controller
 
         $validated = $request->validate([
             'booking_item_id' => 'required|exists:booking_items,id',
-            'customer_id' => 'required|exists:customers,id',
+            'customer_id' => 'nullable|exists:customers,id',
+            'type' => 'nullable|in:adult,child',
+            'full_name' => 'nullable|string|required_without:customer_id',
+            'email_address' => 'nullable|email',
             'attendance_status' => 'required|in:' . implode(',', CustomerManifest::ATTENDANCE_STATUSES),
             'notes' => 'nullable|string',
             'lunch_option' => 'nullable|string',
         ]);
 
-        $bookingItem = BookingItem::with('booking')->findOrFail($validated['booking_item_id']);
+        $bookingItem = BookingItem::with(['booking', 'customers'])->findOrFail($validated['booking_item_id']);
+
+        $customerId = $validated['customer_id'] ?? null;
+        $paxType = $validated['type'] ?? null;
+
+        // Allow updating check-in details even when a pax row doesn't yet have a Customer attached.
+        if (!$customerId) {
+            $fullName = trim((string) ($validated['full_name'] ?? ''));
+            $emailAddress = $validated['email_address'] ?? null;
+
+            $customerPayload = [
+                'full_name' => $fullName !== '' ? $fullName : null,
+                'email_address' => $emailAddress,
+            ];
+
+            if ($paxType === 'child') {
+                $customerPayload['parent_id'] = $bookingItem->booking?->customer_id ?? null;
+            }
+
+            $customer = Customer::create($customerPayload);
+            $customerId = $customer->id;
+
+            $bookingItem->customers()->syncWithoutDetaching([
+                $customerId => [
+                    'team_id' => $bookingItem->booking?->team_id ?? null,
+                    'is_lead' => 0,
+                ],
+            ]);
+        } else {
+            $customer = Customer::findOrFail($customerId);
+
+            $customerUpdates = [];
+            if ($request->filled('full_name')) {
+                $customerUpdates['full_name'] = trim((string) $validated['full_name']);
+            }
+            if ($request->has('email_address')) {
+                $customerUpdates['email_address'] = $validated['email_address'] ?: null;
+            }
+            if (!empty($customerUpdates)) {
+                $customer->update($customerUpdates);
+            }
+        }
 
         $manifestData = [
             'attendance_status' => $validated['attendance_status'],
@@ -327,10 +371,14 @@ class CustomerManifestController extends Controller
             $manifestData['notes'] = $validated['notes'];
         }
 
+        if ($paxType) {
+            $manifestData['type'] = $paxType;
+        }
+
         CustomerManifest::updateOrCreate(
             [
                 'booking_item_id' => $validated['booking_item_id'],
-                'customer_id' => $validated['customer_id'],
+                'customer_id' => $customerId,
             ],
             $manifestData
         );
@@ -342,7 +390,7 @@ class CustomerManifestController extends Controller
                     [
                         'question_id' => $questionId,
                         'booking_item_id' => $validated['booking_item_id'],
-                        'customer_id' => $validated['customer_id'],
+                        'customer_id' => $customerId,
                     ],
                     [
                         'answer' => $validated['lunch_option'],
@@ -352,7 +400,7 @@ class CustomerManifestController extends Controller
         }
 
         $this->logAudit('Check-in detail updated', $bookingItem->booking ?? null, $bookingItem, [
-            'customer_id' => $validated['customer_id'],
+            'customer_id' => $customerId,
             'booking_item_id' => $validated['booking_item_id'],
             'attendance_status' => $validated['attendance_status'],
             'notes' => $validated['notes'] ?? null,

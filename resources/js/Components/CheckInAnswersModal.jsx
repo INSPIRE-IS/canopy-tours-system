@@ -70,10 +70,18 @@ export default function CheckInAnswersModal({ isOpen, onClose, manifest, answers
     if (!isOpen) return null;
 
     const customer = manifest?.customer ?? manifest ?? {};
-    const fullName = customer?.full_name || customer?.name || 'Guest';
-    const email = customer?.email_address || manifest?.email_address || '';
+    const rawFullName = (customer?.full_name || customer?.name || '').trim();
+    const rawEmail = (customer?.email_address || manifest?.email_address || '').trim();
     const phone = customer?.contact_number || '';
     const resolvedAnswers = Array.isArray(answers) ? answers : [];
+
+    const splitFullName = (value) => {
+        const cleaned = (value || '').trim();
+        if (!cleaned) return { first: '', last: '' };
+        const parts = cleaned.split(/\s+/);
+        if (parts.length === 1) return { first: parts[0], last: '' };
+        return { first: parts[0], last: parts.slice(1).join(' ') };
+    };
 
     const lunchAnswer = useMemo(
         () => resolvedAnswers.find((entry) => entry?.question?.slug === 'lunch_option'),
@@ -106,6 +114,11 @@ export default function CheckInAnswersModal({ isOpen, onClose, manifest, answers
         return byName ? byName.id : (value ?? '');
     };
 
+    const initialName = splitFullName(rawFullName);
+
+    const [firstName, setFirstName] = useState(initialName.first);
+    const [lastName, setLastName] = useState(initialName.last);
+    const [emailAddress, setEmailAddress] = useState(rawEmail);
     const [notes, setNotes] = useState(manifest?.notes ?? '');
     const [lunchOption, setLunchOption] = useState(resolveLunchValue(lunchAnswer?.answer));
     const [attendanceStatus, setAttendanceStatus] = useState(manifest?.attendance_status ?? 'no_show');
@@ -114,6 +127,10 @@ export default function CheckInAnswersModal({ isOpen, onClose, manifest, answers
     const [saveMessage, setSaveMessage] = useState('');
 
     useEffect(() => {
+        const nameParts = splitFullName(rawFullName);
+        setFirstName(nameParts.first);
+        setLastName(nameParts.last);
+        setEmailAddress(rawEmail);
         setNotes(manifest?.notes ?? '');
         setLunchOption(resolveLunchValue(lunchAnswer?.answer));
         setAttendanceStatus(manifest?.attendance_status ?? 'no_show');
@@ -123,11 +140,15 @@ export default function CheckInAnswersModal({ isOpen, onClose, manifest, answers
 
     const customerId = customer?.id ?? manifest?.customer_id ?? null;
     const bookingItemId = manifest?.booking_item_id ?? null;
-    const canSave = Boolean(customerId && bookingItemId);
+    const paxType = manifest?.type ?? 'adult';
+    const combinedFullName = `${firstName} ${lastName}`.trim();
+    const canSave = Boolean(bookingItemId) && (Boolean(customerId) || combinedFullName.length > 0);
+    const canEdit = Boolean(bookingItemId);
 
     const handleSave = () => {
         if (!canSave || isSaving) return;
 
+        const shouldCloseAfterSave = !customerId;
         setIsSaving(true);
         setSaveMessage('');
 
@@ -136,6 +157,9 @@ export default function CheckInAnswersModal({ isOpen, onClose, manifest, answers
             {
                 booking_item_id: bookingItemId,
                 customer_id: customerId,
+                type: paxType,
+                full_name: combinedFullName,
+                email_address: emailAddress?.trim() ? emailAddress.trim() : null,
                 attendance_status: attendanceStatus,
                 notes,
                 lunch_option: lunchOption,
@@ -178,6 +202,9 @@ export default function CheckInAnswersModal({ isOpen, onClose, manifest, answers
                     });
                     setIsSaving(false);
                     setSaveMessage('Saved.');
+                    if (shouldCloseAfterSave) {
+                        onClose();
+                    }
                 },
                 onError: () => {
                     setIsSaving(false);
@@ -194,7 +221,7 @@ export default function CheckInAnswersModal({ isOpen, onClose, manifest, answers
                     <div>
                         <h2 className="text-lg font-semibold text-gray-900">Checkin Detail</h2>
                         <p className="text-sm text-gray-500">
-                            {fullName}{email ? ` | ${email}` : ''}{phone ? ` | ${phone}` : ''}
+                            {(combinedFullName || rawFullName || 'Guest')}{(emailAddress?.trim() || rawEmail) ? ` | ${emailAddress?.trim() || rawEmail}` : ''}{phone ? ` | ${phone}` : ''}
                         </p>
                     </div>
                     <button
@@ -267,11 +294,44 @@ export default function CheckInAnswersModal({ isOpen, onClose, manifest, answers
                         </div>
                         <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
                             <label className="flex flex-col gap-2 text-sm text-gray-700">
+                                First name
+                                <input
+                                    type="text"
+                                    value={firstName}
+                                    onChange={(event) => setFirstName(event.target.value)}
+                                    disabled={!canEdit || isSaving}
+                                    className="h-10 rounded-md border border-gray-300 bg-white px-3 text-sm focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-200"
+                                />
+                            </label>
+
+                            <label className="flex flex-col gap-2 text-sm text-gray-700">
+                                Last name
+                                <input
+                                    type="text"
+                                    value={lastName}
+                                    onChange={(event) => setLastName(event.target.value)}
+                                    disabled={!canEdit || isSaving}
+                                    className="h-10 rounded-md border border-gray-300 bg-white px-3 text-sm focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-200"
+                                />
+                            </label>
+
+                            <label className="flex flex-col gap-2 text-sm text-gray-700 md:col-span-2">
+                                Email
+                                <input
+                                    type="email"
+                                    value={emailAddress}
+                                    onChange={(event) => setEmailAddress(event.target.value)}
+                                    disabled={!canEdit || isSaving}
+                                    className="h-10 rounded-md border border-gray-300 bg-white px-3 text-sm focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-200"
+                                />
+                            </label>
+
+                            <label className="flex flex-col gap-2 text-sm text-gray-700">
                                 Lunch option
                                 <select
                                     value={lunchOption ?? ''}
                                     onChange={(event) => setLunchOption(event.target.value)}
-                                    disabled={!canSave || lunchOptions.length === 0}
+                                    disabled={!canEdit || isSaving || lunchOptions.length === 0}
                                     className="h-10 rounded-md border border-gray-300 bg-white px-3 text-sm focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-200 disabled:cursor-not-allowed disabled:bg-gray-100"
                                 >
                                     <option value="">
@@ -292,8 +352,8 @@ export default function CheckInAnswersModal({ isOpen, onClose, manifest, answers
                                         <button
                                             key={option.value}
                                             type="button"
-                                            disabled={!canSave}
-                                            className={statusButtonClass(option.value, attendanceStatus === option.value, !canSave)}
+                                            disabled={!canEdit || isSaving}
+                                            className={statusButtonClass(option.value, attendanceStatus === option.value, !canEdit || isSaving)}
                                             onClick={() => setAttendanceStatus(option.value)}
                                         >
                                             {option.label}
@@ -307,8 +367,9 @@ export default function CheckInAnswersModal({ isOpen, onClose, manifest, answers
                                 <textarea
                                     value={notes}
                                     onChange={(event) => setNotes(event.target.value)}
+                                    disabled={!canEdit || isSaving}
                                     rows={3}
-                                    className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-200"
+                                    className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-200 disabled:cursor-not-allowed disabled:bg-gray-100"
                                 />
                             </label>
                         </div>

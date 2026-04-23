@@ -30,7 +30,7 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
     const { showToast } = useToast();
     const [toggleCustomer, setToggleCustomer] = useState(true);
     const [toggleManifest, setToggleManifest] = useState(true);
-    const [manifestFilter, setManifestFilter] = useState('all'); // all | checked_in
+    const [manifestFilter, setManifestFilter] = useState('checked_in'); // all | checked_in
 
     const [isManifestsModalOpen, setIsManifestsModalOpen] = useState(false);
     const [selectedManifests, setSelectedManifests] = useState(null);
@@ -59,11 +59,7 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
 
     const manifestRows = Array.isArray(manifest) ? manifest : [];
     const filteredManifestRows = manifestFilter === 'checked_in'
-        ? manifestRows.filter((row) => {
-            const hasIndemnity = Boolean(row?.is_indemnity);
-            const answers = Array.isArray(row?.question_answers) ? row.question_answers : [];
-            return hasIndemnity || answers.length > 0;
-        })
+        ? manifestRows.filter((row) => Boolean(row?.is_indemnity))
         : manifestRows;
 
     const noteAuthorOptions = [
@@ -178,22 +174,11 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
     };
 
     const handleManifestCheckIn = (manifestRow) => {
-        const answers = manifestRow?.question_answers || [];
-        logCheckInAction(answers.length ? 'view_checkin_detail' : 'open_checkin_options', manifestRow);
-        if (answers.length) {
-            setCheckInAnswersTarget({
-                manifest: manifestRow,
-                answers,
-            });
-            return;
-        }
-
-        setCheckInTarget({
-            booking_item_id: bookingItem?.id,
-            reference: booking?.reference,
-            lead_name: data.lead_person,
-            lead_phone: data.lead_mobile,
-            lead_email: data.lead_email,
+        const answers = Array.isArray(manifestRow?.question_answers) ? manifestRow.question_answers : [];
+        logCheckInAction('open_checkin_detail', manifestRow);
+        setCheckInAnswersTarget({
+            manifest: manifestRow,
+            answers,
         });
     };
 
