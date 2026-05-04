@@ -15,6 +15,7 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams, permissions = {}
 
     const canEditGateways = !!permissions?.gateways_edit;
     const isAdminUser = !!user?.is_admin || user?.roles?.some((role) => role?.id === 1);
+    const canPublishSite = !!permissions?.teams_publish;
     const payfast = team?.payfast || null;
 
     const [replacePayfastMerchantKey, setReplacePayfastMerchantKey] = useState(false);
@@ -35,6 +36,7 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams, permissions = {}
         account_type: "",
         bank_name: "",
         branch_code: "",
+        is_published: true,
         invoice_note: "",
         vat_no: "",
         team_id: team?.team_id,
@@ -65,6 +67,7 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams, permissions = {}
                 account_type: team.account_type || "",
                 bank_name: team.bank_name || "",
                 branch_code: team.branch_code || "",
+                is_published: team.is_published ?? true,
                 invoice_note: team.invoice_note || "",
                 vat_no: team.vat_no || "",
                 team_id: team.team_id,
@@ -78,6 +81,7 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams, permissions = {}
             });
         } else if (mode === "create") {
             reset(); // Clear form for create mode
+            setData((prev) => ({ ...prev, is_published: true }));
         }
         setLogo(null);
         setImage(null);
@@ -116,6 +120,9 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams, permissions = {}
         formData.append('account_type', data.account_type);
         formData.append('bank_name', data.bank_name);
         formData.append('branch_code', data.branch_code);
+        if (canPublishSite) {
+            formData.append('is_published', data.is_published ? 1 : 0);
+        }
         formData.append('invoice_note', data.invoice_note);
         formData.append('vat_no', data.vat_no);
         formData.append('team_id', data.team_id);
@@ -220,6 +227,23 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams, permissions = {}
                             errors={errors}
                         />
                     </div>
+
+                    {canPublishSite && (
+                        <div className="flex flex-row w-full items-center gap-2 justify-start mb-4">
+                            <CustomCheckbox
+                                label="Publish"
+                                name="is_published"
+                                checked={!!data.is_published}
+                                onChange={handleChange}
+                                errors={errors}
+                                disabled={mode === "view"}
+                            />
+                            <div className="text-xs text-red-500 mb-4">
+                                If disabled, this site will be hidden from the front team dropdown direct and access will return 404.
+                            </div>
+                        </div>
+                    )}
+
                     <div className="flex flex-row w-full items-center gap-2 justify-start mb-4">
                         <InputRichText
                             title="Description"

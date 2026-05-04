@@ -112,6 +112,8 @@ class SeedPermissionsData extends Command
             ['name' => 'wholesalers_access'],
             ['name' => 'sites_access'],
             ['name' => 'boarding_pass_templates_access'],
+            // Extra granular capabilities that don't map 1:1 to CRUD actions.
+            ['name' => 'teams_publish'], // allow publish/unpublish sites on the public frontend
         ];
 
         foreach ($tables as $table) {
@@ -177,6 +179,7 @@ class SeedPermissionsData extends Command
                 'user_alerts_access',
                 'vouchers_access',
                 'teams_create',
+                'teams_publish',
                 'boarding_pass_templates_access'
             ],
             ['users_', 'roles_', 'permissions_', 'permission_role']

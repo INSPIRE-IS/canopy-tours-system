@@ -50,7 +50,23 @@ class ActivityController extends Controller
         $teamId = $team_id;
         //dd($request);
 
-        $teams = Team::select('id', 'name')->get();
+        /** @var \App\Models\User|null $user */
+        $user = auth()->user();
+        $canViewUnpublished = $user && $user->can('teams_publish');
+
+        $teamsQuery = Team::select('id', 'name', 'is_published');
+        if (!$canViewUnpublished) {
+            $teamsQuery->where('is_published', true);
+        }
+        $teams = $teamsQuery->orderBy('name')->get();
+
+        if ($teamId) {
+            $requestedTeam = Team::select('id', 'is_published')->findOrFail($teamId);
+            if (!$requestedTeam->is_published && !$canViewUnpublished) {
+                abort(404);
+            }
+        }
+
         $services = Service::with([
             'file',
             'servicefieldValues.field',
@@ -60,6 +76,9 @@ class ActivityController extends Controller
 
         if ($teamId) {
             $services->where('team_id', $teamId);
+        } elseif (!$canViewUnpublished) {
+            // Only show services for published teams on the public frontend.
+            $services->whereIn('team_id', $teams->pluck('id')->all());
         }
 
         $services = $services->get();
@@ -133,7 +152,9 @@ class ActivityController extends Controller
         });
         //dd($activities);
         //dd($teamId);
-        $team = Team::select('id', 'name', 'description', 'color')->with('file_image', 'file_logo')->find($teamId);
+        $team = Team::select('id', 'name', 'description', 'color', 'is_published')
+            ->with('file_image', 'file_logo')
+            ->find($teamId);
         //dd($team);
 
         return Inertia::render('Welcome', [
@@ -162,6 +183,14 @@ class ActivityController extends Controller
             'service.serviceFieldValues.field',
             'inventory'
         ])->findOrFail($activity_id);
+
+        /** @var \App\Models\User|null $user */
+        $user = auth()->user();
+        $canViewUnpublished = $user && $user->can('teams_publish');
+        $seasonTeam = Team::select('id', 'is_published')->find($season->team_id);
+        if ($seasonTeam && !$seasonTeam->is_published && !$canViewUnpublished) {
+            abort(404);
+        }
         // dd($season->service);
         $inventory = $season->inventory;
 
@@ -258,6 +287,14 @@ class ActivityController extends Controller
         $endDate = (clone $startDate)->addDays($days - 1);
 
         $season  = Season::findOrFail($activityId);
+
+        /** @var \App\Models\User|null $user */
+        $user = auth()->user();
+        $canViewUnpublished = $user && $user->can('teams_publish');
+        $seasonTeam = Team::select('id', 'is_published')->find($season->team_id);
+        if ($seasonTeam && !$seasonTeam->is_published && !$canViewUnpublished) {
+            abort(404);
+        }
         $service = Service::findOrFail($season->service_id);
 
         $inventory = Inventory::with(['inventory_type_days', 'inventory_time_slots'])

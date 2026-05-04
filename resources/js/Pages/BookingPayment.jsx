@@ -53,14 +53,14 @@ export default function ReviewPayment({ auth, booking, lookups, payfastStatus })
 
   useEffect(() => {
     console.log('team_id', booking.team_id);
-    if (booking.teamId != 0) {
+    if (Number(booking?.team_id || 0) !== 0) {
       setTeamId(booking.team_id);
       localStorage.setItem('preferred_team_id', booking.team_id);
       return;
     }
-    const savedTeamId = localStorage.getItem('preferred_team_id');
+    const savedTeamId = Number(localStorage.getItem('preferred_team_id') || 0);
     console.log('savedTeamId', savedTeamId);
-    if (savedTeamId == null || savedTeamId == "undefined" || savedTeamId == 0) {
+    if (!savedTeamId) {
       // Ask for location or show modal
       // For now, show modal with team select
       setShowLocationModal(true);

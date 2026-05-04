@@ -6,11 +6,12 @@ use DateTimeInterface;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Traits\Auditable;
 use App\Traits\MultiTenantModelTrait;
 
 class Team extends Model
 {
-    use SoftDeletes, HasFactory, MultiTenantModelTrait;
+    use SoftDeletes, HasFactory, MultiTenantModelTrait, Auditable;
 
     public $table = 'teams';
 
@@ -33,6 +34,7 @@ class Team extends Model
         'account_type',
         'bank_name',
         'branch_code',
+        'is_published',
         'invoice_note',
         'vat_no',
         'created_at',
@@ -40,6 +42,10 @@ class Team extends Model
         'deleted_at',
         'team_id',
         'owner_id',
+    ];
+
+    protected $casts = [
+        'is_published' => 'boolean',
     ];
 
     protected function serializeDate(DateTimeInterface $date)

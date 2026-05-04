@@ -35,6 +35,7 @@ class StoreTeamRequest extends FormRequest
             'account_type' => ['nullable', 'string'],
             'bank_name' => ['nullable', 'string'],
             'branch_code' => ['nullable', 'string'],
+            'is_published' => ['sometimes', 'boolean'],
             'team_id' => ['nullable', 'exists:teams,id'],
             'logo' => ['nullable', 'image', 'max:2048'],
             'image' => ['nullable', 'image', 'max:4096'],

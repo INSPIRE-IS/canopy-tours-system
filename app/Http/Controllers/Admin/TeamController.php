@@ -26,6 +26,11 @@ use Illuminate\Validation\ValidationException;
 
 class TeamController extends Controller
 {
+    private function canPublishTeams(?User $user): bool
+    {
+        return (bool) ($user?->can('teams_publish') ?? false);
+    }
+
     public function index(Request $request)
     {
         //abort_if(Gate::denies('team_access'), Response::HTTP_FORBIDDEN, '403 Forbidden');
@@ -117,16 +122,21 @@ class TeamController extends Controller
         //dd('here');
         //dd($request->all());
         // TODO: add logic to save image and logo
-        $data             = $request->all();
+        $data = $request->all();
 
         $data['owner_id'] = auth()->user()->id;
+
+        if ($request->has('is_published') && !$this->canPublishTeams($request->user())) {
+            abort(Response::HTTP_FORBIDDEN, 'Not allowed to publish/unpublish sites.');
+        }
+
         $team = null;
         DB::transaction(function () use ($data, &$team) {
             $team = Team::create($data);
             LookupItem::ensureSettingsForTeam($team->id);
         });
 
-        if ($request->hasFile('logo')) {
+        if ($request->hasFile('logo') && $team) {
             $uploaded = $request->file('logo');
             $path = $uploaded->store("teams/{$team->id}", 'public');
 
@@ -141,7 +151,7 @@ class TeamController extends Controller
             ]);
         }
 
-        if ($request->hasFile('image')) {
+        if ($request->hasFile('image') && $team) {
             $uploaded = $request->file('image');
             $path = $uploaded->store("teams/{$team->id}", 'public');
 
@@ -178,6 +188,10 @@ class TeamController extends Controller
         $data = $request->all();
         $data['owner_id'] = auth()->id();
         //dd($data);
+
+        if ($request->has('is_published') && !$this->canPublishTeams($request->user())) {
+            abort(Response::HTTP_FORBIDDEN, 'Not allowed to publish/unpublish sites.');
+        }
 
         DB::transaction(function () use ($request, $team, $data) {
             $team->update($data);

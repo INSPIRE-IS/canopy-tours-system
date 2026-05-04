@@ -9,8 +9,6 @@ import BlueButton from '@/Components/BlueButton';
 import RichTextDisplay from '@/Components/RichTextDisplay';
 
 export default function HomePage({ activities, auth, teams, team_id, team }) {
-  console.log('activities', activities);
-  console.log('team', team);
   const [date, setDate] = useState(new Date());
   const [teamId, setTeamId] = useState(team_id);
   const [selectedService, setSelectedService] = useState(null);
@@ -33,10 +31,17 @@ export default function HomePage({ activities, auth, teams, team_id, team }) {
       return;
     }
 
+    const allowedTeamIds = new Set((teams || []).map((t) => Number(t.id)));
     const savedTeamId = Number(localStorage.getItem('preferred_team_id') || 0);
     if (savedTeamId > 0) {
-      router.get(route('front.welcome', { team_id: savedTeamId }));
-      return;
+      // If the previously selected team is no longer available (e.g. unpublished),
+      // clear it so the user can pick a valid team instead of looping on a 404.
+      if (allowedTeamIds.has(savedTeamId)) {
+        router.get(route('front.welcome', { team_id: savedTeamId }));
+        return;
+      }
+
+      localStorage.removeItem('preferred_team_id');
     }
 
     if ((teams || []).length === 1) {
