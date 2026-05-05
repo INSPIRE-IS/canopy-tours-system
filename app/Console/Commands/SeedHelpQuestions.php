@@ -102,16 +102,36 @@ class SeedHelpQuestions extends Command
                 $item['related'] ?? ''
             );
 
-            $question = HelpQuestion::updateOrCreate(
-                [
-                    'question' => $item['question'],
+            // Avoid duplicate sample questions when we normalize wording/quotes over time.
+            // The question string is the natural key in updateOrCreate, so we also try to
+            // match a legacy variant with curly quotes if it exists.
+            $questionText = $item['question'];
+            $legacyQuestionText = $this->legacyQuestionVariant($questionText);
+
+            $question = HelpQuestion::query()
+                ->where('type_help_question_id', $category->id)
+                ->where('team_id', $teamId)
+                ->where(function ($q) use ($questionText, $legacyQuestionText) {
+                    $q->where('question', $questionText);
+                    if ($legacyQuestionText !== $questionText) {
+                        $q->orWhere('question', $legacyQuestionText);
+                    }
+                })
+                ->first();
+
+            if ($question) {
+                $question->update([
+                    'question' => $questionText,
+                    'is_internal' => (bool) ($item['is_internal'] ?? false),
+                ]);
+            } else {
+                $question = HelpQuestion::create([
+                    'question' => $questionText,
                     'type_help_question_id' => $category->id,
                     'team_id' => $teamId,
-                ],
-                [
                     'is_internal' => (bool) ($item['is_internal'] ?? false),
-                ]
-            );
+                ]);
+            }
 
             HelpAnswer::updateOrCreate(
                 ['help_question_id' => $question->id],
@@ -133,6 +153,24 @@ class SeedHelpQuestions extends Command
                 'description' => 'Internal knowledge base for common workflows, policies, and troubleshooting.',
                 'where' => '<a href="/admin/help-questions">Admin > Help & Center</a>',
                 'business_rules' => 'Questions can be team-specific or generic. Internal-only items are hidden for non-admin users.',
+                'is_internal' => true,
+            ],
+            [
+                'category' => 'General',
+                'question' => 'Why do I see "Site under construction" on the front welcome page?',
+                'description' => 'This happens when there are no published venues available on the public site.',
+                'where' => '<a href="/front/welcome">Front > Welcome</a>, <a href="/admin/teams">Admin > Site</a>',
+                'business_rules' => 'The public venue dropdown lists only teams with Publish enabled. If zero teams are published, the front welcome page shows an under-construction message and a staff login link. To make the site bookable, publish at least one team (requires <code>teams_publish</code> permission).',
+                'related' => 'sites (teams), publish, teams_publish, front welcome',
+                'is_internal' => true,
+            ],
+            [
+                'category' => 'General',
+                'question' => 'Why does the admin dashboard show data for the wrong site?',
+                'description' => 'The dashboard is team-scoped to the currently selected team in your session.',
+                'where' => '<a href="/admin">Admin > Dashboard</a>',
+                'business_rules' => 'Dashboard widgets (monthly bookings chart, latest bookings, notifications, customer manifests) are filtered by the selected <code>team_id</code> stored in session (fallback: your user team). If data looks wrong, confirm you have the correct team selected.',
+                'related' => 'dashboard, team selection, session team_id, multi-tenant',
                 'is_internal' => true,
             ],
             [
@@ -245,7 +283,7 @@ class SeedHelpQuestions extends Command
                 'question' => 'Gift services vs bookable services (what shows where?)',
                 'description' => 'Visibility controls which actions are shown on the front site and in admin bookings.',
                 'where' => '<a href="/admin/services">Admin > Services</a>, <a href="/front/welcome">Front > Welcome</a>, <a href="/front/activity">Front > Activities</a>',
-                'business_rules' => 'Bookable services show “Book Now” on the front activity pages and appear in admin booking calendars. Gift-only services show “Buy as a Gift” and do not appear in admin bookings. Bookable + Gift shows both actions. Draft/Hidden shows nowhere.',
+                'business_rules' => 'Bookable services show "Book Now" on the front activity pages and appear in admin booking calendars. Gift-only services show "Buy as a Gift" and do not appear in admin bookings. Bookable + Gift shows both actions. Draft/Hidden shows nowhere.',
                 'examples' => 'If a service is Gift Only, users can purchase a gift voucher from the front site but cannot book dates. If a service is Bookable + Gift, both booking and gift purchase are available.',
                 'is_internal' => true,
             ],
@@ -300,8 +338,8 @@ class SeedHelpQuestions extends Command
                 'question' => 'Where does the current inventory model fall short?',
                 'description' => 'Weekly schedules expand across the full season, which can be too broad for date-specific needs.',
                 'where' => '<a href="/admin/inventories">Admin > Inventory</a> and <a href="/admin/closeouts">Admin > Closeouts</a>',
-                'business_rules' => 'Current inventory applies selected weekdays + time slots to every matching day in the season. It does not allow “open only for these exact dates” without using closeouts to block everything else.',
-                'examples' => 'If you only want 09:00 on May 5–7, the current system forces you to open 09:00 for every matching weekday across the season, then add closeouts for the days you do NOT want. Closeouts can remove dates but cannot create availability that never existed. see <a href="/admin/inventory-slot-ranges">Admin > Date Overrides</a> for a more flexible solution.',
+                'business_rules' => 'Current inventory applies selected weekdays + time slots to every matching day in the season. It does not allow "open only for these exact dates" without using closeouts to block everything else.',
+                'examples' => 'If you only want 09:00 on May 5-7, the current system forces you to open 09:00 for every matching weekday across the season, then add closeouts for the days you do NOT want. Closeouts can remove dates but cannot create availability that never existed. see <a href="/admin/inventory-slot-ranges">Admin > Date Overrides</a> for a more flexible solution.',
                 'is_internal' => true,
             ],
             [
@@ -327,9 +365,9 @@ class SeedHelpQuestions extends Command
             [
                 'category' => 'Inventory',
                 'question' => 'Can I include default weekly slots in a date override?',
-                'description' => 'Yes. Date Overrides can prefill the weekly inventory slots so you only remove what you don’t want.',
+                'description' => 'Yes. Date Overrides can prefill the weekly inventory slots so you only remove what you don\'t want.',
                 'where' => '<a href="/admin/inventory-slot-ranges">Admin > Inventory > Date Overrides</a>',
-                'business_rules' => 'Use the “Include default weekly slots” toggle to copy the current weekly time slots into the override list. You can then remove any slots you want to exclude for that date range. Turning the toggle off removes the default slots from the list.',
+                'business_rules' => 'Use the "Include default weekly slots" toggle to copy the current weekly time slots into the override list. You can then remove any slots you want to exclude for that date range. Turning the toggle off removes the default slots from the list.',
                 'examples' => 'If the weekly slots are 08:00 and 09:00, enabling Include Defaults adds both. You can remove 08:00 to keep only 09:00 for those dates.',
                 'is_internal' => true,
             ],
@@ -406,7 +444,7 @@ class SeedHelpQuestions extends Command
                 'description' => 'Per-line discounts apply to a specific pax type; invoice discounts apply to the total.',
                 'where' => '<a href="/admin/discounts">Admin > Discounts</a>',
                 'business_rules' => 'When a promotion is applied, per-line discounts are skipped. Invoice-level discounts apply at the end and do not stack with other invoice-level discounts. Discounts can be limited to specific services.',
-                'examples' => 'If a promo code is applied to a booking, line discounts (e.g., “Local Resident 10%”) will not apply. An invoice-level discount can still be applied if selected.',
+                'examples' => 'If a promo code is applied to a booking, line discounts (e.g., "Local Resident 10%") will not apply. An invoice-level discount can still be applied if selected.',
                 'is_internal' => true,
             ],
             [
@@ -415,7 +453,7 @@ class SeedHelpQuestions extends Command
                 'description' => 'Discount visibility depends on service and context.',
                 'where' => 'Admin booking create/edit',
                 'business_rules' => 'Discounts only appear for services they are linked to. If a promotion is selected, per-line discounts are not applied. Invoice discounts are exclusive and apply only when selected.',
-                'examples' => 'If a discount is linked to “Canopy Tour A” but the booking is for “Canopy Tour B”, it will not show. If a promo code is applied, the discount list may be empty.',
+                'examples' => 'If a discount is linked to "Canopy Tour A" but the booking is for "Canopy Tour B", it will not show. If a promo code is applied, the discount list may be empty.',
                 'related' => 'promotions, promo codes, service, booking pricing, line discounts',
                 'is_internal' => true,
             ],
@@ -425,7 +463,7 @@ class SeedHelpQuestions extends Command
                 'description' => 'Promo codes use booking and activity windows.',
                 'where' => '<a href="/admin/promotions">Admin > Promotions</a>',
                 'business_rules' => 'Booking window uses today; activity window uses the booking date (activity date). Admin sees all; front only shows active promos with internal_use_only=false. If the activity date is outside the promo activity window, the promo will be invalid.',
-                'examples' => 'If a promo’s booking window is Feb 1–Feb 28 and today is March 3, it will be expired (not selectable). If today is within the booking window but the activity date is May 5 and the promo activity window is April only, it will show as invalid.',
+                'examples' => 'If a promo\'s booking window is Feb 1-Feb 28 and today is March 3, it will be expired (not selectable). If today is within the booking window but the activity date is May 5 and the promo activity window is April only, it will show as invalid.',
                 'related' => 'promo codes, booking window, activity window, discounts, booking pricing',
                 'is_internal' => true,
             ],
@@ -435,7 +473,7 @@ class SeedHelpQuestions extends Command
                 'description' => 'Promos have two date ranges: booking window and activity window.',
                 'where' => '<a href="/admin/promotions">Admin > Promotions</a>',
                 'business_rules' => 'Booking window controls when the promo can be used (today must be within booking range). Activity window controls which activity dates are eligible (booking date must fall within activity range). Booking dates are not tied to seasons; activity dates must be within a season for the selected service.',
-                'examples' => 'Booking window: Feb 1–Feb 28. Activity window: May 1–May 31. You can book in February for a May activity date. Booking in March won’t allow the promo even if the activity date is in May.',
+                'examples' => 'Booking window: Feb 1-Feb 28. Activity window: May 1-May 31. You can book in February for a May activity date. Booking in March won\'t allow the promo even if the activity date is in May.',
                 'related' => 'promo codes, booking window, activity window, seasons, discounts',
                 'is_internal' => true,
             ],
@@ -457,7 +495,7 @@ class SeedHelpQuestions extends Command
                 'description' => 'Each promo type calculates pricing differently.',
                 'where' => '<a href="/admin/promotions">Admin > Promotions</a>',
                 'business_rules' => 'Percent and fixed-value adjust rates; graduated overrides total by pax count; varied-child discounts child rates when adult minimum is met; volume tiers apply based on pax thresholds; time-slot promos apply only to selected days/time slots.',
-                'examples' => 'Varied-child: 2 adults + 1 child with min_adults=2 gives child discount only if at least 2 adults are present. Volume: 1–3 pax = 5%, 4–6 pax = 10%.',
+                'examples' => 'Varied-child: 2 adults + 1 child with min_adults=2 gives child discount only if at least 2 adults are present. Volume: 1-3 pax = 5%, 4-6 pax = 10%.',
                 'is_internal' => true,
             ],
             [
@@ -704,13 +742,13 @@ class SeedHelpQuestions extends Command
                 'description' => 'Guest feedback forms.',
                 'where' => '<a href="/front/feedback-questionnaire">Front > Feedback Questionnaire</a>',
                 'business_rules' => 'Links are signed and available after activity dates. Feedback links expire 7 days after the activity completes (booking date + time slot + service duration; end-of-day fallback if no start time). The top Feedback button on Admin > Bookings is disabled if there are no bookings for the selected date, if the date is in the future, or if no check-ins have been completed for that date.',
-                'examples' => 'If a booking is for next week, Feedback is disabled until the activity date passes. If there are bookings today but no guests have completed check-in, Feedback remains disabled. If a guest opens the link after the 7‑day window, they see the expired screen with the team contact email.',
+                'examples' => 'If a booking is for next week, Feedback is disabled until the activity date passes. If there are bookings today but no guests have completed check-in, Feedback remains disabled. If a guest opens the link after the 7-day window, they see the expired screen with the team contact email.',
                 'related' => 'feedback, check-in, indemnity, questionnaires, signed links',
                 'is_internal' => true,
             ],
             [
                 'category' => 'Check-in',
-                'question' => 'Why does the check-in screen say “complete” or not complete?',
+                'question' => 'Why does the check-in screen say "complete" or not complete?',
                 'description' => 'Completion is per booking item, not per individual.',
                 'where' => '<a href="/front/booking-questionnaire/checkin">Front > Check-in</a>',
                 'business_rules' => 'The completion message only appears once all pax (adults + children) for the booking item have submitted indemnity. If only some guests are done, the link stays open so the remaining guests can complete their forms.',
@@ -825,7 +863,7 @@ class SeedHelpQuestions extends Command
                 'question' => 'How are booking settings stored and applied?',
                 'description' => 'Settings are stored as lookup items per team.',
                 'where' => 'Admin > Settings and booking create/edit/add',
-                'business_rules' => 'Settings use `lookup_items.value` (boolean) under the `settings` lookup. Booking Create/Edit reads the settings map via `LookupItem::settingsForTeam()` for UI toggles, and BookingsController uses it for auto‑send invoice/quote logic. Use `php artisan settings:backfill` to create missing rows (note: backfill resets values to off).',
+                'business_rules' => 'Settings use `lookup_items.value` (boolean) under the `settings` lookup. Booking Create/Edit reads the settings map via `LookupItem::settingsForTeam()` for UI toggles, and BookingsController uses it for auto-send invoice/quote logic. Use `php artisan settings:backfill` to create missing rows (note: backfill resets values to off).',
                 'examples' => 'If a team has no settings rows, backfill will create them and default all toggles to Off, then staff can enable only what they need.',
                 'is_internal' => true,
             ],
