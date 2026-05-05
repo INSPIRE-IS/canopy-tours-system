@@ -31,6 +31,14 @@ export default function HomePage({ activities, auth, teams, team_id, team }) {
       return;
     }
 
+    // If there are no published teams available, don't trap the user behind the
+    // location picker modal (it has no close button).
+    if ((teams || []).length === 0) {
+      setShowLocationModal(false);
+      localStorage.removeItem('preferred_team_id');
+      return;
+    }
+
     const allowedTeamIds = new Set((teams || []).map((t) => Number(t.id)));
     const savedTeamId = Number(localStorage.getItem('preferred_team_id') || 0);
     if (savedTeamId > 0) {
@@ -75,6 +83,36 @@ export default function HomePage({ activities, auth, teams, team_id, team }) {
   };
 
 
+
+  if ((teams || []).length === 0) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+        <Head title="Under Construction" />
+        <div className="w-full max-w-xl bg-white shadow-lg rounded-[20px] p-8 text-center">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Site under construction</h1>
+          <p className="mt-3 text-gray-600">
+            There are no published venues available yet. If you are staff, please log in to finish setting up your site.
+          </p>
+
+          <div className="mt-6 flex items-center justify-center gap-3">
+            <Link
+              href={route('login')}
+              className="inline-flex items-center justify-center h-[44px] px-5 rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700 transition"
+            >
+              Staff login
+            </Link>
+            <button
+              type="button"
+              onClick={() => router.reload({ preserveScroll: true })}
+              className="inline-flex items-center justify-center h-[44px] px-5 rounded-xl border border-gray-300 text-gray-700 font-semibold hover:bg-gray-50 transition"
+            >
+              Refresh
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-gray-50 min-h-screen">
