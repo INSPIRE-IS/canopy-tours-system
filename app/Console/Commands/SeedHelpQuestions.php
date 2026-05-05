@@ -20,9 +20,11 @@ class SeedHelpQuestions extends Command
         $this->info('Seeding help question categories...');
 
         $adminOnly = [1, 2];
+        // Management roles that can configure sites (including publish/unpublish).
+        $siteAdmins = [1, 2, 3];
         $categories = [
             ['name' => 'General', 'role_ids' => null],
-            ['name' => 'Sites (Teams)', 'role_ids' => $adminOnly],
+            ['name' => 'Sites (Teams)', 'role_ids' => $siteAdmins],
             ['name' => 'Users', 'role_ids' => $adminOnly],
             ['name' => 'Roles', 'role_ids' => $adminOnly],
             ['name' => 'Permissions', 'role_ids' => $adminOnly],
@@ -142,6 +144,15 @@ class SeedHelpQuestions extends Command
                 'is_internal' => true,
             ],
             [
+                'category' => 'Sites (Teams)',
+                'question' => 'How do I publish/unpublish a site on the frontend?',
+                'description' => 'Publishing controls whether a site appears on the public front-end venue dropdown and whether direct access is allowed.',
+                'where' => '<a href="/admin/teams">Admin > Site</a> (Edit a site > Publish checkbox)',
+                'business_rules' => 'Only users with the <code>teams_publish</code> permission can change publish status (by default: Admin/Director/Manager). Unpublished sites are hidden from the public venue list. Direct access to <code>/front/welcome/&lt;team_id&gt;</code> returns 404 for public users. Logged-in staff with <code>teams_publish</code> can still view unpublished sites for setup. If a public user has a previously saved venue in browser storage and the venue is later unpublished, the app clears the saved venue and prompts for a new selection.',
+                'related' => 'permissions, sites_access, teams_publish',
+                'is_internal' => true,
+            ],
+            [
                 'category' => 'Users',
                 'question' => 'How do I add a staff user?',
                 'description' => 'Create staff user accounts and assign access.',
@@ -163,6 +174,26 @@ class SeedHelpQuestions extends Command
                 'description' => 'Permissions control access to menus and actions.',
                 'where' => '<a href="/admin/permissions">Admin > Permissions</a>',
                 'business_rules' => 'Permissions are assigned to roles and enforced by gates(these are controlled access created and by admin).',
+                'is_internal' => true,
+            ],
+            [
+                'category' => 'System / Settings',
+                'question' => 'How do I reset a site/team to a clean slate (remove staging data)?',
+                'description' => 'Use the site reset command to wipe operational and setup data for a team, while keeping teams and users.',
+                'where' => '<code>php artisan site:reset</code> (server / CLI)',
+                'business_rules' => 'This is destructive and should only be run by Admin users on staging/test (or with a production backup plan). The command keeps <strong>teams</strong> and <strong>users</strong>, but deletes the team\'s operational and setup data so you can reconfigure the site from scratch. Use <code>--dry-run</code> first to review counts. When not using dry-run, you must type an explicit confirmation string (e.g. <code>RESET TEAM 3</code> or <code>RESET ALL TEAMS</code>).',
+                'examples' => '<p><strong>Preview only</strong>: <code>php artisan site:reset --team=3 --dry-run</code></p><p><strong>Reset one team</strong>: <code>php artisan site:reset --team=3</code></p><p><strong>Preview all teams</strong>: <code>php artisan site:reset --all --dry-run</code></p>',
+                'related' => 'teams, users, bookings, invoices, payments, manifests, services, seasons, inventory, closeouts, discounts, promotions, wholesalers, audit logs',
+                'is_internal' => true,
+            ],
+            [
+                'category' => 'System / Settings',
+                'question' => 'What exactly does the site reset command delete?',
+                'description' => 'The site reset command removes operational + configuration data for a team and cleans up related files and audit logs.',
+                'where' => '<code>php artisan site:reset</code> (see: <code>app/Console/Commands/SiteResetCommand.php</code>)',
+                'business_rules' => 'For the selected team, it deletes: alerts/notifications, booking data (bookings, booking items, inventories, fees, payments, notes, emails, invoices), manifests (customer_manifests, booking_items_customer, booking_staff, booking_details/infos), questionnaire answers (question_answers, booking_questionnaires, and legacy questionnaire_answers), wholesaler booking links (wholesaler_bookings), gateway logs, and audit logs for wiped entities. It also deletes setup/config: services, seasons, inventories + time slots + type days, inventory overrides + slot ranges, closeouts (and closeout_day_time_slots), promotions (and promotion_day_time_slots), vouchers, discounts (and discount_services), wholesalers (and wholesaler_contacts/wholesaler_rates), gift voucher items, and booking vouchers. It deletes related file rows (including booking-linked files) and then removes the physical files from <code>storage/app/public</code> on a best-effort basis. Finally it deletes <em>orphaned</em> customers that are no longer referenced by any remaining records. It does <strong>not</strong> delete teams, users, or templates.',
+                'examples' => 'If you reset team 3, all bookings/services/seasons for team 3 are removed. Users remain, so staff can log in and rebuild the setup.',
+                'related' => 'site reset, destructive, staging, backup, orphan cleanup, files, audit logs',
                 'is_internal' => true,
             ],
             [
