@@ -6,11 +6,16 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use LaravelDaily\LaravelCharts\Classes\LaravelChart;
 use Inertia\Inertia;
+use Illuminate\Support\Facades\Session;
 
 class HomeController extends Controller
 {
     public function index()
     {
+        /** @var \App\Models\User|null $user */
+        $user = auth()->user();
+        $teamId = Session::get('team_id') ?? $user?->team_id;
+
         $settings1 = [
             'chart_title'           => 'Monthly Bookings',
             'chart_type'            => 'line',
@@ -21,6 +26,8 @@ class HomeController extends Controller
             'aggregate_function'    => 'count',
             'filter_field'          => 'created_at',
             'filter_period'         => 'year',
+            // For super admins, respect the selected team when set.
+            'where_raw'             => $teamId ? ('team_id = ' . (int) $teamId) : '',
         ];
 
         $chart1 = new LaravelChart($settings1);
@@ -49,8 +56,11 @@ class HomeController extends Controller
         $bookings = \App\Models\Booking::with([
             'booking_items.service:id,name',
             'booking_items.season:id,name',
+            'booking_items.booking_inventory:id,booking_item_id,date,inventory_time_slot_id',
+            'booking_items.booking_inventory.inventory_time_slot:id,start_time',
             'type_booking:id,name'
         ])
+            ->when($teamId, fn($query) => $query->where('team_id', $teamId))
             ->latest()
             ->take(10)
             ->get();
@@ -74,6 +84,8 @@ class HomeController extends Controller
                 //'season'         => 'name',
                 //'type_booking' => 'name',
                 'lead_name'      => '',
+                'activity_date'  => '',
+                'activity_time'  => '',
                 'created_at'         => '',
             ],
             //'translation_key' => 'booking',
@@ -84,6 +96,8 @@ class HomeController extends Controller
                         //'season'       => $item->season ?? null,
                         //'type_booking' => $booking->type_booking ?? null,
                         'lead_name'    => $booking->lead_name ?? null,
+                        'activity_date' => $item->booking_inventory?->date,
+                        'activity_time' => $item->booking_inventory?->inventory_time_slot?->start_time,
                         'created_at'   => $booking->created_at->format('Y-m-d'),
                     ];
                 });
@@ -109,7 +123,11 @@ class HomeController extends Controller
                 'created_at' => '',
             ],
             //'translation_key' => 'Alert',
-            'data'           => \App\Models\Alert::with('users:id,name')->latest()->take(10)->get(),
+            'data'           => \App\Models\Alert::with('users:id,name')
+                ->when($teamId, fn($query) => $query->where('team_id', $teamId))
+                ->latest()
+                ->take(10)
+                ->get(),
         ];
         // dd($settings3);
         $booking = \App\Models\Booking::with('booking_items', 'booking_items.season:id,name', 'status_payment:id,name')->latest()->take(10)->get();
@@ -149,8 +167,9 @@ class HomeController extends Controller
         // dd($settings4);
         $manifests = \App\Models\CustomerManifest::with([
             'customer:id,full_name',
-            'booking_item.booking:id,reference' // 👈 note singular now
+            'booking_item.booking:id,reference' // note singular now
         ])
+            ->when($teamId, fn($query) => $query->where('team_id', $teamId))
             ->latest()
             ->take(10)
             ->get();
