@@ -870,6 +870,38 @@ class SeedHelpQuestions extends Command
         ];
     }
 
+    private function legacyQuestionVariant(string $question): string
+    {
+        // Historically, some help questions were saved with curly quotes due to copy/paste
+        // from rich text. When we normalize text, we still want to update the existing
+        // DB row (instead of creating a duplicate).
+
+        $out = '';
+        $doubleIndex = 0;
+
+        $len = strlen($question);
+        for ($i = 0; $i < $len; $i++) {
+            $ch = $question[$i];
+
+            if ($ch === '"') {
+                // Alternate open/close: “ ... ”
+                $out .= ($doubleIndex % 2 === 0) ? "\u{201C}" : "\u{201D}";
+                $doubleIndex++;
+                continue;
+            }
+
+            if ($ch === "'") {
+                // Right single quote for apostrophes: don’t, promo’s, etc.
+                $out .= "\u{2019}";
+                continue;
+            }
+
+            $out .= $ch;
+        }
+
+        return $out;
+    }
+
     protected function formatAnswer(
         string $description,
         string $where = '',
