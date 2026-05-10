@@ -537,7 +537,12 @@ class ActivityController extends Controller
                             $applyMultiplier($multiplier);
                             break;
                         case 'fixed_value':
-                            $applyBookingDiscount((float) $promo->value);
+                            $mode = (string) ($params['fixed_value_mode'] ?? 'booking'); // booking|per_pax
+                            $discount = (float) $promo->value;
+                            if ($mode === 'per_pax') {
+                                $discount = $discount * $totalPax;
+                            }
+                            $applyBookingDiscount($discount);
                             break;
                         case 'graduated':
                             $paxRate = null;

@@ -160,7 +160,13 @@ class PricingService
                             }
                             break;
                         case 'fixed_value':
-                            $targetTotal = max(0, $baseTotal - (float) $promo->value);
+                            $mode = (string) ($params['fixed_value_mode'] ?? 'booking'); // booking|per_pax
+                            $discount = (float) $promo->value;
+                            if ($mode === 'per_pax') {
+                                // Per-person excludes guides (guides are internal/non-paying in most cases).
+                                $discount = $discount * $totalPax;
+                            }
+                            $targetTotal = max(0, $baseTotal - $discount);
                             $applyBookingTotal($targetTotal);
                             break;
                         case 'graduated':

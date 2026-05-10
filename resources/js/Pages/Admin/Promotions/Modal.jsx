@@ -195,7 +195,7 @@ const Modal = ({ isOpen, onClose, mode, item = null, services }) => {
                   <div>
                     <div className="font-semibold text-gray-700">Fixed Value</div>
                     <div>Fields: Value (R).</div>
-                    <div>Logic: Fixed amount off booking total.</div>
+                    <div>Logic: Fixed amount off booking total, or per person when "Apply to" is set to Per person.</div>
                   </div>
                   <div>
                     <div className="font-semibold text-gray-700">Graduated</div>
@@ -360,7 +360,21 @@ const Modal = ({ isOpen, onClose, mode, item = null, services }) => {
                   onChange={(e) => setData('value', e.target.value)}
                   errors={errors}
                 />
-                <p className="text-xs text-gray-500 -mt-2">Applies to booking total.</p>
+                <CustomSelect
+                  label="Apply To"
+                  name="fixed_value_mode"
+                  value={data.params?.fixed_value_mode || 'booking'}
+                  mode={mode}
+                  options={[
+                    { id: 'booking', name: 'Booking total' },
+                    { id: 'per_pax', name: 'Per person (adults + children)' },
+                  ]}
+                  onChange={(e) => setData('params', { ...(data.params || {}), fixed_value_mode: e.target.value })}
+                  errors={errors}
+                />
+                <p className="text-xs text-gray-500 -mt-2">
+                  Booking total: value is subtracted once. Per person: value is multiplied by pax count (adults + children).
+                </p>
               </>
             )}
 

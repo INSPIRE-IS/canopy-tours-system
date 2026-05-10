@@ -3686,8 +3686,25 @@ class BookingsController extends Controller
                         }
                         break;
                     case 'fixed_value':
-                        // apply only to adults for simplicity
-                        $rates['adult'] = max(0, $rates['adult'] - $promo->value);
+                        $adultCount = collect($data['pax_groups'])->where('type', 'adult')->sum('count');
+                        $childCount = collect($data['pax_groups'])->where('type', 'child')->sum('count');
+                        $guideCount = collect($data['pax_groups'])->where('type', 'guide')->sum('count');
+                        $totalPax = $adultCount + $childCount;
+                        $baseTotal = ($rates['adult'] * $adultCount) + ($rates['child'] * $childCount) + ($rates['guide'] * $guideCount);
+
+                        $discount = (float) $promo->value;
+                        $mode = (string) (($params['fixed_value_mode'] ?? null) ?? 'booking'); // booking|per_pax
+                        if ($mode === 'per_pax') {
+                            $discount = $discount * $totalPax;
+                        }
+
+                        if ($baseTotal > 0) {
+                            $targetTotal = max(0, $baseTotal - $discount);
+                            $multiplier = $targetTotal / $baseTotal;
+                            foreach ($rates as $k => $v) {
+                                $rates[$k] = max(0, $v * $multiplier);
+                            }
+                        }
                         break;
 
                     case 'graduated':
@@ -3734,7 +3751,17 @@ class BookingsController extends Controller
                                         $rates[$k] = $v - ($v * ($tier['value'] / 100));
                                     }
                                 } elseif ($tier['type'] === 'fixed_value') {
-                                    $rates['adult'] = max(0, $rates['adult'] - $tier['value']);
+                                    $adultCount = collect($data['pax_groups'])->where('type', 'adult')->sum('count');
+                                    $childCount = collect($data['pax_groups'])->where('type', 'child')->sum('count');
+                                    $guideCount = collect($data['pax_groups'])->where('type', 'guide')->sum('count');
+                                    $baseTotal = ($rates['adult'] * $adultCount) + ($rates['child'] * $childCount) + ($rates['guide'] * $guideCount);
+                                    if ($baseTotal > 0) {
+                                        $targetTotal = max(0, $baseTotal - (float) $tier['value']);
+                                        $multiplier = $targetTotal / $baseTotal;
+                                        foreach ($rates as $k => $v) {
+                                            $rates[$k] = max(0, $v * $multiplier);
+                                        }
+                                    }
                                 }
                             }
                         }

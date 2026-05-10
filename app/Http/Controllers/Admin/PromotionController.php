@@ -108,6 +108,17 @@ class PromotionController extends Controller
             }
         }
 
+        if ($data['type'] === 'fixed_value') {
+            $mode = (string) ($params['fixed_value_mode'] ?? 'booking');
+            if (!in_array($mode, ['booking', 'per_pax'], true)) {
+                throw ValidationException::withMessages([
+                    'params' => ['Fixed value mode must be booking or per_pax.'],
+                ]);
+            }
+            $params['fixed_value_mode'] = $mode;
+            $data['params'] = $params;
+        }
+
         if ($data['type'] === 'time_slot' && empty($data['season_id'])) {
             throw ValidationException::withMessages([
                 'season_id' => ['Season is required for time slot promotions.'],
@@ -248,6 +259,17 @@ class PromotionController extends Controller
                     'params' => ['Varied child promotions require tiers or a min adult rule.'],
                 ]);
             }
+        }
+
+        if ($data['type'] === 'fixed_value') {
+            $mode = (string) ($params['fixed_value_mode'] ?? 'booking');
+            if (!in_array($mode, ['booking', 'per_pax'], true)) {
+                throw ValidationException::withMessages([
+                    'params' => ['Fixed value mode must be booking or per_pax.'],
+                ]);
+            }
+            $params['fixed_value_mode'] = $mode;
+            $data['params'] = $params;
         }
 
         if ($data['type'] === 'time_slot' && empty($data['season_id'])) {

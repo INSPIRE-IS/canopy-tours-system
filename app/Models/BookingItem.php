@@ -471,7 +471,12 @@ class BookingItem extends Model
                         break;
 
                     case 'fixed_value':
-                        $targetTotal = max(0, $baseTotal - (float) $promo->value);
+                        $mode = (string) ($params['fixed_value_mode'] ?? 'booking'); // booking|per_pax
+                        $discount = (float) $promo->value;
+                        if ($mode === 'per_pax') {
+                            $discount = $discount * $totalPax;
+                        }
+                        $targetTotal = max(0, $baseTotal - $discount);
                         $applyBookingTotal($targetTotal);
                         logger()->info('promo applied (booking total) ' . var_export($rates, true));
                         break;
