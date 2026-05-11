@@ -264,6 +264,9 @@ const CloseoutModal = ({ isOpen, onClose, mode, closeout = null, services, auth,
                     <p className="mb-2 text-sm text-gray-700 font-medium">
                         Select Service and Season then Tick the days/times you want to <span className="text-red-600 font-bold">CLOSE</span> during this period
                     </p>
+                    <p className="mb-4 text-xs text-gray-600">
+                        Note: Closeouts block availability for both admin and online calendars. If you want a slot that is visible to staff only, use a Date Override with "Internal Only".
+                    </p>
 
                     {inventory && (
                         <div className="mb-4 overflow-x-auto">

@@ -1587,12 +1587,19 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                                                             <div className={` p-[6px] text-start w-[135px] h-[99px] cursor-pointer rounded-[10px] space-y-[10px] transition ${selectedSlot?.day === day && selectedSlot?.time === row.time
                                                                                 ? 'bg-[#55FF9E] text-black'
                                                                                 : cell?.status === 'available'
-                                                                                    ? 'bg-[#D6FBE6] border border-[#E5E5EC] text-green-700 hover:bg-green-200'
+                                                                                    ? (cell?.internal_only
+                                                                                        ? 'bg-gray-100 border border-[#E5E5EC] text-gray-700 hover:bg-gray-200'
+                                                                                        : 'bg-[#D6FBE6] border border-[#E5E5EC] text-green-700 hover:bg-green-200')
                                                                                     : 'bg-[#FCE4DF] border border-[#E5E5EC] text-gray-400 cursor-not-allowed'
                                                                                 }`}>
                                                                                 {cell?.status === 'available' && (
                                                                                     <>
                                                                                         <div className="text-xs">{row.time.slice(0, 5)}</div>
+                                                                                        {cell?.internal_only && (
+                                                                                            <div className="text-[10px] inline-flex w-fit px-2 py-0.5 rounded-full bg-gray-200 text-gray-700">
+                                                                                                Admin-only
+                                                                                            </div>
+                                                                                        )}
                                                                                         <div className="text-xs">{cell?.slots} Slots Open</div>
 
                                                                                         {cell?.rake_rate_adult && (
@@ -2658,7 +2665,6 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
         </AuthenticatedLayout>
     );
 }
-
 
 
 

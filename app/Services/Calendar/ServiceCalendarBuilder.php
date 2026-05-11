@@ -83,6 +83,7 @@ class ServiceCalendarBuilder
                 $dayOfWeek = $date->dayOfWeekIso;
                 $dateStr = $date->toDateString();
                 $overrideSlots = $overrideMap[$dateStr] ?? [];
+                $overrideMeta = $overrideSlots[$timeSlot->id] ?? null;
                 // time period in hours before a slot closes
                 $slotCloseTime = $lockoutHours ?? 0;
 
@@ -102,10 +103,11 @@ class ServiceCalendarBuilder
                             'slots' => 0,
                             'status' => 'unavailable',
                             'note' => 'Date override active',
+                            'internal_only' => false,
                         ];
                         continue;
                     }
-                    $overrideCapacity = $overrideSlots[$timeSlot->id];
+                    $overrideCapacity = is_array($overrideMeta) ? ($overrideMeta['capacity_override'] ?? null) : null;
                     if ($overrideCapacity !== null) {
                         $slotCapacity = (int) $overrideCapacity;
                     }
@@ -115,6 +117,7 @@ class ServiceCalendarBuilder
                         'slots' => 0,
                         'status' => 'unavailable',
                         'note' => 'Override-only slot',
+                        'internal_only' => false,
                     ];
                     continue;
                 } else {
@@ -125,6 +128,7 @@ class ServiceCalendarBuilder
                             'slots' => 0,
                             'status' => 'unavailable',
                             'note' => 'Not an allowed day',
+                            'internal_only' => false,
                         ];
                         continue;
                     }
@@ -136,6 +140,7 @@ class ServiceCalendarBuilder
                         'slots'  => 0,
                         'status' => 'unavailable',
                         'note'   => 'Past date',
+                        'internal_only' => false,
                     ];
                     continue;
                 }
@@ -155,6 +160,7 @@ class ServiceCalendarBuilder
                         'slots'  => 0,
                         'status' => 'unavailable', // closed
                         'note'   => 'Online booking closes' . $cutoff . 'h before tour',
+                        'internal_only' => (bool) (is_array($overrideMeta) ? ($overrideMeta['internal_only'] ?? false) : false),
                     ];
                     continue;
                 }
@@ -180,6 +186,7 @@ class ServiceCalendarBuilder
                             'capacity' => $slotCapacity,
                             'status' => 'full',
                             'note' => 'Fully booked',
+                            'internal_only' => (bool) (is_array($overrideMeta) ? ($overrideMeta['internal_only'] ?? false) : false),
                         ];
                     } elseif ($effectiveRemaining < $totalRequested) {
                         $row['days'][$label] = [
@@ -188,6 +195,7 @@ class ServiceCalendarBuilder
                             'capacity' => $slotCapacity,
                             'status' => 'full',
                             'note' => 'Fully booked',
+                            'internal_only' => (bool) (is_array($overrideMeta) ? ($overrideMeta['internal_only'] ?? false) : false),
                         ];
                     } else {
                         $row['days'][$label] = [
@@ -196,6 +204,7 @@ class ServiceCalendarBuilder
                             'capacity' => $slotCapacity,
                             'status' => 'available',
                             'rake_rate_adult' => $season->rake_rate_adult,
+                            'internal_only' => (bool) (is_array($overrideMeta) ? ($overrideMeta['internal_only'] ?? false) : false),
                         ];
                     }
                 }
@@ -289,7 +298,10 @@ class ServiceCalendarBuilder
                 if (!isset($map[$dateStr])) {
                     $map[$dateStr] = [];
                 }
-                $map[$dateStr][$range->time_slot_id] = $range->capacity_override;
+                $map[$dateStr][$range->time_slot_id] = [
+                    'capacity_override' => $range->capacity_override,
+                    'internal_only' => (bool) $range->internal_only,
+                ];
             }
         }
 

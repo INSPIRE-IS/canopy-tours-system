@@ -372,6 +372,16 @@ class SeedHelpQuestions extends Command
                 'is_internal' => true,
             ],
             [
+                'category' => 'Inventory',
+                'question' => 'How do I hide a time slot from online bookings but keep it for staff?',
+                'description' => 'Use an internal-only Date Override so the slot shows on admin calendars but not on the guest calendar.',
+                'where' => '<a href="/admin/inventory-slot-ranges">Admin > Inventory > Date Overrides</a>',
+                'business_rules' => 'Internal-only overrides are excluded from the front (guest) calendar, but included for logged-in admin/staff. Closeouts always block both admin and online. If a date override exists for a date, only those override slots are used for that date (weekly slots are replaced for that date).',
+                'examples' => '<p><strong>Example 1 (Monday closed, but open in holidays)</strong>: Keep Mondays closed in weekly inventory. For school-holiday Mondays, add a Date Override for the holiday date range with the slots you want and mark them internal-only until you\'re ready to open them online.</p><p><strong>Example 2 (short-staffed Tuesdays)</strong>: Weekly inventory has 08:30, 10:00, 11:30. For a specific Tuesday where only one team is available, create a Date Override for that date with only 08:30 and 10:00. If you want staff-only booking for the extra slot, add it as internal-only.</p>',
+                'related' => 'date overrides, internal only, online calendar, admin calendar, closeouts, weekly schedule',
+                'is_internal' => true,
+            ],
+            [
                 'category' => 'Inventory Overrides',
                 'question' => 'When do we use an inventory override?',
                 'description' => 'Override base rates for a specific inventory.',

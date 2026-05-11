@@ -19,6 +19,28 @@ export default function Index({ permissions, slotRanges, services, auth, searchT
     const [modalMode, setModalMode] = useState('create');
     const [isOpenTab, setIsOpenTab] = useState('DateOverrides');
     const [currentView, setCurrentView] = useState(viewMode);
+    const [visibilityFilter, setVisibilityFilter] = useState('all'); // all | online | admin_only
+
+    const ranges = slotRanges?.data || [];
+    const filteredRanges = ranges.filter((range) => {
+        if (visibilityFilter === 'online') return !range.internal_only;
+        if (visibilityFilter === 'admin_only') return !!range.internal_only;
+        return true;
+    });
+
+    const renderVisibilityBadge = (range) => {
+        const isAdminOnly = !!range?.internal_only;
+        return (
+            <span
+                className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium ${
+                    isAdminOnly ? 'bg-gray-200 text-gray-800' : 'bg-green-100 text-green-800'
+                }`}
+                title={isAdminOnly ? 'Visible to admin calendars only' : 'Visible to online + admin calendars'}
+            >
+                {isAdminOnly ? 'Admin-only' : 'Online'}
+            </span>
+        );
+    };
 
     const handleOpenModal = (mode, range = null) => {
         setModalMode(mode);
@@ -80,6 +102,42 @@ export default function Index({ permissions, slotRanges, services, auth, searchT
                         <div className="flex justify-between items-center mb-6">
                             <SearchBar search={search} handleSearchChange={handleSearchChange} handleSearchSubmit={handleSearchSubmit} />
                             <span className="flex gap-2 items-center">
+                                <span className="flex gap-2 items-center mr-2">
+                                    <span className="text-sm text-gray-500">Show:</span>
+                                    <button
+                                        type="button"
+                                        onClick={() => setVisibilityFilter('all')}
+                                        className={`px-3 h-[38px] rounded-[10px] border text-sm ${
+                                            visibilityFilter === 'all'
+                                                ? 'bg-blue-600 border-blue-600 text-white'
+                                                : 'bg-white border-secondary-100 text-gray-700 hover:bg-gray-50'
+                                        }`}
+                                    >
+                                        All
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setVisibilityFilter('online')}
+                                        className={`px-3 h-[38px] rounded-[10px] border text-sm ${
+                                            visibilityFilter === 'online'
+                                                ? 'bg-blue-600 border-blue-600 text-white'
+                                                : 'bg-white border-secondary-100 text-gray-700 hover:bg-gray-50'
+                                        }`}
+                                    >
+                                        Online
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setVisibilityFilter('admin_only')}
+                                        className={`px-3 h-[38px] rounded-[10px] border text-sm ${
+                                            visibilityFilter === 'admin_only'
+                                                ? 'bg-blue-600 border-blue-600 text-white'
+                                                : 'bg-white border-secondary-100 text-gray-700 hover:bg-gray-50'
+                                        }`}
+                                    >
+                                        Admin-only
+                                    </button>
+                                </span>
                                 {currentView === 'grouped' ? (
                                     <BlueButton
                                         title="Compact"
@@ -138,7 +196,7 @@ export default function Index({ permissions, slotRanges, services, auth, searchT
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y divide-gray-100">
-                                                {slotRanges?.data.map((range) => (
+                                                {filteredRanges.map((range) => (
                                                     <tr key={range.id} className="flex justify-between items-center hover:bg-gray-50">
                                                         <td className="w-[70px] p-3">{range.id}</td>
                                                         <td className="w-[140px] p-3">{range.inventory?.service?.name}</td>
@@ -150,7 +208,7 @@ export default function Index({ permissions, slotRanges, services, auth, searchT
                                                         </td>
                                                         <td className="w-[120px] p-3">{range.capacity_override ?? ''}</td>
                                                         <td className="w-[180px] p-3">{range.note ?? ''}</td>
-                                                        <td className="w-[110px] p-3">{range.internal_only ? 'Yes' : 'No'}</td>
+                                                        <td className="w-[110px] p-3">{renderVisibilityBadge(range)}</td>
                                                         <td className="w-[185px] p-3 flex gap-2">
                                                             {permissions.inventories_edit && (
                                                                 <button
@@ -198,7 +256,7 @@ export default function Index({ permissions, slotRanges, services, auth, searchT
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y divide-gray-100">
-                                                {slotRanges?.data.map((range) => (
+                                                {filteredRanges.map((range) => (
                                                     <tr key={range.id} className="flex justify-between items-center hover:bg-gray-50">
                                                         <td className="w-[70px] p-3">{range.id}</td>
                                                         <td className="w-[140px] p-3">{range.inventory?.service?.name}</td>
@@ -210,7 +268,7 @@ export default function Index({ permissions, slotRanges, services, auth, searchT
                                                         </td>
                                                         <td className="w-[120px] p-3">{range.capacity_override ?? ''}</td>
                                                         <td className="w-[180px] p-3">{range.note ?? ''}</td>
-                                                        <td className="w-[110px] p-3">{range.internal_only ? 'Yes' : 'No'}</td>
+                                                        <td className="w-[110px] p-3">{renderVisibilityBadge(range)}</td>
                                                         <td className="w-[185px] p-3 flex gap-2">
                                                             {permissions.inventories_edit && (
                                                                 <button
