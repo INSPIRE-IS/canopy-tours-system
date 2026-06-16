@@ -38,6 +38,20 @@ export default function Dashboard({ auth, booking, lookups, mode, gateways, stat
     });
 
     const lookupList = Array.isArray(lookups) ? lookups : [];
+    const vatLookup = lookupList.find(l => l.slug === 'vat_rate') || {};
+    const vatRate = Number(vatLookup.rate || 0);
+    const vatMultiplier = Number(vatLookup.multiplier || (1 + vatRate));
+    const calculateVatFields = (total) => {
+        const paymentTotal = Number(total || 0);
+        const exVat = vatMultiplier > 0 ? paymentTotal / vatMultiplier : paymentTotal;
+        const vatAmount = paymentTotal - exVat;
+
+        return {
+            vat: vatRate.toFixed(2),
+            vat_amount: vatAmount.toFixed(2),
+        };
+    };
+    const outstandingAmount = Math.max(0, Number(booking.grand_tot_due) - Number(booking.tot_paid || 0));
     const { data, setData, post, put, processing, errors, isDirty } = useForm({
         booking_id: booking.id,
         redeemer_name: booking.lead_name,
@@ -47,10 +61,9 @@ export default function Dashboard({ auth, booking, lookups, mode, gateways, stat
         status_payment_id: 2,
         payment_options: {}, // store checkboxes here
         payment_methods: {}, // for type_payments
-        ex_vat_amount: ((booking.grand_tot_due - booking.tot_paid)).toFixed(2),
-        lookup_item_id: lookupList.find(l => l.slug == 'vat_rate')?.id,
-        vat: ((booking.grand_tot_due - booking.tot_paid) * lookupList.find(l => l.slug == 'vat_rate')?.rate).toFixed(2),
-        vat_amount: ((booking.grand_tot_due - booking.tot_paid) * lookupList.find(l => l.slug == 'vat_rate')?.multiplier).toFixed(2),
+        ex_vat_amount: outstandingAmount.toFixed(2),
+        lookup_item_id: vatLookup.id,
+        ...calculateVatFields(outstandingAmount),
         payment_date: booking.due_date,
         updated_by_id: auth.user.id,
         note: '',
@@ -80,8 +93,10 @@ export default function Dashboard({ auth, booking, lookups, mode, gateways, stat
     });
     const isPayOnline = !!payOnlineOption && data.type_pay_option_id === payOnlineOption.id;
 
-    const amountDue = Math.max(0, Number(booking.grand_tot_due) - Number(booking.tot_paid || 0));
+    const amountDue = outstandingAmount;
     const isFullyPaid = amountDue <= 0;
+    const paymentAmount = Number(data.ex_vat_amount || 0);
+    const isAdjustedPayment = Math.abs(paymentAmount - amountDue) > 0.01;
     const leadEmail = booking?.customer?.email_address || booking?.lead_email || '';
     useEffect(() => {
         if (flash?.success) {
@@ -112,6 +127,14 @@ export default function Dashboard({ auth, booking, lookups, mode, gateways, stat
         }));
     }, [payOfflineOption, cashOption, data.type_pay_option_id, setData]);
     const handleChange = (target, value) => {
+        if (target === 'ex_vat_amount') {
+            setData((prev) => ({
+                ...prev,
+                ex_vat_amount: value,
+                ...calculateVatFields(value),
+            }));
+            return;
+        }
         setData(target, value);
         console.log('target----- ', target);
         console.log('value----- ', value);
@@ -174,6 +197,10 @@ export default function Dashboard({ auth, booking, lookups, mode, gateways, stat
         e.preventDefault();
         console.log('booking', booking);
         console.log('data', data);
+        if (isAdjustedPayment && !String(data.note || '').trim()) {
+            showToast('Please add a payment note when recording a partial or adjusted payment.', 'error');
+            return;
+        }
         if (mode === "create") {
             post(route("admin.booking-payments.store"), {
                 onSuccess: () => console.log('success'),
@@ -336,13 +363,18 @@ export default function Dashboard({ auth, booking, lookups, mode, gateways, stat
                             </div>
                             <div className="flex flex-col w-full gap-4">
                                 <CustomInputText
-                                    title="payment Note"
+                                    title={isAdjustedPayment ? "Payment Note (required)" : "Payment Note"}
                                     name="note"
                                     type='text'
                                     value={data.note}
                                     onChange={(e) => { handleChange(e.target.name, e.target.value) }}
                                     errors={errors}
                                 />
+                                {isAdjustedPayment && (
+                                    <p className="text-xs text-amber-700">
+                                        Required because the payment amount differs from the outstanding balance of R{amountDue.toFixed(2)}.
+                                    </p>
+                                )}
                             </div>
                             <div className="flex flex-row items-center w-full gap-4 ">
                                 <BlueButton

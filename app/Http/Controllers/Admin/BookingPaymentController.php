@@ -13,6 +13,7 @@ use App\Models\BookingPayment;
 use App\Models\BookingVoucher;
 use App\Models\Customer;
 use App\Models\Email;
+use App\Models\File as FileModel;
 use App\Models\Gateway;
 use App\Models\Invoice;
 use App\Models\InvoiceTemplate;
@@ -24,16 +25,17 @@ use App\Models\TypePayment;
 use App\Models\TypePayOption;
 use App\Models\User;
 use App\Models\AuditLog;
+use App\Services\RendererService;
 use Barryvdh\DomPDF\Facade\Pdf;
-use File;
 use Gate;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
-use Storage;
 use Symfony\Component\HttpFoundation\Response;
 use App\Services\DocumentService;
 
@@ -98,8 +100,8 @@ class BookingPaymentController extends Controller
             'payment_date' => 'required|date',
             'ex_vat_amount' => 'required|numeric|min:0',
             'lookup_item_id' => 'required|numeric',
-            'vat' => 'required|numeric|min:0',
-            'vat_amount' => 'required|numeric|min:0',
+            'vat' => 'nullable|numeric|min:0',
+            'vat_amount' => 'nullable|numeric|min:0',
             'voucher_code' => 'nullable|string',
             'redeemer_name' => 'required|string',
             'note' => 'nullable|string',
@@ -112,39 +114,56 @@ class BookingPaymentController extends Controller
 
         try {
             $booking = DB::transaction(function () use ($service, $validated) {
-                //$payment = $request->all();
-                $validated['status_payment_id'] = 2; // paid
+                $booking = Booking::with('booking_items.booking_fees')->findOrFail($validated['booking_id']);
+                $vatLookup = LookupItem::findOrFail($validated['lookup_item_id']);
+                $vatRate = (float) ($vatLookup->rate ?? 0);
+                $vatMultiplier = (float) ($vatLookup->multiplier ?: (1 + $vatRate));
+                $paymentTotal = round((float) $validated['ex_vat_amount'], 2);
+                $amountDue = round(max(0, (float) $booking->grand_tot_due - (float) $booking->tot_paid), 2);
+
+                if ($paymentTotal <= 0 || $paymentTotal > $amountDue) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'ex_vat_amount' => "Payment amount must be greater than 0 and no more than the outstanding balance of {$amountDue}.",
+                    ]);
+                }
+
+                if (abs($paymentTotal - $amountDue) > 0.01 && trim((string) ($validated['note'] ?? '')) === '') {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'note' => 'A payment note is required when recording a partial or adjusted payment amount.',
+                    ]);
+                }
+
+                $paymentExVat = round($paymentTotal / $vatMultiplier, 2);
+                $paymentVat = round($paymentTotal - $paymentExVat, 2);
+                $newPaidTotal = round(min((float) $booking->grand_tot_due, (float) $booking->tot_paid + $paymentTotal), 2);
+                $isFullyPaid = $newPaidTotal >= round((float) $booking->grand_tot_due, 2);
+
+                $validated['status_payment_id'] = $isFullyPaid ? 2 : 1;
                 $validated['gateway_id'] = 2; // manual
-                logger()->info($validated);
-                $bookingPayment = BookingPayment::create($validated);
-                $payment = BookingPayment::updateOrCreate(
-                    ['booking_id' => $validated['booking_id'],],
-                    [
-                        'type_pay_option_id'   => $validated['type_pay_option_id'],     // or 'Pay Offline'
-                        'type_payment_id' => $validated['type_payment_id'], // Cash // 5 eft
-                        'status_payment_id' => $validated['status_payment_id'],        // 'paid', 'failed', 'cancelled'
-                        'ex_vat_amount'         => $validated['ex_vat_amount'],          // full amount due or partial
-                        'lookup_item_id' => $validated['lookup_item_id'],
-                        'vat' => $validated['vat'],
-                        'vat_amount' => ($validated['ex_vat_amount'] * $validated['vat']),
-                        'reference'      => $validated['reference'],      // 'OFF-' . strtoupper(Str::random(6)), // can be order ref or external tx
-                        'gateway_id'        => $validated['gateway_id'],        // 'Manual'
-                        'meta'           => json_encode(['ip' => request()->ip()]),
-                        'payment_date'   =>  now(),
-                        'redeemer_name'  => $validated['redeemer_name'] ?? null, // '',
-                        'voucher_code' => $validated['voucher_code'] ?? null,
-                        'note'           => $validated['note'] ?? null,
-                        'updated_by_id'  => $validated['updated_by_id'],
-                        'team_id'        => $validated['team_id'],
-                    ]
-                );
 
+                $bookingPayment = BookingPayment::create([
+                    'booking_id' => $validated['booking_id'],
+                    'type_pay_option_id' => $validated['type_pay_option_id'],
+                    'type_payment_id' => $validated['type_payment_id'],
+                    'status_payment_id' => $validated['status_payment_id'],
+                    'ex_vat_amount' => $paymentExVat,
+                    'lookup_item_id' => $validated['lookup_item_id'],
+                    'vat' => $vatRate,
+                    'vat_amount' => $paymentVat,
+                    'reference' => $validated['reference'],
+                    'gateway_id' => $validated['gateway_id'],
+                    'meta' => json_encode(['ip' => request()->ip()]),
+                    'payment_date' => $validated['payment_date'],
+                    'redeemer_name' => $validated['redeemer_name'] ?? null,
+                    'voucher_code' => $validated['voucher_code'] ?? null,
+                    'note' => $validated['note'] ?? null,
+                    'updated_by_id' => $validated['updated_by_id'],
+                    'team_id' => $validated['team_id'],
+                ]);
 
-                $booking = $bookingPayment->booking;
-                logger()->info($booking);
                 $booking->update([
-                    'status_payment_id' => 2, // paid
-                    'tot_paid' => $bookingPayment->ex_vat_amount,
+                    'status_payment_id' => $validated['status_payment_id'],
+                    'tot_paid' => $newPaidTotal,
                 ]);
 
                 AuditLog::create([
@@ -154,33 +173,34 @@ class BookingPaymentController extends Controller
                     'user_id' => auth()->id(),
                     'properties' => json_encode([
                         'payment_id' => $bookingPayment->id,
-                        'amount' => $bookingPayment->ex_vat_amount,
+                        'amount' => $paymentTotal,
                         'method' => 'admin',
                     ]),
                     'host' => request()->ip(),
                 ]);
-                //TODO update booking item with payment amount if this is a multiple booking activity
-                $balance = $bookingPayment->ex_vat_amount;
-                //dd($booking->booking_items);
-                $booking->booking_items->each(function ($item) use ($validated, $balance) {
 
-                    $item->booking_fees->each(function ($fee) use ($validated, $balance) {
-                        $balance = $balance - $fee->tot_amount;
+                $balance = $newPaidTotal;
+                $booking->booking_items->each(function ($item) use ($validated, &$balance) {
+                    $item->booking_fees->each(function ($fee) use ($validated, &$balance) {
+                        $paidForFee = min((float) $fee->tot_amount, max(0, $balance));
                         $fee->update([
-                            'tot_paid' => $balance >= 0 ? $fee->tot_amount : 0,
+                            'tot_paid' => $paidForFee,
                             'note' => $validated['note'],
                         ]);
+                        $balance = round($balance - $paidForFee, 2);
                     });
                 });
-                $customer = Customer::findOrFail($booking->customer_id);
-                $invoiceTypeId = TypeInvoice::where('slug', 'std')->value('id');
-                $invoice = Invoice::where('booking_id', $booking->id)
-                    ->when($invoiceTypeId, fn($query) => $query->where('type_invoice_id', $invoiceTypeId))
-                    ->first();
-                $customer = Customer::where('id', $booking->customer_id)->first();
-                $site = Team::findorFail($invoice->team_id);
-                $items = $booking?->booking_items->first();
+
+                $this->regenerateInvoicePdf($booking);
+
                 if (false) {
+                    $customer = Customer::findOrFail($booking->customer_id);
+                    $invoiceTypeId = TypeInvoice::where('slug', 'std')->value('id');
+                    $invoice = Invoice::where('booking_id', $booking->id)
+                        ->when($invoiceTypeId, fn($query) => $query->where('type_invoice_id', $invoiceTypeId))
+                        ->firstOrFail();
+                    $site = Team::findorFail($invoice->team_id);
+                    $items = $booking?->booking_items->first();
                     $subject = 'Payment Confirmation';
                     $recipient = $customer->email_address;
 
@@ -342,6 +362,8 @@ class BookingPaymentController extends Controller
                 'booking' => $booking,
             ]);
             return redirect()->route('admin.bookings.index');
+        } catch (ValidationException $e) {
+            return back()->withErrors($e->errors())->withInput();
         } catch (\Throwable $e) {
             // Log the full error for debugging
             Log::error('Booking failed and rolled back', [
@@ -353,6 +375,85 @@ class BookingPaymentController extends Controller
                 'error' => 'Something went wrong while saving your booking. Please try again.',
             ]);
         }
+    }
+
+    private function regenerateInvoicePdf(Booking $booking): void
+    {
+        $typeId = TypeInvoice::where('slug', TypeInvoice::SLUG_STD)->value('id');
+        $invoice = Invoice::where('booking_id', $booking->id)
+            ->when($typeId, fn($query) => $query->where('type_invoice_id', $typeId))
+            ->latest('id')
+            ->first();
+
+        if (!$invoice) {
+            Log::warning('Admin payment recorded but no invoice was found to regenerate.', [
+                'booking_id' => $booking->id,
+                'reference' => $booking->reference,
+            ]);
+            return;
+        }
+
+        $booking->refresh()->loadMissing('team.file_logo');
+        $customer = Customer::find($booking->customer_id);
+        if (!$customer) {
+            Log::warning('Admin payment recorded but invoice PDF could not be regenerated because customer was missing.', [
+                'booking_id' => $booking->id,
+                'customer_id' => $booking->customer_id,
+            ]);
+            return;
+        }
+
+        $data = app(RendererService::class)->invoice($booking, $customer, $invoice);
+        $invoicePdf = Pdf::loadView('invoices.invoice', $data);
+        $invoicePdf->setPaper('A4', 'portrait');
+
+        $invoiceFilename = 'invoices/' . $data['invoice']['number'] . '.pdf';
+        Storage::disk('public')->put($invoiceFilename, $invoicePdf->output());
+
+        $invoiceFile = FileModel::withTrashed()
+            ->where('booking_id', $booking->id)
+            ->where('type_file_id', 4)
+            ->where('table_name', 'invoices')
+            ->where('table_row_id', $invoice->id)
+            ->latest('id')
+            ->first();
+
+        if ($invoiceFile?->trashed()) {
+            $invoiceFile->restore();
+        }
+
+        if ($invoiceFile) {
+            $invoiceFile->update([
+                'file_name' => $data['invoice']['number'] . '.pdf',
+                'file_type' => 'application/pdf',
+                'path' => $invoiceFilename,
+            ]);
+        } else {
+            FileModel::create([
+                'team_id' => $invoice->team_id,
+                'table_name' => 'invoices',
+                'table_row_id' => $invoice->id,
+                'file_name' => $data['invoice']['number'] . '.pdf',
+                'file_type' => 'application/pdf',
+                'type_file_id' => 4,
+                'path' => $invoiceFilename,
+                'booking_id' => $booking->id,
+            ]);
+        }
+
+        AuditLog::create([
+            'description' => 'Invoice PDF regenerated after payment',
+            'subject_id' => $booking->id,
+            'subject_type' => Booking::class,
+            'user_id' => auth()->id(),
+            'properties' => json_encode([
+                'invoice_id' => $invoice->id,
+                'attachment' => $invoiceFilename,
+                'amount_paid' => $booking->tot_paid,
+                'balance_due' => max(0, (float) $booking->grand_tot_due - (float) $booking->tot_paid),
+            ]),
+            'host' => request()->ip(),
+        ]);
     }
 
     public function simulate(Request $request, Booking $booking)

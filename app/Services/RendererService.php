@@ -118,8 +118,8 @@ class RendererService
         $amountTotal = $invoice->total ?? $booking->grand_tot_due ?? 0;
         $amountExVat = round(($amountTotal / 1.15), 2);
         $vat = round(($amountTotal - $amountExVat), 2);
-        $amountPaid = ($booking->tot_paid ?? 0) * 1.15;
-        $balanceDue = max(0, $amountTotal - $amountPaid);
+        $amountPaid = round(min((float) $amountTotal, (float) ($booking->tot_paid ?? 0)), 2);
+        $balanceDue = round(max(0, (float) $amountTotal - $amountPaid), 2);
 
         $logoPath = $booking->team->file_logo?->path;
         if ($logoPath && Str::startsWith($logoPath, ['http://', 'https://'])) {
