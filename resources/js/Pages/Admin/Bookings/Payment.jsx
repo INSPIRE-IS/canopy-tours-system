@@ -12,7 +12,7 @@ import { useToast } from "@/Context/ToastContext";
 // import { useRoute } from 'ziggy-js';
 // import { Ziggy } from '@/ziggy'; // the generated file
 
-export default function Dashboard({ auth, booking, lookups, mode, gateways, status_payments, type_pay_options, type_payments, updated_bies, users }) {
+export default function Dashboard({ auth, booking, latest_payment, lookups, mode, gateways, status_payments, type_pay_options, type_payments, updated_bies, users }) {
     console.log("auth", auth);
     const { props } = usePage();
     const { flash } = props;
@@ -41,6 +41,15 @@ export default function Dashboard({ auth, booking, lookups, mode, gateways, stat
     const vatLookup = lookupList.find(l => l.slug === 'vat_rate') || {};
     const vatRate = Number(vatLookup.rate || 0);
     const vatMultiplier = Number(vatLookup.multiplier || (1 + vatRate));
+    const previousShortPaymentNote = latest_payment?.short_payment_note || latest_payment?.note || '';
+    const previousAdditionalPaymentNote = latest_payment?.additional_payment_note || '';
+    const latestPaymentExVat = Number(latest_payment?.ex_vat_amount || 0);
+    const latestPaymentVat = Number(latest_payment?.vat_amount || 0);
+    const latestPaymentAdditional = Number(latest_payment?.additional_amount || 0);
+    const latestPaymentBookingAmount = latestPaymentVat >= latestPaymentExVat && latestPaymentExVat > 0
+        ? latestPaymentExVat
+        : latestPaymentExVat + latestPaymentVat;
+    const latestPaymentTotalReceived = latestPaymentBookingAmount + latestPaymentAdditional;
     const calculateVatFields = (total) => {
         const paymentTotal = Number(total || 0);
         const exVat = vatMultiplier > 0 ? paymentTotal / vatMultiplier : paymentTotal;
@@ -64,8 +73,11 @@ export default function Dashboard({ auth, booking, lookups, mode, gateways, stat
         ex_vat_amount: outstandingAmount.toFixed(2),
         lookup_item_id: vatLookup.id,
         ...calculateVatFields(outstandingAmount),
+        additional_amount: '0.00',
         payment_date: booking.due_date,
         updated_by_id: auth.user.id,
+        short_payment_note: '',
+        additional_payment_note: '',
         note: '',
         reference: booking.reference,
         meta: '',
@@ -96,7 +108,12 @@ export default function Dashboard({ auth, booking, lookups, mode, gateways, stat
     const amountDue = outstandingAmount;
     const isFullyPaid = amountDue <= 0;
     const paymentAmount = Number(data.ex_vat_amount || 0);
+    const additionalAmount = Number(data.additional_amount || 0);
+    const totalReceived = paymentAmount + additionalAmount;
     const isAdjustedPayment = Math.abs(paymentAmount - amountDue) > 0.01;
+    const hasAdditionalPayment = additionalAmount > 0.01;
+    const requiresShortPaymentNote = isAdjustedPayment;
+    const requiresAdditionalPaymentNote = hasAdditionalPayment;
     const leadEmail = booking?.customer?.email_address || booking?.lead_email || '';
     useEffect(() => {
         if (flash?.success) {
@@ -197,8 +214,12 @@ export default function Dashboard({ auth, booking, lookups, mode, gateways, stat
         e.preventDefault();
         console.log('booking', booking);
         console.log('data', data);
-        if (isAdjustedPayment && !String(data.note || '').trim()) {
-            showToast('Please add a payment note when recording a partial or adjusted payment.', 'error');
+        if (requiresShortPaymentNote && !String(data.short_payment_note || '').trim()) {
+            showToast('Please add a short/adjusted payment note.', 'error');
+            return;
+        }
+        if (requiresAdditionalPaymentNote && !String(data.additional_payment_note || '').trim()) {
+            showToast('Please add an additional amount note.', 'error');
             return;
         }
         if (mode === "create") {
@@ -323,26 +344,35 @@ export default function Dashboard({ auth, booking, lookups, mode, gateways, stat
                     ) : (
                         <div className="flex flex-col w-full pr-[51px]  gap-2 ">
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 ">
-                                <CustomInputText
-                                    title="Total"
-                                    name="ex_vat_amount"
-                                    type='text'
-                                    value={data.ex_vat_amount}
-                                    onChange={(e) => { handleChange(e.target.name, e.target.value) }}
-                                    errors={errors}
-                                />
+                                <div>
+                                    <CustomInputText
+                                        title="Booking Payment Amount"
+                                        name="ex_vat_amount"
+                                        type='text'
+                                        value={data.ex_vat_amount}
+                                        onChange={(e) => { handleChange(e.target.name, e.target.value) }}
+                                        errors={errors}
+                                    />
+                                    <p className="text-xs text-gray-500 -mt-2">
+                                        Amount allocated to this booking balance. Outstanding balance: R{amountDue.toFixed(2)}.
+                                    </p>
+                                </div>
+                                <div>
+                                    <CustomInputText
+                                        title={requiresShortPaymentNote ? "Short / Adjusted Payment Note (required)" : "Short / Adjusted Payment Note"}
+                                        name="short_payment_note"
+                                        type='text'
+                                        value={data.short_payment_note}
+                                        onChange={(e) => { handleChange(e.target.name, e.target.value) }}
+                                        errors={errors}
+                                    />
+                                    <p className="text-xs text-gray-500 -mt-2">
+                                        Required when the booking payment amount is less than or different from the outstanding balance.
+                                    </p>
+                                </div>
 
-                                <CustomInputText
-                                    title="Payment Date"
-                                    name="payment_date"
-                                    type='date'
-                                    value={data.payment_date}
-
-                                    onChange={(e) => { handleChange(e.target.name, e.target.value); }}
-                                    errors={errors}
-                                />
                             </div>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 ">
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 ">
                                 <CustomInputText
                                     title="Voucher Code"
                                     name="voucher_code"
@@ -360,32 +390,73 @@ export default function Dashboard({ auth, booking, lookups, mode, gateways, stat
                                     onChange={(e) => { handleChange(e.target.name, e.target.value); }}
                                     errors={errors}
                                 />
-                            </div>
-                            <div className="flex flex-col w-full gap-4">
+
                                 <CustomInputText
-                                    title={isAdjustedPayment ? "Payment Note (required)" : "Payment Note"}
-                                    name="note"
-                                    type='text'
-                                    value={data.note}
-                                    onChange={(e) => { handleChange(e.target.name, e.target.value) }}
+                                    title="Payment Date"
+                                    name="payment_date"
+                                    type='date'
+                                    value={data.payment_date}
+
+                                    onChange={(e) => { handleChange(e.target.name, e.target.value); }}
                                     errors={errors}
                                 />
-                                {isAdjustedPayment && (
-                                    <p className="text-xs text-amber-700">
-                                        Required because the payment amount differs from the outstanding balance of R{amountDue.toFixed(2)}.
-                                    </p>
-                                )}
                             </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 ">
+                                <div>
+                                    <CustomInputText
+                                        title="Additional Amount"
+                                        name="additional_amount"
+                                        type='text'
+                                        value={data.additional_amount}
+                                        onChange={(e) => { handleChange(e.target.name, e.target.value) }}
+                                        errors={errors}
+                                    />
+                                    <p className="text-xs text-gray-500 -mt-2">
+                                        Optional non-booking amount such as tip, food, drinks, or merchandise. Not added to booking VAT/invoice balance.
+                                    </p>
+                                </div>
+                                <div>
+                                    <CustomInputText
+                                        title={requiresAdditionalPaymentNote ? "Additional Amount Note (required)" : "Additional Amount Note"}
+                                        name="additional_payment_note"
+                                        type='text'
+                                        value={data.additional_payment_note}
+                                        onChange={(e) => { handleChange(e.target.name, e.target.value) }}
+                                        errors={errors}
+                                    />
+                                    <p className="text-xs text-gray-500 -mt-2">
+                                        Required when recording tips, food, drinks, merchandise, or other non-booking amounts.
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 ">
+                                <div className="flex flex-col justify-center rounded-md border border-gray-200 bg-gray-50 px-4 py-3">
+                                    <span className="text-xs uppercase tracking-wide text-gray-500">Total Received</span>
+                                    <span className="text-lg font-semibold text-gray-900">R{totalReceived.toFixed(2)}</span>
+                                </div>
+
+                            </div>
+
+
+                            {latest_payment && (
+                                <div className="rounded-md border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600">
+                                    <div className="font-medium text-gray-900">Previous payment context</div>
+                                    <div>Total received: R{latestPaymentTotalReceived.toFixed(2)}</div>
+                                    {previousShortPaymentNote && <div>Short/adjusted note: {previousShortPaymentNote}</div>}
+                                    {previousAdditionalPaymentNote && <div>Additional note: {previousAdditionalPaymentNote}</div>}
+                                </div>
+                            )}
                             <div className="flex flex-row items-center w-full gap-4 ">
                                 <BlueButton
                                     title="Add Payment Now"
                                     width="w-[169px]"
                                     onClick={handleSubmit}
-                                    disabled={processing || isFullyPaid}
+                                    disabled={processing || (isFullyPaid && !hasAdditionalPayment)}
                                     type="submit"
                                 />
-                                {isFullyPaid && (
-                                    <span className="text-sm text-red-500">Booking already paid.</span>
+                                {isFullyPaid && !hasAdditionalPayment && (
+                                    <span className="text-sm text-red-500">Booking already paid. Add an additional amount to record extras.</span>
                                 )}
                             </div>
                         </div>

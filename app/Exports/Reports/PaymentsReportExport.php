@@ -76,7 +76,11 @@ class PaymentsReportExport implements FromQuery, WithHeadings, WithMapping, Shou
             'Payment Date',
             'Ex VAT Amount (stored)',
             'VAT Amount (stored)',
-            'Payment Amount',
+            'Booking Payment Amount',
+            'Additional Amount',
+            'Total Received',
+            'Short / Adjusted Payment Note',
+            'Additional Amount Note',
         ];
     }
 
@@ -96,15 +100,17 @@ class PaymentsReportExport implements FromQuery, WithHeadings, WithMapping, Shou
         $source = $bookingItem?->booking_detail?->is_web_booking ? 'Web' : 'Manual';
         $exVat = (float) ($payment->ex_vat_amount ?? 0);
         $vatAmount = $payment->vat_amount !== null ? (float) $payment->vat_amount : null;
+        $additionalAmount = (float) ($payment->additional_amount ?? 0);
         if ($vatAmount === null) {
-            $totalAmount = $exVat;
+            $bookingPaymentAmount = $exVat;
         } elseif ($vatAmount >= $exVat && $exVat > 0) {
             // Stored vat_amount is clearly not a VAT portion; fall back to ex_vat_amount.
-            $totalAmount = $exVat;
+            $bookingPaymentAmount = $exVat;
         } else {
             // Front/simulated flows store vat_amount as VAT portion.
-            $totalAmount = $exVat + $vatAmount;
+            $bookingPaymentAmount = $exVat + $vatAmount;
         }
+        $totalReceived = $bookingPaymentAmount + $additionalAmount;
 
         $bookingStatus = $booking?->deleted_at ? 'Cancelled' : 'Active';
 
@@ -120,7 +126,11 @@ class PaymentsReportExport implements FromQuery, WithHeadings, WithMapping, Shou
             $payment->getRawOriginal('payment_date') ?? '',
             number_format($exVat, 2, '.', ''),
             $vatAmount !== null ? number_format($vatAmount, 2, '.', '') : '',
-            number_format($totalAmount, 2, '.', ''),
+            number_format($bookingPaymentAmount, 2, '.', ''),
+            number_format($additionalAmount, 2, '.', ''),
+            number_format($totalReceived, 2, '.', ''),
+            $payment->short_payment_note ?? '',
+            $payment->additional_payment_note ?? '',
         ];
     }
 }

@@ -72,10 +72,14 @@ class BookingPaymentController extends Controller
         $updated_bies = User::select('name', 'id')->get();
 
         $booking->load('booking_items', 'customer');
+        $latestPayment = BookingPayment::where('booking_id', $booking->id)
+            ->latest('id')
+            ->first();
         logger()->info($booking);
         $lookups = LookupItem::defaultsForTeam(auth()->user()->team_id);
         return Inertia::render('Admin/Bookings/Payment', [
             'booking' => $booking,
+            'latest_payment' => $latestPayment,
             'gateways' => $gateways,
             'status_payments' => $status_payments,
             'type_pay_options' => $type_pay_options,
@@ -102,8 +106,11 @@ class BookingPaymentController extends Controller
             'lookup_item_id' => 'required|numeric',
             'vat' => 'nullable|numeric|min:0',
             'vat_amount' => 'nullable|numeric|min:0',
+            'additional_amount' => 'nullable|numeric|min:0',
             'voucher_code' => 'nullable|string',
             'redeemer_name' => 'required|string',
+            'short_payment_note' => 'nullable|string',
+            'additional_payment_note' => 'nullable|string',
             'note' => 'nullable|string',
             'updated_by_id' => 'required|exists:users,id',
             'reference' => 'required|string',
@@ -119,19 +126,42 @@ class BookingPaymentController extends Controller
                 $vatRate = (float) ($vatLookup->rate ?? 0);
                 $vatMultiplier = (float) ($vatLookup->multiplier ?: (1 + $vatRate));
                 $paymentTotal = round((float) $validated['ex_vat_amount'], 2);
+                $additionalAmount = round((float) ($validated['additional_amount'] ?? 0), 2);
+                $totalReceived = round($paymentTotal + $additionalAmount, 2);
                 $amountDue = round(max(0, (float) $booking->grand_tot_due - (float) $booking->tot_paid), 2);
 
-                if ($paymentTotal <= 0 || $paymentTotal > $amountDue) {
+                if ($totalReceived <= 0) {
                     throw \Illuminate\Validation\ValidationException::withMessages([
-                        'ex_vat_amount' => "Payment amount must be greater than 0 and no more than the outstanding balance of {$amountDue}.",
+                        'ex_vat_amount' => 'Payment amount must be greater than 0.',
                     ]);
                 }
 
-                if (abs($paymentTotal - $amountDue) > 0.01 && trim((string) ($validated['note'] ?? '')) === '') {
+                if ($paymentTotal > $amountDue) {
                     throw \Illuminate\Validation\ValidationException::withMessages([
-                        'note' => 'A payment note is required when recording a partial or adjusted payment amount.',
+                        'ex_vat_amount' => "Booking payment amount cannot be more than the outstanding balance of {$amountDue}. Use Additional Amount for tips, food, drinks, or merchandise.",
                     ]);
                 }
+
+                $shortPaymentNote = trim((string) ($validated['short_payment_note'] ?? ''));
+                $additionalPaymentNote = trim((string) ($validated['additional_payment_note'] ?? ''));
+
+                if (abs($paymentTotal - $amountDue) > 0.01 && $shortPaymentNote === '') {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'short_payment_note' => 'A short/adjusted payment note is required when the booking payment amount differs from the outstanding balance.',
+                    ]);
+                }
+
+                if ($additionalAmount > 0 && $additionalPaymentNote === '') {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'additional_payment_note' => 'An additional amount note is required when recording tips, food, drinks, merchandise, or other extras.',
+                    ]);
+                }
+
+                $legacyNote = collect([
+                    $shortPaymentNote !== '' ? "Booking payment note: {$shortPaymentNote}" : null,
+                    $additionalPaymentNote !== '' ? "Additional amount note: {$additionalPaymentNote}" : null,
+                    trim((string) ($validated['note'] ?? '')) !== '' ? trim((string) $validated['note']) : null,
+                ])->filter()->implode("\n");
 
                 $paymentExVat = round($paymentTotal / $vatMultiplier, 2);
                 $paymentVat = round($paymentTotal - $paymentExVat, 2);
@@ -150,13 +180,16 @@ class BookingPaymentController extends Controller
                     'lookup_item_id' => $validated['lookup_item_id'],
                     'vat' => $vatRate,
                     'vat_amount' => $paymentVat,
+                    'additional_amount' => $additionalAmount,
+                    'short_payment_note' => $shortPaymentNote ?: null,
+                    'additional_payment_note' => $additionalPaymentNote ?: null,
                     'reference' => $validated['reference'],
                     'gateway_id' => $validated['gateway_id'],
                     'meta' => json_encode(['ip' => request()->ip()]),
                     'payment_date' => $validated['payment_date'],
                     'redeemer_name' => $validated['redeemer_name'] ?? null,
                     'voucher_code' => $validated['voucher_code'] ?? null,
-                    'note' => $validated['note'] ?? null,
+                    'note' => $legacyNote ?: null,
                     'updated_by_id' => $validated['updated_by_id'],
                     'team_id' => $validated['team_id'],
                 ]);
@@ -173,19 +206,23 @@ class BookingPaymentController extends Controller
                     'user_id' => auth()->id(),
                     'properties' => json_encode([
                         'payment_id' => $bookingPayment->id,
-                        'amount' => $paymentTotal,
+                        'booking_amount' => $paymentTotal,
+                        'additional_amount' => $additionalAmount,
+                        'total_received' => $totalReceived,
+                        'short_payment_note' => $shortPaymentNote ?: null,
+                        'additional_payment_note' => $additionalPaymentNote ?: null,
                         'method' => 'admin',
                     ]),
                     'host' => request()->ip(),
                 ]);
 
                 $balance = $newPaidTotal;
-                $booking->booking_items->each(function ($item) use ($validated, &$balance) {
-                    $item->booking_fees->each(function ($fee) use ($validated, &$balance) {
+                $booking->booking_items->each(function ($item) use ($legacyNote, &$balance) {
+                    $item->booking_fees->each(function ($fee) use ($legacyNote, &$balance) {
                         $paidForFee = min((float) $fee->tot_amount, max(0, $balance));
                         $fee->update([
                             'tot_paid' => $paidForFee,
-                            'note' => $validated['note'],
+                            'note' => $legacyNote ?: null,
                         ]);
                         $balance = round($balance - $paidForFee, 2);
                     });
