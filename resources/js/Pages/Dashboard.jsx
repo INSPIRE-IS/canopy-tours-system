@@ -27,7 +27,7 @@ ChartJS.register(
     Filler
 );
 
-export default function Dashboard({ auth, chart1, latestBookings, statusBookings, notifications, customerManifest }) {
+export default function Dashboard({ auth, chart1, latestBookings, statusBookings, notifications, customerManifest, promotionsSummary, discountsSummary }) {
     console.log('chart1', chart1);
     const data = {
         labels: chart1.labels || [],
@@ -91,6 +91,18 @@ export default function Dashboard({ auth, chart1, latestBookings, statusBookings
                                     chartTitle={customerManifest?.chart_title}
                                     fields={customerManifest?.fields}
                                     data={customerManifest?.data}
+                                />
+                            </div>
+                            <div className="flex w-full h-[300px] gap-2">
+                                <BookingsTable
+                                    chartTitle={promotionsSummary?.chart_title}
+                                    fields={promotionsSummary?.fields}
+                                    data={promotionsSummary?.data}
+                                />
+                                <BookingsTable
+                                    chartTitle={discountsSummary?.chart_title}
+                                    fields={discountsSummary?.fields}
+                                    data={discountsSummary?.data}
                                 />
                             </div>
                         </div>

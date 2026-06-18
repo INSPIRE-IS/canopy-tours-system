@@ -3,6 +3,10 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\BookingDiscountItem;
+use App\Models\BookingItem;
+use App\Models\Discount;
+use App\Models\Promotion;
 use Illuminate\Http\Request;
 use LaravelDaily\LaravelCharts\Classes\LaravelChart;
 use Inertia\Inertia;
@@ -204,6 +208,84 @@ class HomeController extends Controller
         ];
 
         //dd($settings5);
+        $promotions = Promotion::with('service:id,name')
+            ->when($teamId, fn($query) => $query->where('team_id', $teamId))
+            ->latest()
+            ->take(10)
+            ->get();
+
+        $promotionUsage = BookingItem::query()
+            ->selectRaw('promotion_id, COUNT(*) as usage_count')
+            ->whereNotNull('promotion_id')
+            ->when($teamId, fn($query) => $query->where('team_id', $teamId))
+            ->groupBy('promotion_id')
+            ->pluck('usage_count', 'promotion_id');
+
+        $settings6 = [
+            'chart_title' => 'Latest Promotions',
+            'fields' => [
+                'name' => '',
+                'promo_code' => '',
+                'status' => '',
+                'usage_count' => '',
+                'service' => 'name',
+            ],
+            'data' => $promotions->map(function ($promotion) use ($promotionUsage) {
+                return [
+                    'name' => $promotion->name,
+                    'promo_code' => $promotion->promo_code,
+                    'status' => $promotion->status === 'active' ? 'Active' : 'Inactive',
+                    'usage_count' => (int) ($promotionUsage[$promotion->id] ?? 0),
+                    'service' => $promotion->service,
+                ];
+            }),
+        ];
+
+        $discounts = Discount::with('services:id,name')
+            ->when($teamId, fn($query) => $query->where('team_id', $teamId))
+            ->latest()
+            ->take(10)
+            ->get();
+
+        $discountUsage = BookingDiscountItem::query()
+            ->selectRaw('discount_id, COUNT(*) as usage_count')
+            ->whereNotNull('discount_id')
+            ->whereHas('booking_discount.booking', function ($query) use ($teamId) {
+                $query->when($teamId, fn($sub) => $sub->where('team_id', $teamId));
+            })
+            ->groupBy('discount_id')
+            ->pluck('usage_count', 'discount_id');
+
+        $legacyDiscountUsage = BookingItem::query()
+            ->selectRaw('discount_id, COUNT(*) as usage_count')
+            ->whereNotNull('discount_id')
+            ->when($teamId, fn($query) => $query->where('team_id', $teamId))
+            ->groupBy('discount_id')
+            ->pluck('usage_count', 'discount_id');
+
+        $settings7 = [
+            'chart_title' => 'Latest Discounts',
+            'fields' => [
+                'name' => '',
+                'applies_to' => '',
+                'status' => '',
+                'usage_count' => '',
+                'services' => '',
+            ],
+            'data' => $discounts->map(function ($discount) use ($discountUsage, $legacyDiscountUsage) {
+                $usageCount = (int) ($discountUsage[$discount->id] ?? 0)
+                    + (int) ($legacyDiscountUsage[$discount->id] ?? 0);
+
+                return [
+                    'name' => $discount->name,
+                    'applies_to' => str_replace('_', ' ', ucfirst($discount->applies_to)),
+                    'status' => 'Active',
+                    'usage_count' => $usageCount,
+                    'services' => $discount->services->pluck('name')->take(2)->implode(', ')
+                        . ($discount->services->count() > 2 ? ' +' . ($discount->services->count() - 2) : ''),
+                ];
+            }),
+        ];
 
         return Inertia::render('Dashboard', [
             'chart1' => [
@@ -234,6 +316,8 @@ class HomeController extends Controller
             'notifications' => $settings3,
             'statusBookings' => $settings4,
             'customerManifest' => $settings5,
+            'promotionsSummary' => $settings6,
+            'discountsSummary' => $settings7,
         ]);
 
         //return view('home', compact('chart1', 'settings2', 'settings3', 'settings4', 'settings5'));
