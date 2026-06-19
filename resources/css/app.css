@@ -120,6 +120,38 @@
     @apply text-[#31B700] font-geist text-[18px] font-semibold leading-[150%] tracking-[-0.36px];
   }
 
+  .booking-data-table-card {
+    @apply mt-6 overflow-hidden rounded-xl border border-gray-200 bg-white;
+  }
+
+  .booking-data-table-header {
+    @apply flex items-center justify-between border-b border-gray-200 px-4 py-3;
+  }
+
+  .booking-data-table {
+    @apply min-w-full divide-y divide-gray-200 text-sm;
+  }
+
+  .booking-data-table-head {
+    @apply bg-gray-50 text-left text-gray-500;
+  }
+
+  .booking-data-table-th {
+    @apply whitespace-nowrap p-3 font-semibold;
+  }
+
+  .booking-data-table-body {
+    @apply divide-y divide-gray-100;
+  }
+
+  .booking-data-table-td {
+    @apply whitespace-nowrap p-3 text-gray-700;
+  }
+
+  .booking-data-table-message {
+    @apply min-w-[220px] max-w-[360px] whitespace-normal p-3 text-gray-700;
+  }
+
   .text-page-heading {
     @apply text-[#161618] font-geist text-[18px] font-medium leading-[150%] tracking-[-0.36px];
   }

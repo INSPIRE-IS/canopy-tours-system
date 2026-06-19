@@ -12,7 +12,7 @@ import { useToast } from "@/Context/ToastContext";
 // import { useRoute } from 'ziggy-js';
 // import { Ziggy } from '@/ziggy'; // the generated file
 
-export default function Dashboard({ auth, booking, latest_payment, lookups, mode, gateways, status_payments, type_pay_options, type_payments, updated_bies, users }) {
+export default function Dashboard({ auth, booking, payment_history = [], lookups, mode, gateways, status_payments, type_pay_options, type_payments, updated_bies, users }) {
     console.log("auth", auth);
     const { props } = usePage();
     const { flash } = props;
@@ -41,15 +41,8 @@ export default function Dashboard({ auth, booking, latest_payment, lookups, mode
     const vatLookup = lookupList.find(l => l.slug === 'vat_rate') || {};
     const vatRate = Number(vatLookup.rate || 0);
     const vatMultiplier = Number(vatLookup.multiplier || (1 + vatRate));
-    const previousShortPaymentNote = latest_payment?.short_payment_note || latest_payment?.note || '';
-    const previousAdditionalPaymentNote = latest_payment?.additional_payment_note || '';
-    const latestPaymentExVat = Number(latest_payment?.ex_vat_amount || 0);
-    const latestPaymentVat = Number(latest_payment?.vat_amount || 0);
-    const latestPaymentAdditional = Number(latest_payment?.additional_amount || 0);
-    const latestPaymentBookingAmount = latestPaymentVat >= latestPaymentExVat && latestPaymentExVat > 0
-        ? latestPaymentExVat
-        : latestPaymentExVat + latestPaymentVat;
-    const latestPaymentTotalReceived = latestPaymentBookingAmount + latestPaymentAdditional;
+    const paymentHistory = Array.isArray(payment_history) ? payment_history : [];
+    const formatMoney = (value) => `R${Number(value || 0).toFixed(2)}`;
     const calculateVatFields = (total) => {
         const paymentTotal = Number(total || 0);
         const exVat = vatMultiplier > 0 ? paymentTotal / vatMultiplier : paymentTotal;
@@ -437,16 +430,6 @@ export default function Dashboard({ auth, booking, latest_payment, lookups, mode
                                 </div>
 
                             </div>
-
-
-                            {latest_payment && (
-                                <div className="rounded-md border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600">
-                                    <div className="font-medium text-gray-900">Previous payment context</div>
-                                    <div>Total received: R{latestPaymentTotalReceived.toFixed(2)}</div>
-                                    {previousShortPaymentNote && <div>Short/adjusted note: {previousShortPaymentNote}</div>}
-                                    {previousAdditionalPaymentNote && <div>Additional note: {previousAdditionalPaymentNote}</div>}
-                                </div>
-                            )}
                             <div className="flex flex-row items-center w-full gap-4 ">
                                 <BlueButton
                                     title="Add Payment Now"
@@ -458,6 +441,59 @@ export default function Dashboard({ auth, booking, latest_payment, lookups, mode
                                 {isFullyPaid && !hasAdditionalPayment && (
                                     <span className="text-sm text-red-500">Booking already paid. Add an additional amount to record extras.</span>
                                 )}
+                            </div>
+
+                            <div className="booking-data-table-card">
+                                <div className="booking-data-table-header">
+                                    <div>
+                                        <h3 className="text-base font-semibold text-gray-900">Payment History</h3>
+                                        <p className="text-xs text-gray-500">Booking payment rows and additional non-booking amounts captured for this booking.</p>
+                                    </div>
+                                </div>
+                                <div className="overflow-x-auto">
+                                    <table className="booking-data-table">
+                                        <thead className="booking-data-table-head">
+                                            <tr>
+                                                <th className="booking-data-table-th">TX Created At</th>
+                                                <th className="booking-data-table-th">Date Received</th>
+                                                <th className="booking-data-table-th">Settled / Due On</th>
+                                                <th className="booking-data-table-th">Status</th>
+                                                <th className="booking-data-table-th">Message</th>
+                                                <th className="booking-data-table-th">TX Reference</th>
+                                                <th className="booking-data-table-th text-right">Amount</th>
+                                                <th className="booking-data-table-th">Method</th>
+                                                <th className="booking-data-table-th">Capturer</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="booking-data-table-body">
+                                            {paymentHistory.length > 0 ? (
+                                                paymentHistory.map((payment) => (
+                                                    <tr key={payment.id} className="hover:bg-gray-50">
+                                                        <td className="booking-data-table-td">{payment.created_at || '-'}</td>
+                                                        <td className="booking-data-table-td">{payment.payment_date || '-'}</td>
+                                                        <td className="booking-data-table-td">{payment.settled_due_on || '-'}</td>
+                                                        <td className="booking-data-table-td">
+                                                            <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-700">
+                                                                {payment.status || 'Success'}
+                                                            </span>
+                                                        </td>
+                                                        <td className="booking-data-table-message">{payment.message || '-'}</td>
+                                                        <td className="booking-data-table-td">{payment.reference || '-'}</td>
+                                                        <td className="booking-data-table-td text-right font-medium text-gray-900">{formatMoney(payment.amount)}</td>
+                                                        <td className="booking-data-table-td">{payment.method || '-'}</td>
+                                                        <td className="booking-data-table-td">{payment.capturer || '-'}</td>
+                                                    </tr>
+                                                ))
+                                            ) : (
+                                                <tr>
+                                                    <td className="p-4 text-sm text-gray-500" colSpan="9">
+                                                        No payments have been recorded for this booking yet.
+                                                    </td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
                         </div>
                     )}

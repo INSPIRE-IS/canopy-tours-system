@@ -272,6 +272,9 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
         if (tool === 'resend_invoice') {
             router.get(route('admin.invoices.resend-invoice', { booking_id: booking.id }));
         }
+        if (tool === 'add_payment') {
+            router.get(route('admin.booking-payments.create', booking.id));
+        }
         if (tool === 'manifest') {
             setSelectedManifests(booking?.customers);
             setSelectedManifest(customer);

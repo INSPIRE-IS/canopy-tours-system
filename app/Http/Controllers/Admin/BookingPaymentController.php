@@ -75,11 +75,41 @@ class BookingPaymentController extends Controller
         $latestPayment = BookingPayment::where('booking_id', $booking->id)
             ->latest('id')
             ->first();
+        $paymentHistory = BookingPayment::with(['type_payment', 'status_payment', 'updated_by'])
+            ->where('booking_id', $booking->id)
+            ->latest('id')
+            ->get()
+            ->map(function (BookingPayment $payment) use ($booking) {
+                $exVatAmount = (float) ($payment->ex_vat_amount ?? 0);
+                $vatAmount = (float) ($payment->vat_amount ?? 0);
+                $additionalAmount = (float) ($payment->additional_amount ?? 0);
+                $bookingPaymentAmount = $vatAmount >= $exVatAmount && $exVatAmount > 0
+                    ? $exVatAmount
+                    : $exVatAmount + $vatAmount;
+                $message = collect([
+                    $payment->short_payment_note,
+                    $payment->additional_payment_note,
+                ])->filter()->implode(' | ');
+
+                return [
+                    'id' => $payment->id,
+                    'created_at' => optional($payment->created_at)->format('Y-m-d H:i'),
+                    'payment_date' => $payment->getRawOriginal('payment_date'),
+                    'settled_due_on' => $booking->getRawOriginal('due_date'),
+                    'status' => 'success',
+                    'message' => $message ?: ($payment->note ?? ''),
+                    'reference' => $payment->reference,
+                    'amount' => round($bookingPaymentAmount + $additionalAmount, 2),
+                    'method' => $payment->type_payment?->name ?? '',
+                    'capturer' => $payment->updated_by?->name ?? '',
+                ];
+            });
         logger()->info($booking);
         $lookups = LookupItem::defaultsForTeam(auth()->user()->team_id);
         return Inertia::render('Admin/Bookings/Payment', [
             'booking' => $booking,
             'latest_payment' => $latestPayment,
+            'payment_history' => $paymentHistory,
             'gateways' => $gateways,
             'status_payments' => $status_payments,
             'type_pay_options' => $type_pay_options,
