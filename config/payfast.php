@@ -11,4 +11,5 @@ return [
     'cancel_url' => env('PAYFAST_CANCEL_URL'),
     'notify_url' => env('PAYFAST_NOTIFY_URL'),
     'trust_return' => filter_var(env('PAYFAST_TRUST_RETURN', false), FILTER_VALIDATE_BOOL),
+    'gateway_config_key' => env('PAYMENT_GATEWAY_CONFIG_KEY', env('APP_KEY')),
 ];
