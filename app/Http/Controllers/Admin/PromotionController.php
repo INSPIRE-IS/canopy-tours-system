@@ -10,6 +10,7 @@ use App\Models\Season;
 use App\Models\Service;
 use App\Models\TypeDay;
 use Carbon\Carbon;
+use Gate;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -19,6 +20,7 @@ class PromotionController extends Controller
 {
     public function index(Request $request)
     {
+        abort_if(Gate::denies('promotions_access'), 403);
         $search = $request->get('search', '');
         $sort = $request->get('sort', 'id');
         $direction = $request->get('direction', 'desc');

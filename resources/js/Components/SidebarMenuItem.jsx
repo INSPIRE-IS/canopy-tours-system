@@ -2,11 +2,11 @@ import { Link } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 import { icons } from '../icons';
 
-export default function SidebarMenuLink({ label, isOpen, url = null, params = null, iconName: iconName, submenuItems = [] }) {
+export default function SidebarMenuLink({ label, isOpen, url = null, params = null, iconName: iconName, submenuItems = [], activeRoutes = [] }) {
   const [open, setOpen] = useState(false);
   const Icon = iconName ? icons[iconName] : null;
   const hasSubmenu = submenuItems.length > 0;
-  const isActive = !!url && route().current(url);
+  const isActive = (!!url && route().current(url)) || activeRoutes.some((activeRoute) => route().current(activeRoute));
 
   useEffect(() => {
     if (!isOpen) setOpen(false);

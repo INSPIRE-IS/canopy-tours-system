@@ -43,8 +43,9 @@ class HandleInertiaRequests extends Middleware
 
         if ($user) {
             $user->load('roles.permissions', 'team', 'alerts');
-            $permissions = $user?->roles->first()?->permissions
-                ->pluck('name') // assuming 'title' == 'name'
+            $permissions = $user->roles
+                ->flatMap(fn($role) => $role->permissions->pluck('name'))
+                ->unique()
                 ->mapWithKeys(fn($name) => [$name => true])
                 ->all();
             $teams = Team::all();

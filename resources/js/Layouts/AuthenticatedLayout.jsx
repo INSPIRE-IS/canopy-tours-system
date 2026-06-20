@@ -13,6 +13,7 @@ export default function AppLayout({ user, children }) {
 
 
     const { auth, flash, errors, translations, permissions } = usePage().props;
+    const currentUser = user ?? auth?.user;
     const { data, setData, post, reset, processing } = useForm({
         team_id: "",
     });
@@ -231,6 +232,10 @@ export default function AppLayout({ user, children }) {
     ];
 
     const currentHeader = headerConfig.find(cfg => route().current(cfg.match));
+    const canAccessMarketing = permissions?.markets_access
+        || permissions?.vouchers_access
+        || permissions?.discounts_access
+        || permissions?.promotions_access;
 
     function selectOption(dropdownId, value) {
         console.log("apply changes to", dropdownId);
@@ -407,11 +412,16 @@ export default function AppLayout({ user, children }) {
                             iconName="services"
                         />
                     )}
-                    {permissions?.markets_access && (
+                    {canAccessMarketing && (
                         <SidebarMenuItem
                             label="Marketing"
                             isOpen={isOpen}
                             url='admin.discounts.index'
+                            activeRoutes={[
+                                'admin.vouchers.*',
+                                'admin.discounts.*',
+                                'admin.promotions.*',
+                            ]}
                             iconName="services"
                         />
                     )}
@@ -483,8 +493,8 @@ export default function AppLayout({ user, children }) {
                         <div className=" w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center text-sm font-semibold">
                             {icons.user}
                         </div>
-                        <div className={`${isOpen ? '' : 'hidden'}flex flex-col text-sm`}>
-                            <span className={`${isOpen ? '' : 'hidden'} font-medium text-gray-800`}>{user?.name}</span>
+                        <div className={`${isOpen ? '' : 'hidden'} flex flex-col text-sm`}>
+                            <span className={`${isOpen ? '' : 'hidden'} font-medium text-gray-800`}>{currentUser?.name}</span>
                             {/* <span className={`${isOpen ? '' : 'hidden'} text-gray-500 text-xs`}>{user?.email}</span> */}
                         </div>
                         {/* <div className={`${isOpen ? '' : 'hidden'}`}>
