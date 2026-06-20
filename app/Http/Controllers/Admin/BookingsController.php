@@ -187,34 +187,56 @@ class BookingsController extends Controller
         }
     }
 
-    public function index()
+    public function index(Request $request)
     {
 
         abort_if(Gate::denies('bookings_access'), Response::HTTP_FORBIDDEN, '403 Forbidden');
+        $includeCancelled = $request->boolean('include_cancelled');
         //$bookings = Booking::all();
         // dd(auth()->user()->team_id);
 
         //$bookings->load("booking_payments");
         //echo $bookings;
-        $bookings = Booking::with([
+        $bookingsQuery = Booking::with([
             'booking_payments',
         ])
-            ->where('team_id', auth()->user()->team_id)
-            ->get();
+            ->where('team_id', auth()->user()->team_id);
 
-        $booking_items = BookingItem::with([
-            'booking.files',
+        if ($includeCancelled) {
+            $bookingsQuery->withTrashed();
+        }
+
+        $bookings = $bookingsQuery->get();
+
+        $bookingItemRelations = [
+            'booking' => function ($query) use ($includeCancelled) {
+                if ($includeCancelled) {
+                    $query->withTrashed();
+                }
+                $query->with('files');
+            },
             'customers',
             'customer_manifests',
             'booking_detail',
             'booking_fee',
-            'booking_inventory',
+            'booking_inventory' => function ($query) use ($includeCancelled) {
+                if ($includeCancelled) {
+                    $query->withTrashed();
+                }
+            },
             'booking_inventory.inventory_time_slot',
             'service',
             'season',
-        ])
-            ->where('team_id', auth()->user()->team_id)
-            ->get();
+        ];
+
+        $bookingItemsQuery = BookingItem::with($bookingItemRelations)
+            ->where('team_id', auth()->user()->team_id);
+
+        if ($includeCancelled) {
+            $bookingItemsQuery->withTrashed();
+        }
+
+        $booking_items = $bookingItemsQuery->get();
         //dd($booking_items);
         $services = Service::with('seasons', 'seasons.inventory.inventory_time_slots')->get();
 
@@ -229,6 +251,16 @@ class BookingsController extends Controller
                 $service = $booking_item->service ?? Service::find($booking_item->service_id);
                 $timeSlot = $booking_item->booking_inventory?->inventory_time_slot
                     ?? InventoryTimeSlot::find($booking_item->booking_inventory?->inventory_time_slot_id);
+                $bookingDate = $booking_item->booking_inventory?->getRawOriginal('date');
+                $capacityOverride = null;
+                if ($bookingDate && $timeSlot?->inventory_id && $timeSlot?->id) {
+                    $capacityOverride = InventorySlotRange::where('inventory_id', $timeSlot->inventory_id)
+                        ->where('time_slot_id', $timeSlot->id)
+                        ->whereDate('start_date', '<=', $bookingDate)
+                        ->whereDate('end_date', '>=', $bookingDate)
+                        ->value('capacity_override');
+                }
+                $maxPax = $capacityOverride !== null ? (int) $capacityOverride : ($service->capacity ?? 0);
 
                 $start_time = $timeSlot?->start_time ? Carbon::parse($timeSlot->start_time) : null;
 
@@ -306,7 +338,7 @@ class BookingsController extends Controller
                     'lead_phone' => $leadPhone,
                     'lead_id' => $leadCustomer?->id ?? $booking_item->booking->customer_id,
                     'bookingPax' => $booking_item->booking_inventory->pax, // $booking->customers->count(),
-                    'maxPax' => $service->capacity, // $booking->customers->count(),
+                    'maxPax' => $maxPax, // date override capacity when present, otherwise service capacity
                     'service' => $booking_item->service->name,
                     'time_start' => $start_time?->format('H:i:s'),
                     'time_end' => $end_time?->format('H:i:s'),
@@ -322,6 +354,7 @@ class BookingsController extends Controller
                     'season_id' => $booking_item->season_id,
                     'booking_note' => $latestBookingNote,
                     'booking_notes' => $bookingNotes,
+                    'is_cancelled' => $booking_item->trashed() || ($booking_item->booking && $booking_item->booking->trashed()),
                 ];
                 return $info;
             } catch (\Throwable $e) {
@@ -3208,6 +3241,81 @@ class BookingsController extends Controller
         $booking->delete();
 
         return back();
+    }
+
+    public function reinstate(Request $request, $booking)
+    {
+        $forceCapacityOverride = $request->boolean('force_capacity_override');
+        $booking = Booking::withTrashed()->findOrFail($booking);
+
+        if ((int) $booking->team_id !== (int) auth()->user()->team_id) {
+            abort(Response::HTTP_FORBIDDEN, '403 Forbidden');
+        }
+
+        $items = BookingItem::withTrashed()
+            ->with([
+                'service',
+                'booking_inventory' => fn($query) => $query->withTrashed(),
+            ])
+            ->where('booking_id', $booking->id)
+            ->where('team_id', auth()->user()->team_id)
+            ->get();
+
+        if ($items->isEmpty()) {
+            return back()->with('error', 'No booking items found to reinstate.');
+        }
+
+        foreach ($items as $item) {
+            $inventory = $item->booking_inventory;
+
+            if (!$inventory || !$inventory->inventory_time_slot_id || !$inventory->getRawOriginal('date')) {
+                return back()->with('error', 'This booking cannot be reinstated because its original slot details are missing.');
+            }
+
+            try {
+                $this->validateSlotCapacity(
+                    $item->service,
+                    $inventory->getRawOriginal('date'),
+                    (int) $inventory->inventory_time_slot_id,
+                    (int) $inventory->pax,
+                    (int) auth()->user()->team_id,
+                    $item->trashed() ? null : $item->id
+                );
+            } catch (ValidationException $e) {
+                if (!$forceCapacityOverride) {
+                    return back()->with('error', collect($e->errors())->flatten()->first() ?: 'This booking cannot be reinstated because the slot is full.');
+                }
+            }
+        }
+
+        DB::transaction(function () use ($booking, $items, $forceCapacityOverride) {
+            if ($booking->trashed()) {
+                $booking->restore();
+            }
+
+            foreach ($items as $item) {
+                if ($item->trashed()) {
+                    $item->restore();
+                }
+
+                BookingInventory::withTrashed()
+                    ->where('booking_item_id', $item->id)
+                    ->restore();
+                BookingFee::withTrashed()
+                    ->where('booking_item_id', $item->id)
+                    ->restore();
+                BookingDetail::withTrashed()
+                    ->where('booking_item_id', $item->id)
+                    ->restore();
+            }
+
+            $this->logAudit('Booking reinstated', $booking, $items->first(), [
+                'reason' => 'manual',
+                'force_capacity_override' => $forceCapacityOverride,
+            ]);
+        });
+
+        return back()->with('success', 'Booking reinstated.');
     }
 
     public function cancelSlot(Request $request)

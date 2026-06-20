@@ -37,6 +37,7 @@ export default function BookingToolsModal({ booking, position, onClose, BookingT
     }, [position]);
 
     if (!booking || !position) return null;
+    const isCancelled = !!booking?.is_cancelled;
 
     return (
         <div
@@ -52,7 +53,11 @@ export default function BookingToolsModal({ booking, position, onClose, BookingT
 
                 <div className="flex flex-col gap-2">
 
-                    <button type="button" onClick={() => BookingToolClick('cancel_bookings', booking)} className="btn-tool-red">{icons.cancel_all_bookings} Cancel Bookings</button>
+                    {isCancelled ? (
+                        <button type="button" onClick={() => BookingToolClick('reinstate_booking', booking)} className="btn-tool">{icons.check_in} Reinstate Booking</button>
+                    ) : (
+                        <button type="button" onClick={() => BookingToolClick('cancel_bookings', booking)} className="btn-tool-red">{icons.cancel_all_bookings} Cancel Bookings</button>
+                    )}
                 </div>
             </div>
         </div>

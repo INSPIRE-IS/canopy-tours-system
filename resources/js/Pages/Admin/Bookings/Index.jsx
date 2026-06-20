@@ -70,6 +70,9 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
     const [showEmptySlots, setShowEmptySlots] = useState(() => {
         return sessionStorage.getItem('bookings.showEmptySlots') === 'true';
     });
+    const [showCancelledBookings, setShowCancelledBookings] = useState(() => {
+        return new URLSearchParams(window.location.search).get('include_cancelled') === '1';
+    });
     const [showServices, setShowServices] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [searchOpen, setSearchOpen] = useState(false);
@@ -124,6 +127,26 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
     const handleConfirmCancel = () => {
         if (!confirmAction?.booking) {
             setConfirmOpen(false);
+            return;
+        }
+
+        if (confirmAction.type === 'reinstate') {
+            router.post(route('admin.bookings.reinstate', confirmAction.booking.id), {
+                force_capacity_override: !!confirmAction.forceCapacityOverride,
+            }, {
+                onSuccess: () => {
+                    setConfirmAction(null);
+                    setConfirmOpen(false);
+                    setSelectedBooking(null);
+                    setShowCancelledBookings(false);
+                    router.visit(route('admin.bookings.index'));
+                },
+                onError: () => {
+                    setConfirmAction(null);
+                    setConfirmOpen(false);
+                    setSelectedBooking(null);
+                }
+            });
             return;
         }
 
@@ -254,6 +277,11 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
             setSelectedBooking(booking);
             setConfirmAction({ type: 'slot', booking });
         }
+        if (tool === 'reinstate_booking') {
+            setConfirmOpen(true);
+            setSelectedBooking(booking);
+            setConfirmAction(buildReinstateAction(booking));
+        }
     };
 
     const ViewBookingClick = (booking) => {
@@ -330,6 +358,28 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
             setSelectedBooking(booking);
             setConfirmAction({ type: 'booking', booking });
         }
+        if (tool === 'reinstate_booking') {
+            setConfirmOpen(true);
+            setSelectedBooking(booking);
+            setConfirmAction(buildReinstateAction(booking));
+        }
+    };
+
+    const buildReinstateAction = (booking) => {
+        const activeSlotPax = Number(booking?.active_slot_pax || 0);
+        const bookingPax = Number(booking?.bookingPax || 0);
+        const maxPax = Number(booking?.maxPax || 0);
+        const projectedPax = activeSlotPax + bookingPax;
+        const exceedsCapacity = maxPax > 0 && projectedPax > maxPax;
+
+        return {
+            type: 'reinstate',
+            booking,
+            forceCapacityOverride: exceedsCapacity,
+            capacityWarning: exceedsCapacity
+                ? `Reinstating this booking will take the slot to ${projectedPax}/${maxPax} pax. Tick the override confirmation to reinstate anyway.`
+                : null,
+        };
     };
 
     const getTimeRange = (startTime, duration) => {
@@ -604,13 +654,18 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                 totalPrice: 0,
                 totalPaid: 0,
                 totalDue: 0,
+                cancelledCount: 0,
                 bookings: [],
             };
 
-            existing.totalPax += Number(item.bookingPax || 0);
-            existing.totalPrice += Number(item.price || 0);
-            existing.totalPaid += Number(item.paid || 0);
-            existing.totalDue += Number(item.due || 0);
+            if (item.is_cancelled) {
+                existing.cancelledCount += 1;
+            } else {
+                existing.totalPax += Number(item.bookingPax || 0);
+                existing.totalPrice += Number(item.price || 0);
+                existing.totalPaid += Number(item.paid || 0);
+                existing.totalDue += Number(item.due || 0);
+            }
             existing.bookings.push(item);
             grouped.set(key, existing);
         });
@@ -638,6 +693,7 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                         totalPrice: 0,
                         totalPaid: 0,
                         totalDue: 0,
+                        cancelledCount: 0,
                         bookings: [],
                     });
                 });
@@ -646,6 +702,9 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
 
         const rows = Array.from(grouped.values())
             .filter((row) => (isSearchActive ? row.bookings.length > 0 : showEmptySlots || row.bookings.length > 0));
+        rows.forEach((row) => {
+            row.bookings.sort((a, b) => Number(!!a.is_cancelled) - Number(!!b.is_cancelled));
+        });
         rows.sort((a, b) => {
             const aDate = a.booking_date || '';
             const bDate = b.booking_date || '';
@@ -674,7 +733,7 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
 
     useEffect(() => {
         setSlotRows(buildSlotRows());
-    }, [filteredBookings, services, viewMode, selectedDate, showEmptySlots]);
+    }, [filteredBookings, services, viewMode, selectedDate, showEmptySlots, showCancelledBookings]);
 
     useEffect(() => {
         sessionStorage.setItem('bookings.selectedDate', selectedDate || '');
@@ -699,6 +758,15 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
     useEffect(() => {
         sessionStorage.setItem('bookings.showEmptySlots', showEmptySlots ? 'true' : 'false');
     }, [showEmptySlots]);
+
+    const handleShowCancelledChange = (checked) => {
+        setShowCancelledBookings(checked);
+        router.get(
+            route('admin.bookings.index'),
+            checked ? { include_cancelled: 1 } : {},
+            { preserveScroll: true, preserveState: true, replace: true }
+        );
+    };
 
     const handleTodayClick = () => {
         // "Today" should reset the UI into a consistent state regardless of current view.
@@ -893,6 +961,14 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                                     />
                                     Show empty slots
                                 </label>
+                                <label className="flex items-center gap-2 text-sm text-gray-700">
+                                    <input
+                                        type="checkbox"
+                                        checked={showCancelledBookings}
+                                        onChange={(e) => handleShowCancelledChange(e.target.checked)}
+                                    />
+                                    Show cancelled bookings
+                                </label>
 
                                 <div className="relative" ref={servicesRef}>
                                     <button onClick={() => setShowServices(!showServices)}
@@ -1064,7 +1140,14 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                                                             />
                                                         </div>
                                                     </td>
-                                                    <td className="w-[95px] p-3">{row.totalPax} ({row.maxPax})</td>
+                                                    <td className="w-[95px] p-3">
+                                                        <div>{row.totalPax} ({row.maxPax})</div>
+                                                        {row.cancelledCount > 0 && (
+                                                            <span className="mt-1 inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+                                                                {row.cancelledCount} cancelled
+                                                            </span>
+                                                        )}
+                                                    </td>
                                                     <td className="w-[268px] p-3">{row.service}</td>
                                                     <td className="w-[132px] p-3">R{Number(row.totalPrice || 0).toFixed(2)}</td>
                                                     <td className="w-[111px] p-3">R{Number(row.totalPaid || 0).toFixed(2)}</td>
@@ -1091,7 +1174,17 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                                                             </button>
                                                         )}
                                                         {row.bookings.length > 0 && (
-                                                            <button type='button' onClick={(e) => openBookingToolsModal(e, row.bookings[0])} className="btn-tool">{icons.tools} Tools</button>
+                                                            <button
+                                                                type='button'
+                                                                onClick={(e) => openBookingToolsModal(e, {
+                                                                    ...row.bookings[0],
+                                                                    active_slot_pax: row.totalPax,
+                                                                    maxPax: row.maxPax,
+                                                                })}
+                                                                className="btn-tool"
+                                                            >
+                                                                {icons.tools} Tools
+                                                            </button>
                                                         )}
                                                     </td>
                                                 </tr>
@@ -1100,14 +1193,23 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                                                     row.bookings.length > 0 ? (
                                                         <>
                                                             {row.bookings.map((booking, index) => (
-                                                                <tr key={`${row.key}-${index}`} className="bg-gray-50">
+                                                                <tr key={`${row.key}-${index}`} className={booking.is_cancelled ? 'bg-amber-50' : 'bg-gray-50'}>
                                                                     <td className="w-[164px] p-3">
-                                                                        <Link
-                                                                            href={route('admin.bookings.add', booking.id)}
-                                                                            className="text-blue-600 hover:underline"
-                                                                        >
-                                                                            {booking.reference}
-                                                                        </Link>
+                                                                        {booking.is_cancelled ? (
+                                                                            <span className="text-gray-700">{booking.reference}</span>
+                                                                        ) : (
+                                                                            <Link
+                                                                                href={route('admin.bookings.add', booking.id)}
+                                                                                className="text-blue-600 hover:underline"
+                                                                            >
+                                                                                {booking.reference}
+                                                                            </Link>
+                                                                        )}
+                                                                        {booking.is_cancelled && (
+                                                                            <span className="ml-2 inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+                                                                                Cancelled
+                                                                            </span>
+                                                                        )}
                                                                     </td>
                                                                     <td className="w-[95px] p-3">{booking.bookingPax}</td>
                                                                     <td className="w-[268px] p-3">
@@ -1126,7 +1228,8 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                                                                             <button
                                                                                 type="button"
                                                                                 onClick={() => router.get(route('admin.bookings.add', booking.id))}
-                                                                                className="btn-tool"
+                                                                                className={`btn-tool ${booking.is_cancelled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                                                disabled={booking.is_cancelled}
                                                                             >
                                                                                 {icons.eye} View
                                                                             </button>
@@ -1175,7 +1278,11 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                                                                             </div>
                                                                             <button
                                                                                 type="button"
-                                                                                onClick={(e) => openCustomerToolsModal(e, booking, booking?.customers?.[0], `${row.key}-${index}`)}
+                                                                                onClick={(e) => openCustomerToolsModal(e, {
+                                                                                    ...booking,
+                                                                                    active_slot_pax: row.totalPax,
+                                                                                    maxPax: row.maxPax,
+                                                                                }, booking?.customers?.[0], `${row.key}-${index}`)}
                                                                                 className="btn-tool"
                                                                             >
                                                                                 {icons.tools} Tools
@@ -1252,12 +1359,20 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
 
                 {confirmOpen && (
                     <ConfirmModal
-                        title={confirmAction?.type === 'slot' ? 'Cancel all bookings in this slot?' : 'Cancel this booking?'}
-                        message={confirmAction?.type === 'slot'
-                            ? 'This will cancel all bookings for this date, time slot, and service.'
-                            : 'This action cannot be undone.'}
-                        confirmText="Yes, cancel"
-                        cancelText="Keep Booking"
+                        title={confirmAction?.type === 'reinstate'
+                            ? 'Reinstate this booking?'
+                            : confirmAction?.type === 'slot'
+                                ? 'Cancel all bookings in this slot?'
+                                : 'Cancel this booking?'}
+                        message={confirmAction?.type === 'reinstate'
+                            ? (confirmAction.capacityWarning || 'This will restore the cancelled booking if the time slot still has enough capacity.')
+                            : confirmAction?.type === 'slot'
+                                ? 'This will cancel all bookings for this date, time slot, and service.'
+                                : 'This action can be reversed later by showing cancelled bookings and reinstating the booking.'}
+                        confirmText={confirmAction?.type === 'reinstate' ? 'Yes, reinstate' : 'Yes, cancel'}
+                        cancelText={confirmAction?.type === 'reinstate' ? 'Keep Cancelled' : 'Keep Booking'}
+                        requireConfirmationCheckbox={!!confirmAction?.forceCapacityOverride}
+                        confirmationLabel="I understand this reinstate will exceed the current slot capacity and want to override it."
                         onConfirm={handleConfirmCancel}
                         onClose={() => {
                             setConfirmOpen(false);

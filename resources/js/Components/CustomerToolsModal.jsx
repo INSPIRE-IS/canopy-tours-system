@@ -38,6 +38,7 @@ export default function CustomerToolsModal({ index, booking, customer, position,
 
     if (!customer || !position) return null;
 
+    const isCancelled = !!booking?.is_cancelled;
     const toolButtons = [
         { id: 'check_in', label: 'Check-In', icon: icons.check_in, className: 'btn-tool' },
         { id: 'feedback', label: 'Feedback', icon: icons.message, className: 'btn-tool' },
@@ -48,7 +49,9 @@ export default function CustomerToolsModal({ index, booking, customer, position,
         { id: 'edit_booking', label: 'Edit Booking', icon: icons.edit_timeslot, className: 'btn-tool' },
         { id: 'message_guest', label: 'Message Guests', icon: icons.message, className: 'btn-tool' },
         { id: 'booking_notes', label: 'Booking Note', icon: icons.notes, className: 'btn-tool' },
-        { id: 'cancel_booking', label: 'Cancel Booking', icon: icons.cancel_all_bookings, className: 'btn-tool-red' },
+        isCancelled
+            ? { id: 'reinstate_booking', label: 'Reinstate Booking', icon: icons.check_in, className: 'btn-tool' }
+            : { id: 'cancel_booking', label: 'Cancel Booking', icon: icons.cancel_all_bookings, className: 'btn-tool-red' },
     ];
 
     const visibleButtons = Array.isArray(allowedTools) && allowedTools.length > 0
