@@ -21,7 +21,14 @@ class ReencryptGatewayConfigs extends Command
             ->orderBy('id')
             ->each(function (GatewayConfig $gatewayConfig) use ($dryRun, &$updated, &$skipped) {
                 $rawConfig = $gatewayConfig->getRawOriginal('config');
-                $config = $gatewayConfig->config;
+
+                try {
+                    $config = $gatewayConfig->config;
+                } catch (\Throwable $exception) {
+                    $this->warn("Skipped gateway config {$gatewayConfig->id}: {$exception->getMessage()}");
+                    $skipped++;
+                    return;
+                }
 
                 if (!empty($rawConfig) && empty($config)) {
                     $this->warn("Skipped gateway config {$gatewayConfig->id}: existing config could not be decrypted.");

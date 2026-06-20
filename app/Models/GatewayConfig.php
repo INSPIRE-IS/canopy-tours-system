@@ -4,7 +4,6 @@ namespace App\Models;
 
 use App\Traits\Auditable;
 use DateTimeInterface;
-use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Encryption\Encrypter;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -68,15 +67,24 @@ class GatewayConfig extends Model
             try {
                 $legacy = Crypt::decrypt($value);
                 return is_array($legacy) ? $legacy : [];
-            } catch (DecryptException $legacyException) {
-                Log::warning('Gateway config could not be decrypted', [
-                    'gateway_config_id' => $this->id,
-                    'gateway_id' => $this->gateway_id,
-                    'team_id' => $this->team_id,
-                    'message' => $legacyException->getMessage(),
-                ]);
+            } catch (\Throwable $legacyException) {
+                try {
+                    $legacyString = Crypt::decryptString($value);
+                    $decoded = json_decode($legacyString, true);
 
-                return [];
+                    return is_array($decoded) ? $decoded : [];
+                } catch (\Throwable $legacyStringException) {
+                    Log::warning('Gateway config could not be decrypted', [
+                        'gateway_config_id' => $this->id,
+                        'gateway_id' => $this->gateway_id,
+                        'team_id' => $this->team_id,
+                        'custom_message' => $customException->getMessage(),
+                        'legacy_message' => $legacyException->getMessage(),
+                        'legacy_string_message' => $legacyStringException->getMessage(),
+                    ]);
+
+                    return [];
+                }
             }
         }
     }

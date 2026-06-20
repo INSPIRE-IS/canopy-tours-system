@@ -190,6 +190,7 @@ class InventoryController extends Controller
             // return redirect()->route('admin.inventories.index');
         } catch (\Throwable $e) {
             // Log the full error for debugging
+            $data = $request->except(['day_slots', 'time_slots', 'allow_slot_cutoff_hours', 'allow_slot_funneling']);
             Log::error('Inventory failed', [
                 'message' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
