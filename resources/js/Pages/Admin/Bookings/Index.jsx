@@ -23,7 +23,7 @@ import CustomDatePicker from '@/Components/CustomDatePicker';
 // import { useRoute } from 'ziggy-js';
 // import { Ziggy } from '@/ziggy'; // the generated file
 
-export default function Dashboard({ auth, bookings, activities, lookups, services }) {
+export default function Dashboard({ auth, bookings, activities, lookups, services, closeouts = [] }) {
     const VIEW_MODES = {
         DAY: 'day',
         RANGE: 'range',
@@ -417,6 +417,82 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
         return isWithinInterval(date, { start: startOfDay(start), end: endOfDay(end) });
     };
 
+    const isDateInRange = (dateStr, startStr, endStr) => {
+        if (!dateStr || !startStr || !endStr) return false;
+        const date = parseISO(dateStr);
+        const start = parseISO(startStr);
+        const end = parseISO(endStr);
+        if (!isValid(date) || !isValid(start) || !isValid(end)) return false;
+        return isWithinInterval(date, { start: startOfDay(start), end: endOfDay(end) });
+    };
+
+    const getIsoDay = (dateStr) => {
+        const date = parseISO(dateStr);
+        return isValid(date) ? Number(format(date, 'i')) : null;
+    };
+
+    const isSlotClosedOut = (serviceId, seasonId, dateStr, slotId) => {
+        const isoDay = getIsoDay(dateStr);
+        return closeouts.some((closeout) => {
+            if (Number(closeout.service_id) !== Number(serviceId) || Number(closeout.season_id) !== Number(seasonId)) {
+                return false;
+            }
+            if (!isDateInRange(dateStr, closeout.start_date, closeout.end_date)) {
+                return false;
+            }
+
+            const blockedSlots = closeout.closeout_day_time_slots || [];
+            if (blockedSlots.length === 0) {
+                return true;
+            }
+
+            return blockedSlots.some((blockedSlot) => {
+                return Number(blockedSlot.day_id) === Number(isoDay)
+                    && Number(blockedSlot.time_slot_id) === Number(slotId);
+            });
+        });
+    };
+
+    const getAvailableSlotsForDate = (service, season, dateStr) => {
+        const inventory = season?.inventory;
+        if (!inventory) return [];
+
+        const allSlots = inventory.inventory_time_slots || [];
+        const slotById = new Map(allSlots.map((slot) => [Number(slot.id), slot]));
+        const overrideRanges = (inventory.inventory_slot_ranges || [])
+            .filter((range) => isDateInRange(dateStr, range.start_date, range.end_date));
+
+        let slots = [];
+        if (overrideRanges.length > 0) {
+            slots = overrideRanges
+                .map((range) => {
+                    const slot = slotById.get(Number(range.time_slot_id));
+                    if (!slot) return null;
+                    return {
+                        ...slot,
+                        maxPax: range.capacity_override ?? service.capacity ?? 0,
+                    };
+                })
+                .filter(Boolean);
+        } else {
+            const isoDay = getIsoDay(dateStr);
+            const allowedDays = (inventory.inventory_type_days || []).map((day) => Number(day.type_day_id));
+            if (!allowedDays.includes(Number(isoDay))) {
+                return [];
+            }
+
+            slots = allSlots
+                .filter((slot) => !slot.is_override_only)
+                .map((slot) => ({
+                    ...slot,
+                    maxPax: service.capacity ?? 0,
+                }));
+        }
+
+        const uniqueSlots = Array.from(new Map(slots.map((slot) => [Number(slot.id), slot])).values());
+        return uniqueSlots.filter((slot) => !isSlotClosedOut(service.id, season.id, dateStr, slot.id));
+    };
+
     const handleExportCSV = (bookings) => {
         const headers = [
             "Booking ID",
@@ -675,7 +751,7 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
             services?.forEach((service) => {
                 const activeSeason = service?.seasons?.find((season) => isDateWithinSeason(day, season));
                 if (!activeSeason) return;
-                const slots = activeSeason?.inventory?.inventory_time_slots || [];
+                const slots = getAvailableSlotsForDate(service, activeSeason, day);
                 slots.forEach((slot) => {
                     const key = `${day}|${slot.id}|${service.id}`;
                     if (grouped.has(key)) return;
@@ -689,7 +765,7 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                         time_start: start,
                         time_end: end,
                         totalPax: 0,
-                        maxPax: service.capacity ?? 0,
+                        maxPax: slot.maxPax ?? service.capacity ?? 0,
                         totalPrice: 0,
                         totalPaid: 0,
                         totalDue: 0,
@@ -733,7 +809,7 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
 
     useEffect(() => {
         setSlotRows(buildSlotRows());
-    }, [filteredBookings, services, viewMode, selectedDate, showEmptySlots, showCancelledBookings]);
+    }, [filteredBookings, services, closeouts, viewMode, selectedDate, showEmptySlots, showCancelledBookings]);
 
     useEffect(() => {
         sessionStorage.setItem('bookings.selectedDate', selectedDate || '');

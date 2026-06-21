@@ -238,7 +238,12 @@ class BookingsController extends Controller
 
         $booking_items = $bookingItemsQuery->get();
         //dd($booking_items);
-        $services = Service::with('seasons', 'seasons.inventory.inventory_time_slots')->get();
+        $services = Service::with([
+            'seasons',
+            'seasons.inventory.inventory_type_days',
+            'seasons.inventory.inventory_time_slots',
+            'seasons.inventory.inventory_slot_ranges',
+        ])->get();
 
         $vatLookup = LookupItem::findDefaultForTeam('vat_rate', auth()->user()->team_id);
         $vatMultiplier = $vatLookup?->multiplier ?? 1.15;
@@ -378,11 +383,15 @@ class BookingsController extends Controller
             ->get();
         //dd($formatted);
 
+        $closeouts = Closeout::with('closeout_day_time_slots')
+            ->get(['id', 'service_id', 'season_id', 'start_date', 'end_date']);
+
         return Inertia::render('Admin/Bookings/Index', [
             'bookings' => $formatted,
             'lookups' => $lookups,
             'services' => $services,
             'activities' => $activities,
+            'closeouts' => $closeouts,
             // 'promotions' => $promotions
         ]);
     }
