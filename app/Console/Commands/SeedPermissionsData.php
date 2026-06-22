@@ -66,7 +66,8 @@ use Str;
 
 class SeedPermissionsData extends Command
 {
-    protected $signature = 'seed:permissions-data'; // php artisan seed:permissions-data
+    protected $signature = 'seed:permissions-data {--sync-defaults : Reset role permissions to the seeded defaults}'; // php artisan seed:permissions-data
+    // php artisan seed:permissions-data
     protected $description = 'Create or update core seed data for permissions, roles, etc.';
 
     private function filterPermissions(array $denyNames, array $denyPrefixes)
@@ -85,6 +86,18 @@ class SeedPermissionsData extends Command
             }
             return true;
         });
+    }
+
+    private function assignRolePermissions(Role $role, $permissionIds, bool $syncDefaults): void
+    {
+        $ids = collect($permissionIds)->filter()->values();
+
+        if ($syncDefaults) {
+            $role->permissions()->sync($ids);
+            return;
+        }
+
+        $role->permissions()->syncWithoutDetaching($ids);
     }
 
     public function handle()
@@ -114,6 +127,7 @@ class SeedPermissionsData extends Command
             ['name' => 'boarding_pass_templates_access'],
             // Extra granular capabilities that don't map 1:1 to CRUD actions.
             ['name' => 'teams_publish'], // allow publish/unpublish sites on the public frontend
+            ['name' => 'inventories_schedule'], // allow access to the advanced inventory scheduler
         ];
 
         foreach ($tables as $table) {
@@ -142,8 +156,15 @@ class SeedPermissionsData extends Command
         $this->info('Roles seeded successfully.');
 
         // Assign permissions
+        $syncDefaults = (bool) $this->option('sync-defaults');
+        if ($syncDefaults) {
+            $this->warn('Sync defaults mode enabled: role permission assignments will be reset to seeded defaults.');
+        } else {
+            $this->info('Safe mode: missing default permissions will be attached without removing existing role permissions.');
+        }
+
         $adminPermissions = Permission::all();
-        Role::findOrFail(1)->permissions()->sync($adminPermissions->pluck('id'));
+        $this->assignRolePermissions(Role::findOrFail(1), $adminPermissions->pluck('id'), $syncDefaults);
 
         $directorPermissions = $this->filterPermissions(
             [
@@ -153,7 +174,7 @@ class SeedPermissionsData extends Command
             ],
             ['users_', 'roles_', 'permissions_', 'permission_role']
         );
-        Role::findOrFail(2)->permissions()->sync($directorPermissions->pluck('id'));
+        $this->assignRolePermissions(Role::findOrFail(2), $directorPermissions->pluck('id'), $syncDefaults);
 
         $managerPermissions = $this->filterPermissions(
             [
@@ -168,7 +189,7 @@ class SeedPermissionsData extends Command
             ],
             ['roles_', 'permissions_', 'permission_role']
         );
-        Role::findOrFail(3)->permissions()->sync($managerPermissions->pluck('id'));
+        $this->assignRolePermissions(Role::findOrFail(3), $managerPermissions->pluck('id'), $syncDefaults);
 
         $userPermissions = $this->filterPermissions(
             [
@@ -180,12 +201,13 @@ class SeedPermissionsData extends Command
                 'vouchers_access',
                 'teams_create',
                 'teams_publish',
+                'inventories_schedule',
                 'boarding_pass_templates_access'
             ],
             ['users_', 'roles_', 'permissions_', 'permission_role']
         );
-        Role::findOrFail(4)->permissions()->sync($userPermissions->pluck('id'));
-        Role::findOrFail(5)->permissions()->sync($userPermissions->pluck('id'));
+        $this->assignRolePermissions(Role::findOrFail(4), $userPermissions->pluck('id'), $syncDefaults);
+        $this->assignRolePermissions(Role::findOrFail(5), $userPermissions->pluck('id'), $syncDefaults);
 
         // one time seeder for teams and users
         if (false) {

@@ -223,6 +223,7 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['auth', 'v
     // Seasons
     Route::resource('seasons', SeasonsController::class);
     // Inventory
+    Route::post('inventories/{inventory}/schedule', [InventoryController::class, 'schedule'])->name('inventories.schedule');
     Route::resource('inventories', InventoryController::class);
     // Inventory Date Overrides
     Route::resource('inventory-slot-ranges', InventorySlotRangesController::class);

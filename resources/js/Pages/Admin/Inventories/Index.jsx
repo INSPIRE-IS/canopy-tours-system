@@ -9,9 +9,10 @@ import SearchBar from '@/Components/SearchBar';
 import BlueButton from '@/Components/BlueButton';
 import Pagination from '@/Components/Pagination';
 import HeaderServices from '@/Components/HeaderServices';
+import AdvancedScheduleModal from './AdvancedScheduleModal';
 
 
-export default function Index({ permissions, seasons, services, inventories, day_slots, auth, searchTerm, sortColumn, sortDirection, inventorySeasonIdsByService }) {
+export default function Index({ permissions, seasons, services, inventories, day_slots, closeouts = [], bookedSlots = [], auth, searchTerm, sortColumn, sortDirection, inventorySeasonIdsByService }) {
     const [selectedInventory, setSelectedInventory] = useState(null);
     const { props } = usePage();
     console.log('inventory:', inventories);
@@ -19,6 +20,7 @@ export default function Index({ permissions, seasons, services, inventories, day
     console.log('auth on inventory ', auth);
     const [search, setSearch] = useState(searchTerm);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
     const [modalMode, setModalMode] = useState("create");
     const [isOpenTab, setIsOpenTab] = useState('Inventory');
     const handleOpenModal = (mode, inventory = null) => {
@@ -31,6 +33,16 @@ export default function Index({ permissions, seasons, services, inventories, day
 
     const handleCloseModal = () => {
         setIsModalOpen(false);
+        setSelectedInventory(null);
+    };
+
+    const handleOpenScheduleModal = (inventory) => {
+        setSelectedInventory(inventory);
+        setIsScheduleModalOpen(true);
+    };
+
+    const handleCloseScheduleModal = () => {
+        setIsScheduleModalOpen(false);
         setSelectedInventory(null);
     };
 
@@ -132,6 +144,12 @@ export default function Index({ permissions, seasons, services, inventories, day
                                                                 Edit
                                                             </button>)}
 
+                                                        {permissions.inventories_schedule && (
+                                                            <button onClick={() => handleOpenScheduleModal(inventory)}
+                                                                className="flex items-center gap-1 text-indigo-600 hover:text-indigo-800">
+                                                                Schedule
+                                                            </button>)}
+
                                                         {permissions.inventories_edit && (
                                                             <button onClick={() => handleDelete(inventory)}
                                                                 className="flex items-center gap-1 text-red-600 hover:text-red-800">
@@ -165,6 +183,13 @@ export default function Index({ permissions, seasons, services, inventories, day
                         day_slots={day_slots}
                         auth={auth}
                         inventorySeasonIdsByService={inventorySeasonIdsByService}
+                    />
+                    <AdvancedScheduleModal
+                        isOpen={isScheduleModalOpen}
+                        onClose={handleCloseScheduleModal}
+                        inventory={selectedInventory}
+                        closeouts={closeouts}
+                        bookedSlots={bookedSlots}
                     />
                 </div>
             </div>
