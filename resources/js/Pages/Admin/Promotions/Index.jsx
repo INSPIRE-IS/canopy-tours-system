@@ -75,34 +75,28 @@ export default function Index({ promos, searchTerm, sortColumn, sortDirection, p
                 </div>
 
                 <div className="flex justify-between items-center px-4 pb-[9px] ">
-                  <table className="min-w-full divide-y divide-gray-200 text-sm">
+                  <table className="w-full divide-y divide-gray-200 text-sm">
                     <thead className="bg-gray-50 text-left text-gray-500">
                       <tr className='flex justify-between items-center'>
                         <th className="w-[80px] p-3">ID</th>
-                        <th className="w-[200px] p-3">Name</th>
-                        <th className="w-[140px] p-3">Code</th>
-                        <th className="w-[140px] p-3">Type</th>
-                        <th className="w-[120px] p-3">Value</th>
-                        <th className="w-[180px] p-3">Service</th>
-                        <th className="w-[140px] p-3">Start</th>
-                        <th className="w-[140px] p-3">End</th>
-                        <th className="w-[120px] p-3">Internal</th>
-                        <th className="w-[185px] p-3"></th>
+                        <th className="w-[80px] xl:w-[200px] p-3">Name/Code</th>
+                        <th className="w-[80px] xl:w-[140px] p-3">Type/Value</th>
+                        <th className="w-[80px] xl:w-[180px] p-3">Service</th>
+                        <th className="w-[80px] xl:w-[140px] p-3">Start/End</th>
+                        <th className="w-[80px] xl:w-[120px] p-3">Internal</th>
+                        <th className="w-[80px] xl:w-[185px] p-3"></th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                       {promos?.data.map((item) => (
-                        <tr key={item.id} className="flex justify-between items-center hover:bg-gray-50">
+                        <tr key={item.id} className="flex justify-between overflow-x-auto items-center hover:bg-gray-50">
                           <td className="w-[80px] p-3">{item.id}</td>
-                          <td className="w-[200px] p-3">{item.name}</td>
-                          <td className="w-[140px] p-3">{item.promo_code}</td>
-                          <td className="w-[140px] p-3">{item.type}</td>
-                          <td className="w-[120px] p-3">{item.value}</td>
-                          <td className="w-[180px] p-3">{item.service?.name}</td>
-                          <td className="w-[140px] p-3">{item?.booking_start_date?.split('T')[0]}</td>
-                          <td className="w-[140px] p-3">{item?.booking_end_date?.split('T')[0]}</td>
-                          <td className="w-[120px] p-3">{item.internal_use_only ? 'Yes' : 'No'}</td>
-                          <td className="w-[185px] p-3 flex gap-2">
+                          <td className="w-[80px] xl:w-[200px] p-3">{item.name} / {item.promo_code}</td>
+                          <td className="w-[80px] xl:w-[140px] p-3">{item.type} / {item.value}</td>
+                          <td className="w-[80px] xl:w-[180px] p-3">{item.service?.name}</td>
+                          <td className="w-[80px] xl:w-[140px] p-3">{item?.booking_start_date?.split('T')[0]} / {item?.booking_end_date?.split('T')[0]}</td>
+                          <td className="w-[80px] xl:w-[120px] p-3">{item.internal_use_only ? 'Yes' : 'No'}</td>
+                          <td className="w-[80px] xl:w-[185px] p-3 flex gap-2">
                             {permissions?.promotions_edit && (
                               <button onClick={() => handleOpenModal("edit", item)} className="text-green-600 hover:text-green-800">Edit</button>
                             )}
