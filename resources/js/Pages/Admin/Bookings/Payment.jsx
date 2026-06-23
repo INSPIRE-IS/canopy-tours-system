@@ -6,13 +6,14 @@ import { icons } from '../../../icons';
 import CustomInputText from '@/Components/CustomInputText';
 import BlueButton from '@/Components/BlueButton';
 import CustomCheckbox from '@/Components/CustomCheckbox';
+import CustomTextarea from '@/Components/CustomTextarea';
 import Modal from '@/Components/Modal';
 import OutlineButton from '@/Components/OutlineButton';
 import { useToast } from "@/Context/ToastContext";
 // import { useRoute } from 'ziggy-js';
 // import { Ziggy } from '@/ziggy'; // the generated file
 
-export default function Dashboard({ auth, booking, payment_history = [], lookups, mode, gateways, status_payments, type_pay_options, type_payments, updated_bies, users }) {
+export default function Dashboard({ auth, booking, payment_history = [], booking_refundable_amount = 0, additional_refundable_amount = 0, lookups, mode, gateways, status_payments, type_pay_options, type_payments, updated_bies, users }) {
     console.log("auth", auth);
     const { props } = usePage();
     const { flash } = props;
@@ -79,6 +80,13 @@ export default function Dashboard({ auth, booking, payment_history = [], lookups
 
     const [showPayLinkModal, setShowPayLinkModal] = useState(false);
     const [payLinkSending, setPayLinkSending] = useState(false);
+    const [showRefundModal, setShowRefundModal] = useState(false);
+    const [refundProcessing, setRefundProcessing] = useState(false);
+    const [refundData, setRefundData] = useState({
+        refund_type: 'booking',
+        refund_amount: '',
+        refund_note: '',
+    });
 
     const payOnlineOption = type_pay_options.find((option) => {
         const slug = (option.slug || '').toLowerCase();
@@ -99,6 +107,8 @@ export default function Dashboard({ auth, booking, payment_history = [], lookups
     const isPayOnline = !!payOnlineOption && data.type_pay_option_id === payOnlineOption.id;
 
     const amountDue = outstandingAmount;
+    const bookingRefundableAmount = Number(booking_refundable_amount || 0);
+    const additionalRefundableAmount = Number(additional_refundable_amount || 0);
     const isFullyPaid = amountDue <= 0;
     const paymentAmount = Number(data.ex_vat_amount || 0);
     const additionalAmount = Number(data.additional_amount || 0);
@@ -238,6 +248,46 @@ export default function Dashboard({ auth, booking, payment_history = [], lookups
             setPayLinkSending(false);
         }
     };
+    const openRefundModal = () => {
+        setRefundData({
+            refund_type: bookingRefundableAmount > 0 ? 'booking' : 'additional',
+            refund_amount: '',
+            refund_note: '',
+        });
+        setShowRefundModal(true);
+    };
+
+    const handleRefundSubmit = async (e) => {
+        e.preventDefault();
+        const selectedAvailable = refundData.refund_type === 'booking' ? bookingRefundableAmount : additionalRefundableAmount;
+        const refundAmount = Number(refundData.refund_amount || 0);
+
+        if (refundAmount <= 0) {
+            showToast('Please enter a refund amount.', 'error');
+            return;
+        }
+        if (refundAmount > selectedAvailable) {
+            showToast(`Refund amount cannot exceed R${selectedAvailable.toFixed(2)}.`, 'error');
+            return;
+        }
+        if (!String(refundData.refund_note || '').trim()) {
+            showToast('Please add a refund note.', 'error');
+            return;
+        }
+
+        setRefundProcessing(true);
+        router.post(route('admin.booking-payments.refund', booking.id), refundData, {
+            preserveScroll: true,
+            onSuccess: () => {
+                setShowRefundModal(false);
+            },
+            onError: (formErrors) => {
+                const firstError = Object.values(formErrors || {})?.[0];
+                showToast(Array.isArray(firstError) ? firstError[0] : (firstError || 'Refund could not be recorded.'), 'error');
+            },
+            onFinish: () => setRefundProcessing(false),
+        });
+    };
 
     return (
         <AuthenticatedLayout
@@ -335,7 +385,39 @@ export default function Dashboard({ auth, booking, payment_history = [], lookups
                             </p>
                         </div>
                     ) : (
-                        <div className="flex flex-col w-full pr-[51px]  gap-2 ">
+                        <div className="flex flex-col w-full pr-[51px] gap-4">
+                            <div className="rounded-[10px] border border-secondary-100 bg-white shadow px-6 py-5">
+                                <div className="grid grid-cols-1 xl:grid-cols-2 gap-x-8 gap-y-4">
+                                    <div className="flex items-center justify-between gap-5">
+                                        <span className="text-booking-lbl-main w-[180px] font-normal text-right">Booking Total</span>
+                                        <div className="flex items-center justify-between flex-1 min-w-[180px] h-[43px] bg-[#DBECFD4D] pl-[17px] pr-[17px] py-[12.5px] rounded-[6px]">
+                                            <span className="text-booking-lbl-main-sub text-[#4D81E7]">R {Number(booking.grand_tot_due || 0).toFixed(2)}</span>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center justify-between gap-5">
+                                        <span className="text-booking-lbl-main w-[180px] font-normal text-right">Paid Against Booking</span>
+                                        <div className="flex items-center justify-between flex-1 min-w-[180px] h-[43px] bg-[#DBECFD4D] pl-[17px] pr-[17px] py-[12.5px] rounded-[6px]">
+                                            <span className="text-booking-lbl-main-sub text-[#4D81E7]">R {bookingRefundableAmount.toFixed(2)}</span>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center justify-between gap-5">
+                                        <span className="text-booking-lbl-main w-[180px] font-normal text-right">Outstanding To Pay</span>
+                                        <div className="flex items-center justify-between flex-1 min-w-[180px] h-[43px] bg-[#DBECFD4D] pl-[17px] pr-[17px] py-[12.5px] rounded-[6px]">
+                                            <span className="text-booking-lbl-main-sub text-[#FF0000]">R {amountDue.toFixed(2)}</span>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center justify-between gap-5">
+                                        <span className="text-booking-lbl-main w-[180px] font-normal text-right">Extras Refundable</span>
+                                        <div className="flex items-center justify-between flex-1 min-w-[180px] h-[43px] bg-[#DBECFD4D] pl-[17px] pr-[17px] py-[12.5px] rounded-[6px]">
+                                            <span className="text-booking-lbl-main-sub text-[#AFAFAF]">R {additionalRefundableAmount.toFixed(2)}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div>
+                                <h3 className="text-base font-semibold text-gray-900">Record a New Payment</h3>
+                                <p className="text-xs text-gray-500">Use this section to capture money received now. Use Refund Payment only for money already received and being returned.</p>
+                            </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 ">
                                 <div>
                                     <CustomInputText
@@ -347,7 +429,7 @@ export default function Dashboard({ auth, booking, payment_history = [], lookups
                                         errors={errors}
                                     />
                                     <p className="text-xs text-gray-500 -mt-2">
-                                        Amount allocated to this booking balance. Outstanding balance: R{amountDue.toFixed(2)}.
+                                        New amount being paid toward the outstanding booking balance. Outstanding to pay: R{amountDue.toFixed(2)}.
                                     </p>
                                 </div>
                                 <div>
@@ -430,13 +512,19 @@ export default function Dashboard({ auth, booking, payment_history = [], lookups
                                 </div>
 
                             </div>
-                            <div className="flex flex-row items-center w-full gap-4 ">
+                            <div className="flex flex-row flex-wrap items-center w-full gap-4 ">
                                 <BlueButton
                                     title="Add Payment Now"
                                     width="w-[169px]"
                                     onClick={handleSubmit}
                                     disabled={processing || (isFullyPaid && !hasAdditionalPayment)}
                                     type="submit"
+                                />
+                                <OutlineButton
+                                    title="Refund Payment"
+                                    onClick={openRefundModal}
+                                    width="w-[169px]"
+                                    props={{ type: 'button', disabled: bookingRefundableAmount <= 0 && additionalRefundableAmount <= 0 }}
                                 />
                                 {isFullyPaid && !hasAdditionalPayment && (
                                     <span className="text-sm text-red-500">Booking already paid. Add an additional amount to record extras.</span>
@@ -473,13 +561,13 @@ export default function Dashboard({ auth, booking, payment_history = [], lookups
                                                         <td className="booking-data-table-td">{payment.payment_date || '-'}</td>
                                                         <td className="booking-data-table-td">{payment.settled_due_on || '-'}</td>
                                                         <td className="booking-data-table-td">
-                                                            <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-700">
+                                                            <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${payment.status === 'refund' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
                                                                 {payment.status || 'Success'}
                                                             </span>
                                                         </td>
                                                         <td className="booking-data-table-message">{payment.message || '-'}</td>
                                                         <td className="booking-data-table-td">{payment.reference || '-'}</td>
-                                                        <td className="booking-data-table-td text-right font-medium text-gray-900">{formatMoney(payment.amount)}</td>
+                                                        <td className={`booking-data-table-td text-right font-medium ${Number(payment.amount || 0) < 0 ? 'text-red-700' : 'text-gray-900'}`}>{formatMoney(payment.amount)}</td>
                                                         <td className="booking-data-table-td">{payment.method || '-'}</td>
                                                         <td className="booking-data-table-td">{payment.capturer || '-'}</td>
                                                     </tr>
@@ -499,6 +587,93 @@ export default function Dashboard({ auth, booking, payment_history = [], lookups
                     )}
                 </div>
             </div>
+
+            <Modal show={showRefundModal} onClose={() => setShowRefundModal(false)} maxWidth="lg">
+                <form onSubmit={handleRefundSubmit} className="p-6 space-y-5">
+                    <div>
+                        <h3 className="text-lg font-semibold">Refund a Payment</h3>
+                        <p className="text-sm text-gray-600">Refund money that has already been received. Choose whether the refund comes from the booking balance or from additional/extras.</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <label className={`rounded-xl border p-4 cursor-pointer ${refundData.refund_type === 'booking' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white'} ${bookingRefundableAmount <= 0 ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                            <div className="flex items-start gap-3">
+                                <input
+                                    type="radio"
+                                    name="refund_type"
+                                    value="booking"
+                                    checked={refundData.refund_type === 'booking'}
+                                    disabled={bookingRefundableAmount <= 0}
+                                    onChange={(e) => setRefundData((prev) => ({ ...prev, refund_type: e.target.value, refund_amount: '' }))}
+                                    className="mt-1"
+                                />
+                                <span>
+                                    <span className="block font-semibold text-gray-900">Booking payment refund</span>
+                                    <span className="block text-xs text-gray-500">Paid against booking: R{bookingRefundableAmount.toFixed(2)}. Refunds here reduce paid amount and can reopen the booking balance.</span>
+                                </span>
+                            </div>
+                        </label>
+                        <label className={`rounded-xl border p-4 cursor-pointer ${refundData.refund_type === 'additional' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white'} ${additionalRefundableAmount <= 0 ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                            <div className="flex items-start gap-3">
+                                <input
+                                    type="radio"
+                                    name="refund_type"
+                                    value="additional"
+                                    checked={refundData.refund_type === 'additional'}
+                                    disabled={additionalRefundableAmount <= 0}
+                                    onChange={(e) => setRefundData((prev) => ({ ...prev, refund_type: e.target.value, refund_amount: '' }))}
+                                    className="mt-1"
+                                />
+                                <span>
+                                    <span className="block font-semibold text-gray-900">Additional amount refund</span>
+                                    <span className="block text-xs text-gray-500">Additional/extras received: R{additionalRefundableAmount.toFixed(2)}. Use for tips, food, drinks, or merchandise; booking VAT/invoice balance is not changed.</span>
+                                </span>
+                            </div>
+                        </label>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <CustomInputText
+                            title="Refund Amount"
+                            name="refund_amount"
+                            type="text"
+                            value={refundData.refund_amount}
+                            onChange={(e) => setRefundData((prev) => ({ ...prev, refund_amount: e.target.value }))}
+                            errors={{}}
+                        />
+                        <div className="flex flex-col justify-center rounded-md border border-gray-200 bg-gray-50 px-4 py-3">
+                            <span className="text-xs uppercase tracking-wide text-gray-500">Maximum Refund For Selected Type</span>
+                            <span className="text-lg font-semibold text-gray-900">R{(refundData.refund_type === 'booking' ? bookingRefundableAmount : additionalRefundableAmount).toFixed(2)}</span>
+                        </div>
+                    </div>
+
+                    <p className="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">This creates a negative payment row and audit log. It does not delete or edit the original payment.</p>
+
+                    <CustomTextarea
+                        label="Refund Note (required)"
+                        name="refund_note"
+                        value={refundData.refund_note}
+                        onChange={(e) => setRefundData((prev) => ({ ...prev, refund_note: e.target.value }))}
+                        rows={4}
+                        placeholder="Explain why this refund is being recorded."
+                    />
+
+                    <div className="flex justify-end gap-3 pt-2">
+                        <OutlineButton
+                            title="Cancel"
+                            onClick={() => setShowRefundModal(false)}
+                            props={{ type: 'button', disabled: refundProcessing }}
+                        />
+                        <BlueButton
+                            title={refundProcessing ? 'Refunding...' : 'Record Refund'}
+                            onClick={handleRefundSubmit}
+                            disabled={refundProcessing}
+                            props={{ type: 'button' }}
+                            width="w-[150px]"
+                        />
+                    </div>
+                </form>
+            </Modal>
 
             <Modal show={showPayLinkModal} onClose={() => setShowPayLinkModal(false)} maxWidth="md">
                 <div className="p-6 space-y-4">
@@ -521,7 +696,7 @@ export default function Dashboard({ auth, booking, payment_history = [], lookups
                             <span className="font-medium text-right">{leadEmail || '—'}</span>
                         </div>
                         <div className="flex justify-between gap-4">
-                            <span className="text-gray-600">Total</span>
+                            <span className="text-gray-600">Outstanding Total</span>
                             <span className="font-semibold text-right">R{amountDue.toFixed(2)}</span>
                         </div>
                     </div>

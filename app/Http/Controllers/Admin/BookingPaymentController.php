@@ -75,10 +75,15 @@ class BookingPaymentController extends Controller
         $latestPayment = BookingPayment::where('booking_id', $booking->id)
             ->latest('id')
             ->first();
-        $paymentHistory = BookingPayment::with(['type_payment', 'status_payment', 'updated_by'])
+        $paymentRows = BookingPayment::with(['type_payment', 'status_payment', 'updated_by'])
             ->where('booking_id', $booking->id)
             ->latest('id')
-            ->get()
+            ->get();
+
+        $additionalRefundableAmount = round($paymentRows->sum(fn(BookingPayment $payment) => (float) ($payment->additional_amount ?? 0)), 2);
+        $bookingRefundableAmount = round((float) ($booking->tot_paid ?? 0), 2);
+
+        $paymentHistory = $paymentRows
             ->map(function (BookingPayment $payment) use ($booking) {
                 $exVatAmount = (float) ($payment->ex_vat_amount ?? 0);
                 $vatAmount = (float) ($payment->vat_amount ?? 0);
@@ -86,6 +91,7 @@ class BookingPaymentController extends Controller
                 $bookingPaymentAmount = $vatAmount >= $exVatAmount && $exVatAmount > 0
                     ? $exVatAmount
                     : $exVatAmount + $vatAmount;
+                $totalAmount = round($bookingPaymentAmount + $additionalAmount, 2);
                 $message = collect([
                     $payment->short_payment_note,
                     $payment->additional_payment_note,
@@ -96,10 +102,10 @@ class BookingPaymentController extends Controller
                     'created_at' => optional($payment->created_at)->format('Y-m-d H:i'),
                     'payment_date' => $payment->getRawOriginal('payment_date'),
                     'settled_due_on' => $booking->getRawOriginal('due_date'),
-                    'status' => 'success',
+                    'status' => $totalAmount < 0 ? 'refund' : 'success',
                     'message' => $message ?: ($payment->note ?? ''),
                     'reference' => $payment->reference,
-                    'amount' => round($bookingPaymentAmount + $additionalAmount, 2),
+                    'amount' => $totalAmount,
                     'method' => $payment->type_payment?->name ?? '',
                     'capturer' => $payment->updated_by?->name ?? '',
                 ];
@@ -110,6 +116,8 @@ class BookingPaymentController extends Controller
             'booking' => $booking,
             'latest_payment' => $latestPayment,
             'payment_history' => $paymentHistory,
+            'booking_refundable_amount' => $bookingRefundableAmount,
+            'additional_refundable_amount' => max(0, $additionalRefundableAmount),
             'gateways' => $gateways,
             'status_payments' => $status_payments,
             'type_pay_options' => $type_pay_options,
@@ -442,6 +450,137 @@ class BookingPaymentController extends Controller
             ]);
             return back()->with([
                 'error' => 'Something went wrong while saving your booking. Please try again.',
+            ]);
+        }
+    }
+
+    public function refund(Request $request, Booking $booking)
+    {
+        abort_if(Gate::denies('booking_payments_create'), Response::HTTP_FORBIDDEN, '403 Forbidden');
+
+        $validated = $request->validate([
+            'refund_type' => ['required', 'in:booking,additional'],
+            'refund_amount' => ['required', 'numeric', 'min:0.01'],
+            'refund_note' => ['required', 'string', 'max:2000'],
+        ]);
+
+        try {
+            DB::transaction(function () use ($booking, $validated) {
+                $booking = Booking::lockForUpdate()->findOrFail($booking->id);
+                $amount = round((float) $validated['refund_amount'], 2);
+                $refundType = $validated['refund_type'];
+                $note = trim((string) $validated['refund_note']);
+
+                $latestPayment = BookingPayment::where('booking_id', $booking->id)->latest('id')->first();
+                if (!$latestPayment) {
+                    throw ValidationException::withMessages([
+                        'refund_amount' => 'No payment has been recorded for this booking yet.',
+                    ]);
+                }
+
+                $additionalAvailable = round((float) BookingPayment::where('booking_id', $booking->id)->sum('additional_amount'), 2);
+                $bookingAvailable = round((float) ($booking->tot_paid ?? 0), 2);
+                $available = $refundType === 'booking' ? $bookingAvailable : $additionalAvailable;
+
+                if ($amount > $available) {
+                    $label = $refundType === 'booking' ? 'booking payment' : 'additional payment';
+                    throw ValidationException::withMessages([
+                        'refund_amount' => "Refund amount cannot exceed the available {$label} amount of " . number_format(max(0, $available), 2, '.', ''),
+                    ]);
+                }
+
+                $vatLookup = $latestPayment->lookup_item_id
+                    ? LookupItem::find($latestPayment->lookup_item_id)
+                    : LookupItem::where('slug', 'vat_rate')->where('team_id', $booking->team_id)->first();
+                $vatRate = (float) ($vatLookup?->rate ?? 0);
+                $vatMultiplier = (float) ($vatLookup?->multiplier ?: (1 + $vatRate));
+
+                $bookingRefundTotal = $refundType === 'booking' ? $amount : 0.0;
+                $additionalRefundTotal = $refundType === 'additional' ? $amount : 0.0;
+                $refundExVat = $bookingRefundTotal > 0 && $vatMultiplier > 0
+                    ? round($bookingRefundTotal / $vatMultiplier, 2)
+                    : 0.0;
+                $refundVat = $bookingRefundTotal > 0
+                    ? round($bookingRefundTotal - $refundExVat, 2)
+                    : 0.0;
+
+                $payment = BookingPayment::create([
+                    'booking_id' => $booking->id,
+                    'type_pay_option_id' => $latestPayment->type_pay_option_id,
+                    'type_payment_id' => $latestPayment->type_payment_id,
+                    'status_payment_id' => $booking->status_payment_id,
+                    'ex_vat_amount' => -$refundExVat,
+                    'lookup_item_id' => $vatLookup?->id ?? $latestPayment->lookup_item_id,
+                    'vat' => $vatRate,
+                    'vat_amount' => -$refundVat,
+                    'additional_amount' => -$additionalRefundTotal,
+                    'short_payment_note' => $refundType === 'booking' ? $note : null,
+                    'additional_payment_note' => $refundType === 'additional' ? $note : null,
+                    'reference' => $booking->reference,
+                    'gateway_id' => $latestPayment->gateway_id ?: 2,
+                    'meta' => json_encode([
+                        'ip' => request()->ip(),
+                        'refund' => true,
+                        'refund_type' => $refundType,
+                    ]),
+                    'payment_date' => now()->toDateString(),
+                    'redeemer_name' => $booking->lead_name,
+                    'voucher_code' => null,
+                    'note' => "Refund ({$refundType}): {$note}",
+                    'updated_by_id' => auth()->id(),
+                    'team_id' => $booking->team_id,
+                ]);
+
+                if ($refundType === 'booking') {
+                    $newPaidTotal = round(max(0, $bookingAvailable - $amount), 2);
+                    $booking->update([
+                        'tot_paid' => $newPaidTotal,
+                        'status_payment_id' => $newPaidTotal >= round((float) $booking->grand_tot_due, 2) ? 2 : 1,
+                    ]);
+
+                    $balance = $newPaidTotal;
+                    $booking->loadMissing('booking_items.booking_fees');
+                    $booking->booking_items->each(function ($item) use (&$balance) {
+                        $item->booking_fees->each(function ($fee) use (&$balance) {
+                            $paidForFee = min((float) $fee->tot_amount, max(0, $balance));
+                            $fee->update(['tot_paid' => $paidForFee]);
+                            $balance = round($balance - $paidForFee, 2);
+                        });
+                    });
+
+                    $this->regenerateInvoicePdf($booking);
+                }
+
+                AuditLog::create([
+                    'description' => 'Payment refunded (admin)',
+                    'subject_id' => $booking->id,
+                    'subject_type' => Booking::class,
+                    'user_id' => auth()->id(),
+                    'properties' => json_encode([
+                        'payment_id' => $payment->id,
+                        'refund_type' => $refundType,
+                        'refund_amount' => $amount,
+                        'refund_note' => $note,
+                    ]),
+                    'host' => request()->ip(),
+                ]);
+            });
+
+            return redirect()
+                ->route('admin.booking-payments.create', $booking)
+                ->with('success', 'Refund recorded successfully.');
+        } catch (ValidationException $e) {
+            return back()->withErrors($e->errors())->withInput();
+        } catch (\Throwable $e) {
+            Log::error('Payment refund failed and rolled back', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'booking_id' => $booking->id,
+                'input' => $request->all(),
+            ]);
+
+            return back()->with([
+                'error' => 'Something went wrong while refunding this payment. Please try again.',
             ]);
         }
     }

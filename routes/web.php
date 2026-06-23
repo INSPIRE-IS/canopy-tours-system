@@ -296,6 +296,7 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['auth', 'v
     Route::get('booking-payments/create/{booking}', [BookingPaymentController::class, 'create'])->name('booking-payments.create');
     Route::post('booking-payments/simulated/{booking}', [BookingPaymentController::class, 'simulate'])->name('booking-payments.simulated');
     Route::post('booking-payments/paylink/{booking}', [BookingPaymentController::class, 'sendPayLink'])->name('booking-payments.paylink');
+    Route::post('booking-payments/refund/{booking}', [BookingPaymentController::class, 'refund'])->name('booking-payments.refund');
     Route::post('booking-payments/store', [BookingPaymentController::class, 'store'])->name('booking-payments.store');
     Route::get('booking-payments/edit/{booking}', [BookingPaymentController::class, 'edit'])->name('booking-payments.edit');
     Route::put('booking-payments/update', [BookingPaymentController::class, 'update'])->name('booking-payments.update');
