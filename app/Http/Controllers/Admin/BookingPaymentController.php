@@ -425,10 +425,12 @@ class BookingPaymentController extends Controller
                 }
                 return $booking;
             });
-            Log::info('booking updated', [
-                'booking' => $booking,
+            Log::info('payment recorded', [
+                'booking_id' => $booking->id,
             ]);
-            return redirect()->route('admin.bookings.index');
+            return redirect()
+                ->route('admin.booking-payments.create', $booking)
+                ->with('success', 'Payment recorded successfully.');
         } catch (ValidationException $e) {
             return back()->withErrors($e->errors())->withInput();
         } catch (\Throwable $e) {
@@ -722,3 +724,5 @@ class BookingPaymentController extends Controller
         return back();
     }
 }
+
+
