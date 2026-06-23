@@ -2861,6 +2861,7 @@ class BookingsController extends Controller
             'booking_detail',
             'booking_fee',
             'booking_inventory',
+            'booking_inventory.inventory_time_slot',
             'booking_staff',
             'booking_staff.user',
         ])
@@ -4062,3 +4063,4 @@ class BookingsController extends Controller
         throw new \RuntimeException('No default invoice template found.');
     }
 }
+

@@ -96,6 +96,10 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
         const resolvedType = (email?.auditable_type || 'App\\Models\\Booking').trim();
         return resolvedType === emailTypeFilter;
     });
+
+    const headerBookingDate = bookingItem?.booking_inventory?.date || '—';
+    const headerSlotTime = bookingItem?.booking_inventory?.inventory_time_slot?.start_time || '';
+    const headerDateTime = headerSlotTime ? `${headerBookingDate} ${String(headerSlotTime).slice(0, 5)}` : headerBookingDate;
     useEffect(() => {
         if (flash?.success) {
             showToast(flash.success, "success");
@@ -110,6 +114,8 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
         console.log("customers", bookingItem.customers);
         const lead = bookingItem?.customers.find(c => c?.pivot?.is_lead);
         const inventory = bookingItem?.booking_inventory;
+        const startInfo = bookingItem?.booking_infos?.find(c => c?.type_location_id == 2);
+        const slotTime = inventory?.inventory_time_slot?.start_time ?? '';
         const adultsCount = inventory?.adults ?? bookingItem?.pax_adults ?? 0;
         const childrenCount = inventory?.children ?? bookingItem?.pax_children ?? 0;
         const guidesCount = inventory?.guides ?? bookingItem?.pax_guides ?? 0;
@@ -128,8 +134,8 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
             pickup_time: bookingItem?.booking_infos.find(c => c?.type_location_id == 1)?.time ?? '',
             pickup_meridiem: bookingItem?.booking_infos.find(c => c?.type_location_id == 1)?.meridiem ?? 'AM',
             start_location: bookingItem?.booking_infos.find(c => c?.type_location_id == 2)?.location ?? '',
-            start_time: bookingItem?.booking_infos.find(c => c?.type_location_id == 2)?.time ?? '',
-            start_meridiem: bookingItem?.booking_infos.find(c => c?.type_location_id == 2)?.meridiem ?? 'AM',
+            start_time: startInfo?.time || slotTime,
+            start_meridiem: startInfo?.meridiem ?? 'AM',
             end_location: bookingItem?.booking_infos.find(c => c?.type_location_id == 3)?.location ?? '',
             end_time: bookingItem?.booking_infos.find(c => c?.type_location_id == 3)?.time ?? '',
             end_meridiem: bookingItem?.booking_infos.find(c => c?.type_location_id == 3)?.meridiem ?? 'AM',
@@ -367,7 +373,7 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                     <span>
                         <span className="font-semibold text-lg text-gray-800 block text-start">{bookingItem?.service?.name} - {bookingItem?.season?.name}</span>
                         <span className="font-semibold text-lg text-gray-800 block text-start">
-                            Booking Date: {bookingItem?.booking_inventory?.date || 'â€”'}
+                            Date Time: {headerDateTime}
                         </span>
                         {isDirty && (<p className="text-yellow-600 text-sm mt-1">You have unsaved changes</p>)}
                     </span>
@@ -1279,3 +1285,6 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
         </AuthenticatedLayout>
     );
 }
+
+
+
