@@ -48,7 +48,7 @@ class CloseoutDayTimeSlot extends Model
 
     public function time_slot()
     {
-        return $this->belongsTo(TypeTimeSlot::class, 'time_slot_id');
+        return $this->belongsTo(InventoryTimeSlot::class, 'time_slot_id')->withTrashed();
     }
 
     public function team()

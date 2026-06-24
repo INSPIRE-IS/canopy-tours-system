@@ -85,12 +85,12 @@ class Inventory extends Model
 
     public function inventory_type_days()
     {
-        return $this->hasMany(InventoryTypeDay::class);
+        return $this->hasMany(InventoryTypeDay::class)->orderBy('type_day_id');
     }
 
     public function inventory_time_slots()
     {
-        return $this->hasMany(InventoryTimeSlot::class, 'inventory_id');
+        return $this->hasMany(InventoryTimeSlot::class, 'inventory_id')->orderBy('start_time');
     }
 
     public function inventory_slot_ranges()

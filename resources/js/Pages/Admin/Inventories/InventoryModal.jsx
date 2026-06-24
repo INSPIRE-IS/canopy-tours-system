@@ -6,6 +6,10 @@ import CustomSelect from "@/Components/CustomSelect";
 import OutlineButton from "@/Components/OutlineButton";
 import BlueButton from "@/Components/BlueButton";
 
+const normalizeTime = (time) => String(time || "").slice(0, 5);
+const uniqueSortTimes = (times) => Array.from(
+    new Set(times.map(normalizeTime).filter(Boolean))
+).sort((a, b) => String(a).localeCompare(String(b)));
 
 const InventoryModal = ({ isOpen, onClose, mode, inventory = null, services, seasons, day__slots, auth, team, inventorySeasonIdsByService }) => {
     // console.log("mode", mode);
@@ -33,7 +37,7 @@ const InventoryModal = ({ isOpen, onClose, mode, inventory = null, services, sea
                 service_id: inventory.service_id || "",
                 season_id: inventory.season_id || "",
                 day_slots: [1, 2, 3, 4, 5, 6, 7], // inventory.inventory_type_days ||
-                time_slots: inventory?.inventory_time_slots?.filter((slot) => !slot.is_override_only).map(slot => slot.start_time.slice(0, 5)) || [],
+                time_slots: uniqueSortTimes(inventory?.inventory_time_slots?.filter((slot) => !slot.is_override_only).map(slot => slot.start_time) || []),
                 slot_cutoff_hours: inventory.slot_cutoff_hours || 0,
                 slot_funneling: inventory.slot_funneling || 0,
                 allow_internal_override: inventory.allow_internal_override || 0,
@@ -73,15 +77,16 @@ const InventoryModal = ({ isOpen, onClose, mode, inventory = null, services, sea
     };
 
     const handleAddIdentification = () => {
-        const normalized = newTimeSlot.trim();
+        const normalized = normalizeTime(newTimeSlot.trim());
         if (!normalized) return;
-        const exists = data.time_slots.some((slot) => slot.trim() === normalized);
+        const currentTimes = uniqueSortTimes(data.time_slots);
+        const exists = currentTimes.some((slot) => normalizeTime(slot) === normalized);
         if (exists) {
             setTimeSlotError("This time slot has already been added.");
             return;
         }
         setTimeSlotError("");
-        setData("time_slots", [...data.time_slots, normalized]);
+        setData("time_slots", uniqueSortTimes([...currentTimes, normalized]));
         setNewTimeSlot(""); // Reset input field
     };
 

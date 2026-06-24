@@ -96,25 +96,16 @@ class InventoryController extends Controller
         //dd($request->all());
         // plan with days if we select 1,2,3,4,5 this is saved then for the period we take these into consideration for the time slots and only do mon to friday
         // plan with time slots we capture these and then they go to every day we will use blockout to exclude days times and periods
-        $normalizedTimes = collect($request->time_slots ?? [])
-            ->map(function ($slot) {
-                $slotTime = is_array($slot) ? ($slot['start_time'] ?? '') : $slot;
-                $slotTime = trim((string) $slotTime);
-                if ($slotTime === '') {
-                    return null;
-                }
-                return strlen($slotTime) >= 5 ? substr($slotTime, 0, 5) : $slotTime;
-            })
-            ->filter()
-            ->values();
+        $normalizedTimes = $this->normalizedInventoryTimes($request->time_slots ?? []);
 
         if ($normalizedTimes->count() !== $normalizedTimes->unique()->count()) {
             throw ValidationException::withMessages([
                 'time_slots' => ['Duplicate time slots are not allowed.'],
             ]);
         }
+        $normalizedTimes = $normalizedTimes->unique()->sort()->values();
 
-        DB::transaction(function () use ($request) {
+        DB::transaction(function () use ($request, $normalizedTimes) {
             $data = $request->except(['day_slots', 'time_slots', 'allow_slot_cutoff_hours', 'allow_slot_funneling']);
             $data['created_by_id'] = auth()->id();
             $data['team_id'] = auth()->user()->team_id;
@@ -134,12 +125,10 @@ class InventoryController extends Controller
             ])->toArray();
 
             // Prepare new time slot records (adjust depending on format)
-            $timeSlotRecords = collect($request->time_slots)->map(function ($slot) use ($inventory) {
-                $slotTime = is_array($slot) ? $slot['start_time'] : $slot;
-                $startTime = strlen($slotTime) === 5 ? $slotTime . ':00' : $slotTime;
+            $timeSlotRecords = $normalizedTimes->map(function ($slotTime) use ($inventory) {
                 return [
                     'inventory_id' => $inventory->id,
-                    'start_time' => $startTime,
+                    'start_time' => $slotTime . ':00',
                     'is_override_only' => false,
                     //'end_time' => is_array($slot) && isset($slot['end_time']) ? $slot['end_time'] : null,
                     'created_at' => now(),
@@ -160,25 +149,16 @@ class InventoryController extends Controller
 
         try {
             // dd($request);
-            $normalizedTimes = collect($request->time_slots ?? [])
-                ->map(function ($slot) {
-                    $slotTime = is_array($slot) ? ($slot['start_time'] ?? '') : $slot;
-                    $slotTime = trim((string) $slotTime);
-                    if ($slotTime === '') {
-                        return null;
-                    }
-                    return strlen($slotTime) >= 5 ? substr($slotTime, 0, 5) : $slotTime;
-                })
-                ->filter()
-                ->values();
+            $normalizedTimes = $this->normalizedInventoryTimes($request->time_slots ?? []);
 
             if ($normalizedTimes->count() !== $normalizedTimes->unique()->count()) {
                 throw ValidationException::withMessages([
                     'time_slots' => ['Duplicate time slots are not allowed.'],
                 ]);
             }
+            $normalizedTimes = $normalizedTimes->unique()->sort()->values();
 
-            DB::transaction(function () use ($request, $inventory) {
+            DB::transaction(function () use ($request, $inventory, $normalizedTimes) {
                 $data = $request->except(['day_slots', 'time_slots', 'allow_slot_cutoff_hours', 'allow_slot_funneling']);
                 $data['updated_by_id'] = auth()->id();
                 $data['team_id'] = auth()->user()->team_id;
@@ -195,24 +175,8 @@ class InventoryController extends Controller
                     'updated_at' => now(),
                 ])->toArray();
 
-                $inventory->inventory_time_slots()->where('is_override_only', false)->delete();
-                // Prepare new time slot records (adjust depending on format)
-                $timeSlotRecords = collect($request->time_slots)->map(function ($slot) use ($inventory) {
-                    $slot_time = is_array($slot) ? $slot['start_time'] : $slot;
-                    $start_time = strlen($slot_time) === 5 ? $slot_time . ':00' : $slot_time;
-                    return [
-                        'inventory_id' => $inventory->id,
-                        'start_time' => $start_time,
-                        'is_override_only' => false,
-                        //'end_time' => is_array($slot) && isset($slot['end_time']) ? $slot['end_time'] : null,
-                        'created_at' => now(),
-                        'updated_at' => now(),
-                    ];
-                })->toArray();
-
-                // Bulk insert
                 InventoryTypeDay::insert($daySlotRecords);
-                InventoryTimeSlot::insert($timeSlotRecords);
+                $this->syncBaseInventoryTimeSlots($inventory, $normalizedTimes);
             });
 
             // return redirect()->route('admin.inventories.index');
@@ -228,6 +192,95 @@ class InventoryController extends Controller
                 'error' => 'Something went wrong while saving your Inventory. Please try again.',
             ]);
         }
+    }
+
+    private function normalizedInventoryTimes($timeSlots)
+    {
+        return collect($timeSlots)
+            ->map(function ($slot) {
+                $slotTime = is_array($slot) ? ($slot['start_time'] ?? '') : $slot;
+                $slotTime = trim((string) $slotTime);
+                if ($slotTime === '') {
+                    return null;
+                }
+
+                return strlen($slotTime) >= 5 ? substr($slotTime, 0, 5) : $slotTime;
+            })
+            ->filter()
+            ->sort()
+            ->values();
+    }
+
+    private function syncBaseInventoryTimeSlots(Inventory $inventory, $normalizedTimes): void
+    {
+        $existingSlotsByTime = $inventory->inventory_time_slots()
+            ->withTrashed()
+            ->where('is_override_only', false)
+            ->get()
+            ->groupBy(fn($slot) => substr((string) $slot->start_time, 0, 5));
+
+        $keptSlotIds = collect();
+
+        foreach ($normalizedTimes as $time) {
+            $slotsForTime = $existingSlotsByTime
+                ->get($time, collect())
+                ->sortBy(fn($slot) => ($slot->trashed() ? '1' : '0') . '-' . str_pad((string) $slot->id, 10, '0', STR_PAD_LEFT))
+                ->values();
+
+            $slot = $slotsForTime->first();
+            if ($slot) {
+                $slot->restore();
+                $slot->forceFill([
+                    'start_time' => $time . ':00',
+                    'is_override_only' => false,
+                    'updated_at' => now(),
+                ])->save();
+            } else {
+                $slot = InventoryTimeSlot::create([
+                    'inventory_id' => $inventory->id,
+                    'start_time' => $time . ':00',
+                    'is_override_only' => false,
+                ]);
+            }
+
+            $keptSlotIds->push($slot->id);
+
+            $slotsForTime->slice(1)->each(function (InventoryTimeSlot $duplicate) use ($slot) {
+                $this->mergeDuplicateInventoryTimeSlotReferences($duplicate, $slot);
+                $duplicate->delete();
+            });
+        }
+
+        $inventory->inventory_time_slots()
+            ->where('is_override_only', false)
+            ->when(
+                $keptSlotIds->isNotEmpty(),
+                fn($query) => $query->whereNotIn('id', $keptSlotIds->all())
+            )
+            ->delete();
+    }
+
+    private function mergeDuplicateInventoryTimeSlotReferences(InventoryTimeSlot $from, InventoryTimeSlot $to): void
+    {
+        if ((int) $from->id === (int) $to->id) {
+            return;
+        }
+
+        DB::table('booking_inventories')
+            ->where('inventory_time_slot_id', $from->id)
+            ->update(['inventory_time_slot_id' => $to->id]);
+
+        DB::table('closeout_day_time_slots')
+            ->where('time_slot_id', $from->id)
+            ->update(['time_slot_id' => $to->id]);
+
+        DB::table('promotion_day_time_slots')
+            ->where('time_slot_id', $from->id)
+            ->update(['time_slot_id' => $to->id]);
+
+        DB::table('inventory_slot_ranges')
+            ->where('time_slot_id', $from->id)
+            ->update(['time_slot_id' => $to->id]);
     }
 
     public function schedule(Request $request, Inventory $inventory)

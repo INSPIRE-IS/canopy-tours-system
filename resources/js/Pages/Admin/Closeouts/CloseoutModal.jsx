@@ -1,10 +1,13 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { router, useForm } from "@inertiajs/react";
 import InputText from "@/Components/InputText";
 import OutlineButton from "@/Components/OutlineButton";
 import BlueButton from "@/Components/BlueButton";
 import CustomTextarea from "@/Components/CustomTextarea";
 import CustomSelect from "@/Components/CustomSelect";
+
+const normalizeTime = (time) => String(time || "").slice(0, 5);
+const sortByStartTime = (slots = []) => [...slots].sort((a, b) => String(a.start_time).localeCompare(String(b.start_time)));
 
 const CloseoutModal = ({ isOpen, onClose, mode, closeout = null, services, auth, team_id }) => {
     console.log('closeout ', closeout);
@@ -24,6 +27,8 @@ const CloseoutModal = ({ isOpen, onClose, mode, closeout = null, services, auth,
         team_id: team_id,
         created_by_id: auth?.user?.id,
     });
+
+    const inventoryTimeSlots = useMemo(() => sortByStartTime(inventory?.inventory_time_slots || []), [inventory]);
 
     useEffect(() => {
         if (closeout && mode !== "create") {
@@ -59,15 +64,25 @@ const CloseoutModal = ({ isOpen, onClose, mode, closeout = null, services, auth,
 
     useEffect(() => {
         if ((mode === "edit" || mode === "view") && closeout && inventory) {
-            const slots = closeout.closeout_day_time_slots.map(slot => ({
-                day_id: slot.day_id,
-                time_slot_id: slot.time_slot_id,
-            }))
+            const currentSlotIds = new Set(inventoryTimeSlots.map(slot => Number(slot.id)));
+            const currentSlotByTime = new Map(inventoryTimeSlots.map(slot => [normalizeTime(slot.start_time), slot]));
+            const slots = closeout.closeout_day_time_slots.map(slot => {
+                const currentSlot = currentSlotIds.has(Number(slot.time_slot_id))
+                    ? { id: Number(slot.time_slot_id) }
+                    : currentSlotByTime.get(normalizeTime(slot.time_slot?.start_time));
+
+                if (!currentSlot) return null;
+
+                return {
+                    day_id: Number(slot.day_id),
+                    time_slot_id: Number(currentSlot.id),
+                };
+            }).filter(Boolean);
             console.log('slots ', slots);
 
             setSelectedSlots(slots);
         }
-    }, [mode, closeout, inventory]);
+    }, [mode, closeout, inventory, inventoryTimeSlots]);
     // When service changes, load seasons
     // useEffect(() => {
     //     setSeasons([]);
@@ -91,7 +106,7 @@ const CloseoutModal = ({ isOpen, onClose, mode, closeout = null, services, auth,
 
     // Toggle entire day column
     const toggleDayColumn = (dayId) => {
-        const isAllClosed = inventory.inventory_time_slots.every(slot =>
+        const isAllClosed = inventoryTimeSlots.every(slot =>
             selectedSlots.some(s => s.day_id === dayId && s.time_slot_id === slot.id)
         );
 
@@ -102,7 +117,7 @@ const CloseoutModal = ({ isOpen, onClose, mode, closeout = null, services, auth,
             // Check all slots for this day
             setSelectedSlots(prev => {
                 const newSelections = [...prev];
-                inventory.inventory_time_slots.forEach(slot => {
+                inventoryTimeSlots.forEach(slot => {
                     if (!newSelections.some(s => s.day_id === dayId && s.time_slot_id === slot.id)) {
                         newSelections.push({ day_id: dayId, time_slot_id: slot.id });
                     }
@@ -126,7 +141,9 @@ const CloseoutModal = ({ isOpen, onClose, mode, closeout = null, services, auth,
             if (season?.inventory) {
                 setInventory(season.inventory);
                 console.log('inventory ', season.inventory);
-                setSelectedSlots([]); // start EMPTY
+                if (mode === "create") {
+                    setSelectedSlots([]); // start EMPTY
+                }
             } else {
                 setInventory(null);
                 setSelectedSlots([]);
@@ -277,7 +294,7 @@ const CloseoutModal = ({ isOpen, onClose, mode, closeout = null, services, auth,
                                     onClick={() => {
                                         const allPairs = [];
                                         inventory.inventory_type_days.forEach(day => {
-                                            inventory.inventory_time_slots.forEach(slot => {
+                                            inventoryTimeSlots.forEach(slot => {
                                                 allPairs.push({ day_id: day.type_day_id, time_slot_id: slot.id });
                                             });
                                         });
@@ -298,7 +315,7 @@ const CloseoutModal = ({ isOpen, onClose, mode, closeout = null, services, auth,
                                     <tr>
                                         <th className="border p-2 bg-gray-100">Time</th>
                                         {inventory.inventory_type_days.map(day => {
-                                            const allClosed = inventory.inventory_time_slots.every(slot =>
+                                            const allClosed = inventoryTimeSlots.every(slot =>
                                                 selectedSlots.some(s => s.day_id === day.type_day_id && s.time_slot_id === slot.id)
                                             );
                                             return (
@@ -317,7 +334,7 @@ const CloseoutModal = ({ isOpen, onClose, mode, closeout = null, services, auth,
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {inventory.inventory_time_slots.map(slot => (
+                                    {inventoryTimeSlots.map(slot => (
                                         <tr key={slot.id}>
                                             <td className="border p-2">{slot.start_time.slice(0, 5)}</td>
                                             {inventory.inventory_type_days.map(day => {

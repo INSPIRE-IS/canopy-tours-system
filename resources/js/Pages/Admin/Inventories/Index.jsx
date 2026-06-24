@@ -132,10 +132,12 @@ export default function Index({ permissions, seasons, services, inventories, day
                                                     <td className="w-[185px] p-3">{inventory?.season?.start_date}</td>
                                                     <td className="w-[185px] p-3">{inventory?.season?.end_date}</td>
                                                     <td className="w-[132px] p-3">
-                                                        {inventory?.inventory_time_slots
-                                                            ?.filter((slot) => !slot.is_override_only)
-                                                            .map((r) => r.start_time)
-                                                            .join(', ')}
+                                                        {Array.from(new Set(
+                                                            inventory?.inventory_time_slots
+                                                                ?.filter((slot) => !slot.is_override_only)
+                                                                .map((slot) => String(slot.start_time || ""))
+                                                                .sort((a, b) => a.localeCompare(b)) || []
+                                                        )).join(', ')}
                                                     </td>
                                                     <td className="w-[185px] p-3 flex  gap-2">
                                                         {permissions.inventories_edit && (

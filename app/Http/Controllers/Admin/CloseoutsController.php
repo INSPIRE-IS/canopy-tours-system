@@ -33,7 +33,7 @@ class CloseoutsController extends Controller
         $sortDirection = $request->get('direction', 'asc');
         /** @var \App\Models\User $user */
         $teamId = Session::get('team_id');
-        $closeouts = Closeout::with(['service', 'season.inventory', 'closeout_day_time_slots'])
+        $closeouts = Closeout::with(['service', 'season.inventory', 'closeout_day_time_slots.time_slot'])
             ->where('name', 'like', '%' . $searchTerm . '%')
             ->orderBy($sortColumn, $sortDirection)
             ->paginate(10);
