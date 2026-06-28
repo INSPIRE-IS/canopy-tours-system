@@ -15,6 +15,10 @@ class SeedMarketingOptInReportTestData extends Command
         {--booking-ref-2=REF-4WJNE3 : Second booking reference}
         {--dry-run : Run all checks and inserts, then roll back}';
 
+    // php artisan reports:seed-marketing-optin-test --dry-run
+    // php artisan reports:seed-marketing-optin-test
+
+
     protected $description = 'Seed controlled Marketing Opt-In report test data for two existing bookings.';
 
     public function handle(): int
