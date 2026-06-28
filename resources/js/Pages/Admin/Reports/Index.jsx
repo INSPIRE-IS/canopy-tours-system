@@ -14,6 +14,7 @@ export default function Index({ auth, services = [], paymentTypes = [] }) {
     const today = new Date();
     const defaultEnd = formatDate(today);
     const defaultStart = formatDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 30));
+    const defaultMarketingStart = formatDate(new Date(today.getFullYear(), today.getMonth() - 2, today.getDate()));
 
     const [bookingFilters, setBookingFilters] = useState({
         start_date: defaultStart,
@@ -37,6 +38,20 @@ export default function Index({ auth, services = [], paymentTypes = [] }) {
         include_group_type: false,
         include_nationality: false,
         include_meal: false,
+        delivery: 'download',
+    });
+
+    const [marketingFilters, setMarketingFilters] = useState({
+        start_date: defaultMarketingStart,
+        end_date: defaultEnd,
+        service_id: '',
+        delivery: 'download',
+    });
+
+    const [franchiseFilters, setFranchiseFilters] = useState({
+        start_date: defaultStart,
+        end_date: defaultEnd,
+        service_id: '',
         delivery: 'download',
     });
 
@@ -156,6 +171,130 @@ export default function Index({ auth, services = [], paymentTypes = [] }) {
                                     title="Export Bookings"
                                     width="w-[180px]"
                                     onClick={() => exportReport('bookings', bookingFilters)}
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="border border-secondary-100 rounded-lg shadow-sm p-5">
+                        <div className="flex items-center gap-2 mb-4">
+                            <img src="/assets/icons/task-square.svg" alt="reports" className="w-5 h-5" />
+                            <span className="font-semibold text-lg text-gray-800">Franchise Fees</span>
+                        </div>
+                        <p className="text-sm text-gray-600 mb-4">
+                            Monthly activity-date worksheet grouping rack, wholesaler, promotion, discount, and other custom rates.
+                        </p>
+                        <div className="grid gap-4">
+                            <div className="grid gap-4 md:grid-cols-2">
+                                <div>
+                                    <label className="text-[#161618] font-poppins text-[12px] font-normal leading-[130%]">
+                                        Activity Date From
+                                    </label>
+                                    <input
+                                        type="date"
+                                        className={inputClass}
+                                        value={franchiseFilters.start_date}
+                                        onChange={(e) => setFranchiseFilters(prev => ({ ...prev, start_date: e.target.value }))}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-[#161618] font-poppins text-[12px] font-normal leading-[130%]">
+                                        Activity Date To
+                                    </label>
+                                    <input
+                                        type="date"
+                                        className={inputClass}
+                                        value={franchiseFilters.end_date}
+                                        onChange={(e) => setFranchiseFilters(prev => ({ ...prev, end_date: e.target.value }))}
+                                    />
+                                </div>
+                            </div>
+                            <CustomSelect
+                                label="Service"
+                                name="franchise_service_id"
+                                value={franchiseFilters.service_id}
+                                onChange={(e) => setFranchiseFilters(prev => ({ ...prev, service_id: e.target.value }))}
+                                options={services}
+                                optionText="All services"
+                            />
+                            <CustomSelect
+                                label="Delivery"
+                                name="franchise_delivery"
+                                value={franchiseFilters.delivery}
+                                onChange={(e) => setFranchiseFilters(prev => ({ ...prev, delivery: e.target.value }))}
+                                options={[
+                                    { id: 'download', name: 'Download now' },
+                                    { id: 'email', name: 'Email when ready' },
+                                ]}
+                                showOption={false}
+                            />
+                            <div className="flex justify-end">
+                                <BlueButton
+                                    title="Export Franchise"
+                                    width="w-[180px]"
+                                    onClick={() => exportReport('franchise_fees', franchiseFilters)}
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="border border-secondary-100 rounded-lg shadow-sm p-5">
+                        <div className="flex items-center gap-2 mb-4">
+                            <img src="/assets/icons/task-square.svg" alt="reports" className="w-5 h-5" />
+                            <span className="font-semibold text-lg text-gray-800">Marketing Opt-In</span>
+                        </div>
+                        <p className="text-sm text-gray-600 mb-4">
+                            Exports checked-in guests who opted in to promotional emails and birthday offers.
+                        </p>
+                        <div className="grid gap-4">
+                            <div className="grid gap-4 md:grid-cols-2">
+                                <div>
+                                    <label className="text-[#161618] font-poppins text-[12px] font-normal leading-[130%]">
+                                        Activity Date From
+                                    </label>
+                                    <input
+                                        type="date"
+                                        className={inputClass}
+                                        value={marketingFilters.start_date}
+                                        onChange={(e) => setMarketingFilters(prev => ({ ...prev, start_date: e.target.value }))}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-[#161618] font-poppins text-[12px] font-normal leading-[130%]">
+                                        Activity Date To
+                                    </label>
+                                    <input
+                                        type="date"
+                                        className={inputClass}
+                                        value={marketingFilters.end_date}
+                                        onChange={(e) => setMarketingFilters(prev => ({ ...prev, end_date: e.target.value }))}
+                                    />
+                                </div>
+                            </div>
+                            <CustomSelect
+                                label="Service"
+                                name="marketing_service_id"
+                                value={marketingFilters.service_id}
+                                onChange={(e) => setMarketingFilters(prev => ({ ...prev, service_id: e.target.value }))}
+                                options={services}
+                                optionText="All services"
+                            />
+                            <CustomSelect
+                                label="Delivery"
+                                name="marketing_delivery"
+                                value={marketingFilters.delivery}
+                                onChange={(e) => setMarketingFilters(prev => ({ ...prev, delivery: e.target.value }))}
+                                options={[
+                                    { id: 'download', name: 'Download now' },
+                                    { id: 'email', name: 'Email when ready' },
+                                ]}
+                                showOption={false}
+                            />
+                            <div className="flex justify-end">
+                                <BlueButton
+                                    title="Export Opt-Ins"
+                                    width="w-[180px]"
+                                    onClick={() => exportReport('marketing_opt_in', marketingFilters)}
                                 />
                             </div>
                         </div>

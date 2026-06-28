@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Exports\Reports\BookingsReportExport;
 use App\Exports\Reports\BookingAdjustmentReportExport;
 use App\Exports\Reports\CheckInManifestReportExport;
+use App\Exports\Reports\FranchiseFeesReportExport;
+use App\Exports\Reports\MarketingOptInReportExport;
 use App\Exports\Reports\PaymentsReportExport;
 use App\Jobs\SendReportReadyEmail;
 use App\Models\Service;
@@ -101,7 +103,7 @@ class ReportsController extends Controller
     public function export(Request $request)
     {
         $validated = $request->validate([
-            'report' => 'required|in:bookings,payments,checkin_manifest,booking_adjustment',
+            'report' => 'required|in:bookings,payments,checkin_manifest,booking_adjustment,marketing_opt_in,franchise_fees',
             'start_date' => 'nullable|date',
             'end_date' => 'nullable|date',
             'service_id' => 'nullable|exists:services,id',
@@ -144,6 +146,22 @@ class ReportsController extends Controller
                 $includeMeal
             );
             $label = 'Check-in Manifest';
+        } elseif ($validated['report'] === 'marketing_opt_in') {
+            $export = new MarketingOptInReportExport(
+                $teamId,
+                $startDate,
+                $endDate,
+                $serviceId ? (int) $serviceId : null
+            );
+            $label = 'Marketing Opt-In';
+        } elseif ($validated['report'] === 'franchise_fees') {
+            $export = new FranchiseFeesReportExport(
+                $teamId,
+                $startDate,
+                $endDate,
+                $serviceId ? (int) $serviceId : null
+            );
+            $label = 'Franchise Fees';
         } else {
             $export = new BookingAdjustmentReportExport(
                 $teamId,
