@@ -26,6 +26,10 @@ class Alert extends Model
         'alert_link',
         'type_alert_id',
         'team_id',
+        'booking_id',
+        'booking_item_id',
+        'customer_id',
+        'customer_manifest_id',
         'created_at',
         'updated_at',
         'deleted_at',
@@ -41,5 +45,25 @@ class Alert extends Model
         return $this->belongsToMany(User::class)
             ->withPivot(['read', 'complete'])
             ->withTimestamps(); // optional
+    }
+
+    public function booking()
+    {
+        return $this->belongsTo(Booking::class);
+    }
+
+    public function booking_item()
+    {
+        return $this->belongsTo(BookingItem::class);
+    }
+
+    public function customer()
+    {
+        return $this->belongsTo(Customer::class);
+    }
+
+    public function customer_manifest()
+    {
+        return $this->belongsTo(CustomerManifest::class);
     }
 }

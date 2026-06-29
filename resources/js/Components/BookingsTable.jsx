@@ -1,6 +1,17 @@
 import React from "react";
 
-export default function BookingsTable({ chartTitle, fields, data }) {
+export default function BookingsTable({ chartTitle, fields, data, onRowClick }) {
+    const safeLocalHref = (href, fallback = null) => {
+        if (!href) return fallback;
+
+        try {
+            const url = new URL(href, window.location.origin);
+            return `${url.pathname}${url.search}${url.hash}`;
+        } catch {
+            return href.startsWith("/") ? href : fallback;
+        }
+    };
+
     // Helper to format the column name
     const formatHeader = (field) => {
         if (field === "created_at") {
@@ -27,8 +38,16 @@ export default function BookingsTable({ chartTitle, fields, data }) {
                 </thead>
                 <tbody>
                     {data?.length > 0 ? (
-                        data.map((row, i) => (
-                            <tr key={i} className="odd:bg-white even:bg-gray-50">
+                        data.map((row, i) => {
+                            const rowHref = safeLocalHref(row?.url);
+                            const canClick = Boolean(onRowClick || rowHref);
+
+                            return (
+                            <tr
+                                key={i}
+                                onClick={() => onRowClick ? onRowClick(row) : (rowHref && (window.location.href = rowHref))}
+                                className={`odd:bg-white even:bg-gray-50 ${canClick ? "cursor-pointer hover:bg-gray-100" : ""}`}
+                            >
                                 {Object.entries(fields).map(([field, relation], j) => (
                                     <td key={j} className="px-4 py-2 border">
                                         {relation
@@ -37,7 +56,8 @@ export default function BookingsTable({ chartTitle, fields, data }) {
                                     </td>
                                 ))}
                             </tr>
-                        ))
+                            );
+                        })
                     ) : (
                         <tr>
                             <td

@@ -2,6 +2,7 @@ import Header from '@/Components/Header';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head } from '@inertiajs/react';
 import { Line } from 'react-chartjs-2';
+import { useState } from 'react';
 import {
     Chart as ChartJS,
     CategoryScale,
@@ -14,6 +15,7 @@ import {
     Filler
 } from 'chart.js';
 import BookingsTable from '@/Components/BookingsTable';
+import AlertContextModal from '@/Components/AlertContextModal';
 
 // Register Chart.js components
 ChartJS.register(
@@ -28,6 +30,7 @@ ChartJS.register(
 );
 
 export default function Dashboard({ auth, chart1, latestBookings, statusBookings, notifications, customerManifest, promotionsSummary, discountsSummary }) {
+    const [activeAlertId, setActiveAlertId] = useState(null);
     console.log('chart1', chart1);
     const data = {
         labels: chart1.labels || [],
@@ -85,6 +88,7 @@ export default function Dashboard({ auth, chart1, latestBookings, statusBookings
                                     chartTitle={notifications?.chart_title}
                                     fields={notifications?.fields}
                                     data={notifications?.data}
+                                    onRowClick={(row) => row?.has_context && row?.id ? setActiveAlertId(row.id) : row?.url && (window.location.href = row.url)}
                                 />
                                 {/* customerManifest */}
                                 <BookingsTable
@@ -109,6 +113,11 @@ export default function Dashboard({ auth, chart1, latestBookings, statusBookings
                     </div>
                 </div>
             </div>
+            <AlertContextModal
+                alertId={activeAlertId}
+                isOpen={Boolean(activeAlertId)}
+                onClose={() => setActiveAlertId(null)}
+            />
         </AuthenticatedLayout>
     );
 }

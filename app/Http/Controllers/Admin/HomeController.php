@@ -123,15 +123,29 @@ class HomeController extends Controller
             // 'entries_number'        => '5',
             'fields'                => [
                 'alert_text' => '',
-                'user'       => 'name',
+                'assigned_to' => 'name',
                 'created_at' => '',
             ],
             //'translation_key' => 'Alert',
             'data'           => \App\Models\Alert::with('users:id,name')
                 ->when($teamId, fn($query) => $query->where('team_id', $teamId))
+                ->whereHas('users', fn($query) => $query->where('alert_user.complete', false))
                 ->latest()
                 ->take(10)
-                ->get(),
+                ->get()
+                ->map(function ($alert) {
+                    return [
+                        'id' => $alert->id,
+                        'alert_text' => $alert->alert_text,
+                        'alert_link' => $alert->alert_link,
+                        'url' => $alert->alert_link ?: route('admin.bookings.index', [], false),
+                        'context_url' => route('admin.user-alerts.context', $alert->id, false),
+                        'resolve_url' => route('admin.user-alerts.resolve', $alert->id, false),
+                        'has_context' => (bool) ($alert->booking_id && $alert->booking_item_id && $alert->customer_id),
+                        'assigned_to' => $alert->users->first(),
+                        'created_at' => $alert->created_at?->format('Y-m-d H:i:s'),
+                    ];
+                }),
         ];
         // dd($settings3);
         $booking = \App\Models\Booking::with('booking_items', 'booking_items.season:id,name', 'status_payment:id,name')->latest()->take(10)->get();

@@ -216,6 +216,8 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['auth', 'v
 
     // User Alerts
     Route::get('user-alerts/read', [AlertsController::class, 'read'])->name('user-alerts.read');
+    Route::get('user-alerts/{alert}/context', [AlertsController::class, 'context'])->name('user-alerts.context');
+    Route::post('user-alerts/{alert}/resolve', [AlertsController::class, 'resolve'])->name('user-alerts.resolve');
     Route::resource('user-alerts', AlertsController::class); // ['except' => ['edit', 'update']]
 
     // Services

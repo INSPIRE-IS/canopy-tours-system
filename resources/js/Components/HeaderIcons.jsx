@@ -1,12 +1,33 @@
 import { useState } from "react";
 //import { motion, AnimatePresence } from "framer-motion";
 import { icons } from '@/icons';
+import AlertContextModal from '@/Components/AlertContextModal';
 
 export default function HeaderIcons({ unreadCount, unreadTopics, user }) {
     const [viewMessages, setViewMessages] = useState(false);
     const [viewAlerts, setViewAlerts] = useState(false);
+    const [activeAlertId, setActiveAlertId] = useState(null);
 
     const alertCount = user?.alerts?.length || 0;
+    const openAlert = (alert) => {
+        if (alert?.booking_id || alert?.customer_id || alert?.customer_manifest_id) {
+            setActiveAlertId(alert.id);
+            setViewAlerts(false);
+            return;
+        }
+
+        window.location.href = safeLocalHref(alert?.alert_link);
+    };
+    const safeLocalHref = (href, fallback = "/admin/bookings") => {
+        if (!href) return fallback;
+
+        try {
+            const url = new URL(href, window.location.origin);
+            return `${url.pathname}${url.search}${url.hash}`;
+        } catch {
+            return href.startsWith("/") ? href : fallback;
+        }
+    };
 
     return (
         <div className="flex items-center gap-4 relative">
@@ -39,7 +60,7 @@ export default function HeaderIcons({ unreadCount, unreadTopics, user }) {
                                     unreadTopics.map(topic => (
                                         <a
                                             key={topic.id}
-                                            href={`admin/messages/${topic.id}`}
+                                            href={`/admin/messages/${topic.id}`}
                                             className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                                         >
                                             {topic.subject}
@@ -85,13 +106,14 @@ export default function HeaderIcons({ unreadCount, unreadTopics, user }) {
                             <div className="max-h-64 overflow-y-auto">
                                 {user?.alerts?.length > 0 ? (
                                     user.alerts.map(alert => (
-                                        <a
+                                        <button
                                             key={alert.id}
-                                            href={alert.alert_link}
-                                            className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                            type="button"
+                                            onClick={() => openAlert(alert)}
+                                            className="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
                                         >
                                             {alert.alert_text}
-                                        </a>
+                                        </button>
                                     ))
                                 ) : (
                                     <div className="px-4 py-3 text-sm text-gray-500">No new alerts</div>
@@ -101,6 +123,12 @@ export default function HeaderIcons({ unreadCount, unreadTopics, user }) {
                     )}
                 </div>
             </div>
+            <AlertContextModal
+                alertId={activeAlertId}
+                isOpen={Boolean(activeAlertId)}
+                onClose={() => setActiveAlertId(null)}
+                reloadOnly={['auth']}
+            />
         </div>
     );
 }

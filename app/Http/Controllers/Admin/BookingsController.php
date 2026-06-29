@@ -2473,7 +2473,7 @@ class BookingsController extends Controller
 
         $alert = Alert::create([
             'alert_text' => $alertText,
-            'alert_link' => route('admin.boardingpass.index'),
+            'alert_link' => route('admin.boardingpass.index', [], false),
             'type_alert_id' => $typeAlert->id,
             'team_id' => $teamId,
         ]);

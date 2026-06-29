@@ -792,7 +792,7 @@ class BookingQuestionnaireController extends Controller
                 //         'pully_number' => $validated['pully_number'] ?? null,
                 //     ]
                 // );
-                CustomerManifest::updateOrCreate(
+                $customerManifest = CustomerManifest::updateOrCreate(
                     [
                         'customer_id' => $validated['customer_id'],
                         'booking_item_id' => $validated['booking_item_id'],
@@ -848,10 +848,14 @@ class BookingQuestionnaireController extends Controller
                 }
                 if ($validated['medical_id'] == 1) {
                     $alert = Alert::create([
-                        'alert_text' => 'Medical Condition',
-                        'alert_link' => route('admin.bookings.index'), //route('front.payment.booking', ['booking' => $booking->id]),
+                        'alert_text' => $this->checkInAlertText('Medical Condition', $customer, $booking),
+                        'alert_link' => route('admin.bookings.add', $booking->id, false),
                         'type_alert_id' => 5,
                         'team_id' => $booking->team_id,
+                        'booking_id' => $booking->id,
+                        'booking_item_id' => $bookingItem->id,
+                        'customer_id' => $customer->id,
+                        'customer_manifest_id' => $customerManifest->id,
                     ]);
                     $users = User::where('team_id', $booking->team_id)
                         ->whereHas('roles', function ($query) {
@@ -865,10 +869,14 @@ class BookingQuestionnaireController extends Controller
                 }
                 if ($validated['is_fit'] == 2) {
                     $alert = Alert::create([
-                        'alert_text' => 'Not Fit',
-                        'alert_link' => route('admin.bookings.index'), //route('front.payment.booking', ['booking' => $booking->id]),
+                        'alert_text' => $this->checkInAlertText('Not Fit', $customer, $booking),
+                        'alert_link' => route('admin.bookings.add', $booking->id, false),
                         'type_alert_id' => 7,
                         'team_id' => $booking->team_id,
+                        'booking_id' => $booking->id,
+                        'booking_item_id' => $bookingItem->id,
+                        'customer_id' => $customer->id,
+                        'customer_manifest_id' => $customerManifest->id,
                     ]);
                     $users = User::where('team_id', $booking->team_id)
                         ->whereHas('roles', function ($query) {
@@ -882,10 +890,14 @@ class BookingQuestionnaireController extends Controller
                 }
                 if ($validated['is_agree'] == 2) {
                     $alert = Alert::create([
-                        'alert_text' => 'Did Not agree to terms and conditions',
-                        'alert_link' => route('admin.bookings.index'), //route('front.payment.booking', ['booking' => $booking->id]),
+                        'alert_text' => $this->checkInAlertText('Terms Not Agreed', $customer, $booking),
+                        'alert_link' => route('admin.bookings.add', $booking->id, false),
                         'type_alert_id' => 8,
                         'team_id' => $booking->team_id,
+                        'booking_id' => $booking->id,
+                        'booking_item_id' => $bookingItem->id,
+                        'customer_id' => $customer->id,
+                        'customer_manifest_id' => $customerManifest->id,
                     ]);
                     $users = User::where('team_id', $booking->team_id)
                         ->whereHas('roles', function ($query) {
@@ -899,10 +911,14 @@ class BookingQuestionnaireController extends Controller
                 }
                 // always show complete indemnity
                 $alert = Alert::create([
-                    'alert_text' => 'Check-in Complete',
-                    'alert_link' => route('admin.bookings.index'), //route('front.payment.booking', ['booking' => $booking->id]),
+                    'alert_text' => $this->checkInAlertText('Check-in Complete', $customer, $booking),
+                    'alert_link' => route('admin.bookings.add', $booking->id, false),
                     'type_alert_id' => 9,
                     'team_id' => $booking->team_id,
+                    'booking_id' => $booking->id,
+                    'booking_item_id' => $bookingItem->id,
+                    'customer_id' => $customer->id,
+                    'customer_manifest_id' => $customerManifest->id,
                 ]);
                 $users = User::where('team_id', $booking->team_id)
                     ->whereHas('roles', function ($query) {
@@ -1261,5 +1277,13 @@ class BookingQuestionnaireController extends Controller
     public function getStates($countryId)
     {
         return State::where('country_id', $countryId)->where('name', '!=', ' ')->wherenotnull('name')->orderBy('name')->get();
+    }
+
+    private function checkInAlertText(string $reason, ?Customer $customer, ?Booking $booking): string
+    {
+        $name = trim((string) ($customer?->full_name ?: $customer?->email_address ?: 'Unknown guest'));
+        $reference = trim((string) ($booking?->reference ?: 'Unknown booking'));
+
+        return "{$reason}: {$name} / {$reference}";
     }
 }

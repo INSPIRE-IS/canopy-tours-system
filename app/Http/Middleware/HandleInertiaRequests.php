@@ -42,7 +42,14 @@ class HandleInertiaRequests extends Middleware
         $topics = [];
 
         if ($user) {
-            $user->load('roles.permissions', 'team', 'alerts');
+            $user->load([
+                'roles.permissions',
+                'team',
+                'alerts' => fn($query) => $query
+                    ->wherePivot('complete', false)
+                    ->latest()
+                    ->limit(20),
+            ]);
             $permissions = $user->roles
                 ->flatMap(fn($role) => $role->permissions->pluck('name'))
                 ->unique()

@@ -905,6 +905,26 @@ class SeedHelpQuestions extends Command
                 'is_internal' => true,
             ],
             [
+                'category' => 'Alerts',
+                'question' => 'How do check-in notifications work?',
+                'description' => 'Check-in notifications warn staff about questionnaire and manifest items that need review.',
+                'where' => 'Header notification bell and <a href="/admin">Admin > Dashboard</a> Notifications table.',
+                'business_rules' => 'Check-in alerts can be created when a guest completes check-in, reports a medical condition, marks themselves not fit, or does not agree to the indemnity terms. Contextual alerts open a quick-view modal showing the guest, booking reference, service/date/time, manifest status, and questionnaire answers. Use <strong>Acknowledge</strong> to hide the notification for your user after reviewing it. Acknowledging does not change the guest answers or make the guest eligible to participate; it only records that staff reviewed the notification. If the alert is linked to a manifest, staff can append an acknowledgement note to Checkin Detail notes without overwriting existing notes.',
+                'examples' => 'If the alert says Medical Condition, open it from the bell or dashboard, review the medical answer, optionally add an acknowledgement note, then use View Booking if you need to update the manifest or contact the guest. If the guest did not agree to terms, staff must handle that operationally; acknowledgement does not override the indemnity answer.',
+                'related' => 'alerts, notifications, check-in, indemnity, manifest, questionnaire, dashboard, Checkin Detail, acknowledge',
+                'is_internal' => false,
+            ],
+            [
+                'category' => 'Alerts',
+                'question' => 'Why did a notification disappear after I acknowledged it?',
+                'description' => 'Acknowledged alerts are hidden for the staff user who reviewed them.',
+                'where' => 'Header notification bell and <a href="/admin">Admin > Dashboard</a> Notifications table.',
+                'business_rules' => 'Alerts track read/complete state per user. When you click Acknowledge, the system marks the alert complete for your user and removes it from your header and dashboard notification list. This does not delete the alert for audit/history purposes, and it does not automatically complete or change any customer manifest answer. If you ticked the note option, the acknowledgement text is appended to the customer manifest notes so it remains visible in Checkin Detail.',
+                'examples' => 'Rose acknowledging a Medical Condition alert hides it from Rose. The guest answer remains unchanged, and the appended Checkin Detail note remains available for staff review.',
+                'related' => 'alerts, acknowledge, notification, dashboard, header bell, Checkin Detail notes, manifest',
+                'is_internal' => false,
+            ],
+            [
                 'category' => 'Audit Logs',
                 'question' => 'What actions are recorded?',
                 'description' => 'Audit trail for key actions.',
@@ -1074,3 +1094,5 @@ class SeedHelpQuestions extends Command
         return implode('', $parts);
     }
 }
+
+
