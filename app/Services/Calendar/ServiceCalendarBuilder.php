@@ -104,6 +104,7 @@ class ServiceCalendarBuilder
                             'status' => 'unavailable',
                             'note' => 'Date override active',
                             'internal_only' => false,
+                            'is_date_override' => false,
                         ];
                         continue;
                     }
@@ -115,12 +116,13 @@ class ServiceCalendarBuilder
                     $row['days'][$label] = [
                         'date' => $dateStr,
                         'slots' => 0,
-                        'status' => 'unavailable',
-                        'note' => 'Override-only slot',
-                        'internal_only' => false,
-                    ];
-                    continue;
-                } else {
+                            'status' => 'unavailable',
+                            'note' => 'Override-only slot',
+                            'internal_only' => false,
+                            'is_date_override' => false,
+                        ];
+                        continue;
+                    } else {
                     // Not an allowed weekday
                     if (!in_array($dayOfWeek, $allowedDays)) {
                         $row['days'][$label] = [
@@ -129,6 +131,7 @@ class ServiceCalendarBuilder
                             'status' => 'unavailable',
                             'note' => 'Not an allowed day',
                             'internal_only' => false,
+                            'is_date_override' => false,
                         ];
                         continue;
                     }
@@ -141,6 +144,7 @@ class ServiceCalendarBuilder
                         'status' => 'unavailable',
                         'note'   => 'Past date',
                         'internal_only' => false,
+                        'is_date_override' => (bool) $overrideMeta,
                     ];
                     continue;
                 }
@@ -161,6 +165,7 @@ class ServiceCalendarBuilder
                         'status' => 'unavailable', // closed
                         'note'   => 'Online booking closes' . $cutoff . 'h before tour',
                         'internal_only' => (bool) (is_array($overrideMeta) ? ($overrideMeta['internal_only'] ?? false) : false),
+                        'is_date_override' => (bool) $overrideMeta,
                     ];
                     continue;
                 }
@@ -187,6 +192,7 @@ class ServiceCalendarBuilder
                             'status' => 'full',
                             'note' => 'Fully booked',
                             'internal_only' => (bool) (is_array($overrideMeta) ? ($overrideMeta['internal_only'] ?? false) : false),
+                            'is_date_override' => (bool) $overrideMeta,
                         ];
                     } elseif ($effectiveRemaining < $totalRequested) {
                         $row['days'][$label] = [
@@ -196,6 +202,7 @@ class ServiceCalendarBuilder
                             'status' => 'full',
                             'note' => 'Fully booked',
                             'internal_only' => (bool) (is_array($overrideMeta) ? ($overrideMeta['internal_only'] ?? false) : false),
+                            'is_date_override' => (bool) $overrideMeta,
                         ];
                     } else {
                         $row['days'][$label] = [
@@ -205,6 +212,7 @@ class ServiceCalendarBuilder
                             'status' => 'available',
                             'rake_rate_adult' => $season->rake_rate_adult,
                             'internal_only' => (bool) (is_array($overrideMeta) ? ($overrideMeta['internal_only'] ?? false) : false),
+                            'is_date_override' => (bool) $overrideMeta,
                         ];
                     }
                 }

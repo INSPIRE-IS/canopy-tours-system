@@ -347,7 +347,7 @@ class SeedHelpQuestions extends Command
                 'question' => 'How do Date Overrides work?',
                 'description' => 'Date overrides replace the weekly schedule for specific dates without changing the base inventory.',
                 'where' => '<a href="/admin/inventory-slot-ranges">Admin > Inventory > Date Overrides</a>',
-                'business_rules' => 'Weekly schedule is the default. Custom/one-off slots must be created via Date Overrides, which take precedence over the weekly schedule for those dates. If a date override exists for a date, only those override slots are used for that date. Overrides can use custom times not present in weekly inventory. Internal-only overrides show on admin calendars only. Closeouts still apply after overrides.',
+                'business_rules' => 'Weekly schedule is the default. Closeouts remove normal availability. Custom/one-off slots must be created via Date Overrides, which take precedence over the weekly schedule for those dates and over closeouts for the specific overridden slots. If a date override exists for a date, only those override slots are used for that date. Overrides can use custom times not present in weekly inventory. Internal-only overrides show on admin calendars only.',
                 'examples' => 'Weekly schedule: Mon/Wed/Fri 09:00 + 13:00. Date override: May 5-7 with only 10:00. Result: May 5-7 shows only 10:00; all other Mon/Wed/Fri still show 09:00 + 13:00. If you mark the override internal-only, it appears in admin calendars but not on the front booking calendar.',
                 'related' => 'inventory, closeouts, availability, capacity override, internal only',
                 'is_internal' => true,
@@ -357,7 +357,7 @@ class SeedHelpQuestions extends Command
                 'question' => 'When should I use Date Overrides?',
                 'description' => 'Use date overrides when you need custom availability for a specific date range without changing the weekly schedule.',
                 'where' => '<a href="/admin/inventory-slot-ranges">Admin > Inventory > Date Overrides</a>',
-                'business_rules' => 'Overrides apply only to the selected dates and replace the weekly schedule for those dates. Override-only slots are hidden on other dates. Internal-only overrides show on admin calendars only. If a capacity override is set, that capacity is used for those override slots. Closeouts can still block slots after overrides are applied.',
+                'business_rules' => 'Overrides apply only to the selected dates and replace the weekly schedule for those dates. Override-only slots are hidden on other dates. Internal-only overrides show on admin calendars only. If a capacity override is set, that capacity is used for those override slots. Date Overrides are the final exception layer, so an explicit override slot can reopen a slot that is normally blocked by a closeout.',
                 'examples' => 'If your weekly schedule is 09:00 + 13:00 but you need 12:00 + 14:00 on Mar 23-25, add a date override for those dates with 12:00 + 14:00. Those dates show only 12:00 + 14:00; the rest of the season remains 09:00 + 13:00. If you set capacity override = 6, those slots cap at 6 seats even if the service capacity is higher.',
                 'related' => 'inventory, closeouts, availability, capacity override, internal only',
                 'is_internal' => true,
@@ -376,7 +376,7 @@ class SeedHelpQuestions extends Command
                 'question' => 'How do I hide a time slot from online bookings but keep it for staff?',
                 'description' => 'Use an internal-only Date Override so the slot shows on admin calendars but not on the guest calendar.',
                 'where' => '<a href="/admin/inventory-slot-ranges">Admin > Inventory > Date Overrides</a>',
-                'business_rules' => 'Internal-only overrides are excluded from the front (guest) calendar, but included for logged-in admin/staff. Closeouts always block both admin and online. If a date override exists for a date, only those override slots are used for that date (weekly slots are replaced for that date).',
+                'business_rules' => 'Internal-only overrides are excluded from the front (guest) calendar, but included for logged-in admin/staff. Closeouts block normal admin and online availability, but explicit Date Override slots can reopen a closed slot. If a date override exists for a date, only those override slots are used for that date (weekly slots are replaced for that date).',
                 'examples' => '<p><strong>Example 1 (Monday closed, but open in holidays)</strong>: Keep Mondays closed in weekly inventory. For school-holiday Mondays, add a Date Override for the holiday date range with the slots you want and mark them internal-only until you\'re ready to open them online.</p><p><strong>Example 2 (short-staffed Tuesdays)</strong>: Weekly inventory has 08:30, 10:00, 11:30. For a specific Tuesday where only one team is available, create a Date Override for that date with only 08:30 and 10:00. If you want staff-only booking for the extra slot, add it as internal-only.</p>',
                 'related' => 'date overrides, internal only, online calendar, admin calendar, closeouts, weekly schedule',
                 'is_internal' => true,
@@ -416,7 +416,7 @@ class SeedHelpQuestions extends Command
                 'question' => 'How do we block a day or slot?',
                 'description' => 'Closeouts block dates or time slots from booking.',
                 'where' => '<a href="/admin/closeouts">Admin > Closeouts</a>',
-                'business_rules' => 'Closed slots are unavailable in admin and front calendars. Closeouts can target specific weekdays and time slots over a date range.',
+                'business_rules' => 'Closed slots are unavailable in admin and front calendars unless an explicit Date Override reopens that exact date/time. Closeouts can target specific weekdays and time slots over a date range.',
                 'examples' => 'If you select a date range 10-14 July, weekdays Mon-Fri, and time slot 09:00, then 09:00 is blocked on every weekday in that range. Leaving time slots empty blocks all slots for those dates. To close all Mondays and Tuesdays for a season, set the closeout date range to the full season, pick Mon + Tue, and leave time slots empty.',
                 'related' => 'inventory, date overrides, availability, time slots, seasons',
                 'is_internal' => true,
@@ -1094,5 +1094,6 @@ class SeedHelpQuestions extends Command
         return implode('', $parts);
     }
 }
+
 
 

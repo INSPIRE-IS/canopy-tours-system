@@ -68,6 +68,13 @@ class ServiceCloseoutCalendarBuilder
                     continue; // safety
                 }
 
+                // Date overrides are deliberate exceptions and must win over closeouts.
+                // This lets staff reopen a public-holiday/group slot without editing a
+                // long-running closeout period.
+                if (!empty($row['days'][$label]['is_date_override'])) {
+                    continue;
+                }
+
                 // Don't override "unavailable" (not an allowed day)
                 if (($row['days'][$label]['status'] ?? null) === 'unavailable') {
                     continue;
