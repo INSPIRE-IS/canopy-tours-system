@@ -10,6 +10,7 @@ import BlueButton from '@/Components/BlueButton';
 import OutlineButton from '@/Components/OutlineButton';
 import Pagination from '@/Components/Pagination';
 import HeaderServices from '@/Components/HeaderServices';
+import AvailabilityPreviewModal from '../Inventories/AvailabilityPreviewModal';
 
 export default function Index({ permissions, slotRanges, services, auth, searchTerm, sortColumn, sortDirection, viewMode = 'detailed' }) {
     const { props } = usePage();
@@ -18,8 +19,17 @@ export default function Index({ permissions, slotRanges, services, auth, searchT
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalMode, setModalMode] = useState('create');
     const [isOpenTab, setIsOpenTab] = useState('DateOverrides');
+    const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
     const [currentView, setCurrentView] = useState(viewMode);
     const [visibilityFilter, setVisibilityFilter] = useState('all'); // all | online | admin_only
+    const inventoryOptions = (services || [])
+        .flatMap((service) => (service.seasons || [])
+            .filter((season) => season.inventory)
+            .map((season) => ({
+                ...season.inventory,
+                service,
+                season,
+            })));
 
     const ranges = slotRanges?.data || [];
     const filteredRanges = ranges.filter((range) => {
@@ -164,6 +174,7 @@ export default function Index({ permissions, slotRanges, services, auth, searchT
                                         onClick={() => toggleView('detailed')}
                                     />
                                 )}
+                                <BlueButton title="Preview Availability" onClick={() => setIsPreviewModalOpen(true)} />
                                 {permissions.inventories_create && (
                                     <BlueButton title="Add Date Override" onClick={() => handleOpenModal('create')} icon={true} />
                                 )}
@@ -316,6 +327,12 @@ export default function Index({ permissions, slotRanges, services, auth, searchT
                         slotRange={selectedRange}
                         auth={auth}
                         services={services}
+                    />
+                    <AvailabilityPreviewModal
+                        isOpen={isPreviewModalOpen}
+                        onClose={() => setIsPreviewModalOpen(false)}
+                        inventory={inventoryOptions?.[0] || null}
+                        inventoryOptions={inventoryOptions}
                     />
                 </div>
             </div>

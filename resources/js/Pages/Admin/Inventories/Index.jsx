@@ -10,6 +10,7 @@ import BlueButton from '@/Components/BlueButton';
 import Pagination from '@/Components/Pagination';
 import HeaderServices from '@/Components/HeaderServices';
 import AdvancedScheduleModal from './AdvancedScheduleModal';
+import AvailabilityPreviewModal from './AvailabilityPreviewModal';
 
 
 export default function Index({ permissions, seasons, services, inventories, day_slots, closeouts = [], bookedSlots = [], auth, searchTerm, sortColumn, sortDirection, inventorySeasonIdsByService }) {
@@ -21,6 +22,7 @@ export default function Index({ permissions, seasons, services, inventories, day
     const [search, setSearch] = useState(searchTerm);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
+    const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
     const [modalMode, setModalMode] = useState("create");
     const [isOpenTab, setIsOpenTab] = useState('Inventory');
     const handleOpenModal = (mode, inventory = null) => {
@@ -43,6 +45,16 @@ export default function Index({ permissions, seasons, services, inventories, day
 
     const handleCloseScheduleModal = () => {
         setIsScheduleModalOpen(false);
+        setSelectedInventory(null);
+    };
+
+    const handleOpenPreviewModal = (inventory = null) => {
+        setSelectedInventory(inventory || inventories?.data?.[0] || null);
+        setIsPreviewModalOpen(true);
+    };
+
+    const handleClosePreviewModal = () => {
+        setIsPreviewModalOpen(false);
         setSelectedInventory(null);
     };
 
@@ -95,6 +107,7 @@ export default function Index({ permissions, seasons, services, inventories, day
                             <SearchBar search={search} handleSearchChange={(e) => handleSearchChange(e)} handleSearchSubmit={handleSearchSubmit} />
 
                             <span className="flex gap-2">
+                                <BlueButton title="Preview Availability" onClick={() => handleOpenPreviewModal()} />
                                 <BlueButton title="Add Inventory" onClick={() => handleOpenModal("create")} icon={true} />
 
                             </span>
@@ -152,6 +165,11 @@ export default function Index({ permissions, seasons, services, inventories, day
                                                                 Schedule
                                                             </button>)}
 
+                                                        <button onClick={() => handleOpenPreviewModal(inventory)}
+                                                            className="flex items-center gap-1 text-sky-600 hover:text-sky-800">
+                                                            Preview
+                                                        </button>
+
                                                         {permissions.inventories_edit && (
                                                             <button onClick={() => handleDelete(inventory)}
                                                                 className="flex items-center gap-1 text-red-600 hover:text-red-800">
@@ -192,6 +210,12 @@ export default function Index({ permissions, seasons, services, inventories, day
                         inventory={selectedInventory}
                         closeouts={closeouts}
                         bookedSlots={bookedSlots}
+                    />
+                    <AvailabilityPreviewModal
+                        isOpen={isPreviewModalOpen}
+                        onClose={handleClosePreviewModal}
+                        inventory={selectedInventory}
+                        inventoryOptions={inventories?.data || []}
                     />
                 </div>
             </div>

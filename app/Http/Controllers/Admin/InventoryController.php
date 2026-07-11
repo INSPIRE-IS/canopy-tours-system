@@ -26,6 +26,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Carbon\Carbon;
+use Carbon\CarbonPeriod;
 
 class InventoryController extends Controller
 {
@@ -87,6 +88,104 @@ class InventoryController extends Controller
             'searchTerm' => $searchTerm,
             'sortColumn' => $sortColumn,
             'sortDirection' => $sortDirection,
+        ]);
+    }
+
+    public function availabilityPreview(Request $request, Inventory $inventory)
+    {
+        abort_if(Gate::denies('inventories_access'), Response::HTTP_FORBIDDEN, '403 Forbidden');
+        abort_if((int) $inventory->team_id !== (int) auth()->user()->team_id, Response::HTTP_FORBIDDEN, '403 Forbidden');
+
+        $inventory->load(['service', 'season', 'inventory_type_days', 'inventory_time_slots']);
+
+        $season = $inventory->season;
+        $service = $inventory->service;
+
+        if (!$season || !$service) {
+            return response()->json([
+                'schedule' => [],
+                'days' => [],
+                'message' => 'Inventory is missing a linked service or season.',
+            ], 422);
+        }
+
+        $seasonStart = Carbon::parse($season->start_date)->startOfDay();
+        $seasonEnd = Carbon::parse($season->end_date)->startOfDay();
+        $requestedStart = $request->filled('from')
+            ? Carbon::parse($request->input('from'))->startOfDay()
+            : now('Africa/Johannesburg')->startOfDay();
+        $requestedEnd = $request->filled('to')
+            ? Carbon::parse($request->input('to'))->startOfDay()
+            : (clone $requestedStart)->addDays(6);
+
+        if ($requestedEnd->lt($requestedStart)) {
+            throw ValidationException::withMessages([
+                'to' => 'End date must be after the start date.',
+            ]);
+        }
+
+        if ($requestedStart->diffInDays($requestedEnd) > 30) {
+            $requestedEnd = (clone $requestedStart)->addDays(30);
+        }
+
+        $startDate = $requestedStart->lt($seasonStart) ? $seasonStart : $requestedStart;
+        $endDate = $requestedEnd->gt($seasonEnd) ? $seasonEnd : $requestedEnd;
+
+        if ($startDate->gt($endDate)) {
+            return response()->json([
+                'inventory' => [
+                    'id' => $inventory->id,
+                    'service' => $service->name,
+                    'season' => $season->name,
+                    'season_start_date' => $seasonStart->toDateString(),
+                    'season_end_date' => $seasonEnd->toDateString(),
+                ],
+                'schedule' => [],
+                'days' => [],
+                'message' => 'Selected preview range is outside the inventory season.',
+            ]);
+        }
+
+        $rawBookingData = DB::table('bookings as b')
+            ->leftJoin('booking_items as items', 'items.booking_id', '=', 'b.id')
+            ->leftJoin('booking_inventories as bi', 'bi.booking_item_id', '=', 'items.id')
+            ->leftJoin('inventory_time_slots as its', 'its.id', '=', 'bi.inventory_time_slot_id')
+            ->where('items.inventory_id', $inventory->id)
+            ->where('items.team_id', auth()->user()->team_id)
+            ->whereNull('b.deleted_at')
+            ->whereNull('items.deleted_at')
+            ->whereNull('bi.deleted_at')
+            ->whereBetween('bi.date', [$startDate->toDateString(), $endDate->toDateString()])
+            ->select([
+                'bi.date',
+                'its.start_time as time',
+                DB::raw('SUM(bi.pax) as total'),
+            ])
+            ->groupBy('bi.date', 'its.start_time')
+            ->get();
+
+        $bookingData = $rawBookingData->keyBy(fn($row) => $row->date . '_' . $row->time);
+
+        $schedule = app(\App\Services\Calendar\ServiceCalendarBuilder::class)
+            ->build($inventory, $season, $service, $bookingData, $startDate, $endDate, 0, null, null, true);
+
+        return response()->json([
+            'inventory' => [
+                'id' => $inventory->id,
+                'service' => $service->name,
+                'season' => $season->name,
+                'season_start_date' => $seasonStart->toDateString(),
+                'season_end_date' => $seasonEnd->toDateString(),
+            ],
+            'schedule' => $schedule,
+            'days' => collect(CarbonPeriod::create($startDate, $endDate))
+                ->map(fn(Carbon $date) => [
+                    'label' => $date->format('D d'),
+                    'date' => $date->toDateString(),
+                    'display' => $date->format('D d M'),
+                ])
+                ->values(),
+            'message' => '',
         ]);
     }
 

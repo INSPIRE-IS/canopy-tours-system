@@ -9,6 +9,7 @@ import SearchBar from '@/Components/SearchBar';
 import BlueButton from '@/Components/BlueButton';
 import Pagination from '@/Components/Pagination';
 import HeaderServices from '@/Components/HeaderServices';
+import AvailabilityPreviewModal from '../Inventories/AvailabilityPreviewModal';
 
 
 export default function Index({ permissions, closeouts, seasons, services, auth, searchTerm, sortColumn, sortDirection }) {
@@ -21,8 +22,17 @@ export default function Index({ permissions, closeouts, seasons, services, auth,
 
     const [search, setSearch] = useState(searchTerm);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
     const [isOpenTab, setIsOpenTab] = useState('Closeouts');
     const [modalMode, setModalMode] = useState("create");
+    const inventoryOptions = (services || [])
+        .flatMap((service) => (service.seasons || [])
+            .filter((season) => season.inventory)
+            .map((season) => ({
+                ...season.inventory,
+                service,
+                season,
+            })));
 
     const handleOpenModal = (mode, closeout = null) => {
         console.log('mode ', mode);
@@ -84,6 +94,7 @@ export default function Index({ permissions, closeouts, seasons, services, auth,
                             <SearchBar search={search} handleSearchChange={(e) => handleSearchChange(e)} handleSearchSubmit={handleSearchSubmit} />
 
                             <span className="flex gap-2">
+                                <BlueButton title="Preview Availability" onClick={() => setIsPreviewModalOpen(true)} />
                                 {permissions.closeouts_create && (
                                     <BlueButton title="Add Closeout" onClick={() => handleOpenModal("create")} icon={true} />
                                 )}
@@ -162,6 +173,12 @@ export default function Index({ permissions, closeouts, seasons, services, auth,
                         seasons={seasons}
                         services={services}
                         team_id={auth?.user.team_id}
+                    />
+                    <AvailabilityPreviewModal
+                        isOpen={isPreviewModalOpen}
+                        onClose={() => setIsPreviewModalOpen(false)}
+                        inventory={inventoryOptions?.[0] || null}
+                        inventoryOptions={inventoryOptions}
                     />
                 </div>
             </div>

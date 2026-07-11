@@ -225,6 +225,7 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['auth', 'v
     // Seasons
     Route::resource('seasons', SeasonsController::class);
     // Inventory
+    Route::get('inventories/{inventory}/availability-preview', [InventoryController::class, 'availabilityPreview'])->name('inventories.availability-preview');
     Route::post('inventories/{inventory}/schedule', [InventoryController::class, 'schedule'])->name('inventories.schedule');
     Route::resource('inventories', InventoryController::class);
     // Inventory Date Overrides

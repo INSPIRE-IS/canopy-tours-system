@@ -1317,6 +1317,92 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
         }
     };
 
+    const selectCalendarSlot = (cell, day, row, slotList = timeslots) => {
+        const time = row.time.slice(0, 5);
+        const slot = (slotList || []).find(s => String(s.id) === String(row.slot_id))
+            || (slotList || []).find(s => s.name === time);
+
+        if (!slot) {
+            showToast('Please select a valid slot.', 'error');
+            return;
+        }
+
+        const nextSlot = { activityDate: cell.date, day, time: row.time };
+        setSelectedSlot(nextSlot);
+        setData('selected_slot', nextSlot);
+        setData('booking_date', cell.date);
+        setActivityDate(parseDate(cell.date));
+        setData('start_time', slot.id);
+    };
+
+    const canStaffOverrideClosedCell = (cell) => {
+        if (!cell || cell.status === 'available' || cell.status === 'full') return false;
+        if (cell.note === 'Past date') return false;
+        return ['blocked_day', 'blocked_slot', 'unavailable'].includes(cell.status);
+    };
+
+    const handleCalendarCellClick = async (cell, day, row) => {
+        if (!cell) return;
+
+        if (cell.status === 'available') {
+            selectCalendarSlot(cell, day, row);
+            return;
+        }
+
+        if (!canStaffOverrideClosedCell(cell)) return;
+
+        if (!canOverrideTimeSlots) {
+            showToast('Override time slots are not allowed for this inventory.', 'error');
+            return;
+        }
+
+        const confirmed = window.confirm(
+            `This slot is currently closed (${cell.note || cell.status}). Create an internal date override and continue with this booking?`
+        );
+        if (!confirmed) return;
+
+        setSlotOverrideSaving(true);
+        try {
+            const response = await axios.post(route('admin.inventory-slot-ranges.store'), {
+                service_id: selectedService.id,
+                season_id: selectedSeason.id,
+                start_date: cell.date,
+                end_date: cell.date,
+                time_slots: [row.time.slice(0, 5)],
+                internal_only: 1,
+                capacity_override: null,
+                note: `Staff booking override: ${cell.note || cell.status}`,
+            }, {
+                headers: { Accept: 'application/json' },
+            });
+
+            const returnedSlots = response?.data?.time_slots || [];
+            const formatted = returnedSlots.length
+                ? [
+                    { id: 0, name: 'All' },
+                    ...returnedSlots.map(slot => ({
+                        id: slot.id,
+                        name: slot.start_time.slice(0, 5),
+                    })),
+                ]
+                : timeslots;
+
+            if (returnedSlots.length) {
+                setTimeslots(formatted);
+            }
+
+            setData('override_timeslots', true);
+            selectCalendarSlot(cell, day, row, formatted);
+            showToast('Internal date override created for this closed slot.', 'success');
+            loadCalendar();
+        } catch (error) {
+            const message = error?.response?.data?.message || 'Failed to create the date override.';
+            showToast(message, 'error');
+        } finally {
+            setSlotOverrideSaving(false);
+        }
+    };
+
     useEffect(() => {
         if (isInitializing) return;
         if (
@@ -1766,26 +1852,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
                                                                     <td
                                                                         key={day}
                                                                         className={`flex-1 items-center justify-center w-[133px] h-[111px] border border-gray-200 cursor-pointer transition `}
-                                                                        onClick={() => {
-                                                                            if (cell?.status === 'available') {
-                                                                                setSelectedSlot({ date: cell.date, day: day, time: row.time });
-                                                                                setData('selected_slot', { date: cell.date, day: day, time: row.time });
-                                                                                // console.log('cell.date', cell.date);
-                                                                                // console.log('day', day);
-                                                                                // console.log('row.time', row.time);
-                                                                                // console.log('-------timeslots----------', timeslots);
-
-                                                                                setData('booking_date', cell.date);
-                                                                                setActivityDate(parseDate(cell.date));
-                                                                                const time = row.time.slice(0, 5);
-                                                                                const slot = timeslots.find(s => s.name === time);
-                                                                                console.log("slot", slot);
-                                                                                if (!slot) { showToast(flash.warning, "Please select a slot"); return; }
-                                                                                setData('start_time', slot.id);
-                                                                                console.log("SelectedSlot--------------------:", selectedSlot);
-                                                                                console.log("sDatalot:-----------------------", data);
-                                                                            }
-                                                                        }}
+                                                                        onClick={() => handleCalendarCellClick(cell, day, row)}
                                                                     >
                                                                         <div className="w-[133px] h-full flex items-center justify-center">
                                                                             <div className={` p-[6px] text-start w-[135px] h-[99px] cursor-pointer rounded-[10px] space-y-[10px] transition ${selectedSlot?.day === day && selectedSlot?.time === row.time
@@ -1794,7 +1861,9 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
                                                                                     ? (cell?.internal_only
                                                                                         ? 'bg-gray-100 border border-[#E5E5EC] text-gray-700 hover:bg-gray-200'
                                                                                         : 'bg-[#D6FBE6] border border-[#E5E5EC] text-green-700 hover:bg-green-200')
-                                                                                    : 'bg-[#FCE4DF] border border-[#E5E5EC] text-gray-400 cursor-not-allowed'
+                                                                                    : canStaffOverrideClosedCell(cell)
+                                                                                        ? 'bg-[#FCE4DF] border border-[#E5E5EC] text-gray-700 hover:bg-orange-100'
+                                                                                        : 'bg-[#FCE4DF] border border-[#E5E5EC] text-gray-400 cursor-not-allowed'
                                                                                 }`}>
                                                                                 {cell?.status === 'available' && (
                                                                                     <>
@@ -1827,14 +1896,14 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
                                                                                 )}
 
                                                                                 {cell?.status === 'blocked_day' && (
-                                                                                    <div className="text-xs text-black">Day Closed</div>
+                                                                                    <div className="text-xs text-black">Day Closed{canStaffOverrideClosedCell(cell) ? <span className="block text-[10px] text-orange-700">Click to override</span> : null}</div>
                                                                                 )}
 
                                                                                 {cell?.status === 'blocked_slot' && (
-                                                                                    <div className="text-xs text-black">Slot Closed</div>
+                                                                                    <div className="text-xs text-black">Slot Closed{canStaffOverrideClosedCell(cell) ? <span className="block text-[10px] text-orange-700">Click to override</span> : null}</div>
                                                                                 )}
                                                                                 {cell?.status === 'unavailable' && (
-                                                                                    <div className="text-xs text-black">Not Available</div>
+                                                                                    <div className="text-xs text-black">Not Available{canStaffOverrideClosedCell(cell) ? <span className="block text-[10px] text-orange-700">Click to override</span> : null}</div>
                                                                                 )}
                                                                             </div>
                                                                         </div>
