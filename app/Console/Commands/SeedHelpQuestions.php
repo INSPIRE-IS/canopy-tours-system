@@ -314,6 +314,16 @@ class SeedHelpQuestions extends Command
                 'is_internal' => true,
             ],
             [
+                'category' => 'Seasons',
+                'question' => 'How do internal-only seasons work?',
+                'description' => 'Internal-only seasons are hidden from the public online booking flow but remain available to staff.',
+                'where' => '<a href="/admin/seasons">Admin > Seasons</a>',
+                'business_rules' => 'Use Internal Only for specialty seasons/products such as team builds or staff-managed offerings. Guests cannot see or directly open internal-only seasons on the public frontend. Logged-in staff/admin can still use the season in admin workflows. This is different from an internal-only Date Override: a season-level internal-only flag hides the full season, while a Date Override internal-only flag hides only selected slots.',
+                'examples' => 'If "The Fear Factor" should only be sold by staff, create or edit its season and tick Internal Only. The product will be unavailable to guests online but staff can still manage bookings internally.',
+                'related' => 'seasons, services, online booking, internal only, date overrides, staff bookings',
+                'is_internal' => true,
+            ],
+            [
                 'category' => 'Inventory',
                 'question' => 'How are time slots generated?',
                 'description' => 'Inventory defines dates and time slots per season.',
@@ -331,6 +341,16 @@ class SeedHelpQuestions extends Command
                 'business_rules' => 'Inventory defines the recurring weekly schedule for a season. Closeouts are exceptions that block specific dates/times without changing the base schedule.',
                 'examples' => 'If Fridays at 10:00 are available all season, add a closeout for 2026-06-12 at 10:00 to block only that one slot.',
                 'related' => 'inventory, closeouts, date overrides, availability',
+                'is_internal' => true,
+            ],
+            [
+                'category' => 'Inventory',
+                'question' => 'How can I preview the final availability calendar?',
+                'description' => 'Use Preview Availability to see the effective calendar after all availability rules are applied.',
+                'where' => '<a href="/admin/inventories">Admin > Inventory</a>, <a href="/admin/inventory-slot-ranges">Admin > Date Overrides</a>, or <a href="/admin/closeouts">Admin > Closeouts</a>',
+                'business_rules' => 'Preview Availability is read-only. It shows the final result after base inventory, closeouts, date overrides, capacity overrides, admin-only/internal-only flags, and bookings. Use it after changing Inventory, Date Overrides, or Closeouts to confirm what customers and staff will see before relying on the setup. Date Overrides still take precedence for explicit override slots.',
+                'examples' => 'After adding a holiday Date Override or a winter Closeout, click Preview Availability and choose the service/season. Green slots are online-open, amber slots are admin-only, red slots are closed, orange slots are full, and grey slots are not available.',
+                'related' => 'availability preview, inventory, closeouts, date overrides, internal only, admin-only, capacity',
                 'is_internal' => true,
             ],
             [
