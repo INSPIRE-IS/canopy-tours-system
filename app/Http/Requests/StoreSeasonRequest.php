@@ -53,9 +53,18 @@ class StoreSeasonRequest extends FormRequest
                 'numeric',
                 'required',
             ],
+            'allow_internal_price_override' => [
+                'nullable',
+                'boolean',
+            ],
+            'internal_only' => [
+                'nullable',
+                'boolean',
+            ],
 
             'status' => [
                 'required',
+                'boolean',
             ],
             'created_by_id' => [
                 'required',

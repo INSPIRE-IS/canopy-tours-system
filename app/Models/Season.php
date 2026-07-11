@@ -33,6 +33,7 @@ class Season extends Model
         'rake_rate_child',
         'rake_rate_guide',
         'allow_internal_price_override',
+        'internal_only',
         'status',
         'created_by_id',
         'updated_by_id',
@@ -40,6 +41,12 @@ class Season extends Model
         'updated_at',
         'deleted_at',
         'team_id',
+    ];
+
+    protected $casts = [
+        'allow_internal_price_override' => 'boolean',
+        'internal_only' => 'boolean',
+        'status' => 'boolean',
     ];
 
     protected function serializeDate(DateTimeInterface $date)

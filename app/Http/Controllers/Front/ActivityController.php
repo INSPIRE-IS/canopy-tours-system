@@ -53,6 +53,7 @@ class ActivityController extends Controller
         /** @var \App\Models\User|null $user */
         $user = auth()->user();
         $canViewUnpublished = $user && $user->can('teams_publish');
+        $canViewInternalSeasons = (bool) $user;
 
         $teamsQuery = Team::select('id', 'name', 'is_published');
         if (!$canViewUnpublished) {
@@ -109,9 +110,11 @@ class ActivityController extends Controller
         //         }),
         //     ];
         // });
-        $activities = $services->flatMap(function ($service) {
+        $activities = $services->flatMap(function ($service) use ($canViewInternalSeasons) {
             //Log::info('season ' . $service->name);
-            return $service->seasons->map(function ($season) use ($service) {
+            return $service->seasons
+                ->filter(fn($season) => $canViewInternalSeasons || !$season->internal_only)
+                ->map(function ($season) use ($service) {
                 //Log::info('season ' . $season->name);
                 $inventory = $season->inventory;
                 // if (!$inventory) {
@@ -148,7 +151,7 @@ class ActivityController extends Controller
                     'end_date'   => optional($season)->end_date ?? null,
                     'capacity'   => optional($service)->capacity ?? null,
                 ];
-            })->filter(); // remove nulls
+                })->filter(); // remove nulls
         });
         //dd($activities);
         //dd($teamId);
@@ -189,6 +192,9 @@ class ActivityController extends Controller
         $canViewUnpublished = $user && $user->can('teams_publish');
         $seasonTeam = Team::select('id', 'is_published')->find($season->team_id);
         if ($seasonTeam && !$seasonTeam->is_published && !$canViewUnpublished) {
+            abort(404);
+        }
+        if ($season->internal_only && !$user) {
             abort(404);
         }
         // dd($season->service);
@@ -293,6 +299,9 @@ class ActivityController extends Controller
         $canViewUnpublished = $user && $user->can('teams_publish');
         $seasonTeam = Team::select('id', 'is_published')->find($season->team_id);
         if ($seasonTeam && !$seasonTeam->is_published && !$canViewUnpublished) {
+            abort(404);
+        }
+        if ($season->internal_only && !$user) {
             abort(404);
         }
         $service = Service::findOrFail($season->service_id);

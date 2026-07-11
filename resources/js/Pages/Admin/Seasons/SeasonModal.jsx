@@ -23,6 +23,7 @@ const SeasonModal = ({ isOpen, onClose, mode, season = null, services, auth, tea
         rake_rate_child: "",
         rake_rate_guide: "",
         allow_internal_price_override: 0,
+        internal_only: 0,
         capacity: "",
         status: 0,
         created_by_id: auth?.user?.id,
@@ -40,6 +41,7 @@ const SeasonModal = ({ isOpen, onClose, mode, season = null, services, auth, tea
                 rake_rate_child: season.rake_rate_child || "",
                 rake_rate_guide: season.rake_rate_guide || "",
                 allow_internal_price_override: season.allow_internal_price_override || 0,
+                internal_only: season.internal_only || 0,
                 status: season.status || 0,
                 updated_by_id: auth?.user?.id,
             });
@@ -228,6 +230,15 @@ setData(prevData => ({
                                 label="Allow Internal Price Override"
                                 name="allow_internal_price_override"
                                 checked={data.allow_internal_price_override}
+                                mode={mode}
+                                onChange={handleChange}
+                                errors={errors}
+                            />
+                            <CustomCheckbox
+                                label="Internal Only"
+                                helper="Hide this season from public online booking. Staff can still use it in admin booking flows."
+                                name="internal_only"
+                                checked={data.internal_only}
                                 mode={mode}
                                 onChange={handleChange}
                                 errors={errors}

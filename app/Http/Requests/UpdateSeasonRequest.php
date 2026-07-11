@@ -53,10 +53,19 @@ class UpdateSeasonRequest extends FormRequest
                 'numeric',
                 'required',
             ],
+            'allow_internal_price_override' => [
+                'nullable',
+                'boolean',
+            ],
+            'internal_only' => [
+                'nullable',
+                'boolean',
+            ],
 
 
             'status' => [
                 'required',
+                'boolean',
             ],
 
             'updated_by_id' => [

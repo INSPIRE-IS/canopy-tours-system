@@ -27,10 +27,16 @@ const CustomCheckbox = ({ label, helper = "", side="right", name, checked = fals
                 </svg>
                 </span>
                 {side === "right" && (<span className="text-booking-check-lbl-right mt-1.5">{label}</span>)}
+                {helper && (
+                    <span
+                        title={helper}
+                        aria-label={helper}
+                        className="mt-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full border border-gray-400 text-[10px] font-semibold leading-none text-gray-500 hover:border-gray-700 hover:text-gray-800"
+                    >
+                        i
+                    </span>
+                )}
             </label>
-            {helper && !errors[name] && (
-                <p className="text-xs text-gray-500 mt-1">{helper}</p>
-            )}
             {errors[name] && (
                 <p className="text-checkbox-lbl text-red-500 mt-2">
                     {errors[name]}
