@@ -1,6 +1,6 @@
-const BlueButton = ({ title, onClick, disabled = false, icon=false, width, props}) => {
+const BlueButton = ({ title, onClick, disabled = false, icon=false, width, type = 'button', ...props}) => {
     return (
-        <button onClick={onClick}
+        <button type={type} onClick={onClick}
             className={`flex items-center justify-center ${width} h-[40px] gap-2 px-4 py-2 rounded-[10px] border-[1px] 
             bg-[#3863C6] border-[#3863C6] text-white shadow-inset-white 
             hover:border-black hover:text-black

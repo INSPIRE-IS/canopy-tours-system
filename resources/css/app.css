@@ -63,6 +63,10 @@
     @apply text-[#161618] font-geist text-[12px] font-semibold leading-[100%] tracking-[-0.2px];
   }
 
+  .text-btn-outline-gray {
+    @apply font-geist text-[12px] font-semibold leading-[100%] tracking-[-0.2px];
+  }
+
 
   .text-btn-cal {
     @apply text-[#161618] font-geist text-[12px] font-semibold tracking-[-0.24px];
