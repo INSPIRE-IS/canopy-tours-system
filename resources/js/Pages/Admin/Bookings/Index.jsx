@@ -1,4 +1,5 @@
 ﻿import BookingToolsModal from '@/Components/BookingToolsModal';
+import BookingRateBreakdown from '@/Components/BookingRateBreakdown';
 import CustomerToolsModal from '@/Components/CustomerToolsModal';
 import GuestEmailModal from '@/Components/GuestEmailModal';
 import BookingNotesModal from '@/Components/BookingNotesModal';
@@ -18,6 +19,7 @@ import DatePicker from '@/Components/DatePicker';
 import WhiteButton from '@/Components/WhiteButton';
 import { addDays, addSeconds, endOfDay, endOfWeek, format, isAfter, isBefore, isSameDay, isValid, isWithinInterval, parse, parseISO, startOfDay, startOfWeek } from 'date-fns';
 import ConfirmModal from '@/Components/ConfirmModal';
+import Modal from '@/Components/Modal';
 import { useToast } from '@/Context/ToastContext';
 import CustomDatePicker from '@/Components/CustomDatePicker';
 // import { useRoute } from 'ziggy-js';
@@ -49,6 +51,7 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
     const [isManifestModalOpen, setIsManifestModalOpen] = useState(false);
     const [isManifestsModalOpen, setIsManifestsModalOpen] = useState(false);
     const [selectedBooking, setSelectedBooking] = useState(null);
+    const [linkedActivitiesTarget, setLinkedActivitiesTarget] = useState(null);
     const [selectedManifests, setSelectedManifests] = useState(null);
     const [selectedManifest, setSelectedManifest] = useState(null);
     const today = format(new Date(), 'yyyy-MM-dd');
@@ -323,7 +326,10 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
             window.open(fileUrl, '_blank', 'noopener,noreferrer');
         }
         if (tool === 'edit_booking') {
-            router.get(route('admin.bookings.edit', booking.id));
+            router.get(route('admin.bookings.edit', {
+                booking: booking.id,
+                booking_item_id: booking.booking_item_id,
+            }));
         }
         if (tool === 'edit_timeslot') {
             //router.get(route('admin.bookings.edit', booking.id));
@@ -933,7 +939,7 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
 
                         </div>
                         <div className="flex gap-2">
-                            <button onClick={() => router.get(route('admin.bookings.create'))} className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-blue-gradient-overlay border-[#3863C6] text-white shadow-inset-white cursor-pointer">
+                            <button onClick={() => router.get(route('admin.bookings.create'))} className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-[10px] border-[3px] bg-blue-gradient-overlay border-[#3863C6] text-white shadow-inset-white cursor-pointer">
                                 <img src="/assets/icons/plus.svg" alt="bookings" className="w-5 h-5" />
                                 <span className="text-btn-outline-gray">New Booking</span>
                             </button>
@@ -951,7 +957,7 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                                     router.get(route('booking-questionnaire.index', { booking_date: targetDate }));
                                 }}
                                 disabled={checkinDisabled}
-                                className={`flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-red-gradient-overlay border-[#C65468] text-white shadow-inset-white ${checkinDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                                className={`flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-[10px] border-[3px] bg-red-gradient-overlay border-[#C65468] text-white shadow-inset-white ${checkinDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                             >
                                 <img src="/assets/icons/plus.svg" alt="bookings" className="w-5 h-5" />
                                 <span className="text-btn-outline-gray">Check in</span>
@@ -973,7 +979,7 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                                     router.get(route('front.feedback-questionnaire.index', { booking_date: targetDate }));
                                 }}
                                 disabled={feedbackDisabled}
-                                className={`flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-red-gradient-overlay border-[#C65468] text-white shadow-inset-white ${feedbackDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                                className={`flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-[10px] border-[3px] bg-red-gradient-overlay border-[#C65468] text-white shadow-inset-white ${feedbackDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                             >
                                 <img src="/assets/icons/plus.svg" alt="bookings" className="w-5 h-5" />
                                 <span className="text-btn-outline-gray">Feedback</span>
@@ -1025,7 +1031,7 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                                     </div>
                                 )}
                                 {viewMode === VIEW_MODES.WEEK && (
-                                    <div className="text-[#161618] font-poppins text-[14px] font-semibold leading-[130%] h-[40px] px-4 py-2 rounded-xl border-[3px] border-primary-14 cursor-pointer">
+                                    <div className="text-[#161618] font-poppins text-[14px] font-semibold leading-[130%] h-[40px] px-4 py-2 rounded-[10px] border-[3px] border-primary-14 cursor-pointer">
                                         Week of {format(startOfWeek(selectedDate ? parseISO(selectedDate) : new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd')} to {format(endOfWeek(selectedDate ? parseISO(selectedDate) : new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd')}
                                     </div>
                                 )}
@@ -1048,7 +1054,7 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
 
                                 <div className="relative" ref={servicesRef}>
                                     <button onClick={() => setShowServices(!showServices)}
-                                        className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] border-primary-14 text-primary-14 cursor-pointer">
+                                        className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-[10px] border-[3px] border-primary-14 text-primary-14 cursor-pointer">
                                         <img src="/assets/icons/filter.svg" alt="filter" className="w-5 h-5" />
                                         <span className="text-btn-outline-gray">Filter</span>
                                     </button>
@@ -1066,7 +1072,7 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                                 </div>
 
                                 <div className="relative" ref={searchRef}>
-                                    <div className="flex items-center w-[280px] h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] border-primary-14 text-primary-14 bg-white hover:border-black focus-within:border-black">
+                                    <div className="flex items-center w-[280px] h-[40px] gap-2 px-4 py-2 rounded-[10px] border-[3px] border-primary-14 text-primary-14 bg-white hover:border-black focus-within:border-black">
                                         <img src="/assets/icons/search-normal.svg" alt="search" className="w-5 h-5" />
                                         <input
                                             type="text"
@@ -1160,7 +1166,7 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                                     )}
                                 </div>
 
-                                <button onClick={() => handleExportCSV(filteredBookings)} className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] border-primary-14 text-primary-14 cursor-pointer">
+                                <button onClick={() => handleExportCSV(filteredBookings)} className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-[10px] border-[3px] border-primary-14 text-primary-14 cursor-pointer">
                                     <img src="/assets/icons/export.svg" alt="export" className="w-5 h-5" />
                                     <span className="text-btn-outline-gray">Export</span>
                                 </button>
@@ -1224,7 +1230,20 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                                                             </span>
                                                         )}
                                                     </td>
-                                                    <td className="w-[268px] p-3">{row.service}</td>
+                                                    <td className="w-[268px] p-3">
+                                                        <div className="flex flex-wrap items-center gap-2">
+                                                            <span>{row.service}</span>
+                                                            {row.bookings?.find(booking => Number(booking.linked_activity_count || 0) > 1) && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => setLinkedActivitiesTarget(row.bookings.find(booking => Number(booking.linked_activity_count || 0) > 1))}
+                                                                    className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700 hover:bg-blue-200"
+                                                                >
+                                                                    Linked {row.bookings.find(booking => Number(booking.linked_activity_count || 0) > 1)?.linked_activity_count}
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    </td>
                                                     <td className="w-[132px] p-3">R{Number(row.totalPrice || 0).toFixed(2)}</td>
                                                     <td className="w-[111px] p-3">R{Number(row.totalPaid || 0).toFixed(2)}</td>
                                                     <td className="w-[107px] p-3">
@@ -1275,7 +1294,10 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                                                                             <span className="text-gray-700">{booking.reference}</span>
                                                                         ) : (
                                                                             <Link
-                                                                                href={route('admin.bookings.add', booking.id)}
+                                                                                href={route('admin.bookings.add', {
+                                                                                    booking: booking.id,
+                                                                                    booking_item_id: booking.booking_item_id,
+                                                                                })}
                                                                                 className="text-blue-600 hover:underline"
                                                                             >
                                                                                 {booking.reference}
@@ -1292,7 +1314,12 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                                                                         <div className="text-sm text-gray-800 font-medium">{booking.lead_name ?? 'Unknown Lead'}</div>
                                                                         <div className="text-sm text-gray-600">{booking.lead_phone ?? 'Unknown Phone'}</div>
                                                                     </td>
-                                                                    <td className="w-[132px] p-3">R{Number(booking.price || 0).toFixed(2)}</td>
+                                                                    <td className="w-[132px] p-3">
+                                                                        <div>R{Number(booking.price || 0).toFixed(2)}</div>
+                                                                        <div className="mt-2">
+                                                                            <BookingRateBreakdown breakdown={booking.rate_breakdown} compact />
+                                                                        </div>
+                                                                    </td>
                                                                     <td className="w-[111px] p-3">R{Number(booking.paid || 0).toFixed(2)}</td>
                                                                     <td className="w-[107px] p-3">
                                                                         <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${booking.due > 0 ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`}>
@@ -1303,7 +1330,10 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                                                                         <div className="flex flex-col lg:flex-row lg:items-center gap-2">
                                                                             <button
                                                                                 type="button"
-                                                                                onClick={() => router.get(route('admin.bookings.add', booking.id))}
+                                                                                onClick={() => router.get(route('admin.bookings.add', {
+                                                                                    booking: booking.id,
+                                                                                    booking_item_id: booking.booking_item_id,
+                                                                                }))}
                                                                                 className={`btn-tool ${booking.is_cancelled ? 'opacity-50 cursor-not-allowed' : ''}`}
                                                                                 disabled={booking.is_cancelled}
                                                                             >
@@ -1463,6 +1493,69 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                     booking={selectedBooking}
                     services={services}
                 />
+                {linkedActivitiesTarget && (
+                    <Modal show={!!linkedActivitiesTarget} onClose={() => setLinkedActivitiesTarget(null)} maxWidth="2xl">
+                        <div className="p-6">
+                            <div className="flex items-start justify-between gap-4">
+                                <div>
+                                    <h2 className="text-lg font-semibold text-gray-900">
+                                        Linked Activities
+                                    </h2>
+                                    <p className="text-sm text-gray-500">
+                                        {linkedActivitiesTarget.reference} shares one booking, payment, and invoice.
+                                    </p>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setLinkedActivitiesTarget(null)}
+                                    className="text-gray-400 hover:text-gray-600"
+                                >
+                                    {icons.close}
+                                </button>
+                            </div>
+                            <div className="mt-5 space-y-3">
+                                {(linkedActivitiesTarget.linked_activities || []).map((activity, index) => (
+                                    <div key={activity.booking_item_id || index} className="rounded-[10px] border border-gray-200 bg-white p-4">
+                                        <div className="flex flex-wrap items-start justify-between gap-4">
+                                            <div>
+                                                <div className="text-xs font-semibold text-gray-500">Activity {index + 1}</div>
+                                                <div className="font-semibold text-gray-900">{activity.service || 'Service'}</div>
+                                                <div className="text-sm text-gray-600">
+                                                    {[activity.booking_date, formatTimeValue(activity.time_start)].filter(Boolean).join(' ')}
+                                                </div>
+                                                <div className="mt-1 text-sm text-gray-600">
+                                                    {activity.bookingPax || 0} pax | R{Number(activity.price || 0).toFixed(2)}
+                                                </div>
+                                            </div>
+                                            <div className="flex flex-wrap gap-2">
+                                                <button
+                                                    type="button"
+                                                    className="btn-tool"
+                                                    onClick={() => router.get(route('admin.bookings.add', {
+                                                        booking: activity.id,
+                                                        booking_item_id: activity.booking_item_id,
+                                                    }))}
+                                                >
+                                                    {icons.eye} View
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    className="btn-tool"
+                                                    onClick={() => router.get(route('admin.bookings.edit', {
+                                                        booking: activity.id,
+                                                        booking_item_id: activity.booking_item_id,
+                                                    }))}
+                                                >
+                                                    Edit
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </Modal>
+                )}
                 <EditTimeSlotModal
                     isOpen={isEditTimeSlotModalOpen}
                     onClose={handleCloseModal}

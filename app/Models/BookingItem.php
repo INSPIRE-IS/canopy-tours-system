@@ -88,6 +88,11 @@ class BookingItem extends Model
         return $this->belongsTo(Promotion::class, 'promotion_id');
     }
 
+    public function wholesaler()
+    {
+        return $this->belongsTo(Wholesaler::class, 'wholesaler_id');
+    }
+
     public function inventory()
     {
         return $this->belongsTo(Inventory::class, 'inventory_id');
@@ -116,6 +121,11 @@ class BookingItem extends Model
     public function booking_fees()
     {
         return $this->hasMany(BookingFee::class);
+    }
+
+    public function booking_discounts()
+    {
+        return $this->hasMany(BookingDiscount::class, 'booking_item_id');
     }
 
     public function booking_questionnaire()
@@ -179,6 +189,7 @@ class BookingItem extends Model
         $discountItems = collect();
         if ($this->booking && method_exists($this->booking, 'booking_discounts')) {
             $discountItems = $this->booking->booking_discounts
+                ->filter(fn($bd) => empty($bd->booking_item_id) || (int) $bd->booking_item_id === (int) $this->id)
                 ->flatMap(fn($bd) => $bd->booking_discount_items ?? collect())
                 ->filter()
                 ->values();

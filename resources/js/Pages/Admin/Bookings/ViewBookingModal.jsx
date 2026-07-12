@@ -5,6 +5,7 @@ import BlueButton from "@/Components/BlueButton";
 import CustomInputText from "@/Components/CustomInputText";
 import CustomSelect from "@/Components/CustomSelect";
 import { icons } from "@/icons";
+import BookingRateBreakdown from "@/Components/BookingRateBreakdown";
 
 const ViewBookingModal = ({ isOpen, onClose, mode, booking, services }) => {
     // console.log("mode", mode);
@@ -40,6 +41,7 @@ const ViewBookingModal = ({ isOpen, onClose, mode, booking, services }) => {
         maxPax: null,
         paid: null,
         price: null,
+        rate_breakdown: null,
         reference: "",
         season_id: null,
         service: "",
@@ -65,6 +67,7 @@ const ViewBookingModal = ({ isOpen, onClose, mode, booking, services }) => {
                 maxPax: booking.maxPax,
                 paid: booking.paid,
                 price: booking.price,
+                rate_breakdown: booking.rate_breakdown,
                 reference: booking.reference,
                 season_id: booking.season_id,
                 service: booking.service,
@@ -253,6 +256,9 @@ const ViewBookingModal = ({ isOpen, onClose, mode, booking, services }) => {
                             errors={errors}
                             disabled={true}
                         />
+                        <div className="col-span-1 md:col-span-3">
+                            <BookingRateBreakdown breakdown={data.rate_breakdown} />
+                        </div>
                         <CustomInputText
                             title="Due Date"
                             name="due_date"

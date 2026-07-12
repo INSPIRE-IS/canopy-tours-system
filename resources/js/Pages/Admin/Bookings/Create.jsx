@@ -86,6 +86,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
     const [promoModalOpen, setPromoModalOpen] = useState(false);
 
     const [pricing, setPricing] = useState(null);
+    const [activityItems, setActivityItems] = useState([]);
     const lastSlotWarningRef = useRef('');
     const lastCapacityWarningRef = useRef('');
     const lastPricingKeyRef = useRef('');
@@ -97,7 +98,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
     const pickupEnabled = settings?.enable_pickup_dropoff ?? true;
 
     // console.log('schedule ',schedule);
-    const { data, setData, post, processing, errors } = useForm({
+    const { data, setData, post, processing, errors, transform } = useForm({
         is_wholesaler: false,
         wholesaler_id: '',
         add_consultant: false,
@@ -1334,21 +1335,179 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
         setActivityDate(newDate);
     };
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
+    const hasCurrentActivityInput = () => Boolean(
+        data.service_id ||
+        data.season_id ||
+        data.booking_date ||
+        data.start_time ||
+        Number(data.adults || 0) > 0 ||
+        Number(data.children || 0) > 0 ||
+        Number(data.guides || 0) > 0
+    );
+
+    const hasCompleteCurrentActivity = () => Boolean(
+        data.service_id &&
+        data.season_id &&
+        data.booking_date &&
+        data.start_time &&
+        data.selected_slot?.time &&
+        (Number(data.adults || 0) + Number(data.children || 0)) >= 1
+    );
+
+    const resetCurrentActivity = () => {
+        setTimeslots([]);
+        setSelectedSlot(null);
+        setPricing(null);
+        setPricingMode(PRICING_MODES.STANDARD);
+        setPaxGroups([]);
+        setPromoCode(null);
+        setPromotionId(null);
+        setDiscountId(null);
+        setDiscountPax(null);
+        setWholesalerApplied(false);
+        setData(prev => ({
+            ...prev,
+            is_wholesaler: false,
+            wholesaler_id: '',
+            start_time: '',
+            end_time: '',
+            selected_slot: [],
+            adults: 0,
+            children: 0,
+            guides: 0,
+            adult: 0,
+            child: 0,
+            guide: 0,
+            rate_per_adult: 0,
+            rate_per_child: 0,
+            rate_per_guide: 0,
+            booking_total: 0,
+            discount_lines: [],
+            invoice_discount_id: null,
+            promoCode: null,
+            override_rates: false,
+            override_reason: '',
+            override_capacity: false,
+            override_timeslots: false,
+        }));
+    };
+
+    const buildCurrentActivityItem = () => ({
+        client_id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        service_id: data.service_id,
+        service_name: selectedService?.name || services.find(s => Number(s.id) === Number(data.service_id))?.name || '',
+        season_id: data.season_id,
+        season_name: selectedSeason?.name || seasons.find(s => Number(s.id) === Number(data.season_id))?.name || '',
+        booking_date: data.booking_date,
+        start_time: data.start_time,
+        selected_slot: data.selected_slot,
+        adults: Number(data.adults || 0),
+        children: Number(data.children || 0),
+        guides: Number(data.guides || 0),
+        rate_per_adult: Number(data.rate_per_adult || 0),
+        rate_per_child: Number(data.rate_per_child || 0),
+        rate_per_guide: Number(data.rate_per_guide || 0),
+        booking_total: Number(data.booking_total || 0),
+        is_wholesaler: Boolean(data.is_wholesaler),
+        wholesaler_id: data.wholesaler_id || null,
+        promoCode: promoCode || data.promoCode || null,
+        invoice_discount_id: data.invoice_discount_id || null,
+        discount_lines: buildDiscountLinesPayload(paxGroups),
+        pax_groups: paxGroups,
+        pricing,
+        pricing_mode: pricingMode,
+        override_rates: Boolean(data.override_rates),
+        override_reason: data.override_reason || '',
+        override_capacity: Boolean(data.override_capacity),
+        override_timeslots: Boolean(data.override_timeslots),
+        rate_source_label: pricing?.applied_promotion?.name
+            ? `Promo: ${pricing.applied_promotion.name}`
+            : data.is_wholesaler
+                ? 'Wholesaler'
+                : (data.invoice_discount_id || paxGroups.some(g => g.discount_id))
+                    ? 'Discount'
+                    : data.override_rates
+                        ? 'Override'
+                        : 'Rack rate',
+    });
+
+    const activityIdentity = (item) => JSON.stringify({
+        service_id: Number(item.service_id || 0),
+        season_id: Number(item.season_id || 0),
+        booking_date: item.booking_date || '',
+        start_time: String(item.start_time || ''),
+        selected_time: item.selected_slot?.time || '',
+        adults: Number(item.adults || 0),
+        children: Number(item.children || 0),
+        guides: Number(item.guides || 0),
+        booking_total: Number(item.booking_total || 0).toFixed(2),
+        pricing_mode: item.pricing_mode || '',
+        wholesaler_id: item.wholesaler_id || null,
+        promoCode: item.promoCode || null,
+        invoice_discount_id: item.invoice_discount_id || null,
+        discount_lines: item.discount_lines || [],
+    });
+
+    const addCurrentActivity = ({ addAnother = false } = {}) => {
+        if (!data.service_id || !data.season_id || !data.booking_date || !data.start_time || !data.selected_slot?.time) {
+            showToast('Please select service, date, time slot, and rates before adding the activity.', 'info');
+            return;
+        }
         if ((Number(data.adults || 0) + Number(data.children || 0)) < 1) {
-            showToast('Please add at least 1 adult or 1 child.', 'info');
+            showToast('Please add at least 1 adult or 1 child for this activity.', 'info');
             return;
         }
 
+        const item = buildCurrentActivityItem();
+        const itemKey = activityIdentity(item);
+        if (activityItems.some(existingItem => activityIdentity(existingItem) === itemKey)) {
+            showToast('This activity is already in the booking.', 'info');
+            if (addAnother) {
+                resetCurrentActivity();
+            }
+            return;
+        }
+
+        setActivityItems(prev => [...prev, item]);
+        showToast('Activity added to booking.', 'success');
+        if (addAnother) {
+            resetCurrentActivity();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    };
+
+    const removeActivityItem = (clientId) => {
+        setActivityItems(prev => prev.filter(item => item.client_id !== clientId));
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        const currentActivityIsComplete = hasCompleteCurrentActivity();
+        const currentActivityHasInput = hasCurrentActivityInput();
+        const activitiesForSubmit = [
+            ...activityItems,
+            ...(currentActivityIsComplete ? [buildCurrentActivityItem()] : []),
+        ];
+        const hasSavedActivities = activitiesForSubmit.length > 0;
+        if (!hasSavedActivities && (Number(data.adults || 0) + Number(data.children || 0)) < 1) {
+            showToast('Please add at least 1 adult or 1 child.', 'info');
+            return;
+        }
+        if (activityItems.length > 0 && currentActivityHasInput && !currentActivityIsComplete) {
+            showToast('Please complete or clear the current activity before submitting the booking.', 'info');
+            return;
+        }
         // Avoid "Pricing mismatch" by ensuring server-calculated totals are current for promo/wholesaler/invoice-discount flows.
         let serverCalculatedTotal = null;
         let invoiceDiscountIdToSend = data.invoice_discount_id || null;
         try {
+            if (hasSavedActivities) {
+                serverCalculatedTotal = activitiesForSubmit.reduce((sum, item) => sum + Number(item.booking_total || 0), 0);
+            }
             const invoiceDiscountId = pricing?.applied_discounts?.find(d => d.applied_to === 'invoice')?.id ?? null;
             invoiceDiscountIdToSend = invoiceDiscountId || invoiceDiscountIdToSend;
             const hasLineDiscounts = paxGroups.some(g => g.discount_id);
-            const shouldRecalc = Boolean(data.is_wholesaler || promoCode || invoiceDiscountIdToSend || hasLineDiscounts || pricing?.applied_promotion);
+            const shouldRecalc = !hasSavedActivities && Boolean(data.is_wholesaler || promoCode || invoiceDiscountIdToSend || hasLineDiscounts || pricing?.applied_promotion);
             if (shouldRecalc) {
                 const calcType = promoCode ? 'promo' : data.is_wholesaler ? 'saler' : (invoiceDiscountIdToSend || hasLineDiscounts) ? 'discount' : 'base';
                 const result = await handleCalculate(calcType, paxGroups, invoiceDiscountIdToSend);
@@ -1360,13 +1519,35 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
         }
 
         const discountLinesPayload = buildDiscountLinesPayload(paxGroups);
+        const firstActivity = activitiesForSubmit[0] || null;
+        const submitPayload = {
+            ...data,
+            ...(firstActivity ? {
+                service_id: firstActivity.service_id,
+                season_id: firstActivity.season_id,
+                booking_date: firstActivity.booking_date,
+                start_time: firstActivity.start_time,
+                selected_slot: firstActivity.selected_slot,
+                adults: firstActivity.adults,
+                children: firstActivity.children,
+                guides: firstActivity.guides,
+                rate_per_adult: firstActivity.rate_per_adult,
+                rate_per_child: firstActivity.rate_per_child,
+                rate_per_guide: firstActivity.rate_per_guide,
+                is_wholesaler: firstActivity.is_wholesaler,
+                wholesaler_id: firstActivity.wholesaler_id,
+                promoCode: firstActivity.promoCode,
+                invoice_discount_id: firstActivity.invoice_discount_id,
+                discount_lines: firstActivity.discount_lines || [],
+            } : {}),
+            booking_total: serverCalculatedTotal ?? data.booking_total,
+            invoice_discount_id: firstActivity ? firstActivity.invoice_discount_id : invoiceDiscountIdToSend,
+            discount_lines: firstActivity ? (firstActivity.discount_lines || []) : discountLinesPayload,
+            activity_items: activitiesForSubmit.length > 1 ? activitiesForSubmit : [],
+        };
+
+        transform(() => submitPayload);
         post(route('admin.bookings.store'), {
-            transform: (payload) => ({
-                ...payload,
-                booking_total: serverCalculatedTotal ?? payload.booking_total,
-                invoice_discount_id: invoiceDiscountIdToSend,
-                discount_lines: discountLinesPayload,
-            }),
             onError: (errs) => {
                 const msg = errs?.booking_total || errs?.start_time || errs?.booking_date || 'Please fix the highlighted fields and try again.';
                 showToast(msg, 'error');
@@ -1479,6 +1660,17 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
             return sum + (g.count * effectiveRate);
         }, 0);
     const total = Number(data.booking_total || 0);
+    const currentActivityDisplayItem = hasCompleteCurrentActivity()
+        ? {
+            booking_total: Number(data.booking_total || 0),
+        }
+        : null;
+    const visibleActivityItems = [
+        ...activityItems,
+        ...(activityItems.length > 0 && currentActivityDisplayItem ? [currentActivityDisplayItem] : []),
+    ];
+    const activityItemsTotal = visibleActivityItems.reduce((sum, item) => sum + Number(item.booking_total || 0), 0);
+    const bookingTotalForPayment = visibleActivityItems.length > 0 ? activityItemsTotal : total;
     const graduatedPromo = pricing?.applied_promotion?.type === 'graduated';
     const promoTotal = Number(pricing?.total_price ?? data.booking_total ?? 0);
     const promoAdjustmentTarget = graduatedPromo
@@ -2426,19 +2618,62 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                 </div>
                             </div>
                         </div>
-                        {/* add another activity 
-                            <div className="flex items-center justify-between">
-                                <label className="text-booking-subheading">Add Another Activity to this Booking</label>
-                                <BlueButton
-                                    title="Add Another Activity" 
-                                    icon={true}
-                                    width={"w-[243px]"}
-                                    onClick={handleSubmit} 
-                                    disabled={processing} 
-                                    type="button" 
-                                />
-                            </div>*/}
+                        <div className="flex flex-wrap items-center justify-end gap-3 pt-4">
+                            <BlueButton
+                                title="Add Another Activity"
+                                width={"w-[243px]"}
+                                onClick={() => addCurrentActivity({ addAnother: true })}
+                                disabled={processing}
+                                type="button"
+                            />
+                        </div>
                     </div>
+                    {activityItems.length > 0 && (
+                        <div className="mt-10 p-6 bg-white rounded shadow space-y-4">
+                            <div className="flex items-center justify-between gap-4">
+                                <div>
+                                    <h2 className="text-booking-subheading">Activities in this booking</h2>
+                                    <p className="text-sm text-gray-500">These activities will share the lead details below.</p>
+                                </div>
+                                <div className="text-booking-lbl-main-sub text-[#4D81E7]">
+                                    R {Number(activityItemsTotal || 0).toFixed(2)}
+                                </div>
+                            </div>
+                            <div className="space-y-3">
+                                {activityItems.map((item, index) => (
+                                    <div key={item.client_id} className="w-full rounded-[10px] border border-secondary-100 bg-white p-4 shadow-sm">
+                                        <div className="flex flex-wrap items-start justify-between gap-4">
+                                            <div>
+                                                <div className="text-sm font-semibold text-gray-500">Activity {index + 1}</div>
+                                                <div className="text-lg font-semibold text-gray-900">{item.service_name || 'Selected service'}</div>
+                                                <div className="text-sm text-gray-600">
+                                                    {item.season_name || 'Selected season'} • {item.booking_date} • {item.selected_slot?.time || item.start_time}
+                                                </div>
+                                            </div>
+                                            <div className="text-right">
+                                                <div className="text-xs font-medium text-gray-500">{item.rate_source_label}</div>
+                                                <div className="text-lg font-semibold text-[#4D81E7]">R {Number(item.booking_total || 0).toFixed(2)}</div>
+                                            </div>
+                                        </div>
+                                        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 pt-3">
+                                            <div className="flex flex-wrap gap-3 text-sm text-gray-700">
+                                                <span>Adults: {item.adults}</span>
+                                                <span>Children: {item.children}</span>
+                                                <span>Guides: {item.guides}</span>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => removeActivityItem(item.client_id)}
+                                                className="btn-tool-red"
+                                            >
+                                                Remove
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                     {/* Booking Details */}
                     <div className="mt-10 p-6 bg-white rounded shadow space-y-4">
 
@@ -2551,31 +2786,31 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                 <div className="flex items-center space-x-[37px]">
                                     <span className="text-booking-lbl-main w-[160px] font-normal text-right">Total value of bookings</span>
                                     <div className="flex items-center justify-between w-[417px] h-[43px] bg-[#DBECFD4D] pl-[17px] py-[12.5px] rounded-[6px]">
-                                        <span className="text-booking-lbl-main-sub text-[#4D81E7]">R {Number(total || 0).toFixed(2)}</span>
+                                        <span className="text-booking-lbl-main-sub text-[#4D81E7]">R {Number(bookingTotalForPayment || 0).toFixed(2)}</span>
                                     </div>
                                 </div>
                                 <div className="flex items-center space-x-[37px]">
                                     <span className="text-booking-lbl-main w-[160px] font-normal text-right">Deposit Due Today</span>
                                     <div className="flex items-center justify-between w-[417px] h-[43px] bg-[#DBECFD4D] pl-[17px] py-[12.5px] rounded-[6px]">
-                                        <span className="text-booking-lbl-main-sub text-[#AFAFAF]">R {((Number(data?.deposit_due) || 0) * (Number(total) || 0)).toFixed(2)}</span>
+                                        <span className="text-booking-lbl-main-sub text-[#AFAFAF]">R {((Number(data?.deposit_due) || 0) * (Number(bookingTotalForPayment) || 0)).toFixed(2)}</span>
                                     </div>
                                 </div>
                                 <div className="flex items-center space-x-[37px]">
                                     <span className="text-booking-lbl-main w-[160px] text-right">Total Due Today</span>
                                     <div className="flex items-center justify-between w-[417px] h-[43px] bg-[#DBECFD4D] pl-[17px] py-[12.5px] rounded-[6px]">
-                                        <span className="text-booking-lbl-main-sub text-[#FF0000]">R {((Number(data?.due_today) || 0) * (Number(total) || 0)).toFixed(2)}</span>
+                                        <span className="text-booking-lbl-main-sub text-[#FF0000]">R {((Number(data?.due_today) || 0) * (Number(bookingTotalForPayment) || 0)).toFixed(2)}</span>
                                     </div>
                                 </div>
                                 <div className="flex items-center space-x-[37px]">
                                     <span className="text-booking-lbl-main w-[160px] text-right text-[#4D81E7]">Total Rack Value</span>
                                     <div className="flex items-center justify-between w-[417px] h-[43px] bg-[#DBECFD4D] pl-[17px] py-[12.5px] rounded-[6px]">
-                                        <span className="text-booking-lbl-main-sub text-[#4D81E7]">R {((Number(data?.rack_value) || 0) * (Number(total) || 0)).toFixed(2)}</span>
+                                        <span className="text-booking-lbl-main-sub text-[#4D81E7]">R {((Number(data?.rack_value) || 0) * (Number(bookingTotalForPayment) || 0)).toFixed(2)}</span>
                                     </div>
                                 </div>
                             </div>
 
                             {data.bill_back && (<span className="text-booking-lbl-main w-full text-center font-normal my-7">
-                                Bill Back - The Wholesaler will be invoiced for R{(Number(data?.rack_value) || 0) * (Number(total) || 0)} after the service is delivered.
+                                Bill Back - The Wholesaler will be invoiced for R{(Number(data?.rack_value) || 0) * (Number(bookingTotalForPayment) || 0)} after the service is delivered.
                             </span>)}
 
                             <div className="flex items-center mt-2 space-x-4">
@@ -2734,4 +2969,3 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
         </AuthenticatedLayout>
     );
 }
-

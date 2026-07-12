@@ -13,6 +13,7 @@ class BookingDiscount extends Model
 
     protected $fillable = [
         'booking_id',
+        'booking_item_id',
         'final_price_adult',
         'final_price_child',
         'final_price_guide',
@@ -21,6 +22,11 @@ class BookingDiscount extends Model
     public function booking()
     {
         return $this->belongsTo(Booking::class, 'booking_id');
+    }
+
+    public function booking_item()
+    {
+        return $this->belongsTo(BookingItem::class, 'booking_item_id');
     }
 
     public function booking_discount_items()

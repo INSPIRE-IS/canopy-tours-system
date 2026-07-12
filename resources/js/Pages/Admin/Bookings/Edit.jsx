@@ -105,7 +105,8 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
     const pickupEnabled = settings?.enable_pickup_dropoff ?? true;
 
     // console.log('schedule ',schedule);
-    const { data, setData, post, put, processing, errors } = useForm({
+    const { data, setData, post, put, processing, errors, transform } = useForm({
+        booking_item_id: booking_items?.id || null,
         is_wholesaler: false,
         wholesaler_id: '',
         add_consultant: false,
@@ -1179,6 +1180,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
         initialPromoCodeRef.current = promoCodeValue;
         setData(prev => ({
             ...prev,
+            booking_item_id: bookingItem?.id || null,
             is_wholesaler: isWholesaler,
             wholesaler_id: bookingItem?.wholesaler_id || '',
             service_id: bookingItem?.service_id || '',
@@ -1564,13 +1566,15 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
         }
 
         const discountLinesPayload = buildDiscountLinesPayload(paxGroups);
+        const submitPayload = {
+            ...data,
+            booking_item_id: booking_items?.id || data.booking_item_id,
+            booking_total: serverCalculatedTotal ?? data.booking_total,
+            invoice_discount_id: invoiceDiscountIdToSend,
+            discount_lines: discountLinesPayload,
+        };
+        transform(() => submitPayload);
         put(route('admin.bookings.update', booking.id), {
-            transform: (payload) => ({
-                ...payload,
-                booking_total: serverCalculatedTotal ?? payload.booking_total,
-                invoice_discount_id: invoiceDiscountIdToSend,
-                discount_lines: discountLinesPayload,
-            }),
             onError: (errs) => {
                 const msg = errs?.booking_total || errs?.start_time || errs?.booking_date || 'Please fix the highlighted fields and try again.';
                 showToast(msg, 'error');

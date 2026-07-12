@@ -187,6 +187,122 @@ class BookingsController extends Controller
         }
     }
 
+    private function buildRateBreakdown(BookingItem $bookingItem): array
+    {
+        $discountItems = $bookingItem->booking?->booking_discounts
+            ?->filter(fn($discount) => empty($discount->booking_item_id) || (int) $discount->booking_item_id === (int) $bookingItem->id)
+            ->flatMap(fn($discount) => $discount->booking_discount_items ?? collect())
+            ->filter()
+            ->values() ?? collect();
+
+        $types = [
+            'adult' => [
+                'label' => 'Adult',
+                'count' => (int) ($bookingItem->pax_adults ?? 0),
+                'rate' => (float) ($bookingItem->price_adult ?? 0),
+            ],
+            'child' => [
+                'label' => 'Child',
+                'count' => (int) ($bookingItem->pax_children ?? 0),
+                'rate' => (float) ($bookingItem->price_child ?? 0),
+            ],
+            'guide' => [
+                'label' => 'Guide',
+                'count' => (int) ($bookingItem->pax_guides ?? 0),
+                'rate' => (float) ($bookingItem->price_guide ?? 0),
+            ],
+        ];
+
+        $lines = [];
+        $computedTotal = 0.0;
+
+        foreach ($types as $type => $meta) {
+            if ($meta['count'] <= 0) {
+                continue;
+            }
+
+            $typeDiscountItems = $discountItems->where('pax_type', $type)->values();
+            $discountedCount = (int) $typeDiscountItems->sum('count');
+            $rackCount = max(0, $meta['count'] - $discountedCount);
+
+            if ($rackCount > 0) {
+                $lineTotal = round($rackCount * $meta['rate'], 2);
+                $computedTotal += $lineTotal;
+                $lines[] = [
+                    'type' => $type,
+                    'label' => $meta['label'],
+                    'count' => $rackCount,
+                    'rate' => round($meta['rate'], 2),
+                    'base_rate' => round($meta['rate'], 2),
+                    'final_rate' => round($meta['rate'], 2),
+                    'total' => $lineTotal,
+                    'adjustment_label' => null,
+                    'saving' => 0,
+                ];
+            }
+
+            foreach ($typeDiscountItems as $discountItem) {
+                $count = (int) ($discountItem->count ?? 0);
+                if ($count <= 0) {
+                    continue;
+                }
+
+                $baseRate = (float) ($discountItem->base_rate ?? $meta['rate']);
+                $finalRate = (float) ($discountItem->final_rate ?? $meta['rate']);
+                $lineTotal = round($count * $finalRate, 2);
+                $computedTotal += $lineTotal;
+
+                $lines[] = [
+                    'type' => $type,
+                    'label' => $meta['label'],
+                    'count' => $count,
+                    'rate' => round($finalRate, 2),
+                    'base_rate' => round($baseRate, 2),
+                    'final_rate' => round($finalRate, 2),
+                    'total' => $lineTotal,
+                    'adjustment_label' => $discountItem->discount?->name ?? 'Discount',
+                    'saving' => round(max(0, $baseRate - $finalRate) * $count, 2),
+                ];
+            }
+        }
+
+        $sourceType = 'rack';
+        $sourceLabel = 'Rack rate';
+        if ($bookingItem->promotion) {
+            $sourceType = 'promotion';
+            $sourceLabel = trim(($bookingItem->promotion->name ?? 'Promotion') . ' ' . (($bookingItem->promotion->promo_code ?? '') ? '(' . $bookingItem->promotion->promo_code . ')' : ''));
+        } elseif ($discountItems->isNotEmpty()) {
+            $sourceType = 'discount';
+            $sourceLabel = 'Discount applied';
+        } elseif ($bookingItem->wholesaler) {
+            $sourceType = 'wholesaler';
+            $sourceLabel = $bookingItem->wholesaler->name ?? 'Wholesaler rate';
+        }
+
+        $bookingTotal = round((float) ($bookingItem->booking_fee?->tot_amount ?? $computedTotal), 2);
+        $paid = round((float) ($bookingItem->booking_fee?->tot_paid ?? 0), 2);
+
+        return [
+            'source_type' => $sourceType,
+            'source_label' => $sourceLabel,
+            'pax' => [
+                'adult' => $types['adult']['count'],
+                'child' => $types['child']['count'],
+                'guide' => $types['guide']['count'],
+            ],
+            'rates' => [
+                'adult' => round($types['adult']['rate'], 2),
+                'child' => round($types['child']['rate'], 2),
+                'guide' => round($types['guide']['rate'], 2),
+            ],
+            'lines' => $lines,
+            'computed_total' => round($computedTotal, 2),
+            'booking_total' => $bookingTotal,
+            'paid' => $paid,
+            'due' => round($bookingTotal - $paid, 2),
+        ];
+    }
+
     public function index(Request $request)
     {
 
@@ -213,7 +329,7 @@ class BookingsController extends Controller
                 if ($includeCancelled) {
                     $query->withTrashed();
                 }
-                $query->with('files');
+                $query->with('files', 'booking_discounts.booking_discount_items.discount');
             },
             'customers',
             'customer_manifests',
@@ -227,6 +343,8 @@ class BookingsController extends Controller
             'booking_inventory.inventory_time_slot',
             'service',
             'season',
+            'promotion',
+            'wholesaler',
         ];
 
         $bookingItemsQuery = BookingItem::with($bookingItemRelations)
@@ -248,7 +366,25 @@ class BookingsController extends Controller
         $vatLookup = LookupItem::findDefaultForTeam('vat_rate', auth()->user()->team_id);
         $vatMultiplier = $vatLookup?->multiplier ?? 1.15;
 
-        $formatted = $booking_items->map(function ($booking_item) use ($vatMultiplier) {
+        $linkedActivitiesByBookingId = $booking_items
+            ->groupBy('booking_id')
+            ->map(function ($items) {
+                return $items->map(function ($item) {
+                    $timeSlot = $item->booking_inventory?->inventory_time_slot;
+                    return [
+                        'id' => $item->booking?->id,
+                        'booking_item_id' => $item->id,
+                        'reference' => $item->booking?->reference,
+                        'service' => $item->service?->name,
+                        'booking_date' => $item->booking_inventory?->date,
+                        'time_start' => $timeSlot?->start_time,
+                        'bookingPax' => $item->booking_inventory?->pax ?? 0,
+                        'price' => round((float) ($item->booking_fee?->tot_amount ?? 0), 2),
+                    ];
+                })->values();
+            });
+
+        $formatted = $booking_items->map(function ($booking_item) use ($vatMultiplier, $linkedActivitiesByBookingId) {
             try {
                 $price = $booking_item?->booking_fee->tot_amount;
                 $paid = $booking_item?->booking_fee->tot_paid;
@@ -337,6 +473,8 @@ class BookingsController extends Controller
                 $info = [
                     'id' => $booking_item->booking->id,
                     'booking_item_id' => $booking_item->id,
+                    'linked_activity_count' => $linkedActivitiesByBookingId->get($booking_item->booking_id, collect())->count(),
+                    'linked_activities' => $linkedActivitiesByBookingId->get($booking_item->booking_id, collect())->all(),
                     'reference' => $booking_item->booking->reference,
                     'lead_name' => $leadName,
                     'lead_email' => $leadEmail,
@@ -350,6 +488,7 @@ class BookingsController extends Controller
                     'price' => round($price ?? 0, 2),
                     'paid' =>  round($paid ?? 0, 2),
                     'due' =>  round($due ?? 0, 2),
+                    'rate_breakdown' => $this->buildRateBreakdown($booking_item),
                     'customers' => $customersList,
                     'dueStatus' => $due > 0 ? true : false,
                     'due_date' => $booking_item->booking->due_date,
@@ -495,14 +634,15 @@ class BookingsController extends Controller
             'lead_mobile' => 'required|string', //   "lead_mobile" => "Lead Mobile"
             'nationality_id' => 'nullable|exists:countries,id',
             'referral_source' => 'nullable|exists:type_referrals,id',
-            'selected_slot' => 'required|array', //   "selected_slot" => array:3 [â–¶] date "2025-07-28" "selected_slot" => array:3 [â–¶] time "08:00:00"
+            'activity_items' => 'nullable|array',
+            'selected_slot' => 'required_without:activity_items|array', //   "selected_slot" => array:3 [â–¶] date "2025-07-28" "selected_slot" => array:3 [â–¶] time "08:00:00"
 
-            'service_id' => 'required|integer', //   "season_id" => "2"
-            'season_id' => 'required|integer', //   "season_id" => "2"
+            'service_id' => 'required_without:activity_items|nullable|integer', //   "season_id" => "2"
+            'season_id' => 'required_without:activity_items|nullable|integer', //   "season_id" => "2"
             'corporate_customer' => 'boolean', //   "corporate_customer" => "true"
             'send_sms' => 'boolean', //   "send_sms" => "true"
-            'booking_date' => 'required|date', //   "booking_date" => "2025-07-28"
-            'start_time' => 'required', //   "start_time" => "08:00:00"
+            'booking_date' => 'required_without:activity_items|nullable|date', //   "booking_date" => "2025-07-28"
+            'start_time' => 'required_without:activity_items|nullable', //   "start_time" => "08:00:00"
 
             'add_consultant' => 'boolean', //   "add_consultant" => "true"
             'consultant_name' => 'string|nullable', //   "consultant_name" => "Consultant Name"
@@ -520,7 +660,7 @@ class BookingsController extends Controller
             'email_reminder' => 'string|nullable', //   "email_reminder" => "Add Email Reminder"
             'booking_note' => 'string|nullable', //   "booking_note" => "Add Booking Note"
 
-            'adults' => 'required|integer|min:0', //   "adults" => "1"
+            'adults' => 'required_without:activity_items|nullable|integer|min:0', //   "adults" => "1"
             'children' => 'nullable|integer|min:0', //   "children" => "2"      
             'guides' => 'nullable|integer|min:0', //   "guides" => "2"
             'adult' => 'numeric|nullable',
@@ -529,7 +669,7 @@ class BookingsController extends Controller
             'rate_per_adult' => 'numeric|nullable',
             'rate_per_child' => 'numeric|nullable',
             'rate_per_guide' => 'numeric|nullable',
-            'booking_total' => 'required|numeric',
+            'booking_total' => 'required_without:activity_items|nullable|numeric',
             'override_reason' => 'required_if:override_rates,1|nullable|string',
 
             'is_wholesaler' => 'boolean', //   "is_wholesaler" => "true"
@@ -550,6 +690,25 @@ class BookingsController extends Controller
         $autoSendQuote = $autoSendQuoteSetting ? true : (bool) ($validated['send_quote'] ?? false);
         $validated['needs_pickup'] = $pickupEnabled ? ($validated['needs_pickup'] ?? false) : false;
         try {
+            $activityItems = $this->normaliseActivityItems($request->input('activity_items', []));
+            if (count($activityItems) > 1) {
+                $booking = $this->storeMultiActivityBooking($validated, $activityItems, $autoSendInvoice, $autoSendQuote);
+                Log::info('multi-activity booking created', [
+                    'booking' => $booking,
+                    'activity_count' => count($activityItems),
+                ]);
+                $message = "Booking {$booking->reference} saved successfully.";
+                if ($validated['pay_later']) {
+                    return redirect()
+                        ->route('admin.bookings.index')
+                        ->with('success', $message);
+                }
+
+                return redirect()
+                    ->route('admin.booking-payments.create', $booking->id)
+                    ->with('success', $message);
+            }
+
             $booking = DB::transaction(function () use ($validated, $autoSendInvoice, $autoSendQuote) {
                 $renderService = app(RendererService::class);
                 $season_id = $validated['season_id'];
@@ -1171,6 +1330,379 @@ class BookingsController extends Controller
         //return redirect()->route('admin.bookings.index');
     }
 
+    private function normaliseActivityItems(array $items): array
+    {
+        return collect($items)
+            ->filter(fn($item) => is_array($item))
+            ->map(function (array $item) {
+                $item['adults'] = (int) ($item['adults'] ?? 0);
+                $item['children'] = (int) ($item['children'] ?? 0);
+                $item['guides'] = (int) ($item['guides'] ?? 0);
+                $item['booking_total'] = round((float) ($item['booking_total'] ?? 0), 2);
+                $item['discount_lines'] = is_array($item['discount_lines'] ?? null) ? $item['discount_lines'] : [];
+                $item['selected_slot'] = is_array($item['selected_slot'] ?? null) ? $item['selected_slot'] : [];
+
+                return $item;
+            })
+            ->filter(fn($item) => !empty($item['service_id']) && !empty($item['season_id']) && !empty($item['booking_date']))
+            ->values()
+            ->all();
+    }
+
+    private function storeMultiActivityBooking(array $validated, array $activityItems, bool $autoSendInvoice, bool $autoSendQuote): Booking
+    {
+        return DB::transaction(function () use ($validated, $activityItems, $autoSendInvoice, $autoSendQuote) {
+            $renderService = app(RendererService::class);
+            $teamId = auth()->user()->team_id;
+
+            $customer = Customer::create([
+                'email_address' => $validated['lead_email'],
+                'full_name' => $validated['lead_person'],
+                'contact_number' => $validated['lead_mobile'],
+                'nationality_id' => $validated['nationality_id'] ?? null,
+            ]);
+
+            $booking = Booking::create([
+                'user_id' => auth()->id(),
+                'session_id' => null,
+                'lead_name' => $customer->full_name,
+                'type_booking_id' => 1,
+                'status_payment_id' => 1,
+                'is_sms' => $validated['send_sms'] ?? 0,
+                'is_corporate' => $validated['corporate_customer'],
+                'due_date' => $activityItems[0]['booking_date'] ?? $validated['booking_date'],
+                'tot_paid' => 0,
+                'grand_tot_due' => 0,
+                'reference' => 'REF-' . strtoupper(Str::random(6)),
+                'customer_id' => $customer->id,
+                'team_id' => $teamId,
+            ]);
+
+            $totalAmount = 0.0;
+            $invoiceLines = [];
+            $wholesalerIds = [];
+
+            foreach ($activityItems as $index => $activity) {
+                $season = Season::findOrFail($activity['season_id']);
+                $service = Service::findOrFail($season->service_id);
+                $inventory = Inventory::where('season_id', $season->id)->first();
+                if (!$inventory) {
+                    throw ValidationException::withMessages([
+                        'season_id' => "The {$season->name} season has no inventory.",
+                    ]);
+                }
+
+                $slotTime = $activity['selected_slot']['time'] ?? $activity['start_time'] ?? null;
+                $inventoryTimeSlot = InventoryTimeSlot::where('inventory_id', $inventory->id)
+                    ->where('start_time', $slotTime)
+                    ->first();
+                if (!$inventoryTimeSlot) {
+                    throw ValidationException::withMessages([
+                        'start_time' => 'One of the selected activity time slots does not exist.',
+                    ]);
+                }
+
+                $overrideRates = !empty($activity['override_rates']);
+                if ($overrideRates && !(bool) $season->allow_internal_price_override) {
+                    throw ValidationException::withMessages([
+                        'override_rates' => 'Override rates are not allowed for one of the selected seasons.',
+                    ]);
+                }
+
+                $isWholesaler = !empty($activity['is_wholesaler']);
+                $invoiceDiscountId = (int) ($activity['invoice_discount_id'] ?? 0);
+                $promoCode = $activity['promoCode'] ?? null;
+                $discountLinesInput = $activity['discount_lines'] ?? [];
+                $wholesalerId = $isWholesaler ? ($activity['wholesaler_id'] ?? null) : null;
+                if ($overrideRates || $invoiceDiscountId) {
+                    $promoCode = null;
+                    $discountLinesInput = [];
+                    $wholesalerId = null;
+                    $isWholesaler = false;
+                }
+
+                $pricing = app(PricingService::class)->calculate([
+                    'service_id' => $activity['service_id'],
+                    'season_id' => $activity['season_id'],
+                    'booking_date' => $activity['booking_date'],
+                    'wholesaler_id' => $wholesalerId,
+                    'promo_code' => $promoCode,
+                    'invoice_discount_id' => $invoiceDiscountId ?: null,
+                    'adults' => (int) ($activity['adults'] ?? 0),
+                    'children' => (int) ($activity['children'] ?? 0),
+                    'guides' => (int) ($activity['guides'] ?? 0),
+                    'discount_lines' => $discountLinesInput,
+                    'override_rates' => $overrideRates,
+                    'override_rate_adult' => $activity['rate_per_adult'] ?? null,
+                    'override_rate_child' => $activity['rate_per_child'] ?? null,
+                    'override_rate_guide' => $activity['rate_per_guide'] ?? null,
+                ]);
+                $this->assertPricingMatches((float) $activity['booking_total'], (float) $pricing['total_price']);
+
+                $rateAdult = round((float) ($pricing['applied_rates']['adult'] ?? 0), 2);
+                $rateChild = round((float) ($pricing['applied_rates']['child'] ?? 0), 2);
+                $rateGuide = round((float) ($pricing['applied_rates']['guide'] ?? 0), 2);
+                $amountAdults = round((float) ($pricing['totals_by_type']['adult'] ?? 0), 2);
+                $amountChildren = round((float) ($pricing['totals_by_type']['child'] ?? 0), 2);
+                $amountGuides = round((float) ($pricing['totals_by_type']['guide'] ?? 0), 2);
+                $amount = round((float) ($pricing['total_price'] ?? 0), 2);
+                $discountLines = $pricing['discount_lines'] ?? [];
+                if ($invoiceDiscountId && empty($discountLines)) {
+                    $discountLines = collect($pricing['line_items'] ?? [])
+                        ->filter(fn($line) => in_array($line['type'] ?? null, ['adult', 'child', 'guide'], true) && (int) ($line['count'] ?? 0) > 0)
+                        ->map(fn($line) => [
+                            'type' => $line['type'],
+                            'count' => (int) ($line['count'] ?? 0),
+                            'discount_id' => $invoiceDiscountId,
+                            'base_rate' => (float) ($line['base_rate'] ?? 0),
+                            'final_rate' => (float) ($line['final_rate'] ?? 0),
+                        ])
+                        ->values()
+                        ->all();
+                }
+
+                $requestedPax = (int) ($activity['adults'] ?? 0) + (int) ($activity['children'] ?? 0);
+                $canOverrideCapacity = !empty($activity['override_capacity']) && (bool) $service->allow_internal_capacity_override;
+                if (!$canOverrideCapacity) {
+                    $this->validateSlotCapacity($service, $activity['booking_date'], $inventoryTimeSlot->id, $requestedPax, $teamId);
+                }
+
+                $promotion = $promoCode ? Promotion::where('promo_code', $promoCode)->first() : null;
+                $bookingItem = BookingItem::create([
+                    'booking_id' => $booking->id,
+                    'service_id' => $season->service_id,
+                    'season_id' => $season->id,
+                    'inventory_id' => $inventory->id,
+                    'pax_adults' => (int) ($activity['adults'] ?? 0),
+                    'pax_children' => (int) ($activity['children'] ?? 0),
+                    'pax_guides' => (int) ($activity['guides'] ?? 0),
+                    'price_adult' => $rateAdult,
+                    'price_child' => $rateChild,
+                    'price_guide' => $rateGuide,
+                    'promotion_id' => $promotion?->id,
+                    'wholesaler_id' => $wholesalerId,
+                    'discount_id' => null,
+                    'team_id' => $teamId,
+                ]);
+
+                $bookingItem->customers()->sync([
+                    $customer->id => [
+                        'team_id' => $teamId,
+                        'is_lead' => 1,
+                    ],
+                ]);
+
+                $bookingDetail = BookingDetail::create([
+                    'booking_item_id' => $bookingItem->id,
+                    'is_wholesaler_booking' => $isWholesaler,
+                    'is_needs_pickup' => $validated['needs_pickup'],
+                    'is_web_booking' => $validated['web_booking'],
+                    'is_videos_photos' => $validated['include_media'],
+                    'is_exclusive_resource_use' => $validated['exclusive_resource'],
+                    'is_override_capacity' => $activity['override_capacity'] ?? false,
+                    'is_override_time_slots' => $activity['override_timeslots'] ?? false,
+                    'referral_source_id' => $validated['referral_source'] ?? null,
+                    'team_id' => $teamId,
+                ]);
+
+                if ($isWholesaler && $wholesalerId) {
+                    $wholesalerIds[] = $wholesalerId;
+                }
+
+                $inventoryOverride = null;
+                if ($overrideRates) {
+                    $inventoryOverride = InventoryOverride::create([
+                        'service_id' => $season->service_id,
+                        'season_id' => $season->id,
+                        'inventory_id' => $inventory->id,
+                        'date' => $activity['booking_date'],
+                        'time' => $inventoryTimeSlot->start_time,
+                        'capacity_override' => (int) ($service->capacity ?? 0),
+                        'price_adult' => (float) ($activity['rate_per_adult'] ?? 0),
+                        'price_child' => (float) ($activity['rate_per_child'] ?? 0),
+                        'price_guide' => (float) ($activity['rate_per_guide'] ?? 0),
+                        'note' => $activity['override_reason'] ?? '',
+                        'created_by_id' => auth()->id(),
+                        'updated_by_id' => auth()->id(),
+                        'team_id' => $teamId,
+                    ]);
+                }
+
+                $bookingInventory = BookingInventory::create([
+                    'booking_item_id' => $bookingItem->id,
+                    'booking_detail_id' => $bookingDetail->id,
+                    'adults' => (int) ($activity['adults'] ?? 0),
+                    'children' => (int) ($activity['children'] ?? 0),
+                    'guides' => (int) ($activity['guides'] ?? 0),
+                    'pax' => (int) ($activity['adults'] ?? 0) + (int) ($activity['children'] ?? 0),
+                    'date' => $activity['booking_date'],
+                    'inventory_type_day_id' => Carbon::parse($activity['booking_date'])->format('N'),
+                    'inventory_time_slot_id' => $inventoryTimeSlot->id,
+                    'inventory_override_id' => $overrideRates ? $inventoryOverride?->id : null,
+                    'team_id' => $teamId,
+                ]);
+
+                BookingFee::create([
+                    'booking_item_id' => $bookingItem->id,
+                    'booking_detail_id' => $bookingDetail->id,
+                    'tot_adults' => $amountAdults,
+                    'tot_children' => $amountChildren,
+                    'tot_guides' => $amountGuides,
+                    'is_voucher' => $validated['redeem_voucher'] ? 1 : 0,
+                    'voucher_code' => $validated['redeem_voucher'] ?? '',
+                    'tot_amount' => $amount,
+                    'team_id' => $teamId,
+                ]);
+
+                if (!empty($discountLines)) {
+                    $bookingDiscount = BookingDiscount::create([
+                        'booking_id' => $booking->id,
+                        'booking_item_id' => $bookingItem->id,
+                        'final_price_adult' => $rateAdult,
+                        'final_price_child' => $rateChild,
+                        'final_price_guide' => $rateGuide,
+                    ]);
+                    foreach ($discountLines as $line) {
+                        $bookingDiscount->booking_discount_items()->create([
+                            'pax_type' => $line['type'],
+                            'discount_id' => $line['discount_id'],
+                            'count' => $line['count'],
+                            'base_rate' => $line['base_rate'],
+                            'final_rate' => $line['final_rate'],
+                        ]);
+                    }
+                }
+
+                if ($index === 0) {
+                    $this->createBookingNotes($booking, $bookingItem, $validated);
+                }
+                $this->logAudit('Booking activity created', $booking, $bookingItem, [
+                    'service_id' => $bookingItem->service_id,
+                    'season_id' => $bookingItem->season_id,
+                    'amount' => $amount,
+                ]);
+
+                $totalAmount += $amount;
+                $invoiceLines[] = [
+                    'season' => $season,
+                    'booking_inventory' => $bookingInventory,
+                    'promotion' => $promotion,
+                    'wholesaler_id' => $wholesalerId,
+                    'adults' => (int) ($activity['adults'] ?? 0),
+                    'children' => (int) ($activity['children'] ?? 0),
+                    'guides' => (int) ($activity['guides'] ?? 0),
+                    'rate_adult' => $rateAdult,
+                    'rate_child' => $rateChild,
+                    'rate_guide' => $rateGuide,
+                ];
+            }
+
+            foreach (array_unique(array_filter($wholesalerIds)) as $wholesalerId) {
+                WholesalerBooking::create([
+                    'booking_id' => $booking->id,
+                    'wholesaler_id' => $wholesalerId,
+                    'consultant_name' => $validated['consultant_name'] ?? '',
+                    'consultant_email' => $validated['consultant_email'] ?? '',
+                    'consultant_mobile' => $validated['consultant_mobile'] ?? '',
+                    'team_id' => $teamId,
+                ]);
+            }
+
+            $booking->update(['grand_tot_due' => round($totalAmount, 2)]);
+
+            $invoiceTypeId = $this->getTypeInvoiceId(TypeInvoice::SLUG_STD);
+            $template = InvoiceTemplate::where('is_default', true)
+                ->where('type_invoice_id', $invoiceTypeId)
+                ->where('team_id', $teamId)
+                ->first();
+            $amountExVat = round(($totalAmount / 1.15), 2);
+            $vatAmount = round(($totalAmount - $amountExVat), 2);
+            $invoice = Invoice::create([
+                'booking_id' => $booking->id,
+                'gift_voucher_id' => null,
+                'invoice_date' => $booking->due_date,
+                'due_date' => $booking->due_date,
+                'subtotal' => $amountExVat,
+                'vat' => $vatAmount,
+                'total' => round($totalAmount, 2),
+                'status' => 'draft',
+                'invoice_template_id' => $template?->id,
+                'type_invoice_id' => $invoiceTypeId,
+                'team_id' => $teamId,
+            ]);
+
+            foreach ($invoiceLines as $line) {
+                InvoiceItem::create([
+                    'invoice_id' => $invoice->id,
+                    'pax_adults' => $line['adults'],
+                    'pax_children' => $line['children'],
+                    'pax_guides' => $line['guides'],
+                    'price_adult' => $line['rate_adult'],
+                    'price_child' => $line['rate_child'],
+                    'price_guide' => $line['rate_guide'],
+                    'team_id' => $teamId,
+                    'service_id' => $line['season']->service_id,
+                    'season_id' => $line['season']->id,
+                    'booking_inventory_id' => $line['booking_inventory']->id,
+                    'promotion_id' => $line['promotion']?->id,
+                    'wholesaler_id' => $line['wholesaler_id'],
+                    'discount_id' => null,
+                ]);
+            }
+
+            $data = $renderService->invoice($booking->fresh('booking_items'), $customer, $invoice);
+            $invoicePdf = Pdf::loadView('invoices.invoice', $data);
+            $invoicePdf->setPaper('A4', 'portrait');
+            $invoiceFilename = 'invoices/' . $data['invoice']['number'] . '.pdf';
+            Storage::disk('public')->put($invoiceFilename, $invoicePdf->output());
+            File::create([
+                'team_id' => $invoice->team_id,
+                'table_name' => 'invoices',
+                'table_row_id' => $invoice->id,
+                'file_name' => $data['invoice']['number'] . '.pdf',
+                'file_type' => 'application/pdf',
+                'type_file_id' => 4,
+                'path' => $invoiceFilename,
+                'booking_id' => $booking->id,
+            ]);
+
+            if ($autoSendInvoice) {
+                $documentLabel = $data['document']['label'] ?? 'Invoice';
+                Email::create([
+                    'sender' => config('mail.from.address'),
+                    'receiver' => $validated['lead_email'],
+                    'subject' => $documentLabel . ' ' . $data['invoice']['number'],
+                    'body' => "Booking {$booking->reference} created.",
+                    'attachment_path' => $invoiceFilename,
+                    'sent' => true,
+                    'sent_at' => now(),
+                    'user_id' => auth()->id(),
+                    'auditable_type' => 'App\Models\Booking',
+                    'auditable_id' => $booking->id,
+                    'team_id' => $teamId,
+                ]);
+                Mail::to($customer->email_address)->send(new BookingMail([
+                    'invoice' => [
+                        'number' => $booking->reference ?? 'INV-No',
+                        'date' => now()->format('Y-m-d'),
+                    ],
+                    'customer' => [
+                        'name' => $customer->full_name,
+                    ],
+                    'booking' => [
+                        'reference' => $booking->reference,
+                    ],
+                ], [[
+                    'data' => $invoicePdf->output(),
+                    'name' => strtolower($documentLabel) . "-{$data['invoice']['number']}.pdf",
+                    'mime' => 'application/pdf',
+                ]]));
+            }
+
+            return $booking->fresh();
+        });
+    }
+
     public function edit(Request $request, Booking $booking)
     {
         //abort_if(Gate::denies('booking_edit'), Response::HTTP_FORBIDDEN, '403 Forbidden');
@@ -1182,7 +1714,8 @@ class BookingsController extends Controller
             'customer',
         ]);
 
-        $booking_items = BookingItem::with([
+        $requestedBookingItemId = $request->integer('booking_item_id');
+        $bookingItemsQuery = BookingItem::with([
             'service',
             'season',
             'inventory',
@@ -1197,7 +1730,19 @@ class BookingsController extends Controller
             'booking_inventory.inventory_override',
             'booking_staff', // :id,booking_id,user_id
             'booking_staff.user', // :id,name,email,contact_number
-        ])->where('booking_id', $booking->id)->first();
+        ])->where('booking_id', $booking->id);
+
+        if ($requestedBookingItemId) {
+            $bookingItemsQuery->where('id', $requestedBookingItemId);
+        }
+
+        $booking_items = $bookingItemsQuery->orderBy('id')->firstOrFail();
+
+        if ($booking->relationLoaded('booking_discounts')) {
+            $booking->setRelation('booking_discounts', $booking->booking_discounts
+                ->filter(fn($discount) => empty($discount->booking_item_id) || (int) $discount->booking_item_id === (int) $booking_items->id)
+                ->values());
+        }
 
         $noteDefaults = [];
         if ($booking_items) {
@@ -1336,6 +1881,7 @@ class BookingsController extends Controller
     {
         $validated = $request->validate([
             'booking_id' => 'nullable|integer',
+            'booking_item_id' => 'nullable|integer|exists:booking_items,id',
             'lead_person' => 'required|string',
             'lead_email' => 'required|email',
             'lead_mobile' => 'required|string',
@@ -1398,9 +1944,14 @@ class BookingsController extends Controller
 
         try {
             DB::transaction(function () use ($validated, $booking, $autoSendInvoice, $autoSendQuote) {
-                $bookingItem = BookingItem::with(['booking_detail', 'booking_inventory', 'booking_fee', 'customers'])
-                    ->where('booking_id', $booking->id)
-                    ->firstOrFail();
+                $bookingItemQuery = BookingItem::with(['booking_detail', 'booking_inventory', 'booking_fee', 'customers'])
+                    ->where('booking_id', $booking->id);
+
+                if (!empty($validated['booking_item_id'])) {
+                    $bookingItemQuery->where('id', $validated['booking_item_id']);
+                }
+
+                $bookingItem = $bookingItemQuery->orderBy('id')->firstOrFail();
 
                 $selectedSlot = $validated['selected_slot'];
                 $bookingDate = $validated['booking_date'];
@@ -1688,6 +2239,7 @@ class BookingsController extends Controller
                     $booking_discount = BookingDiscount::updateOrCreate(
                         [
                             'booking_id' => $booking->id,
+                            'booking_item_id' => $bookingItem->id,
                         ],
                         [
                             'final_price_adult' => $rateAdult,
@@ -1710,12 +2262,34 @@ class BookingsController extends Controller
                         );
                     }
                 } else {
-                    $existingDiscount = BookingDiscount::where('booking_id', $booking->id)->first();
+                    $existingDiscount = BookingDiscount::where('booking_id', $booking->id)
+                        ->where(function ($query) use ($bookingItem) {
+                            $query->where('booking_item_id', $bookingItem->id)
+                                ->orWhereNull('booking_item_id');
+                        })
+                        ->first();
                     if ($existingDiscount) {
                         $existingDiscount->booking_discount_items()->delete();
                         $existingDiscount->delete();
                     }
                 }
+
+                $invoiceBookingItems = BookingItem::with([
+                    'booking_fee',
+                    'booking_inventory',
+                    'promotion',
+                ])
+                    ->where('booking_id', $booking->id)
+                    ->get();
+                $parentTotal = round((float) $invoiceBookingItems->sum(fn($item) => (float) ($item->booking_fee?->tot_amount ?? 0)), 2);
+                $booking->update([
+                    'grand_tot_due' => $parentTotal,
+                    'due_date' => $invoiceBookingItems
+                        ->pluck('booking_inventory.date')
+                        ->filter()
+                        ->sort()
+                        ->first() ?? $bookingDate,
+                ]);
 
                 $invoiceTypeId = $this->getTypeInvoiceId(TypeInvoice::SLUG_STD);
                 $existingInvoiceIds = Invoice::withTrashed()
@@ -1730,6 +2304,7 @@ class BookingsController extends Controller
                 File::where('booking_id', $booking->id)
                     ->where('table_name', 'BookingItem')
                     ->where('type_file_id', 6)
+                    ->where('table_row_id', $bookingItem->id)
                     ->delete();
 
                 if ($existingInvoiceIds->isNotEmpty()) {
@@ -1745,16 +2320,16 @@ class BookingsController extends Controller
                     ->where('type_invoice_id', $invoiceTypeId)
                     ->where('team_id', auth()->user()->team_id)
                     ->first();
-                $amountExVat = round(($amount / 1.15), 2);
-                $vatAmount = round(($amount - $amountExVat), 2);
+                $amountExVat = round(($parentTotal / 1.15), 2);
+                $vatAmount = round(($parentTotal - $amountExVat), 2);
                 $invoice = Invoice::create([
                     'booking_id'     => $booking->id,
                     'gift_voucher_id'    => null,
                     'invoice_date'   => $bookingDate,
-                    'due_date'       => $bookingDate,
+                    'due_date'       => $booking->due_date,
                     'subtotal'       => $amountExVat,
                     'vat'            => $vatAmount,
-                    'total'          => $amount,
+                    'total'          => $parentTotal,
                     'status'         => 'draft',
                     'invoice_template_id'    => $template?->id,
                     'type_invoice_id' => $invoiceTypeId,
@@ -1762,25 +2337,27 @@ class BookingsController extends Controller
 
                 ]);
 
-                $invoiceItems = InvoiceItem::create([
-                    'invoice_id'     => $invoice->id,
-                    'pax_adults'     => (int) ($validated['adults'] ?? 0),
-                    'pax_children'   => (int) ($validated['children'] ?? 0),
-                    'pax_guides'     => (int) ($validated['guides'] ?? 0),
-                    'price_adult'    => $rateAdult,
-                    'price_child'    => $rateChild,
-                    'price_guide'    => $rateGuide,
-                    'team_id'        => auth()->user()->team_id,
-                    'service_id'     => $season->service_id,
-                    'season_id'      => $season->id,
-                    'booking_inventory_id' => $bookingInventory?->id,
-                    'promotion_id'   => $promotion ? $promotion->id : null,
-                    'wholesaler_id'  => $validated['wholesaler_id'],
-                    'discount_id'    => null,
-                ]);
+                foreach ($invoiceBookingItems as $invoiceBookingItem) {
+                    InvoiceItem::create([
+                        'invoice_id'     => $invoice->id,
+                        'pax_adults'     => (int) ($invoiceBookingItem->pax_adults ?? 0),
+                        'pax_children'   => (int) ($invoiceBookingItem->pax_children ?? 0),
+                        'pax_guides'     => (int) ($invoiceBookingItem->pax_guides ?? 0),
+                        'price_adult'    => (float) ($invoiceBookingItem->price_adult ?? 0),
+                        'price_child'    => (float) ($invoiceBookingItem->price_child ?? 0),
+                        'price_guide'    => (float) ($invoiceBookingItem->price_guide ?? 0),
+                        'team_id'        => auth()->user()->team_id,
+                        'service_id'     => $invoiceBookingItem->service_id,
+                        'season_id'      => $invoiceBookingItem->season_id,
+                        'booking_inventory_id' => $invoiceBookingItem->booking_inventory?->id,
+                        'promotion_id'   => $invoiceBookingItem->promotion?->id,
+                        'wholesaler_id'  => $invoiceBookingItem->wholesaler_id,
+                        'discount_id'    => null,
+                    ]);
+                }
 
                 $renderService = app(RendererService::class);
-                $data = $renderService->invoice($booking, $customer, $invoice);
+                $data = $renderService->invoice($booking->fresh(['booking_items', 'team']), $customer, $invoice);
                 $invoicePdf = Pdf::loadView('invoices.invoice', $data);
                 $invoicePdf->setPaper('A4', 'portrait');
 
@@ -1919,7 +2496,9 @@ class BookingsController extends Controller
                     'booking_inventory.inventory_time_slot',
                     'booking_inventory.inventory_type_day.type_day',
                     'booking_fee'
-                )->where('booking_id', $booking->id)->first();
+                )->where('booking_id', $booking->id)
+                    ->where('id', $bookingItem->id)
+                    ->first();
 
                 $passData = $this->getPassDetails($bookingItem);
                 $html = view('pdfs.boarding-pass', ['data' => $passData])->render();
@@ -2821,7 +3400,7 @@ class BookingsController extends Controller
     }
 
 
-    public function add(Booking $booking)
+    public function add(Request $request, Booking $booking)
     {
         //abort_if(Gate::denies('booking_edit'), Response::HTTP_FORBIDDEN, '403 Forbidden');
         $user = auth()->user();
@@ -2849,7 +3428,8 @@ class BookingsController extends Controller
             'files',
         ]);
 
-        $bookingItem = BookingItem::with([
+        $requestedBookingItemId = $request->integer('booking_item_id');
+        $bookingItemQuery = BookingItem::with([
             'service',
             'season',
             'booking',
@@ -2865,10 +3445,13 @@ class BookingsController extends Controller
             'booking_staff',
             'booking_staff.user',
         ])
-            ->where('booking_id', $booking->id)
-            ->orderBy('id') // or some other column for order
-            ->skip(0)       // skip the first
-            ->first();      // get the second
+            ->where('booking_id', $booking->id);
+
+        if ($requestedBookingItemId) {
+            $bookingItemQuery->where('id', $requestedBookingItemId);
+        }
+
+        $bookingItem = $bookingItemQuery->orderBy('id')->firstOrFail();
 
         $bookingNotes = BookingNote::with('creator:id,name')
             ->where('booking_id', $booking->id)

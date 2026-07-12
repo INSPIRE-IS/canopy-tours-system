@@ -1,6 +1,7 @@
 import { icons } from '@/icons';
 import { router } from '@inertiajs/react';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import BookingRateBreakdown from './BookingRateBreakdown';
 
 export default function BookingToolsModal({ booking, position, onClose, BookingToolClick }) {
     const modalRef = useRef();
@@ -42,7 +43,7 @@ export default function BookingToolsModal({ booking, position, onClose, BookingT
     return (
         <div
             ref={modalRef}
-            className="fixed z-50 w-[220px] bg-white rounded-xl shadow-lg border border-gray-200 p-3 max-h-[70vh] overflow-y-auto"
+            className="fixed z-50 w-[320px] bg-white rounded-xl shadow-lg border border-gray-200 p-3 max-h-[70vh] overflow-y-auto"
             style={modalStyle ?? { top: position.bottom + 8, left: position.left }}
         >
             <div className="p-4">
@@ -52,6 +53,7 @@ export default function BookingToolsModal({ booking, position, onClose, BookingT
                 </div>
 
                 <div className="flex flex-col gap-2">
+                    <BookingRateBreakdown breakdown={booking.rate_breakdown} compact />
 
                     {isCancelled ? (
                         <button type="button" onClick={() => BookingToolClick('reinstate_booking', booking)} className="btn-tool">{icons.check_in} Reinstate Booking</button>
