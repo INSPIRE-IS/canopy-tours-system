@@ -54,6 +54,7 @@ class ActivityController extends Controller
         $user = auth()->user();
         $canViewUnpublished = $user && $user->can('teams_publish');
         $canViewInternalSeasons = (bool) $user;
+        $canViewStaffOnlyServices = (bool) $user;
 
         $teamsQuery = Team::select('id', 'name', 'is_published');
         if (!$canViewUnpublished) {
@@ -80,6 +81,9 @@ class ActivityController extends Controller
         } elseif (!$canViewUnpublished) {
             // Only show services for published teams on the public frontend.
             $services->whereIn('team_id', $teams->pluck('id')->all());
+        }
+        if (!$canViewStaffOnlyServices) {
+            $services->where('is_online_bookable', true);
         }
 
         $services = $services->get();
@@ -197,6 +201,9 @@ class ActivityController extends Controller
         if ($season->internal_only && !$user) {
             abort(404);
         }
+        if (!$season->service?->is_online_bookable && !$user) {
+            abort(404);
+        }
         // dd($season->service);
         $inventory = $season->inventory;
 
@@ -305,6 +312,9 @@ class ActivityController extends Controller
             abort(404);
         }
         $service = Service::findOrFail($season->service_id);
+        if (!$service->is_online_bookable && !$user) {
+            abort(404);
+        }
 
         $inventory = Inventory::with(['inventory_type_days', 'inventory_time_slots'])
             ->where('season_id', $season->id)
@@ -400,6 +410,9 @@ class ActivityController extends Controller
         if (!$season) {
             return response()->json(['status' => false, 'promo' => 'season in valid']);
         }
+        if (($season->internal_only || !$season->service?->is_online_bookable) && !auth()->user()) {
+            return response()->json(['status' => false, 'promo' => 'activity unavailable']);
+        }
 
         // 3. Service must match
         if ($promo->service_id != $season->service_id) {
@@ -469,6 +482,9 @@ class ActivityController extends Controller
                 $sessionId = session()->getId();
                 logger()->info('sessionId activity ' . session()->getId());
                 $season = Season::findOrFail($activity_id);
+                if (($season->internal_only || !$season->service?->is_online_bookable) && !auth()->user()) {
+                    abort(404);
+                }
                 $inventory = Inventory::with(['inventory_time_slots'])->where('season_id', $season->id)->first();
                 //$FullNameOfDay = Carbon::parse($validated['slot_date'])->format('l'); // e.g., Monday
                 //$ShortNameOfDay = Carbon::parse($validated['slot_date'])->format('D'); // e.g., Mon
@@ -898,6 +914,9 @@ class ActivityController extends Controller
                 $activity_id = $validated['activity_id'];
                 $sessionId = session()->getId();
                 $season = Season::findOrFail($activity_id);
+                if (($season->internal_only || !$season->service?->is_online_bookable) && !auth()->user()) {
+                    abort(404);
+                }
                 $adultsCount = (int) ($validated['adults'] ?? 0);
                 $amount_adults = $season->rake_rate_adult * $adultsCount;
                 $childrenCount = (int) ($validated['children'] ?? 0);

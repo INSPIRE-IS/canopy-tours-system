@@ -235,15 +235,6 @@ setData(prevData => ({
                                 errors={errors}
                             />
                             <CustomCheckbox
-                                label="Internal Only"
-                                helper="Hide this season from public online booking. Staff can still use it in admin booking flows."
-                                name="internal_only"
-                                checked={data.internal_only}
-                                mode={mode}
-                                onChange={handleChange}
-                                errors={errors}
-                            />
-                            <CustomCheckbox
                                 label="Close Booking"
                                 name="status"
                                 checked={data.status}

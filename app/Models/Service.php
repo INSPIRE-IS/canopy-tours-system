@@ -18,6 +18,7 @@ class Service extends Model
 
     protected $casts = [
         'allow_internal_capacity_override' => 'boolean',
+        'is_online_bookable' => 'boolean',
     ];
 
     protected $dates = [
@@ -33,6 +34,7 @@ class Service extends Model
         'pillbox_conditions',
         'capacity',
         'allow_internal_capacity_override',
+        'is_online_bookable',
         'created_by_id',
         'updated_by_id',
         'created_at',

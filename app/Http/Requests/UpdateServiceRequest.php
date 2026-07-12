@@ -47,6 +47,10 @@ class UpdateServiceRequest extends FormRequest
             'allow_internal_capacity_override' => [
                 'required',
             ],
+            'is_online_bookable' => [
+                'nullable',
+                'boolean',
+            ],
 
             // 'pillbox_text' => [
             //     'string',

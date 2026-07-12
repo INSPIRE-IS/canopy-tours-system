@@ -30,6 +30,7 @@ const ServiceModal = ({ isOpen, onClose, mode, service, serviceFields, auth, tea
         pillbox_conditions: "",
         capacity: "",
         allow_internal_capacity_override: 0,
+        is_online_bookable: 1,
         file: null,
         // pillbox_text: "",
         // arrangements: "",
@@ -58,6 +59,7 @@ const ServiceModal = ({ isOpen, onClose, mode, service, serviceFields, auth, tea
                 pillbox_conditions: service.pillbox_conditions || "",
                 capacity: service.capacity || "",
                 allow_internal_capacity_override: service.allow_internal_capacity_override || 0,
+                is_online_bookable: service.is_online_bookable ?? 1,
                 // pillbox_text: service.pillbox_text || "",
                 // arrangements: service.arrangements || "",
                 // inclusions_exclusions: service.inclusions_exclusions || "",
@@ -339,6 +341,15 @@ const ServiceModal = ({ isOpen, onClose, mode, service, serviceFields, auth, tea
                         label="Allow Time Capacity(PAX) Override"
                         name="allow_internal_capacity_override"
                         checked={data.allow_internal_capacity_override}
+                        mode={mode}
+                        onChange={handleChange}
+                        errors={errors}
+                    />
+                    <CustomCheckbox
+                        label="Online Bookable"
+                        helper="Show this service on the public booking website. Turn off for staff-only products such as team builds."
+                        name="is_online_bookable"
+                        checked={data.is_online_bookable}
                         mode={mode}
                         onChange={handleChange}
                         errors={errors}

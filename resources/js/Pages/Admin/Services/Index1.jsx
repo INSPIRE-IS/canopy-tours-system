@@ -103,7 +103,8 @@ export default function Index({ permissions, services, serviceFields, auth, sear
                                         <thead className="bg-gray-50 text-left text-gray-500">
                                             <tr className='flex justify-between items-center'>
                                                 <th className="w-[10%] p-3">ID</th>
-                                                <th className="w-[70%] p-3">Name</th>
+                                                <th className="w-[50%] p-3">Name</th>
+                                                <th className="w-[20%] p-3">Online</th>
                                                 <th className="w-[20%] p-3">Actions</th>
                                             </tr>
                                         </thead>
@@ -111,7 +112,12 @@ export default function Index({ permissions, services, serviceFields, auth, sear
                                             {services?.data.map((service, i) => (
                                                 <tr key={service.id} className="flex justify-between items-center hover:bg-gray-50">
                                                     <td className="w-[10%] p-3">{service.id}</td>
-                                                    <td className="w-[70%] p-3">{service.name}</td>
+                                                    <td className="w-[50%] p-3">{service.name}</td>
+                                                    <td className="w-[20%] p-3">
+                                                        <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${service.is_online_bookable ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}`}>
+                                                            {service.is_online_bookable ? 'Bookable online' : 'Staff only'}
+                                                        </span>
+                                                    </td>
                                                     <td className="w-[20%] p-3 flex  gap-2">
                                                         {permissions.services_edit && (
                                                             <button onClick={() => handleOpenModal("edit", service)}

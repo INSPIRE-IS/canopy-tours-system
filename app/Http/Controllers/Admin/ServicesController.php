@@ -108,6 +108,10 @@ class ServicesController extends Controller
                 'allow_internal_capacity_override' => [
                     'required',
                 ],
+                'is_online_bookable' => [
+                    'nullable',
+                    'boolean',
+                ],
                 'file' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120', // adjust as needed
                 'fields' => 'array',
             ], $serviceFieldRules));
@@ -115,6 +119,7 @@ class ServicesController extends Controller
             Log::info($data);
             $data['allow_internal_capacity_override'] =
                 $request->boolean('allow_internal_capacity_override');
+            $data['is_online_bookable'] = $request->boolean('is_online_bookable', true);
             Log::info($data);
             $service = Service::create($data);
             // $service = Service::create($request->all());
@@ -198,9 +203,19 @@ class ServicesController extends Controller
             'allow_internal_capacity_override' => [
                 'required',
             ],
+            'is_online_bookable' => [
+                'nullable',
+                'boolean',
+            ],
             'file' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
             'fields' => 'array',
         ], $serviceFieldRules));
+
+        $data['allow_internal_capacity_override'] =
+            $request->boolean('allow_internal_capacity_override');
+        $data['is_online_bookable'] = $request->has('is_online_bookable')
+            ? $request->boolean('is_online_bookable')
+            : (bool) $service->is_online_bookable;
 
         // $season->update([
         //     'season_id' => $request->season_id,
