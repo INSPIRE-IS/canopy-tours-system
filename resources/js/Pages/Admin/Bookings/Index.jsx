@@ -1288,114 +1288,120 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                                                     row.bookings.length > 0 ? (
                                                         <>
                                                             {row.bookings.map((booking, index) => (
-                                                                <tr key={`${row.key}-${index}`} className={booking.is_cancelled ? 'bg-amber-50' : 'bg-gray-50'}>
-                                                                    <td className="w-[164px] p-3">
-                                                                        {booking.is_cancelled ? (
-                                                                            <span className="text-gray-700">{booking.reference}</span>
-                                                                        ) : (
-                                                                            <Link
-                                                                                href={route('admin.bookings.add', {
-                                                                                    booking: booking.id,
-                                                                                    booking_item_id: booking.booking_item_id,
-                                                                                })}
-                                                                                className="text-blue-600 hover:underline"
-                                                                            >
-                                                                                {booking.reference}
-                                                                            </Link>
-                                                                        )}
-                                                                        {booking.is_cancelled && (
-                                                                            <span className="ml-2 inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
-                                                                                Cancelled
+                                                                <React.Fragment key={`${row.key}-${index}`}>
+                                                                    <tr className={booking.is_cancelled ? 'bg-amber-50' : 'bg-gray-50'}>
+                                                                        <td className="w-[164px] p-3">
+                                                                            {booking.is_cancelled ? (
+                                                                                <span className="text-gray-700">{booking.reference}</span>
+                                                                            ) : (
+                                                                                <Link
+                                                                                    href={route('admin.bookings.add', {
+                                                                                        booking: booking.id,
+                                                                                        booking_item_id: booking.booking_item_id,
+                                                                                    })}
+                                                                                    className="text-blue-600 hover:underline"
+                                                                                >
+                                                                                    {booking.reference}
+                                                                                </Link>
+                                                                            )}
+                                                                            {booking.is_cancelled && (
+                                                                                <span className="ml-2 inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+                                                                                    Cancelled
+                                                                                </span>
+                                                                            )}
+                                                                        </td>
+                                                                        <td className="w-[95px] p-3">{booking.bookingPax}</td>
+                                                                        <td className="w-[268px] p-3">
+                                                                            <div className="text-sm text-gray-800 font-medium">{booking.lead_name ?? 'Unknown Lead'}</div>
+                                                                            <div className="text-sm text-gray-600">{booking.lead_phone ?? 'Unknown Phone'}</div>
+                                                                        </td>
+                                                                        <td className="w-[132px] p-3">R{Number(booking.price || 0).toFixed(2)}</td>
+                                                                        <td className="w-[111px] p-3">R{Number(booking.paid || 0).toFixed(2)}</td>
+                                                                        <td className="w-[107px] p-3">
+                                                                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${booking.due > 0 ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`}>
+                                                                                - {Number(booking.due || 0) === 0 ? 'R0.00' : `R${Number(booking.due || 0).toFixed(2)}`}
                                                                             </span>
-                                                                        )}
-                                                                    </td>
-                                                                    <td className="w-[95px] p-3">{booking.bookingPax}</td>
-                                                                    <td className="w-[268px] p-3">
-                                                                        <div className="text-sm text-gray-800 font-medium">{booking.lead_name ?? 'Unknown Lead'}</div>
-                                                                        <div className="text-sm text-gray-600">{booking.lead_phone ?? 'Unknown Phone'}</div>
-                                                                    </td>
-                                                                    <td className="w-[132px] p-3">
-                                                                        <div>R{Number(booking.price || 0).toFixed(2)}</div>
-                                                                        <div className="mt-2">
-                                                                            <BookingRateBreakdown breakdown={booking.rate_breakdown} compact />
-                                                                        </div>
-                                                                    </td>
-                                                                    <td className="w-[111px] p-3">R{Number(booking.paid || 0).toFixed(2)}</td>
-                                                                    <td className="w-[107px] p-3">
-                                                                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${booking.due > 0 ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`}>
-                                                                            - {Number(booking.due || 0) === 0 ? 'R0.00' : `R${Number(booking.due || 0).toFixed(2)}`}
-                                                                        </span>
-                                                                    </td>
-                                                                    <td className="w-[185px] p-3">
-                                                                        <div className="flex flex-col lg:flex-row lg:items-center gap-2">
-                                                                            <button
-                                                                                type="button"
-                                                                                onClick={() => router.get(route('admin.bookings.add', {
-                                                                                    booking: booking.id,
-                                                                                    booking_item_id: booking.booking_item_id,
-                                                                                }))}
-                                                                                className={`btn-tool ${booking.is_cancelled ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                                                                disabled={booking.is_cancelled}
-                                                                            >
-                                                                                {icons.eye} View
-                                                                            </button>
-                                                                            <div
-                                                                                className="relative"
-                                                                                onClick={() =>
-                                                                                    setViewDocsIndex(viewDocsIndex === `${row.key}-${index}` ? null : `${row.key}-${index}`)
-                                                                                }
-                                                                            >
-                                                                                <button type='button' className="btn-tool">{icons.docs} Docs</button>
-                                                                                <div>
-                                                                                    {viewDocsIndex === `${row.key}-${index}` && (
-                                                                                        <div
-                                                                                            className="absolute right-0 mt-3 w-72 bg-white border border-gray-200 rounded-2xl shadow-lg z-50 overflow-hidden"
-                                                                                        >
-                                                                                            <div className="flex justify-between items-center mb-2">
-                                                                                                <h3 className="text-tool-card-title">Docs</h3>
-                                                                                                <button type='button'
-                                                                                                    onClick={(e) => {
-                                                                                                        e.stopPropagation();
-                                                                                                        setViewDocsIndex(null);
-                                                                                                    }}
-                                                                                                    className="text-gray-400 hover:text-gray-600 text-sm">{icons.close}</button>
-                                                                                            </div>
+                                                                        </td>
+                                                                        <td className="w-[185px] p-3">
+                                                                            <div className="flex flex-col lg:flex-row lg:items-center gap-2">
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={() => router.get(route('admin.bookings.add', {
+                                                                                        booking: booking.id,
+                                                                                        booking_item_id: booking.booking_item_id,
+                                                                                    }))}
+                                                                                    className={`btn-tool ${booking.is_cancelled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                                                    disabled={booking.is_cancelled}
+                                                                                >
+                                                                                    {icons.eye} View
+                                                                                </button>
+                                                                                <div
+                                                                                    className="relative"
+                                                                                    onClick={() =>
+                                                                                        setViewDocsIndex(viewDocsIndex === `${row.key}-${index}` ? null : `${row.key}-${index}`)
+                                                                                    }
+                                                                                >
+                                                                                    <button type='button' className="btn-tool">{icons.docs} Docs</button>
+                                                                                    <div>
+                                                                                        {viewDocsIndex === `${row.key}-${index}` && (
+                                                                                            <div
+                                                                                                className="absolute right-0 mt-3 w-72 bg-white border border-gray-200 rounded-2xl shadow-lg z-50 overflow-hidden"
+                                                                                            >
+                                                                                                <div className="flex justify-between items-center mb-2">
+                                                                                                    <h3 className="text-tool-card-title">Docs</h3>
+                                                                                                    <button type='button'
+                                                                                                        onClick={(e) => {
+                                                                                                            e.stopPropagation();
+                                                                                                            setViewDocsIndex(null);
+                                                                                                        }}
+                                                                                                        className="text-gray-400 hover:text-gray-600 text-sm">{icons.close}</button>
+                                                                                                </div>
 
-                                                                                            <div className="max-h-64 overflow-y-auto">
-                                                                                                {booking?.customers?.[0]?.files?.length > 0 ? (
-                                                                                                    booking.customers[0].files.map((file) => (
-                                                                                                        <a
-                                                                                                            key={file.id}
-                                                                                                            href={file.path}
-                                                                                                            target="_blank"
-                                                                                                            rel="noopener noreferrer"
-                                                                                                            className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                                                                                                        >
-                                                                                                            {file.file_name}
-                                                                                                        </a>
-                                                                                                    ))
-                                                                                                ) : (
-                                                                                                    <p className="p-4 text-gray-500 text-sm">No documents uploaded.</p>
-                                                                                                )}
+                                                                                                <div className="max-h-64 overflow-y-auto">
+                                                                                                    {booking?.customers?.[0]?.files?.length > 0 ? (
+                                                                                                        booking.customers[0].files.map((file) => (
+                                                                                                            <a
+                                                                                                                key={file.id}
+                                                                                                                href={file.path}
+                                                                                                                target="_blank"
+                                                                                                                rel="noopener noreferrer"
+                                                                                                                className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                                                                                            >
+                                                                                                                {file.file_name}
+                                                                                                            </a>
+                                                                                                        ))
+                                                                                                    ) : (
+                                                                                                        <p className="p-4 text-gray-500 text-sm">No documents uploaded.</p>
+                                                                                                    )}
+                                                                                                </div>
                                                                                             </div>
-                                                                                        </div>
-                                                                                    )}
+                                                                                        )}
+                                                                                    </div>
                                                                                 </div>
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={(e) => openCustomerToolsModal(e, {
+                                                                                        ...booking,
+                                                                                        active_slot_pax: row.totalPax,
+                                                                                        maxPax: row.maxPax,
+                                                                                    }, booking?.customers?.[0], `${row.key}-${index}`)}
+                                                                                    className="btn-tool"
+                                                                                >
+                                                                                    {icons.tools} Tools
+                                                                                </button>
                                                                             </div>
-                                                                            <button
-                                                                                type="button"
-                                                                                onClick={(e) => openCustomerToolsModal(e, {
-                                                                                    ...booking,
-                                                                                    active_slot_pax: row.totalPax,
-                                                                                    maxPax: row.maxPax,
-                                                                                }, booking?.customers?.[0], `${row.key}-${index}`)}
-                                                                                className="btn-tool"
-                                                                            >
-                                                                                {icons.tools} Tools
-                                                                            </button>
-                                                                        </div>
-                                                                    </td>
-                                                                </tr>
+                                                                        </td>
+                                                                    </tr>
+                                                                    {booking.rate_breakdown && (
+                                                                        <tr className={booking.is_cancelled ? 'bg-amber-50' : 'bg-gray-50'}>
+                                                                            <td colSpan={7} className="px-3 pb-4 pt-0">
+                                                                                <div className="rounded-2xl border border-gray-200 bg-white p-3 shadow-sm">
+                                                                                    <BookingRateBreakdown breakdown={booking.rate_breakdown} compact />
+                                                                                </div>
+                                                                            </td>
+                                                                        </tr>
+                                                                    )}
+                                                                </React.Fragment>
                                                             ))}
                                                             <tr className="bg-gray-50">
                                                                 <td className="w-[164px] p-3 font-semibold">Totals:</td>
