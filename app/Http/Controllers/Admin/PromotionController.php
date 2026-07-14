@@ -112,9 +112,9 @@ class PromotionController extends Controller
 
         if ($data['type'] === 'fixed_value') {
             $mode = (string) ($params['fixed_value_mode'] ?? 'booking');
-            if (!in_array($mode, ['booking', 'per_pax'], true)) {
+            if (!in_array($mode, ['booking', 'per_pax', 'one_adult', 'one_child', 'each_adult', 'each_child', 'each_adult_child'], true)) {
                 throw ValidationException::withMessages([
-                    'params' => ['Fixed value mode must be booking or per_pax.'],
+                    'params' => ['Fixed value mode is invalid.'],
                 ]);
             }
             $params['fixed_value_mode'] = $mode;
@@ -265,9 +265,9 @@ class PromotionController extends Controller
 
         if ($data['type'] === 'fixed_value') {
             $mode = (string) ($params['fixed_value_mode'] ?? 'booking');
-            if (!in_array($mode, ['booking', 'per_pax'], true)) {
+            if (!in_array($mode, ['booking', 'per_pax', 'one_adult', 'one_child', 'each_adult', 'each_child', 'each_adult_child'], true)) {
                 throw ValidationException::withMessages([
-                    'params' => ['Fixed value mode must be booking or per_pax.'],
+                    'params' => ['Fixed value mode is invalid.'],
                 ]);
             }
             $params['fixed_value_mode'] = $mode;

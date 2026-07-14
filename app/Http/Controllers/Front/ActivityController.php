@@ -544,6 +544,19 @@ class ActivityController extends Controller
                         $multiplier = $targetTotal / $baseTotal;
                         $applyMultiplier($multiplier);
                     };
+                    $applyFixedToPaxType = function (string $type, int $count, float $discount) use (&$tot_adults, &$tot_children, $baseTotals) {
+                        if ($count <= 0) {
+                            $label = $type === 'adult' ? 'adults' : 'children';
+                            abort(422, "This promo applies to {$label}, but no {$label} have been added.");
+                        }
+
+                        $targetSubtotal = max(0, (float) ($baseTotals[$type] ?? 0) - $discount);
+                        if ($type === 'adult') {
+                            $tot_adults = round($targetSubtotal, 2);
+                        } else {
+                            $tot_children = round($targetSubtotal, 2);
+                        }
+                    };
 
                     $params = $promo->params;
                     if (is_string($params)) {
@@ -562,12 +575,40 @@ class ActivityController extends Controller
                             $applyMultiplier($multiplier);
                             break;
                         case 'fixed_value':
-                            $mode = (string) ($params['fixed_value_mode'] ?? 'booking'); // booking|per_pax
+                            $mode = (string) ($params['fixed_value_mode'] ?? 'booking');
                             $discount = (float) $promo->value;
-                            if ($mode === 'per_pax') {
-                                $discount = $discount * $totalPax;
+                            switch ($mode) {
+                                case 'one_adult':
+                                    $applyFixedToPaxType('adult', $adults, $discount);
+                                    break;
+                                case 'one_child':
+                                    $applyFixedToPaxType('child', $children, $discount);
+                                    break;
+                                case 'each_adult':
+                                    $applyFixedToPaxType('adult', $adults, $discount * $adults);
+                                    break;
+                                case 'each_child':
+                                    $applyFixedToPaxType('child', $children, $discount * $children);
+                                    break;
+                                case 'each_adult_child':
+                                    if ($totalPax <= 0) {
+                                        abort(422, 'This promo applies to adults and children, but no adult or child pax have been added.');
+                                    }
+                                    if ($adults > 0) {
+                                        $applyFixedToPaxType('adult', $adults, $discount * $adults);
+                                    }
+                                    if ($children > 0) {
+                                        $applyFixedToPaxType('child', $children, $discount * $children);
+                                    }
+                                    break;
+                                case 'per_pax':
+                                    $applyBookingDiscount($discount * $totalPax);
+                                    break;
+                                case 'booking':
+                                default:
+                                    $applyBookingDiscount($discount);
+                                    break;
                             }
-                            $applyBookingDiscount($discount);
                             break;
                         case 'graduated':
                             $paxRate = null;

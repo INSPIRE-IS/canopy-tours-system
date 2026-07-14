@@ -63,9 +63,13 @@ const Modal = ({ isOpen, onClose, mode, item = null, services }) => {
       console.log('---------item-------', item);
       skipServiceResetRef.current = true;
       skipSeasonResetRef.current = true;
+      const normalizedParams = normalizeParams(item.params);
+      if (normalizedParams.fixed_value_mode === 'per_pax') {
+        normalizedParams.fixed_value_mode = 'each_adult_child';
+      }
       const normalizedItem = {
         ...item,
-        params: normalizeParams(item.params),
+        params: normalizedParams,
         booking_start_date: normalizeDateValue(item.booking_start_date),
         booking_end_date: normalizeDateValue(item.booking_end_date),
         activity_start_date: normalizeDateValue(item.activity_start_date),
@@ -367,13 +371,17 @@ const Modal = ({ isOpen, onClose, mode, item = null, services }) => {
                   mode={mode}
                   options={[
                     { id: 'booking', name: 'Booking total' },
-                    { id: 'per_pax', name: 'Per person (adults + children)' },
+                    { id: 'one_adult', name: 'One adult' },
+                    { id: 'one_child', name: 'One child' },
+                    { id: 'each_adult', name: 'Each adult' },
+                    { id: 'each_child', name: 'Each child' },
+                    { id: 'each_adult_child', name: 'Each adult & child' },
                   ]}
                   onChange={(e) => setData('params', { ...(data.params || {}), fixed_value_mode: e.target.value })}
                   errors={errors}
                 />
                 <p className="text-xs text-gray-500 -mt-2">
-                  Booking total: value is subtracted once. Per person: value is multiplied by pax count (adults + children).
+                  Booking total subtracts the value once from the booking and is best for package specials. One adult/child subtracts the value once from that pax type and is best for birthday-style promos. Each adult/child multiplies by matching pax count.
                 </p>
               </>
             )}

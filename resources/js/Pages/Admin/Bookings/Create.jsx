@@ -502,7 +502,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
             return res.data;
         } catch (err) {
             console.error(err.response?.data || err);
-            showToast('Pricing recalculation failed. Please try again.', 'error');
+            showToast(err.response?.data?.message || 'Pricing recalculation failed. Please try again.', 'error');
             return null;
         }
     };
@@ -724,10 +724,36 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
         setPromoModalOpen(false);
     }
 
-    function handlePromoModalSelect(promoCode) {
-        setPromoCode(promoCode);
-        setData("promoCode", promoCode);
+    function handlePromoModalSelect(promo) {
+        const selectedPromoCode = promo?.promo_code || promo;
+        const params = typeof promo?.params === 'string'
+            ? (() => {
+                try { return JSON.parse(promo.params) || {}; } catch (e) { return {}; }
+            })()
+            : (promo?.params || {});
+        const mode = params?.fixed_value_mode;
+        const adults = Number(data.adults || 0);
+        const children = Number(data.children || 0);
+
+        if (promo?.type === 'fixed_value') {
+            if (['one_adult', 'each_adult'].includes(mode) && adults < 1) {
+                showToast('This promo applies to adults. Add at least one adult before applying it.', 'error');
+                return false;
+            }
+            if (['one_child', 'each_child'].includes(mode) && children < 1) {
+                showToast('This promo applies to children. Add at least one child before applying it.', 'error');
+                return false;
+            }
+            if (mode === 'each_adult_child' && (adults + children) < 1) {
+                showToast('This promo applies to adults and children. Add pax before applying it.', 'error');
+                return false;
+            }
+        }
+
+        setPromoCode(selectedPromoCode);
+        setData("promoCode", selectedPromoCode);
         handlePromoModalClose();
+        return true;
     }
 
     const calculateTotal = (count, rate) => {

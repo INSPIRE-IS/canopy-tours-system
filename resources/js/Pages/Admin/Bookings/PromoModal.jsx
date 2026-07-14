@@ -79,8 +79,10 @@ const PromoModal = ({ isOpen, onClose, serviceId, bookingDate, onSelect }) => {
                     className={`p-3 border rounded  ${color}`}
                     onClick={() => {
                       if (promo.is_valid) {
-                        onSelect(promo.promo_code);
-                        onClose();
+                        const shouldClose = onSelect(promo);
+                        if (shouldClose !== false) {
+                          onClose();
+                        }
                       }
                     }}
                   >

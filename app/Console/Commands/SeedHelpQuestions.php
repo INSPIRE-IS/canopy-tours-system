@@ -534,7 +534,7 @@ class SeedHelpQuestions extends Command
                 'question' => 'What promotion types are available?',
                 'description' => 'Promotions can change pricing by percent, fixed value, tiers, or time slots.',
                 'where' => '<a href="/admin/promotions">Admin > Promotions</a>',
-                'business_rules' => 'Types include percent, fixed value, graduated, varied child, volume discount, and time-slot promos. Fixed value supports both booking-total and per-person modes (Apply To). Graduated promos override total price based on pax count. Time-slot promos apply only to selected days/time slots.',
+                'business_rules' => 'Types include percent, fixed value, graduated, varied child, volume discount, and time-slot promos. Fixed value supports Apply To modes for booking total, one adult, one child, each adult, each child, and each adult + child. Graduated promos override total price based on pax count. Time-slot promos apply only to selected days/time slots.',
                 'examples' => '
                  
 
@@ -543,12 +543,12 @@ class SeedHelpQuestions extends Command
             ],
             [
                 'category' => 'Promotions',
-                'question' => 'Fixed value per booking vs per person (how does it work)?',
-                'description' => 'Fixed value promos can subtract a fixed amount once, or a fixed amount per guest.',
+                'question' => 'Fixed value Apply To options (how do they work)?',
+                'description' => 'Fixed value promos can subtract once from the booking, once from a pax type, or per matching pax.',
                 'where' => '<a href="/admin/promotions">Admin > Promotions</a> (Promotion Edit/Create > Type: Fixed Value > Apply To)',
-                'business_rules' => 'Booking total mode subtracts the value once (e.g. R200 off the booking). Per person mode subtracts value * paxCount (adults + children) and distributes the discount proportionally across adult/child/guide rates so totals remain consistent. Guides are excluded from paxCount.',
-                'examples' => 'Example 1: Value R50, pax 3 (2 adults + 1 child) in per-person mode => subtract R150 total. Example 2: Value R200 in booking-total mode => subtract R200 total regardless of pax.',
-                'related' => 'promotions, fixed_value, pricing, booking total, per pax',
+                'business_rules' => 'Booking total subtracts the value once from the full booking and is best for package specials. One adult or One child subtracts the value once from that pax type and requires that pax type to be present; this is best for birthday-style promos. Each adult/child modes multiply the value by the matching pax count. Pax-specific discounts are capped at that pax type subtotal and do not spill over to other pax types.',
+                'examples' => 'Birthday child: Fixed Value R795, Apply To One child. Birthday adult: Fixed Value R895, Apply To One adult. Valentine package: Fixed Value R800, Apply To Booking total.',
+                'related' => 'promotions, fixed_value, pricing, booking total, birthday promo, pax target',
                 'is_internal' => true,
             ],
             [
@@ -573,11 +573,11 @@ class SeedHelpQuestions extends Command
             ],
             [
                 'category' => 'Promotions',
-                'question' => 'Fixed value (per-person) promotion (how does it apply)?',
-                'description' => 'Fixed value (Apply To: Per person) subtracts a fixed Rand amount per guest.',
-                'where' => '<a href="/admin/promotions">Admin > Promotions</a> (Type: Fixed Value > Apply To: Per person)',
-                'business_rules' => 'Total discount = value * (adults + children). Guides are excluded from pax count. The discount is then distributed proportionally across rates so totals remain consistent.',
-                'examples' => 'Example 1: Value R50, pax 4 => subtract R200 total. Example 2: Value R100, pax 1 => subtract R100 total.',
+                'question' => 'Fixed value one-adult or one-child promotion (how does it apply)?',
+                'description' => 'One adult/child fixed value promos subtract once from the selected pax type.',
+                'where' => '<a href="/admin/promotions">Admin > Promotions</a> (Type: Fixed Value > Apply To: One adult or One child)',
+                'business_rules' => 'The selected pax type must exist on the booking. The value is subtracted once from that pax type subtotal and is capped at zero. It does not spill over to other pax types; if the discount should reduce the whole booking, use Booking total instead.',
+                'examples' => 'Example 1: Birthday child promo R795, one child at R895 => child subtotal becomes R100. Example 2: R895 One adult promo with no adults will be rejected until an adult is added.',
                 'related' => 'promotions, fixed_value, per pax, pricing',
                 'is_internal' => true,
             ],

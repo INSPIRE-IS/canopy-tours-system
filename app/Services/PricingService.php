@@ -147,6 +147,24 @@ class PricingService
                         $rates['child'] = round($baseRates['child'] * $multiplier, 2);
                         $rates['guide'] = round($baseRates['guide'] * $multiplier, 2);
                     };
+                    $typeCounts = [
+                        'adult' => (int) $adultCount,
+                        'child' => (int) $childCount,
+                    ];
+                    $typeLabels = [
+                        'adult' => 'adults',
+                        'child' => 'children',
+                    ];
+                    $applyFixedToType = function (string $type, float $discount) use (&$rates, $baseRates, $typeCounts, $typeLabels) {
+                        $count = (int) ($typeCounts[$type] ?? 0);
+                        if ($count <= 0) {
+                            throw new \InvalidArgumentException("This promo applies to {$typeLabels[$type]}, but no {$typeLabels[$type]} have been added.");
+                        }
+
+                        $subtotal = (float) ($baseRates[$type] ?? 0) * $count;
+                        $targetSubtotal = max(0, $subtotal - $discount);
+                        $rates[$type] = round($targetSubtotal / $count, 2);
+                    };
 
                     switch ($promo->type) {
                         case 'percent':
@@ -160,14 +178,43 @@ class PricingService
                             }
                             break;
                         case 'fixed_value':
-                            $mode = (string) ($params['fixed_value_mode'] ?? 'booking'); // booking|per_pax
+                            $mode = (string) ($params['fixed_value_mode'] ?? 'booking');
                             $discount = (float) $promo->value;
-                            if ($mode === 'per_pax') {
-                                // Per-person excludes guides (guides are internal/non-paying in most cases).
-                                $discount = $discount * $totalPax;
+                            switch ($mode) {
+                                case 'one_adult':
+                                    $applyFixedToType('adult', $discount);
+                                    break;
+                                case 'one_child':
+                                    $applyFixedToType('child', $discount);
+                                    break;
+                                case 'each_adult':
+                                    $applyFixedToType('adult', $discount * $adultCount);
+                                    break;
+                                case 'each_child':
+                                    $applyFixedToType('child', $discount * $childCount);
+                                    break;
+                                case 'each_adult_child':
+                                    if ($totalPax <= 0) {
+                                        throw new \InvalidArgumentException('This promo applies to adults and children, but no adult or child pax have been added.');
+                                    }
+                                    if ($adultCount > 0) {
+                                        $applyFixedToType('adult', $discount * $adultCount);
+                                    }
+                                    if ($childCount > 0) {
+                                        $applyFixedToType('child', $discount * $childCount);
+                                    }
+                                    break;
+                                case 'per_pax':
+                                    // Legacy mode: keep historic booking-total behaviour for existing records.
+                                    $targetTotal = max(0, $baseTotal - ($discount * $totalPax));
+                                    $applyBookingTotal($targetTotal);
+                                    break;
+                                case 'booking':
+                                default:
+                                    $targetTotal = max(0, $baseTotal - $discount);
+                                    $applyBookingTotal($targetTotal);
+                                    break;
                             }
-                            $targetTotal = max(0, $baseTotal - $discount);
-                            $applyBookingTotal($targetTotal);
                             break;
                         case 'graduated':
                             $paxRate = null;
