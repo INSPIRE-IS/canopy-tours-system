@@ -76,7 +76,8 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
     const [discountList, setDiscountList] = useState(null);
     const [showDiscount, setShowDiscount] = useState(false);
     const [discountId, setDiscountId] = useState(null);
-    const [discountPax, setDiscountPax] = useState(null);
+    const [discountAdultPax, setDiscountAdultPax] = useState('');
+    const [discountChildPax, setDiscountChildPax] = useState('');
     const [paxGroups, setPaxGroups] = useState([]);
 
     const [showPromo, setShowPromo] = useState(false);
@@ -843,7 +844,8 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
     const resetPromoDiscountAndRates = () => {
         setPromoCode(null);
         setDiscountId(null);
-        setDiscountPax(null);
+        setDiscountAdultPax('');
+        setDiscountChildPax('');
         setPromoModalOpen(false);
         setPricing(null);
 
@@ -894,7 +896,8 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
     const clearPricingForOverride = () => {
         setPromoCode(null);
         setDiscountId(null);
-        setDiscountPax(null);
+        setDiscountAdultPax('');
+        setDiscountChildPax('');
         setPromoModalOpen(false);
         setPricing(null);
         setShowDiscount(false);
@@ -1389,7 +1392,8 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
         setPromoCode(null);
         setPromotionId(null);
         setDiscountId(null);
-        setDiscountPax(null);
+        setDiscountAdultPax('');
+        setDiscountChildPax('');
         setWholesalerApplied(false);
         setData(prev => ({
             ...prev,
@@ -1583,14 +1587,12 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
     };
 
     const addDiscountGroup = () => {
-        console.log('addDiscountGroup 700');
         if (!discountId) return;
         if (pricingMode === PRICING_MODES.WHOLESALER) {
             alert('Cannot apply discounts to wholesaler bookings');
             return;
         }
         setPricingMode(PRICING_MODES.DISCOUNT);
-        // resetPricingState('discount');
         const selectedDiscount = parseInt(discountId);
 
         const selectedDiscountObj = discountList?.find(d => d.id === selectedDiscount);
@@ -1607,59 +1609,81 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
             }));
             handleCalculate('discount', paxGroups, selectedDiscount);
             setDiscountId(null);
-            setDiscountPax(0);
+            setDiscountAdultPax('');
+            setDiscountChildPax('');
             return;
         }
-        if (!discountPax) return;
-        const countToMove = parseInt(discountPax);
+
+        const requestedCounts = {
+            adult: Math.max(0, parseInt(discountAdultPax || 0, 10) || 0),
+            child: Math.max(0, parseInt(discountChildPax || 0, 10) || 0),
+        };
+
+        if (requestedCounts.adult < 1 && requestedCounts.child < 1) {
+            alert('Add at least one adult or child pax count for this discount.');
+            return;
+        }
+
+        const availableCounts = {
+            adult: paxGroups.filter(g => g.type === 'adult' && g.discount_id === null).reduce((sum, g) => sum + Number(g.count || 0), 0),
+            child: paxGroups.filter(g => g.type === 'child' && g.discount_id === null).reduce((sum, g) => sum + Number(g.count || 0), 0),
+        };
+        const applicableAdult = Math.min(requestedCounts.adult, availableCounts.adult);
+        const applicableChild = Math.min(requestedCounts.child, availableCounts.child);
+
+        if (applicableAdult < 1 && applicableChild < 1) {
+            alert('There are no undiscounted adult or child pax available for this discount.');
+            return;
+        }
 
         setPaxGroups(prevGroups => {
             let updated = [...prevGroups];
 
-            // Find the first group of adults WITHOUT a discount (the pool to split from)
-            const idx = updated.findIndex(g => g.type === "adult" && g.discount_id === null);
+            const applyLineDiscount = (type, requestedCount) => {
+                if (requestedCount <= 0) return;
 
-            if (idx === -1) {
-                // No base adult group to split from
-                return updated;
-            }
-            const baseRate = data.rate_per_adult;
-            const finalRate = baseRate;
-            const baseGroup = updated[idx];
+                const idx = updated.findIndex(g => g.type === type && g.discount_id === null);
+                if (idx === -1) return;
 
-            if (baseGroup.count <= countToMove) {
-                // All base adults are moved to discounted group
-                updated[idx] = {
-                    type: "adult",
+                const baseGroup = updated[idx];
+                const countToMove = Math.min(requestedCount, Number(baseGroup.count || 0));
+                if (countToMove <= 0) return;
+
+                const baseRate = type === 'adult' ? data.rate_per_adult : data.rate_per_child;
+                const discountedGroup = {
+                    type,
                     count: countToMove,
                     discount_id: selectedDiscount,
                     base_rate: baseRate,
-                    final_rate: finalRate,
+                    final_rate: baseRate,
                 };
-            } else {
-                // Split: reduce base group, add new discounted group
-                updated[idx].count -= countToMove;
-                updated.push({
-                    type: "adult",
-                    count: countToMove,
-                    discount_id: selectedDiscount,
-                    base_rate: baseRate,
-                    final_rate: finalRate,
-                });
-            }
+
+                if (Number(baseGroup.count || 0) <= countToMove) {
+                    updated[idx] = discountedGroup;
+                } else {
+                    updated[idx] = {
+                        ...baseGroup,
+                        count: Number(baseGroup.count || 0) - countToMove,
+                    };
+                    updated.push(discountedGroup);
+                }
+            };
+
+            applyLineDiscount('adult', applicableAdult);
+            applyLineDiscount('child', applicableChild);
+
             setData(prev => ({
                 ...prev,
-                discount_lines: updated
+                discount_lines: updated,
+                invoice_discount_id: null,
             }));
-            console.log('updated', updated);
-            console.log('data', data);
             handleCalculate('discount', updated, null);
             return updated;
         });
 
-        // reset UI inputs
         setDiscountId(null);
-        setDiscountPax(0);
+        setDiscountAdultPax('');
+        setDiscountChildPax('');
     };
 
     const invoiceDiscountPct = pricing?.applied_discounts?.find(d => d.applied_to === 'invoice')?.percent_off;
@@ -2154,30 +2178,49 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                 {showDiscount && (
                                     <div className="flex  items-center justify-start ">
 
-                                        <div className="flex flex-none items-center gap-2">
-                                            <CustomSelect
-                                                label="Discount"
-                                                name="discountId"
-                                                value={discountId}
-                                                width={"w-full"}
-                                                onChange={(e) => { setDiscountId(e.target.value); }}
-                                                error={errors.discountId}
-                                                options={discountList}
-                                            />
-                                            {selectedDiscount?.applies_to === 'line_item' && (
-                                                <CustomInputText
-                                                    title="Discount PAX"
-                                                    id="discountPax"
-                                                    name="discountPax"
-                                                    type="number"
-                                                    min="0"
-                                                    width="w-auto"
-                                                    value={discountPax}
-                                                    onChange={(e) => setDiscountPax(e.target.value)}
-                                                    errors={errors}
+                                        <div className="flex flex-wrap items-end gap-2 w-full">
+                                            <div className="w-full sm:w-[220px]">
+                                                <CustomSelect
+                                                    label="Discount"
+                                                    name="discountId"
+                                                    value={discountId}
+                                                    width={"w-full"}
+                                                    onChange={(e) => { setDiscountId(e.target.value); }}
+                                                    error={errors.discountId}
+                                                    options={discountList}
                                                 />
+                                            </div>
+                                            {selectedDiscount?.applies_to === 'line_item' && (
+                                                <>
+                                                    <div className="w-[130px]">
+                                                        <CustomInputText
+                                                            title="Discount PAX (adult)"
+                                                            id="discountAdultPax"
+                                                            name="discountAdultPax"
+                                                            type="number"
+                                                            min="0"
+                                                            width="w-full"
+                                                            value={discountAdultPax}
+                                                            onChange={(e) => setDiscountAdultPax(e.target.value)}
+                                                            errors={errors}
+                                                        />
+                                                    </div>
+                                                    <div className="w-[130px]">
+                                                        <CustomInputText
+                                                            title="Discount PAX (child)"
+                                                            id="discountChildPax"
+                                                            name="discountChildPax"
+                                                            type="number"
+                                                            min="0"
+                                                            width="w-full"
+                                                            value={discountChildPax}
+                                                            onChange={(e) => setDiscountChildPax(e.target.value)}
+                                                            errors={errors}
+                                                        />
+                                                    </div>
+                                                </>
                                             )}
-                                            <div className="mt-3">
+                                            <div className="mb-4">
                                                 <BlueButton
                                                     title="Apply"
                                                     width='w-[100px]'
