@@ -181,6 +181,7 @@ class PricingService
                                 'discount_id' => null,
                                 'base_rate' => $baseRate,
                                 'final_rate' => $baseRate,
+                                'line_total' => round($baseRate * $rackCount, 2),
                                 'adjustment_label' => null,
                             ];
                         }
@@ -190,6 +191,7 @@ class PricingService
                             'discount_id' => null,
                             'base_rate' => $baseRate,
                             'final_rate' => $discountedRate,
+                            'line_total' => round($discountedRate * $discountedCount, 2),
                             'adjustment_label' => $appliedPromo['name'] ?? 'Promotion',
                         ];
                     };
@@ -383,6 +385,7 @@ class PricingService
                 'discount_id' => $group['discount_id'] ?? null,
                 'base_rate' => $baseRate,
                 'final_rate' => $finalRate,
+                'line_total' => round($finalRate * $count, 2),
             ];
             $totalsByType[$type] = round($totalsByType[$type] + ($finalRate * $count), 2);
         }

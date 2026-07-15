@@ -255,7 +255,7 @@ class BookingsController extends Controller
                 'count' => $count,
                 'base_rate' => $baseRate,
                 'final_rate' => $finalRate,
-                'line_total' => round($finalRate * $count, 2),
+                'line_total' => round((float) ($line['line_total'] ?? ($finalRate * $count)), 2),
                 'label' => $label,
                 'meta' => array_filter([
                     'override_reason' => $context['override_reason'] ?? null,
@@ -268,6 +268,62 @@ class BookingsController extends Controller
 
     private function buildRateBreakdown(BookingItem $bookingItem): array
     {
+        if (!$bookingItem->relationLoaded('price_lines')) {
+            $bookingItem->load('price_lines');
+        }
+
+        $priceLines = $bookingItem->price_lines?->filter(fn ($line) => (int) ($line->count ?? 0) > 0)->values() ?? collect();
+        if ($priceLines->isNotEmpty()) {
+            $lines = $priceLines->map(function ($line) {
+                $baseRate = (float) ($line->base_rate ?? 0);
+                $finalRate = (float) ($line->final_rate ?? 0);
+                return [
+                    'type' => $line->pax_type,
+                    'label' => ucfirst($line->pax_type),
+                    'count' => (int) $line->count,
+                    'rate' => round($finalRate, 2),
+                    'base_rate' => round($baseRate, 2),
+                    'final_rate' => round($finalRate, 2),
+                    'total' => round((float) ($line->line_total ?? ($finalRate * $line->count)), 2),
+                    'adjustment_label' => $line->source_type === 'rack' ? null : ($line->label ?: ucfirst($line->source_type)),
+                    'saving' => round(max(0, $baseRate - $finalRate) * (int) $line->count, 2),
+                ];
+            })->values();
+
+            $sourceType = $priceLines->first(fn ($line) => $line->source_type !== 'rack')?->source_type ?? 'rack';
+            $sourceLabel = $priceLines->first(fn ($line) => $line->source_type !== 'rack')?->label;
+            $sourceLabel = $sourceLabel ?: match ($sourceType) {
+                'promotion' => 'Promotion applied',
+                'discount' => 'Discount applied',
+                'wholesaler' => 'Wholesaler rate',
+                'override' => 'Override rate',
+                default => 'Rack rate',
+            };
+
+            $bookingTotal = round((float) ($bookingItem->booking_fee?->tot_amount ?? $lines->sum('total')), 2);
+            $paid = round((float) ($bookingItem->booking_fee?->tot_paid ?? 0), 2);
+
+            return [
+                'source_type' => $sourceType,
+                'source_label' => $sourceLabel,
+                'pax' => [
+                    'adult' => (int) ($bookingItem->pax_adults ?? 0),
+                    'child' => (int) ($bookingItem->pax_children ?? 0),
+                    'guide' => (int) ($bookingItem->pax_guides ?? 0),
+                ],
+                'rates' => [
+                    'adult' => round((float) ($bookingItem->price_adult ?? 0), 2),
+                    'child' => round((float) ($bookingItem->price_child ?? 0), 2),
+                    'guide' => round((float) ($bookingItem->price_guide ?? 0), 2),
+                ],
+                'lines' => $lines->all(),
+                'computed_total' => round($lines->sum('total'), 2),
+                'booking_total' => $bookingTotal,
+                'paid' => $paid,
+                'due' => round($bookingTotal - $paid, 2),
+            ];
+        }
+
         $discountItems = $bookingItem->booking?->booking_discounts
             ?->filter(fn($discount) => empty($discount->booking_item_id) || (int) $discount->booking_item_id === (int) $bookingItem->id)
             ->flatMap(fn($discount) => $discount->booking_discount_items ?? collect())
@@ -424,6 +480,7 @@ class BookingsController extends Controller
             'season',
             'promotion',
             'wholesaler',
+            'price_lines',
         ];
 
         $bookingItemsQuery = BookingItem::with($bookingItemRelations)
@@ -3546,6 +3603,7 @@ class BookingsController extends Controller
             'customers.booking_questionnaire',
             'booking_detail',
             'booking_fee',
+            'price_lines',
             'booking_inventory',
             'booking_inventory.inventory_time_slot',
             'booking_staff',
@@ -4413,6 +4471,9 @@ class BookingsController extends Controller
                 'applied_promotion'  => $pricing['applied_promotion'],
                 'applied_discounts'  => $pricing['applied_discounts'],
                 'total_price'        => number_format((float) ($pricing['total_price'] ?? 0), 2, '.', ''),
+                'line_items'         => $pricing['line_items'] ?? [],
+                'totals_by_type'     => $pricing['totals_by_type'] ?? [],
+                'discount_lines'     => $pricing['discount_lines'] ?? [],
             ]);
         } catch (\Throwable $e) {
             Log::error('Pricing calculation failed', [

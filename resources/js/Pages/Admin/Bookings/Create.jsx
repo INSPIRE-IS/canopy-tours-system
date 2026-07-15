@@ -307,6 +307,11 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
         console.log('booking_date', data.booking_date);
         console.log('start_time', data.start_time);
         if (data.adults > 0 || data.children > 0 || data.guides > 0) {
+            if (Array.isArray(pricing?.line_items) && pricing.line_items.length > 0) {
+                setPaxGroups(pricing.line_items);
+                return;
+            }
+
             let rate_per_adult = data?.rate_per_adult || 0;
             let rate_per_child = data?.rate_per_child || 0;
             let rate_per_guide = data?.rate_per_guide || 0;
@@ -1695,6 +1700,9 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
     const totalAdult = paxGroups
         .filter(g => g.type === "adult")
         .reduce((sum, g) => {
+            if (g.line_total !== undefined && g.line_total !== null) {
+                return sum + Number(g.line_total || 0);
+            }
             const baseRate = Number(g.final_rate ?? data.rate_per_adult ?? 0);
             const effectiveRate = invoiceDiscountPct && !g.discount_id ? baseRate * invoiceMultiplier : baseRate;
             return sum + (g.count * effectiveRate);
@@ -1702,6 +1710,9 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
     const totalChild = paxGroups
         .filter(g => g.type === "child")
         .reduce((sum, g) => {
+            if (g.line_total !== undefined && g.line_total !== null) {
+                return sum + Number(g.line_total || 0);
+            }
             const baseRate = Number(g.final_rate ?? data.rate_per_child ?? 0);
             const effectiveRate = invoiceDiscountPct && !g.discount_id ? baseRate * invoiceMultiplier : baseRate;
             return sum + (g.count * effectiveRate);
@@ -1709,6 +1720,9 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
     const totalGuide = paxGroups
         .filter(g => g.type === "guide")
         .reduce((sum, g) => {
+            if (g.line_total !== undefined && g.line_total !== null) {
+                return sum + Number(g.line_total || 0);
+            }
             const baseRate = Number(g.final_rate ?? data.rate_per_guide ?? 0);
             const effectiveRate = invoiceDiscountPct && !g.discount_id ? baseRate * invoiceMultiplier : baseRate;
             return sum + (g.count * effectiveRate);
@@ -2245,11 +2259,13 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                                 onChange={(e) => setPromoCode(e.target.value)}
                                             />
                                             <div className="flex items-center gap-2 mt-3">
-                                                <BlueButton
-                                                    title="Apply"
-                                                    disabled={processing}
-                                                    onClick={() => handleCalculate('promo')}
-                                                />
+                                                {!pricing?.applied_promotion && (
+                                                    <BlueButton
+                                                        title="Apply"
+                                                        disabled={processing}
+                                                        onClick={() => handleCalculate('promo')}
+                                                    />
+                                                )}
                                                 <div onClick={() => setPromoModalOpen(true)} className="flex items-center justify-center w-[36px] h-[32px] gap-2 bg-[#2D99FE] rounded-full p-2">
                                                     {icons.info}
                                                 </div>
@@ -2324,7 +2340,9 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                             .map((group, i) => {
                                                 const baseRate = Number(group.final_rate ?? data?.rate_per_adult ?? 0);
                                                 const rate = invoiceDiscountPct && !group.discount_id ? (baseRate * invoiceMultiplier) : baseRate;
-                                                const amount = group.count * rate;
+                                                const amount = group.line_total !== undefined && group.line_total !== null
+                                                    ? Number(group.line_total || 0)
+                                                    : group.count * rate;
                                                 const adjustedAmount = (graduatedPromo && promoAdjustmentTarget === 'adult' && i === 0)
                                                     ? amount + displayAdjustment
                                                     : amount;
@@ -2336,9 +2354,11 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                                             className="text-booking-card-lbl w-[128px] h-[34px] mt-2"
                                                         >
                                                             <span>
-                                                                {group.adjustment_label || (group.discount_id
+                                                                <span title={group.adjustment_label || undefined}>
+                                                                    {group.adjustment_label ? "Promo" : (group.discount_id
                                                                     ? discountList.find((d) => d.id === group.discount_id)?.name
                                                                     : "Adult")} {group.count}
+                                                                </span>
                                                             </span>
                                                         </label>
                                                         <input
@@ -2417,7 +2437,9 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                             .map((group, i) => {
                                                 const baseRate = Number(group.final_rate ?? data?.rate_per_child ?? 0);
                                                 const rate = invoiceDiscountPct && !group.discount_id ? (baseRate * invoiceMultiplier) : baseRate;
-                                                const amount = group.count * rate;
+                                                const amount = group.line_total !== undefined && group.line_total !== null
+                                                    ? Number(group.line_total || 0)
+                                                    : group.count * rate;
                                                 const adjustedAmount = (graduatedPromo && promoAdjustmentTarget === 'child' && i === 0)
                                                     ? amount + displayAdjustment
                                                     : amount;
@@ -2429,9 +2451,11 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                                             className="text-booking-card-lbl w-[128px] h-[34px] mt-2"
                                                         >
                                                             <span>
-                                                                {group.adjustment_label || (group.discount_id
+                                                                <span title={group.adjustment_label || undefined}>
+                                                                    {group.adjustment_label ? "Promo" : (group.discount_id
                                                                     ? discountList.find((d) => d.id === group.discount_id)?.name
                                                                     : "Child")} {group.count}
+                                                                </span>
                                                             </span>
                                                         </label>
                                                         <input
@@ -2510,7 +2534,9 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                             .map((group, i) => {
                                                 const baseRate = Number(group.final_rate ?? data?.rate_per_guide ?? 0);
                                                 const rate = invoiceDiscountPct && !group.discount_id ? (baseRate * invoiceMultiplier) : baseRate;
-                                                const amount = group.count * rate;
+                                                const amount = group.line_total !== undefined && group.line_total !== null
+                                                    ? Number(group.line_total || 0)
+                                                    : group.count * rate;
                                                 const adjustedAmount = (graduatedPromo && promoAdjustmentTarget === 'guide' && i === 0)
                                                     ? amount + displayAdjustment
                                                     : amount;
@@ -2522,9 +2548,11 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                                             className="text-booking-card-lbl w-[128px] h-[34px] mt-2"
                                                         >
                                                             <span>
-                                                                {group.adjustment_label || (group.discount_id
+                                                                <span title={group.adjustment_label || undefined}>
+                                                                    {group.adjustment_label ? "Promo" : (group.discount_id
                                                                     ? discountList.find((d) => d.id === group.discount_id)?.name
                                                                     : "Guide")} {group.count}
+                                                                </span>
                                                             </span>
                                                         </label>
                                                         <input
@@ -2562,8 +2590,8 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                             </div>
                             <div className="flex items-center space-x-4">
                                 <span className="text-booking-lbl-main">Booking Total</span>
-                                <div className="flex items-center justify-between w-[20%] h-[43px] bg-[#DBECFD4D] pl-[7px] pr-[7px] py-[7px] rounded-[6px]">
-                                    <span className="text-booking-lbl-main-sub">R {total.toFixed(2) || '0.00'}</span>
+                                <div className="flex items-center justify-between gap-3 w-full max-w-[417px] min-w-[320px] h-[43px] bg-[#DBECFD4D] pl-[7px] pr-[7px] py-[7px] rounded-[6px]">
+                                    <span className="text-booking-lbl-main-sub min-w-[115px] whitespace-nowrap">R {total.toFixed(2) || '0.00'}</span>
                                     {(hasPromo || hasDiscounts || data.is_wholesaler || !!invoiceDiscountPct) && (
                                         <WhiteButton
                                             title="Recalculate from Rack"
@@ -2571,7 +2599,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                             type="button"
                                             iconName={icons.spanners}
                                             textColor='text-[#4D81E7]'
-                                            width="w-[189px]"
+                                            width="w-[189px] shrink-0"
                                             onClick={handleResetToRack}
                                         />
                                     )}
