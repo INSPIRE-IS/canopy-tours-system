@@ -31,6 +31,7 @@ class PricingService
         $appliedPromo = null;
         $appliedDiscounts = [];
         $forcedTotal = null;
+        $promoLineItems = [];
 
         if ($overrideRates) {
             $rates = $overrideValues;
@@ -155,15 +156,42 @@ class PricingService
                         'adult' => 'adults',
                         'child' => 'children',
                     ];
-                    $applyFixedToType = function (string $type, float $discount) use (&$rates, $baseRates, $typeCounts, $typeLabels) {
+                    $applyFixedToType = function (string $type, float $discount, ?int $targetCount = null) use (&$rates, &$promoLineItems, $baseRates, $typeCounts, $typeLabels, $appliedPromo) {
                         $count = (int) ($typeCounts[$type] ?? 0);
                         if ($count <= 0) {
                             throw new \InvalidArgumentException("This promo applies to {$typeLabels[$type]}, but no {$typeLabels[$type]} have been added.");
                         }
 
-                        $subtotal = (float) ($baseRates[$type] ?? 0) * $count;
-                        $targetSubtotal = max(0, $subtotal - $discount);
+                        $baseRate = (float) ($baseRates[$type] ?? 0);
+                        $discountedCount = min(max(1, (int) ($targetCount ?? $count)), $count);
+                        $discountCap = $baseRate * $discountedCount;
+                        $appliedDiscountValue = min($discount, $discountCap);
+                        $discountedRate = round(max(0, $baseRate - ($appliedDiscountValue / $discountedCount)), 2);
+
+                        $subtotal = $baseRate * $count;
+                        $targetSubtotal = max(0, $subtotal - $appliedDiscountValue);
                         $rates[$type] = round($targetSubtotal / $count, 2);
+
+                        $promoLineItems[$type] = [];
+                        $rackCount = $count - $discountedCount;
+                        if ($rackCount > 0) {
+                            $promoLineItems[$type][] = [
+                                'type' => $type,
+                                'count' => $rackCount,
+                                'discount_id' => null,
+                                'base_rate' => $baseRate,
+                                'final_rate' => $baseRate,
+                                'adjustment_label' => null,
+                            ];
+                        }
+                        $promoLineItems[$type][] = [
+                            'type' => $type,
+                            'count' => $discountedCount,
+                            'discount_id' => null,
+                            'base_rate' => $baseRate,
+                            'final_rate' => $discountedRate,
+                            'adjustment_label' => $appliedPromo['name'] ?? 'Promotion',
+                        ];
                     };
 
                     switch ($promo->type) {
@@ -182,26 +210,26 @@ class PricingService
                             $discount = (float) $promo->value;
                             switch ($mode) {
                                 case 'one_adult':
-                                    $applyFixedToType('adult', $discount);
+                                    $applyFixedToType('adult', $discount, 1);
                                     break;
                                 case 'one_child':
-                                    $applyFixedToType('child', $discount);
+                                    $applyFixedToType('child', $discount, 1);
                                     break;
                                 case 'each_adult':
-                                    $applyFixedToType('adult', $discount * $adultCount);
+                                    $applyFixedToType('adult', $discount * $adultCount, (int) $adultCount);
                                     break;
                                 case 'each_child':
-                                    $applyFixedToType('child', $discount * $childCount);
+                                    $applyFixedToType('child', $discount * $childCount, (int) $childCount);
                                     break;
                                 case 'each_adult_child':
                                     if ($totalPax <= 0) {
                                         throw new \InvalidArgumentException('This promo applies to adults and children, but no adult or child pax have been added.');
                                     }
                                     if ($adultCount > 0) {
-                                        $applyFixedToType('adult', $discount * $adultCount);
+                                        $applyFixedToType('adult', $discount * $adultCount, (int) $adultCount);
                                     }
                                     if ($childCount > 0) {
-                                        $applyFixedToType('child', $discount * $childCount);
+                                        $applyFixedToType('child', $discount * $childCount, (int) $childCount);
                                     }
                                     break;
                                 case 'per_pax':
@@ -307,6 +335,7 @@ class PricingService
             'child' => 0.0,
             'guide' => 0.0,
         ];
+        $handledPromoLineTypes = [];
         foreach ($paxGroups as $group) {
             $type = $group['type'] ?? null;
             if (!isset($totalsByType[$type])) {
@@ -316,6 +345,16 @@ class PricingService
             if ($count <= 0) {
                 continue;
             }
+
+            if ($appliedPromo && isset($promoLineItems[$type]) && !isset($handledPromoLineTypes[$type])) {
+                foreach ($promoLineItems[$type] as $promoLineItem) {
+                    $lineItems[] = $promoLineItem;
+                    $totalsByType[$type] = round($totalsByType[$type] + ($promoLineItem['final_rate'] * $promoLineItem['count']), 2);
+                }
+                $handledPromoLineTypes[$type] = true;
+                continue;
+            }
+
             $baseRate = (float) ($baseRates[$type] ?? 0);
             $finalRate = (float) ($appliedPromo ? ($rates[$type] ?? $baseRate) : $baseRate);
 

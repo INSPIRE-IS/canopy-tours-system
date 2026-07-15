@@ -51,6 +51,7 @@ use App\Mail\InvoiceMail;
 use App\Mail\MessageGuestMail;
 use App\Models\BoardingPassTemplate;
 use App\Models\BookingDiscount;
+use App\Models\BookingPriceLine;
 use App\Models\BookingPricing;
 use App\Models\BookingVoucher;
 use App\Models\Continent;
@@ -183,6 +184,84 @@ class BookingsController extends Controller
             }
             throw ValidationException::withMessages([
                 'booking_total' => 'Pricing mismatch. Please recalculate the totals and try again.',
+            ]);
+        }
+    }
+
+
+    private function syncBookingPriceLines(
+        BookingItem $bookingItem,
+        array $pricing,
+        ?string $activityDate,
+        ?string $activityTime,
+        array $context = []
+    ): void {
+        $teamId = (int) ($context['team_id'] ?? $bookingItem->team_id ?? auth()->user()?->team_id);
+        $promo = $pricing['applied_promotion'] ?? null;
+        $promoId = $promo['id'] ?? ($context['promotion_id'] ?? null);
+        $promoLabel = trim(($promo['name'] ?? 'Promotion') . (!empty($promo['promo_code']) ? ' (' . $promo['promo_code'] . ')' : ''));
+        $invoiceDiscountId = $context['invoice_discount_id'] ?? null;
+        $wholesalerId = $context['wholesaler_id'] ?? null;
+        $overrideRates = (bool) ($context['override_rates'] ?? false);
+        $discountLabels = collect($pricing['applied_discounts'] ?? [])
+            ->filter(fn ($discount) => !empty($discount['id']))
+            ->mapWithKeys(fn ($discount) => [(int) $discount['id'] => $discount['name'] ?? 'Discount']);
+
+        $bookingItem->price_lines()->delete();
+
+        foreach (($pricing['line_items'] ?? []) as $line) {
+            $count = (int) ($line['count'] ?? 0);
+            if ($count <= 0) {
+                continue;
+            }
+
+            $baseRate = round((float) ($line['base_rate'] ?? 0), 2);
+            $finalRate = round((float) ($line['final_rate'] ?? 0), 2);
+            $lineDiscountId = $line['discount_id'] ?? null;
+            $label = $line['adjustment_label'] ?? null;
+            $sourceType = $line['source_type'] ?? null;
+            $sourceId = $line['source_id'] ?? null;
+
+            if (!$sourceType) {
+                if ($overrideRates) {
+                    $sourceType = 'override';
+                    $label = $label ?: 'Override rate';
+                } elseif ($lineDiscountId || $invoiceDiscountId) {
+                    $sourceType = 'discount';
+                    $sourceId = $lineDiscountId ?: $invoiceDiscountId;
+                    $label = $label ?: ($discountLabels[(int) $sourceId] ?? 'Discount');
+                } elseif ($promo && ($label || abs($finalRate - $baseRate) > 0.00001)) {
+                    $sourceType = 'promotion';
+                    $sourceId = $promoId;
+                    $label = $label ?: $promoLabel;
+                } elseif ($wholesalerId) {
+                    $sourceType = 'wholesaler';
+                    $sourceId = $wholesalerId;
+                    $label = $label ?: 'Wholesaler rate';
+                } else {
+                    $sourceType = 'rack';
+                }
+            }
+
+            BookingPriceLine::create([
+                'booking_id' => $bookingItem->booking_id,
+                'booking_item_id' => $bookingItem->id,
+                'team_id' => $teamId,
+                'activity_date' => $activityDate,
+                'activity_time' => $activityTime,
+                'source_type' => $sourceType,
+                'source_id' => $sourceId,
+                'pax_type' => $line['type'] ?? 'adult',
+                'count' => $count,
+                'base_rate' => $baseRate,
+                'final_rate' => $finalRate,
+                'line_total' => round($finalRate * $count, 2),
+                'label' => $label,
+                'meta' => array_filter([
+                    'override_reason' => $context['override_reason'] ?? null,
+                    'promo_code' => $promo['promo_code'] ?? null,
+                    'pricing_total' => $pricing['total_price'] ?? null,
+                ], fn ($value) => $value !== null && $value !== ''),
             ]);
         }
     }
@@ -983,6 +1062,15 @@ class BookingsController extends Controller
                     'team_id'        => auth()->user()->team_id,
                 ]);
 
+                $this->syncBookingPriceLines($booking_item, $pricing, $validated['booking_date'], $inventoryTimeSlot->start_time, [
+                    'team_id' => auth()->user()->team_id,
+                    'wholesaler_id' => $validated['is_wholesaler'] ? ($validated['wholesaler_id'] ?? null) : null,
+                    'invoice_discount_id' => $validated['invoice_discount_id'] ?? null,
+                    'promotion_id' => $promotion?->id,
+                    'override_rates' => $overrideRates,
+                    'override_reason' => $validated['override_reason'] ?? null,
+                ]);
+
                 $this->createBookingNotes($booking, $booking_item, $validated);
                 $this->logAudit('Booking created', $booking, $booking_item, [
                     'service_id' => $booking_item->service_id,
@@ -1552,6 +1640,15 @@ class BookingsController extends Controller
                     'voucher_code' => $validated['redeem_voucher'] ?? '',
                     'tot_amount' => $amount,
                     'team_id' => $teamId,
+                ]);
+
+                $this->syncBookingPriceLines($bookingItem, $pricing, $activity['booking_date'], $inventoryTimeSlot->start_time, [
+                    'team_id' => $teamId,
+                    'wholesaler_id' => $wholesalerId,
+                    'invoice_discount_id' => $invoiceDiscountId ?: null,
+                    'promotion_id' => $promotion?->id,
+                    'override_rates' => $overrideRates,
+                    'override_reason' => $activity['override_reason'] ?? null,
                 ]);
 
                 if (!empty($discountLines)) {
@@ -2227,6 +2324,15 @@ class BookingsController extends Controller
                 } else {
                     BookingFee::create($bookingFeeData);
                 }
+
+                $this->syncBookingPriceLines($bookingItem, $pricing, $bookingDate, $inventoryTimeSlot->start_time, [
+                    'team_id' => auth()->user()->team_id,
+                    'wholesaler_id' => $validated['is_wholesaler'] ? ($validated['wholesaler_id'] ?? null) : null,
+                    'invoice_discount_id' => $validated['invoice_discount_id'] ?? null,
+                    'promotion_id' => $promotion?->id,
+                    'override_rates' => $overrideRates,
+                    'override_reason' => $validated['override_reason'] ?? null,
+                ]);
 
                 $this->createBookingNotes($booking, $bookingItem, $validated);
                 $this->logAudit('Booking updated', $booking, $bookingItem, [

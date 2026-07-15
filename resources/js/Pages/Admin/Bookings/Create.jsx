@@ -479,26 +479,30 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                 rate_per_guide: applied_rates.guide ?? prev.rate_per_guide,
                 booking_total: total_price || 0,
             }));
-            if (Array.isArray(res.data.applied_discounts)) {
-                const discountRateMap = new Map(
-                    res.data.applied_discounts.map(d => [`${d.applied_to}:${d.id}`, Number(d.final_rate || 0)])
-                );
-                const sourceGroups = Array.isArray(pax_groups) ? pax_groups : [];
-                setPaxGroups(sourceGroups.map(g => {
-                    if (g.discount_id) {
-                        const key = `${g.type}:${g.discount_id}`;
-                        if (discountRateMap.has(key)) {
-                            return { ...g, final_rate: discountRateMap.get(key) };
-                        }
+            const responseGroups = Array.isArray(res.data.line_items) && res.data.line_items.length > 0
+                ? res.data.line_items
+                : (Array.isArray(pax_groups) ? pax_groups : []);
+            const discountRateMap = new Map(
+                (res.data.applied_discounts || []).map(d => [`${d.applied_to}:${d.id}`, Number(d.final_rate || 0)])
+            );
+            setPaxGroups(responseGroups.map(g => {
+                if (g.discount_id) {
+                    const key = `${g.type}:${g.discount_id}`;
+                    if (discountRateMap.has(key)) {
+                        return { ...g, final_rate: discountRateMap.get(key) };
                     }
-                    const fallbackRate = g.type === "adult"
-                        ? Number(applied_rates.adult ?? base_rates.adult ?? 0)
-                        : g.type === "child"
-                            ? Number(applied_rates.child ?? base_rates.child ?? 0)
-                            : Number(applied_rates.guide ?? base_rates.guide ?? 0);
-                    return { ...g, final_rate: fallbackRate };
-                }));
-            }
+                }
+                const fallbackRate = g.type === "adult"
+                    ? Number(applied_rates.adult ?? base_rates.adult ?? 0)
+                    : g.type === "child"
+                        ? Number(applied_rates.child ?? base_rates.child ?? 0)
+                        : Number(applied_rates.guide ?? base_rates.guide ?? 0);
+                return {
+                    ...g,
+                    final_rate: Number(g.final_rate ?? fallbackRate),
+                    base_rate: Number(g.base_rate ?? fallbackRate),
+                };
+            }));
 
             return res.data;
         } catch (err) {
@@ -521,9 +525,9 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                     Number(data.children || 0),
                     Number(data.guides || 0),
                     {
-                        adult: Number(data.rate_per_adult || 0),
-                        child: Number(data.rate_per_child || 0),
-                        guide: Number(data.rate_per_guide || 0),
+                        adult: Number(data.base_per_adult || data.rate_per_adult || 0),
+                        child: Number(data.base_per_child || data.rate_per_child || 0),
+                        guide: Number(data.base_per_guide || data.rate_per_guide || 0),
                     }
                 );
                 handleCalculate('promo', promoGroups);
@@ -2295,7 +2299,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                                         id='rate_per_adult'
                                                         name='rate_per_adult'
                                                         disabled={!data.override_rates}
-                                                        value={data['rate_per_adult'] || ''}
+                                                        value={data.override_rates ? (data['rate_per_adult'] || '') : (pricing?.base_rates?.adult ?? data['rate_per_adult'] ?? '')}
                                                         onChange={(e) => { handleChange(e.target.name, e.target.value) }}
                                                         className={`mt-1 block w-full h-[24px] ${errors.rate_per_adult ? "border-red-500" : "border-gray-300"} shadow-sm text-booking-card-body rounded-xl
                                                     hover:border-black  active:border-blue-600 
@@ -2332,9 +2336,9 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                                             className="text-booking-card-lbl w-[128px] h-[34px] mt-2"
                                                         >
                                                             <span>
-                                                                {group.discount_id
+                                                                {group.adjustment_label || (group.discount_id
                                                                     ? discountList.find((d) => d.id === group.discount_id)?.name
-                                                                    : "Adult"} {group.count}
+                                                                    : "Adult")} {group.count}
                                                             </span>
                                                         </label>
                                                         <input
@@ -2388,7 +2392,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                                         id='rate_per_child'
                                                         name='rate_per_child'
                                                         disabled={!data.override_rates}
-                                                        value={data['rate_per_child'] || ''}
+                                                        value={data.override_rates ? (data['rate_per_child'] || '') : (pricing?.base_rates?.child ?? data['rate_per_child'] ?? '')}
                                                         onChange={(e) => { handleChange(e.target.name, e.target.value) }}
                                                         className={`mt-1 block w-full h-[24px] ${errors.rate_per_child ? "border-red-500" : "border-gray-300"} shadow-sm text-booking-card-body rounded-xl
                                                     hover:border-black  active:border-blue-600 
@@ -2425,9 +2429,9 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                                             className="text-booking-card-lbl w-[128px] h-[34px] mt-2"
                                                         >
                                                             <span>
-                                                                {group.discount_id
+                                                                {group.adjustment_label || (group.discount_id
                                                                     ? discountList.find((d) => d.id === group.discount_id)?.name
-                                                                    : "Child"} {group.count}
+                                                                    : "Child")} {group.count}
                                                             </span>
                                                         </label>
                                                         <input
@@ -2481,7 +2485,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                                         id='rate_per_guide'
                                                         name='rate_per_guide'
                                                         disabled={!data.override_rates}
-                                                        value={data['rate_per_guide'] || ''}
+                                                        value={data.override_rates ? (data['rate_per_guide'] || '') : (pricing?.base_rates?.guide ?? data['rate_per_guide'] ?? '')}
                                                         onChange={(e) => setData('rate_per_guide', e.target.value)}
                                                         className={`mt-1 block w-full h-[24px] ${errors.rate_per_guide ? "border-red-500" : "border-gray-300"} shadow-sm text-booking-card-body rounded-xl
                                                     hover:border-black  active:border-blue-600 
@@ -2518,9 +2522,9 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                                             className="text-booking-card-lbl w-[128px] h-[34px] mt-2"
                                                         >
                                                             <span>
-                                                                {group.discount_id
+                                                                {group.adjustment_label || (group.discount_id
                                                                     ? discountList.find((d) => d.id === group.discount_id)?.name
-                                                                    : "Guide"} {group.count}
+                                                                    : "Guide")} {group.count}
                                                             </span>
                                                         </label>
                                                         <input
