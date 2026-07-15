@@ -17,6 +17,7 @@ use App\Models\Customer;
 use App\Models\Email;
 use App\Models\GiftVoucher;
 use App\Models\Invoice;
+use App\Models\InvoiceItem;
 use App\Models\BookingVoucher;
 use App\Models\InvoiceTemplate;
 use App\Models\TypeInvoice;
@@ -94,8 +95,9 @@ class PaymentController extends Controller
         $lookups = LookupItem::findDefaultForTeam('vat_rate', $teamId);
 
         return Inertia::render('BookingPayment', [
-            'booking' => $booking->load('booking_items', 'booking_items.customers', 'booking_items.booking_fee'),
+            'booking' => $booking->load($this->paymentBookingRelations()),
             'lookups' => $lookups,
+            'canRemoveItems' => true,
         ]);
     }
 
@@ -111,10 +113,111 @@ class PaymentController extends Controller
         $payfastStatus = config('app.debug') ? $this->getPayfastStatus($booking->team_id) : null;
 
         return Inertia::render('BookingPayment', [
-            'booking' => $booking->load('booking_items', 'booking_items.customers', 'booking_items.booking_fee'),
+            'booking' => $booking->load($this->paymentBookingRelations()),
             'lookups' => $lookups,
             'payfastStatus' => $payfastStatus,
+            'canRemoveItems' => false,
         ]);
+    }
+
+    public function removeBookingItem(Request $request, Booking $booking, BookingItem $bookingItem)
+    {
+        $sessionId = session()->getId() ?? null;
+        if ($sessionId !== $booking->session_id || (int) $booking->status_payment_id !== 1) {
+            return redirect()->route('front.welcome');
+        }
+
+        if ((int) $bookingItem->booking_id !== (int) $booking->id) {
+            abort(404);
+        }
+
+        DB::transaction(function () use ($booking, $bookingItem) {
+            $bookingItem->load([
+                'booking_fee',
+                'booking_inventory',
+                'booking_detail',
+                'price_lines',
+                'customer_manifests',
+            ]);
+
+            $bookingInventoryId = $bookingItem->booking_inventory?->id;
+            $invoiceTypeId = TypeInvoice::where('slug', 'std')->value('id');
+            $invoiceIds = Invoice::where('booking_id', $booking->id)
+                ->where('team_id', $booking->team_id)
+                ->when($invoiceTypeId, fn($query) => $query->where('type_invoice_id', $invoiceTypeId))
+                ->pluck('id');
+
+            if ($invoiceIds->isNotEmpty() && $bookingInventoryId) {
+                InvoiceItem::whereIn('invoice_id', $invoiceIds)
+                    ->where('booking_inventory_id', $bookingInventoryId)
+                    ->delete();
+            }
+
+            $bookingItem->price_lines()->delete();
+            $bookingItem->customer_manifests()->delete();
+            $bookingItem->customers()->detach();
+            $bookingItem->booking_fee?->delete();
+            $bookingItem->booking_inventory?->delete();
+            $bookingItem->booking_detail?->delete();
+            $bookingItem->delete();
+
+            $remainingItems = $booking->booking_items()
+                ->with('booking_fee')
+                ->get();
+
+            $remainingTotal = round($remainingItems->sum(fn($item) => (float) ($item->booking_fee?->tot_amount ?? 0)), 2);
+
+            if ($remainingItems->isEmpty()) {
+                if ($invoiceIds->isNotEmpty()) {
+                    InvoiceItem::whereIn('invoice_id', $invoiceIds)->delete();
+                    Invoice::whereIn('id', $invoiceIds)->delete();
+                }
+
+                $booking->delete();
+                return;
+            }
+
+            $booking->update([
+                'grand_tot_due' => $remainingTotal,
+                'due_date' => $remainingItems
+                    ->pluck('booking_inventory.date')
+                    ->filter()
+                    ->sort()
+                    ->first() ?? $booking->due_date,
+            ]);
+
+            if ($invoiceIds->isNotEmpty()) {
+                $vat = $this->vatBreakdownForTeam($booking->team_id, $remainingTotal);
+                Invoice::whereIn('id', $invoiceIds)->update([
+                    'subtotal' => $vat['ex_vat_amount'],
+                    'vat' => $vat['vat_amount'],
+                    'total' => $remainingTotal,
+                ]);
+            }
+        });
+
+        if (! Booking::whereKey($booking->id)->exists()) {
+            return redirect()
+                ->route('front.welcome', ['team_id' => $booking->team_id])
+                ->with('success', 'The booking cart was cancelled.');
+        }
+
+        return redirect()
+            ->route('front.payment.booking', ['booking' => $booking->id])
+            ->with('success', 'The activity was removed from your booking.');
+    }
+
+    private function paymentBookingRelations(): array
+    {
+        return [
+            'booking_items',
+            'booking_items.customers',
+            'booking_items.booking_fee',
+            'booking_items.booking_inventory',
+            'booking_items.booking_inventory.inventory_time_slot',
+            'booking_items.service',
+            'booking_items.season',
+        ];
     }
 
     public function gift(GiftVoucher $gift)

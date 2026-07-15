@@ -21,8 +21,8 @@ export default function BookingModal({ isOpen, onClose, activity, slot, adults, 
   }, []);
   const mode = 'create';
   const { data, setData, post, put, errors, reset, processing } = useForm({
-    adults: adults,
-    children: children,
+    adults: Number(adults || 0),
+    children: Number(children || 0),
     name: '',
     surname: '',
     email: '',
@@ -57,26 +57,21 @@ export default function BookingModal({ isOpen, onClose, activity, slot, adults, 
   }, [debugPhone, data.phone]);
 
   useEffect(() => {
+    setPromo(selectedPromo || null);
+  }, [selectedPromo]);
+
+  useEffect(() => {
 
     let sum = (Number(data.adults) * pricePerAdult + Number(data.children) * pricePerChild);
-    if (promo) {
+    if (promo?.pricing?.total_price !== undefined) {
+      sum = Number(promo.pricing.total_price);
+    } else if (promo) {
       sum = sum * (1 - promo.value / 100);
     }
 
-    if (sum > 0) {
-      setTotal(sum.toFixed(2));
-    }
+    setTotal(Number(sum || 0).toFixed(2));
     // setTotal((Number(data.adults) * pricePerAdult + Number(data.children) * pricePerChild).toFixed(2));
   }, [data.adults, data.children, pricePerAdult, pricePerChild, promo]);
-  useEffect(() => {
-    console.log('promoCode------', promoCode);
-    if (promoCode) {
-      axios.get('/front/activity/selected-promo', {
-        params: { promo_code: promoCode, slot_date: slot.date, slot_time: slot.time, activity_id: activityId }
-      })
-        .then(res => { console.log(res.data); if (res.data.status == false) { alert(res.data.promo) }; if (res.data.status == true) { setPromo(res.data.promo) } });
-    }
-  }, [promoCode]);
   // const handleChange = (e) => {
   //   setData({ ...data, [e.target.name]: e.target.value });
   // };
@@ -99,7 +94,7 @@ export default function BookingModal({ isOpen, onClose, activity, slot, adults, 
         ...data,
         slot_date: slot.date,
         slot_time: slot.time,
-        promo_code: selectedPromo?.promo_code ?? '',
+        promo_code: promo?.promo_code ?? '',
         activity_id: activityId,
       });
 
@@ -123,8 +118,8 @@ export default function BookingModal({ isOpen, onClose, activity, slot, adults, 
         <h2 className="text-xl font-semibold mb-4">{activity?.service} {activity?.season}</h2>
         <p><strong>Date:</strong> {slot.date}</p>
         <p><strong>Time:</strong> {slot.time}</p>
-        <p><strong>Adults:</strong> {adults}</p>
-        <p><strong>Children:</strong> {children}</p>
+        <p><strong>Adults:</strong> {Number(adults || 0)}</p>
+        <p><strong>Children:</strong> {Number(children || 0)}</p>
         <p><strong>Total:</strong> R{total}</p>
 
         <div className="mt-4 space-y-2">

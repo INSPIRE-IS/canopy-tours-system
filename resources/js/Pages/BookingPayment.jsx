@@ -5,13 +5,15 @@ import CustomSelect from '@/Components/CustomSelect';
 import NavSelect from '@/Components/NavSelect';
 import TopNav from '@/Components/TopNav';
 
-export default function ReviewPayment({ auth, booking, lookups, payfastStatus }) {
+export default function ReviewPayment({ auth, booking, lookups, payfastStatus, canRemoveItems = false }) {
   //const { props, booking } = usePage();
   console.log('auth ', auth);
   console.log('booking ', booking);
   const [submitting, setSubmitting] = useState(false);
+  const [removingItemId, setRemovingItemId] = useState(null);
   const [teamId, setTeamId] = useState(booking.team_id);
   const totalDue = Number(booking?.grand_tot_due || 0);
+  const bookingItems = booking?.booking_items || [];
 
   // VAT lookup has had multiple historical shapes:
   // - `rate` sometimes stored as percent (15) and sometimes as fraction (0.15)
@@ -107,6 +109,28 @@ export default function ReviewPayment({ auth, booking, lookups, payfastStatus })
     window.location.href = route('front.payment.payfast.booking', booking.id);
   };
 
+  const formatMoney = (value) => `R${Number(value || 0).toFixed(2)}`;
+
+  const formatItemDateTime = (item) => {
+    const inventory = item?.booking_inventory;
+    const slot = inventory?.inventory_time_slot;
+    const time = slot?.start_time || slot?.time || '';
+
+    return [inventory?.date, time].filter(Boolean).join(' ');
+  };
+
+  const handleRemoveItem = (item) => {
+    if (!window.confirm('Remove this activity from your booking cart?')) {
+      return;
+    }
+
+    setRemovingItemId(item.id);
+    router.delete(route('front.payment.booking-items.destroy', [booking.id, item.id]), {
+      preserveScroll: true,
+      onFinish: () => setRemovingItemId(null),
+    });
+  };
+
   return (
     <div className="bg-gray-50 min-h-screen">
       <Head title="Welcome" />
@@ -137,6 +161,41 @@ export default function ReviewPayment({ auth, booking, lookups, payfastStatus })
             <p className='flex w-auto'><strong className='w-[200px] capitalize'>VAT Amount:</strong> R{vatAmount.toFixed(2)}</p>
             <p className='flex w-auto'><strong className='w-[200px] capitalize'>Total:</strong> R{totalDue.toFixed(2)}</p>
           </div>
+
+          {bookingItems.length > 0 && (
+            <div>
+              <h2 className="font-semibold mb-3">Activities in this booking</h2>
+              <div className="space-y-3">
+                {bookingItems.map((item) => (
+                  <div key={item.id} className="rounded-lg border border-gray-200 p-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div>
+                        <p className="font-semibold text-gray-900">{item?.service?.name || 'Activity'}</p>
+                        <p className="text-sm text-gray-600">{item?.season?.name}</p>
+                        <p className="text-sm text-gray-600">{formatItemDateTime(item)}</p>
+                        <p className="mt-1 text-sm text-gray-700">
+                          Adults: {item.pax_adults || 0} | Children: {item.pax_children || 0} | Guides: {item.pax_guides || 0}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-3 sm:flex-col sm:items-end">
+                        <span className="font-semibold text-gray-900">{formatMoney(item?.booking_fee?.tot_amount)}</span>
+                        {canRemoveItems && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveItem(item)}
+                            disabled={removingItemId === item.id}
+                            className="rounded-lg border border-red-200 px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {removingItemId === item.id ? 'Removing...' : 'Remove'}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div>
             <h2 className="font-semibold mb-2">Payment Method</h2>

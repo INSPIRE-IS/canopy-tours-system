@@ -425,6 +425,8 @@ class ActivityController extends Controller
         $dayNumber = $dateSlot->dayOfWeekIso; // 1
         $slotTime = $request->slot_time;
         $activityId = $request->activity_id;
+        $adults = max(0, (int) ($request->adults ?? 0));
+        $children = max(0, (int) ($request->children ?? 0));
 
         $promo = Promotion::with('promo_day_time_slots')->where('promo_code', $promoCode)->first();
         // return response()->json($promo);
@@ -488,7 +490,26 @@ class ActivityController extends Controller
         //     return response()->json(['status' => false, 'message' => 'season in valid']);;
         // }
 
-        return response()->json(['status' => true, 'promo' => $promo]);
+        try {
+            $pricing = app(PricingService::class)->calculate([
+                'service_id' => $season->service_id,
+                'season_id' => $season->id,
+                'booking_date' => $slotDate,
+                'promo_code' => $promoCode,
+                'pax_groups' => array_values(array_filter([
+                    $adults > 0 ? ['type' => 'adult', 'count' => $adults, 'discount_id' => null] : null,
+                    $children > 0 ? ['type' => 'child', 'count' => $children, 'discount_id' => null] : null,
+                ])),
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json(['status' => false, 'promo' => $e->getMessage()]);
+        }
+
+        if (empty($pricing['applied_promotion'])) {
+            return response()->json(['status' => false, 'promo' => 'Promo code could not be applied.']);
+        }
+
+        return response()->json(['status' => true, 'promo' => $promo, 'pricing' => $pricing]);
     }
     public function store(Request $request)
     {

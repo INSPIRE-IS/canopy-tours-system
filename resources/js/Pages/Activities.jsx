@@ -29,7 +29,7 @@ export default function ActivitySchedulePage({ activity, auth, team, activityId,
   const [total, setTotal] = useState(0.00);
   const [date, setDate] = useState(formatDate);
   const [adults, setAdults] = useState(i_adults >= 1 ? i_adults : 1);
-  const [children, setChildren] = useState(i_children >= 1 ? i_children : null);
+  const [children, setChildren] = useState(i_children >= 1 ? i_children : 0);
   const [promoCode, setPromoCode] = useState(null);
   const [selectedPromo, setSelectedPromo] = useState(null);
   const [selectedTime, setSelectedTime] = useState(null);
@@ -65,13 +65,59 @@ export default function ActivitySchedulePage({ activity, auth, team, activityId,
 
   useEffect(() => {
     let sum = (Number(adults) * activity.rake_rate_adult + Number(children) * activity.rake_rate_child);
-    if (selectedPromo) {
+    if (selectedPromo?.pricing?.total_price !== undefined) {
+      sum = Number(selectedPromo.pricing.total_price);
+    } else if (selectedPromo) {
       sum = sum * (1 - selectedPromo.value / 100);
     }
     if (sum > 0) {
       setTotal(sum.toFixed(2));
     }
   }, [adults, children, activity.rake_rate_adult, activity.rake_rate_child, selectedPromo]);
+
+  const applyPromoCode = async () => {
+    const code = String(promoCode || '').trim();
+
+    if (!code) {
+      setSelectedPromo(null);
+      showToast("Enter a promo code first.", "info");
+      return;
+    }
+
+    if (!selectedSlot || !selectedTime) {
+      showToast("Select a time slot before applying a promo code.", "info");
+      return;
+    }
+
+    try {
+      const response = await axios.get('/front/activity/selected-promo', {
+        params: {
+          promo_code: code,
+          slot_date: selectedSlot.date,
+          slot_time: selectedTime,
+          activity_id: activityId,
+          adults,
+          children,
+        },
+      });
+
+      if (!response.data?.status) {
+        setSelectedPromo(null);
+        showToast(response.data?.promo || "Promo code could not be applied.", "error");
+        return;
+      }
+
+      setPromoCode(response.data.promo?.promo_code || code);
+      setSelectedPromo({
+        ...response.data.promo,
+        pricing: response.data.pricing,
+      });
+      showToast("Promo code applied.", "success");
+    } catch (error) {
+      setSelectedPromo(null);
+      showToast(error.response?.data?.message || "Promo code could not be applied.", "error");
+    }
+  };
 
   const loadCalendar = async (view_date, view_mode, view_adults, view_children) => {
     setLoading(true);
@@ -112,6 +158,7 @@ export default function ActivitySchedulePage({ activity, auth, team, activityId,
     });
     setSelectedSlot(null); // reset selected slotdatedate.toDateString() // 
     setSelectedTime(null); // reset selected slotdatedate.toDateString() //
+    setSelectedPromo(null);
   };
 
 
@@ -173,7 +220,10 @@ export default function ActivitySchedulePage({ activity, auth, team, activityId,
                     type='number'
                     min="1"
                     value={adults}
-                    onChange={(e) => setAdults(e.target.value)}
+                    onChange={(e) => {
+                      setAdults(e.target.value);
+                      setSelectedPromo(null);
+                    }}
                   />
                   <CustomInputText
                     title="Number of Children"
@@ -182,7 +232,10 @@ export default function ActivitySchedulePage({ activity, auth, team, activityId,
                     type='number'
                     min="0"
                     value={children}
-                    onChange={(e) => setChildren(e.target.value)}
+                    onChange={(e) => {
+                      setChildren(e.target.value);
+                      setSelectedPromo(null);
+                    }}
                   />
                   <CustomInputText
                     title="Desired Date of Booking"
@@ -202,6 +255,7 @@ export default function ActivitySchedulePage({ activity, auth, team, activityId,
                       });
                       setSelectedSlot(null); // reset selected slotdatedate.toDateString() // 
                       setSelectedTime(null); // reset selected slotdatedate.toDateString() //
+                      setSelectedPromo(null);
 
                     }}
                   />
@@ -240,8 +294,18 @@ export default function ActivitySchedulePage({ activity, auth, team, activityId,
                     id="promoCode"
                     name="promoCode"
                     value={promoCode}
-                    onChange={(e) => setPromoCode(e.target.value)}
+                    onChange={(e) => {
+                      setPromoCode(e.target.value);
+                      setSelectedPromo(null);
+                    }}
                   />
+                  <button
+                    type="button"
+                    onClick={applyPromoCode}
+                    className="w-full rounded-[10px] bg-[#2D99FE] px-4 py-2 text-sm font-semibold text-white hover:bg-[#1d7fd8]"
+                  >
+                    Apply Promo
+                  </button>
 
                   <div className="mt-4">
                     <div className="text-lg font-semibold text-green-700">R {total}</div>
@@ -265,6 +329,10 @@ export default function ActivitySchedulePage({ activity, auth, team, activityId,
                             // });
                             // setShow(true);
                             showToast("Please select at least one adult and a date and time slot.", "info");
+                            return;
+                          }
+                          if (promoCode && !selectedPromo) {
+                            showToast("Please apply the promo code before booking.", "info");
                             return;
                           }
                           setBookModal(true);
@@ -441,6 +509,10 @@ export default function ActivitySchedulePage({ activity, auth, team, activityId,
                         // });
                         // setShow(true);
                         showToast("Please select at least one adult and a date and time slot.", "info");
+                        return;
+                      }
+                      if (promoCode && !selectedPromo) {
+                        showToast("Please apply the promo code before booking.", "info");
                         return;
                       }
                       setBookModal(true);

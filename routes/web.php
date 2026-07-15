@@ -104,6 +104,7 @@ Route::post('/booking/gift-store', [ActivityController::class, 'storeGift'])->na
 
 Route::get('/test-order', [ActivityController::class, 'showTestOrder']); // Review payment screen
 Route::get('/payment/booking/{booking}', [PaymentController::class, 'booking'])->name('front.payment.booking');
+Route::delete('/payment/booking/{booking}/items/{bookingItem}', [PaymentController::class, 'removeBookingItem'])->name('front.payment.booking-items.destroy');
 Route::get('/payment/booking/signed/{booking}', [PaymentController::class, 'bookingSigned'])
     ->name('front.payment.booking.signed')
     ->middleware('signed');
