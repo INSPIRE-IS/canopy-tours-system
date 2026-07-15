@@ -9,6 +9,7 @@ use App\Models\BookingFee;
 use App\Models\BookingInventory;
 use App\Models\BookingItem;
 use App\Models\BookingPayment;
+use App\Models\BookingPriceLine;
 use App\Models\Closeout;
 use App\Models\Country;
 use App\Models\Customer;
@@ -27,6 +28,7 @@ use App\Models\Season;
 use App\Models\Service;
 use App\Models\Team;
 use App\Services\Calendar\ServiceCalendarBuilder;
+use App\Services\PricingService;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
@@ -43,6 +45,45 @@ use Str;
 
 class ActivityController extends Controller
 {
+    private function syncBookingPriceLines(BookingItem $bookingItem, array $pricing, string $activityDate, ?string $activityTime): void
+    {
+        $bookingItem->price_lines()->delete();
+
+        foreach (($pricing['line_items'] ?? []) as $line) {
+            $count = (int) ($line['count'] ?? 0);
+            if ($count <= 0) {
+                continue;
+            }
+
+            $baseRate = round((float) ($line['base_rate'] ?? 0), 2);
+            $finalRate = round((float) ($line['final_rate'] ?? $baseRate), 2);
+            $label = $line['adjustment_label'] ?? null;
+            $sourceType = 'rack';
+            $sourceId = null;
+
+            if (!empty($bookingItem->promotion_id) && $label) {
+                $sourceType = 'promotion';
+                $sourceId = $bookingItem->promotion_id;
+            }
+
+            BookingPriceLine::create([
+                'booking_id' => $bookingItem->booking_id,
+                'booking_item_id' => $bookingItem->id,
+                'team_id' => $bookingItem->team_id,
+                'activity_date' => $activityDate,
+                'activity_time' => $activityTime,
+                'source_type' => $sourceType,
+                'source_id' => $sourceId,
+                'pax_type' => $line['type'] ?? 'adult',
+                'count' => $count,
+                'base_rate' => $baseRate,
+                'final_rate' => $finalRate,
+                'line_total' => round((float) ($line['line_total'] ?? ($finalRate * $count)), 2),
+                'label' => $label,
+                'meta' => [],
+            ]);
+        }
+    }
 
     public function index($team_id = 0)
     {
@@ -490,206 +531,61 @@ class ActivityController extends Controller
                 //$ShortNameOfDay = Carbon::parse($validated['slot_date'])->format('D'); // e.g., Mon
                 $isoNameOfDay = Carbon::parse($validated['slot_date'])->format('N'); // iso week starts on Monday
                 //$numericNameOfDay = Carbon::parse($validated['slot_date'])->format('w'); // week starts on Sunday
-                // lookup booking
-                $adults = (int) ($validated['adults'] ?? 0);
-                $tot_adults = $season->rake_rate_adult * $adults;
-                $children = (int) ($validated['children'] ?? 0);
-                $tot_children = $season->rake_rate_child * $children;
-                $guides = (int) ($validated['guides'] ?? 0);
-                $tot_guides = $season->rake_rate_guide * $guides;
-                $tot_adults = round($tot_adults, 2);
-                $tot_children = round($tot_children, 2);
-                $tot_guides = round($tot_guides, 2);
-                $amount = round($tot_adults + $tot_children + $tot_guides, 2);
-                logger()->info('amount ' . $amount);
-                $promoCode = $validated['promo_code'];
-                $promotion_id = null;
-                $is_voucher = false;
-                if ($promoCode !== null) {
-                    $promo = Promotion::where('promo_code', $promoCode)->first();
-                    if (!$promo) {
-                        abort(404, 'code in valid');
-                    } else {
-                        $timeSlot = null;
-                        if ($promo->promo_day_time_slots->isNotEmpty()) {
-                            $timeSlot = $inventory->inventory_time_slots?->where('start_time', $validated['slot_time'])->first();
-                        }
-                        logger()->info('time slot ', [$timeSlot]);
-                        $dateSlot = Carbon::parse($validated['slot_date']);
-                        // $dayName = $dateSlot->format('l'); // "Monday"
-                        $dayNumber = $dateSlot->dayOfWeekIso; // 1
-                        $response = $promo->validateCode($validated['slot_date'], $dayNumber, $timeSlot, $validated['activity_id']);
-                        if ($response['status'] == false) {
-                            abort(404, $response['message']);
-                        }
-                    }
-                    $is_voucher = true;
-                    $promotion_id = $promo->id;
-                    $baseTotals = [
-                        'adult' => $tot_adults,
-                        'child' => $tot_children,
-                        'guide' => $tot_guides,
-                    ];
-                    $baseTotal = $baseTotals['adult'] + $baseTotals['child'] + $baseTotals['guide'];
-                    $applyMultiplier = function (float $multiplier) use (&$tot_adults, &$tot_children, &$tot_guides, $baseTotals) {
-                        $tot_adults = round($baseTotals['adult'] * $multiplier, 2);
-                        $tot_children = round($baseTotals['child'] * $multiplier, 2);
-                        $tot_guides = round($baseTotals['guide'] * $multiplier, 2);
-                    };
-                    $applyBookingDiscount = function (float $discount) use ($baseTotal, $applyMultiplier) {
-                        if ($baseTotal <= 0) {
-                            return;
-                        }
-                        $targetTotal = max(0, $baseTotal - $discount);
-                        $multiplier = $targetTotal / $baseTotal;
-                        $applyMultiplier($multiplier);
-                    };
-                    $applyFixedToPaxType = function (string $type, int $count, float $discount) use (&$tot_adults, &$tot_children, $baseTotals) {
-                        if ($count <= 0) {
-                            $label = $type === 'adult' ? 'adults' : 'children';
-                            abort(422, "This promo applies to {$label}, but no {$label} have been added.");
-                        }
-
-                        $targetSubtotal = max(0, (float) ($baseTotals[$type] ?? 0) - $discount);
-                        if ($type === 'adult') {
-                            $tot_adults = round($targetSubtotal, 2);
-                        } else {
-                            $tot_children = round($targetSubtotal, 2);
-                        }
-                    };
-
-                    $params = $promo->params;
-                    if (is_string($params)) {
-                        $decoded = json_decode($params, true);
-                        $params = is_array($decoded) ? $decoded : [];
-                    }
-                    if (!is_array($params)) {
-                        $params = [];
-                    }
-
-                    $totalPax = $adults + $children;
-                    switch ($promo->type) {
-                        case 'time_slot':
-                        case 'percent':
-                            $multiplier = 1 - ((float) $promo->value / 100);
-                            $applyMultiplier($multiplier);
-                            break;
-                        case 'fixed_value':
-                            $mode = (string) ($params['fixed_value_mode'] ?? 'booking');
-                            $discount = (float) $promo->value;
-                            switch ($mode) {
-                                case 'one_adult':
-                                    $applyFixedToPaxType('adult', $adults, $discount);
-                                    break;
-                                case 'one_child':
-                                    $applyFixedToPaxType('child', $children, $discount);
-                                    break;
-                                case 'each_adult':
-                                    $applyFixedToPaxType('adult', $adults, $discount * $adults);
-                                    break;
-                                case 'each_child':
-                                    $applyFixedToPaxType('child', $children, $discount * $children);
-                                    break;
-                                case 'each_adult_child':
-                                    if ($totalPax <= 0) {
-                                        abort(422, 'This promo applies to adults and children, but no adult or child pax have been added.');
-                                    }
-                                    if ($adults > 0) {
-                                        $applyFixedToPaxType('adult', $adults, $discount * $adults);
-                                    }
-                                    if ($children > 0) {
-                                        $applyFixedToPaxType('child', $children, $discount * $children);
-                                    }
-                                    break;
-                                case 'per_pax':
-                                    $applyBookingDiscount($discount * $totalPax);
-                                    break;
-                                case 'booking':
-                                default:
-                                    $applyBookingDiscount($discount);
-                                    break;
-                            }
-                            break;
-                        case 'graduated':
-                            $paxRate = null;
-                            if (!empty($params['lookup']) && is_array($params['lookup'])) {
-                                $key = (string) $totalPax;
-                                if (array_key_exists($key, $params['lookup'])) {
-                                    $paxRate = (float) $params['lookup'][$key];
-                                }
-                            } elseif (!empty($params['lookup']) && is_string($params['lookup'])) {
-                                $lk = json_decode($params['lookup'], true) ?: [];
-                                $key = (string) $totalPax;
-                                if (is_array($lk) && array_key_exists($key, $lk)) {
-                                    $paxRate = (float) $lk[$key];
-                                }
-                            } elseif (!empty($params['lookup']) && is_object($params['lookup'])) {
-                                $lk = (array) $params['lookup'];
-                                $key = (string) $totalPax;
-                                if (array_key_exists($key, $lk)) {
-                                    $paxRate = (float) $lk[$key];
-                                }
-                            } elseif (!empty($params['lookup']) && is_iterable($params['lookup'])) {
-                                foreach ($params['lookup'] as $row) {
-                                    if (isset($row['pax']) && (int) $row['pax'] === (int) $totalPax) {
-                                        $paxRate = (float) ($row['value'] ?? 0);
-                                        break;
-                                    }
-                                }
-                            }
-                            if ($paxRate !== null && $baseTotal > 0) {
-                                $applyMultiplier($paxRate / $baseTotal);
-                            }
-                            break;
-                        case 'varied_child':
-                            if (!empty($params['tiers']) && is_array($params['tiers'])) {
-                                $best = collect($params['tiers'])
-                                    ->filter(fn($t) => isset($t['min_adults']) && $adults >= (int) $t['min_adults'])
-                                    ->sortByDesc('min_adults')
-                                    ->first();
-                                if ($best && isset($best['child_discount_percent'])) {
-                                    $pct = (float) $best['child_discount_percent'];
-                                    $tot_children = round($baseTotals['child'] * (1 - ($pct / 100)), 2);
-                                }
-                            } elseif (isset($params['min_adults'], $params['child_discount_percent'])) {
-                                if ($adults >= (int) $params['min_adults']) {
-                                    $pct = (float) $params['child_discount_percent'];
-                                    $tot_children = round($baseTotals['child'] * (1 - ($pct / 100)), 2);
-                                }
-                            }
-                            break;
-                        case 'volume_discount':
-                            $best = null;
-                            if (!empty($params['tiers']) && is_array($params['tiers'])) {
-                                $best = collect($params['tiers'])
-                                    ->filter(fn($t) => isset($t['pax']) && $totalPax >= (int) $t['pax'])
-                                    ->sortByDesc('pax')
-                                    ->first();
-                            }
-                            if ($best) {
-                                if (($best['type'] ?? '') === 'percent') {
-                                    $pct = (float) ($best['value'] ?? 0);
-                                    $applyMultiplier(1 - ($pct / 100));
-                                } elseif (($best['type'] ?? '') === 'fixed_value') {
-                                    $applyBookingDiscount((float) ($best['value'] ?? 0));
-                                }
-                            }
-                            break;
-                    }
-
-                    $tot_adults = round($tot_adults, 2);
-                    $tot_children = round($tot_children, 2);
-                    $tot_guides = round($tot_guides, 2);
-                    $amount = round($tot_adults + $tot_children + $tot_guides, 2);
-                }
-
-                $rate_adult = $adults > 0 ? round($tot_adults / $adults, 2) : 0;
-                $rate_child = $children > 0 ? round($tot_children / $children, 2) : 0;
-                $rate_guide = $guides > 0 ? round($tot_guides / $guides, 2) : 0;
-
                 if (!$inventory) {
                     abort(404, 'This season has no inventory.');
                 }
+
+                $adults = (int) ($validated['adults'] ?? 0);
+                $children = (int) ($validated['children'] ?? 0);
+                $guides = (int) ($validated['guides'] ?? 0);
+
+                $promoCode = trim((string) ($validated['promo_code'] ?? ''));
+                $promoCode = $promoCode !== '' ? $promoCode : null;
+                if ($promoCode) {
+                    $promo = Promotion::where('promo_code', $promoCode)
+                        ->where('service_id', $season->service_id)
+                        ->first();
+                    if (!$promo) {
+                        abort(404, 'code in valid');
+                    }
+
+                    $timeSlot = null;
+                    if ($promo->promo_day_time_slots->isNotEmpty()) {
+                        $timeSlot = $inventory->inventory_time_slots?->where('start_time', $validated['slot_time'])->first();
+                    }
+                    $dayNumber = Carbon::parse($validated['slot_date'])->dayOfWeekIso;
+                    $response = $promo->validateCode($validated['slot_date'], $dayNumber, $timeSlot, $validated['activity_id']);
+                    if (($response['status'] ?? false) === false) {
+                        abort(404, $response['message'] ?? 'Promo code is invalid.');
+                    }
+                }
+
+                $pricing = app(PricingService::class)->calculate([
+                    'service_id' => $season->service_id,
+                    'season_id' => $season->id,
+                    'booking_date' => $validated['slot_date'],
+                    'promo_code' => $promoCode,
+                    'pax_groups' => array_values(array_filter([
+                        $adults > 0 ? ['type' => 'adult', 'count' => $adults, 'discount_id' => null] : null,
+                        $children > 0 ? ['type' => 'child', 'count' => $children, 'discount_id' => null] : null,
+                        $guides > 0 ? ['type' => 'guide', 'count' => $guides, 'discount_id' => null] : null,
+                    ])),
+                ]);
+                if ($promoCode && empty($pricing['applied_promotion'])) {
+                    abort(422, 'Promo code could not be applied.');
+                }
+
+                $tot_adults = round((float) ($pricing['totals_by_type']['adult'] ?? 0), 2);
+                $tot_children = round((float) ($pricing['totals_by_type']['child'] ?? 0), 2);
+                $tot_guides = round((float) ($pricing['totals_by_type']['guide'] ?? 0), 2);
+                $amount = round((float) ($pricing['total_price'] ?? ($tot_adults + $tot_children + $tot_guides)), 2);
+                $rate_adult = (float) ($pricing['applied_rates']['adult'] ?? ($adults > 0 ? round($tot_adults / $adults, 2) : 0));
+                $rate_child = (float) ($pricing['applied_rates']['child'] ?? ($children > 0 ? round($tot_children / $children, 2) : 0));
+                $rate_guide = (float) ($pricing['applied_rates']['guide'] ?? ($guides > 0 ? round($tot_guides / $guides, 2) : 0));
+                $promotion_id = $pricing['applied_promotion']['id'] ?? null;
+                $is_voucher = (bool) $promotion_id;
+
+                logger()->info('amount ' . $amount);
                 $inventoryTimeSlot = InventoryTimeSlot::where('inventory_id', $inventory->id)->where('start_time', $validated['slot_time'])->first();
                 //$inventoryTypeDay = InventoryTypeDay::where('inventory_id', $inventory->id)->first();
 
@@ -756,8 +652,7 @@ class ActivityController extends Controller
                     ]);
                 }
 
-                $bookingItem = BookingItem::updateOrCreate([
-                    'id' => $booking->id,
+                $bookingItem = BookingItem::create([
                     'service_id' => $season->service_id,
                     'season_id' => $season->id,
                     'inventory_id' => $inventory->id,
@@ -769,6 +664,7 @@ class ActivityController extends Controller
                     'pax_adults' => $adults,
                     'pax_children' => $children,
                     'pax_guides' => 0,
+                    'team_id' => $season->team_id,
                 ]);
 
                 // Admin bookings index is team-scoped on `booking_items.team_id`.
@@ -861,6 +757,8 @@ class ActivityController extends Controller
                     'tot_amount'     => $amount,
                     'team_id'        => $season->team_id,
                 ]);
+                $this->syncBookingPriceLines($bookingItem, $pricing, $validated['slot_date'], $inventoryTimeSlot->start_time);
+
                 $template = InvoiceTemplate::where('is_default', true)->where('type_invoice_id', 1)->first();
                 $invoiceTypeId = TypeInvoice::where('slug', 'std')->value('id');
                 $invoice = Invoice::where('booking_id', $booking->id)
