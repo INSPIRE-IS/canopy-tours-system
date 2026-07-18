@@ -1393,11 +1393,11 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
     );
 
     const resetCurrentActivity = () => {
-        setTimeslots([]);
         setSelectedSlot(null);
         setPricing(null);
         setPricingMode(PRICING_MODES.STANDARD);
         setPaxGroups([]);
+        lastPricingKeyRef.current = '';
         setPromoCode(null);
         setPromotionId(null);
         setDiscountId(null);
@@ -1443,6 +1443,9 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
         adults: Number(data.adults || 0),
         children: Number(data.children || 0),
         guides: Number(data.guides || 0),
+        base_per_adult: Number(data.base_per_adult || 0),
+        base_per_child: Number(data.base_per_child || 0),
+        base_per_guide: Number(data.base_per_guide || 0),
         rate_per_adult: Number(data.rate_per_adult || 0),
         rate_per_child: Number(data.rate_per_child || 0),
         rate_per_guide: Number(data.rate_per_guide || 0),
@@ -1519,11 +1522,71 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
         setActivityItems(prev => prev.filter(item => item.client_id !== clientId));
     };
 
+    const buildPaxGroupsForActivity = (item) => {
+        const baseRates = {
+            adult: Number(item.base_per_adult || item.rate_per_adult || 0),
+            child: Number(item.base_per_child || item.rate_per_child || 0),
+            guide: Number(item.base_per_guide || item.rate_per_guide || 0),
+        };
+
+        if (item.promoCode || item.invoice_discount_id || item.is_wholesaler) {
+            return buildBasePaxGroups(
+                Number(item.adults || 0),
+                Number(item.children || 0),
+                Number(item.guides || 0),
+                baseRates
+            );
+        }
+
+        return Array.isArray(item.pax_groups) && item.pax_groups.length > 0
+            ? item.pax_groups
+            : buildBasePaxGroups(
+                Number(item.adults || 0),
+                Number(item.children || 0),
+                Number(item.guides || 0),
+                baseRates
+            );
+    };
+
+    const recalculateActivityItemsForSubmit = async (items) => {
+        const recalculatedItems = [];
+
+        for (const item of items) {
+            if (item.override_rates) {
+                recalculatedItems.push(item);
+                continue;
+            }
+
+            const response = await axios.post(route("admin.booking.calculate"), {
+                service_id: item.service_id,
+                season_id: item.season_id,
+                wholesaler_id: item.is_wholesaler ? (item.wholesaler_id || null) : null,
+                booking_date: item.booking_date,
+                promo_code: item.promoCode || null,
+                invoice_discount_id: item.invoice_discount_id || null,
+                pax_groups: buildPaxGroupsForActivity(item),
+            });
+
+            recalculatedItems.push({
+                ...item,
+                booking_total: Number(response.data?.total_price || 0),
+                rate_per_adult: Number(response.data?.applied_rates?.adult ?? item.rate_per_adult ?? 0),
+                rate_per_child: Number(response.data?.applied_rates?.child ?? item.rate_per_child ?? 0),
+                rate_per_guide: Number(response.data?.applied_rates?.guide ?? item.rate_per_guide ?? 0),
+                pax_groups: response.data?.line_items || item.pax_groups || [],
+                pricing: response.data || item.pricing || null,
+                discount_lines: response.data?.discount_lines || item.discount_lines || [],
+            });
+        }
+
+        return recalculatedItems;
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         const currentActivityIsComplete = hasCompleteCurrentActivity();
         const currentActivityHasInput = hasCurrentActivityInput();
-        const activitiesForSubmit = [
+        let activitiesForSubmit = [
             ...activityItems,
             ...(currentActivityIsComplete ? [buildCurrentActivityItem()] : []),
         ];
@@ -1541,6 +1604,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
         let invoiceDiscountIdToSend = data.invoice_discount_id || null;
         try {
             if (hasSavedActivities) {
+                activitiesForSubmit = await recalculateActivityItemsForSubmit(activitiesForSubmit);
                 serverCalculatedTotal = activitiesForSubmit.reduce((sum, item) => sum + Number(item.booking_total || 0), 0);
             }
             const invoiceDiscountId = pricing?.applied_discounts?.find(d => d.applied_to === 'invoice')?.id ?? null;
