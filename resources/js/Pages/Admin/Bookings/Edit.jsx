@@ -232,7 +232,8 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
         ).filter(Boolean)
         : (wholesalers || []);
     const hasWholesalers = Array.isArray(serviceWholesalers) && serviceWholesalers.length > 0;
-    const hasPromo = !!promoCode;
+    const activePromoCode = promoCode || data.promoCode || null;
+    const hasPromo = !!activePromoCode;
     const hasDiscountSelection = !!discountId;
     const hasInvoiceDiscount = !!pricing?.applied_discounts?.some(d => d.applied_to === 'invoice');
     const invoiceDiscountFromPricing = pricing?.applied_discounts?.find(d => d.applied_to === 'invoice')?.id ?? null;
@@ -425,11 +426,12 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
         const season_id = selectedSeason ? selectedSeason?.id : (alert('Please select a season'));
         const wholesaler_id = data.wholesaler_id || null;
         const booking_date = data.booking_date ? data.booking_date : (alert('Please select a date'));
-        const promo_code = type === 'promo' ? (promoCode || null) : null;
+        const currentPromoCode = promoCode || data.promoCode || null;
+        const promo_code = type === 'promo' ? currentPromoCode : null;
         const pax_groups = paxGroupsOverride || paxGroups || (alert('Please select a pax group'));
         const shouldUsePromotionId = type === 'promo'
             && promotionId
-            && (!promoCode || promoCode === initialPromoCodeRef.current);
+            && (!currentPromoCode || currentPromoCode === initialPromoCodeRef.current);
         if (!selectedService || !selectedSeason || !data.booking_date || !data.start_time) return;
         if ((Number(data.adults || 0) + Number(data.children || 0)) < 1) return;
 
@@ -506,8 +508,8 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
         if (!selectedService || !selectedSeason || !data.booking_date || !data.start_time) return;
         if ((Number(data.adults || 0) + Number(data.children || 0)) < 1) return;
 
-        if (promoCode || promotionId) {
-            const promoKey = promoCode || promotionId;
+        if (activePromoCode || promotionId) {
+            const promoKey = activePromoCode || promotionId;
             const key = `promo|${promoKey}|${data.adults}|${data.children}|${data.guides}|${data.booking_date}|${data.start_time}`;
             if (lastPricingKeyRef.current !== key) {
                 lastPricingKeyRef.current = key;
@@ -560,7 +562,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
             }
         }
     }, [
-        promoCode,
+        activePromoCode,
         paxGroups,
         data.adults,
         data.children,
@@ -749,6 +751,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
         }
 
         setPromoCode(selectedPromoCode);
+        setPromotionId(promo?.id || null);
         setData("promoCode", selectedPromoCode);
         handlePromoModalClose();
         return true;
@@ -1635,20 +1638,41 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
             const invoiceDiscountId = pricing?.applied_discounts?.find(d => d.applied_to === 'invoice')?.id ?? null;
             invoiceDiscountIdToSend = invoiceDiscountId || invoiceDiscountIdToSend;
             const hasLineDiscounts = paxGroups.some(g => g.discount_id);
-            const shouldRecalc = Boolean(data.is_wholesaler || promoCode || promotionId || invoiceDiscountIdToSend || hasLineDiscounts || pricing?.applied_promotion);
+            const currentPromoCode = promoCode || data.promoCode || null;
+            const shouldRecalc = Boolean(data.is_wholesaler || currentPromoCode || promotionId || invoiceDiscountIdToSend || hasLineDiscounts || pricing?.applied_promotion);
             if (shouldRecalc) {
-                const calcType = (promoCode || promotionId) ? 'promo' : data.is_wholesaler ? 'saler' : (invoiceDiscountIdToSend || hasLineDiscounts) ? 'discount' : 'base';
-                const result = await handleCalculate(calcType, paxGroups, invoiceDiscountIdToSend);
+                const calcType = (currentPromoCode || promotionId) ? 'promo' : data.is_wholesaler ? 'saler' : (invoiceDiscountIdToSend || hasLineDiscounts) ? 'discount' : 'base';
+                const groupsForSubmit = calcType === 'promo'
+                    ? buildBasePaxGroups(
+                        Number(data.adults || 0),
+                        Number(data.children || 0),
+                        Number(data.guides || 0),
+                        {
+                            adult: Number(data.base_per_adult || data.rate_per_adult || 0),
+                            child: Number(data.base_per_child || data.rate_per_child || 0),
+                            guide: Number(data.base_per_guide || data.rate_per_guide || 0),
+                        }
+                    )
+                    : paxGroups;
+                const result = await handleCalculate(calcType, groupsForSubmit, invoiceDiscountIdToSend);
                 serverCalculatedTotal = Number(result?.total_price ?? 0) || null;
+                if (!serverCalculatedTotal) {
+                    showToast('Pricing recalculation failed. Please recalculate the totals and try again.', 'error');
+                    return;
+                }
             }
         } catch (err) {
             console.error(err);
+            showToast('Pricing recalculation failed. Please recalculate the totals and try again.', 'error');
+            return;
         }
 
         const discountLinesPayload = buildDiscountLinesPayload(paxGroups);
+        const currentPromoCode = promoCode || data.promoCode || null;
         const submitPayload = {
             ...data,
             booking_item_id: booking_items?.id || data.booking_item_id,
+            promoCode: currentPromoCode,
             booking_total: serverCalculatedTotal ?? data.booking_total,
             invoice_discount_id: invoiceDiscountIdToSend,
             discount_lines: discountLinesPayload,
@@ -2311,7 +2335,14 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
                                                 title="Promo Code"
                                                 name="promo_code"
                                                 value={promoCode}
-                                                onChange={(e) => setPromoCode(e.target.value)}
+                                                onChange={(e) => {
+                                                    const nextPromoCode = e.target.value;
+                                                    setPromoCode(nextPromoCode);
+                                                    setData('promoCode', nextPromoCode);
+                                                    if (nextPromoCode !== initialPromoCodeRef.current) {
+                                                        setPromotionId(null);
+                                                    }
+                                                }}
                                             />
                                             <div className="flex items-center gap-2 mt-3">
                                                 {!pricing?.applied_promotion && (
