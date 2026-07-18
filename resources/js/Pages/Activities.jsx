@@ -291,13 +291,17 @@ export default function ActivitySchedulePage({ activity, auth, team, activityId,
                   )}
                   <CustomInputText
                     title="Promo code"
-                    id="promoCode"
-                    name="promoCode"
+                    id="front_activity_promo_lookup"
+                    name="front_activity_promo_lookup"
                     value={promoCode}
                     onChange={(e) => {
                       setPromoCode(e.target.value);
                       setSelectedPromo(null);
                     }}
+                    autoComplete="new-password"
+                    autoCorrect="off"
+                    autoCapitalize="characters"
+                    spellCheck={false}
                   />
                   <button
                     type="button"

@@ -2333,7 +2333,8 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
                                         <div className="flex flex-none items-center gap-2">
                                             <CustomInputText
                                                 title="Promo Code"
-                                                name="promo_code"
+                                                id="admin_edit_promo_lookup"
+                                                name="admin_edit_promo_lookup"
                                                 value={promoCode}
                                                 onChange={(e) => {
                                                     const nextPromoCode = e.target.value;
@@ -2343,6 +2344,10 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
                                                         setPromotionId(null);
                                                     }
                                                 }}
+                                                autoComplete="new-password"
+                                                autoCorrect="off"
+                                                autoCapitalize="characters"
+                                                spellCheck={false}
                                             />
                                             <div className="flex items-center gap-2 mt-3">
                                                 {!pricing?.applied_promotion && (
