@@ -464,6 +464,7 @@ class SeedCoreData extends Command
             ['id' => 5, 'name' => 'checkin'],
             ['id' => 6, 'name' => 'booking_voucher'],
             ['id' => 7, 'name' => 'signature'],
+            ['id' => 8, 'name' => 'invoice_quote_icon'],
         ];
         foreach ($type_files as $type_file) {
             TypeFile::updateOrCreate(['id' => $type_file['id']], $type_file);

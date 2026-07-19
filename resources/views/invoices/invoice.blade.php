@@ -18,7 +18,7 @@
         .center { text-align: center; }
         .mt-1 { margin-top: 6px; }
         .mt-2 { margin-top: 12px; }
-        .logo img { max-height: 50px; }
+        .logo img { max-height: 105px; max-width: 100%; }
         .title {
             font-size: 18pt;
             color: #BBBBBB;
@@ -41,7 +41,9 @@
     <table>
         <tr>
             <td class="logo" style="width:60%;">
-                @if(!empty($file_logo))
+                @if(!empty($invoice_quote_icon))
+                    <img src="{{ public_path($invoice_quote_icon) }}" alt="Invoice/Quote Logo">
+                @elseif(!empty($file_logo))
                     <img src="{{ public_path($file_logo) }}" alt="Logo">
                 @endif
             </td>
@@ -69,8 +71,21 @@
                     <tr>
                         <td class="border">
                             {{ $site['name'] ?? '' }}<br>
-                            {{ $site['address'] ?? '' }}<br>
-                            {{ $site['address_code'] ?? '' }}
+                            @forelse(($site['address_lines'] ?? []) as $addressLine)
+                                {{ $addressLine }}<br>
+                            @empty
+                                {{ $site['address'] ?? '' }}<br>
+                                {{ $site['address_code'] ?? '' }}<br>
+                            @endforelse
+                            @if(!empty($site['telephone']))
+                                Tel: {{ $site['telephone'] }}<br>
+                            @endif
+                            @if(!empty($site['email']))
+                                Email: {{ $site['email'] }}<br>
+                            @endif
+                            @if(!empty($site['website_url']))
+                                {{ $site['website_url'] }}
+                            @endif
                         </td>
                         <td class="border">
                             {{ $client['name'] ?? '' }}<br>

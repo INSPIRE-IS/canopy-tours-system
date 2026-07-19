@@ -40,7 +40,7 @@ class TeamController extends Controller
         $sortDirection = $request->get('direction', 'asc');
         /** @var \App\Models\User $user */
         $teamId = Session::get('team_id');
-        $teams = Team::with('owner', 'file_image', 'file_logo') // with(['owner'])
+        $teams = Team::with('owner', 'file_image', 'file_logo', 'file_invoice_quote_icon') // with(['owner'])
             ->where('name', 'like', '%' . $searchTerm . '%')
             ->orderBy($sortColumn, $sortDirection)
             ->paginate(10);
@@ -166,6 +166,21 @@ class TeamController extends Controller
             ]);
         }
 
+        if ($request->hasFile('invoice_quote_icon') && $team) {
+            $uploaded = $request->file('invoice_quote_icon');
+            $path = $uploaded->store("teams/{$team->id}", 'public');
+
+            File::create([
+                'team_id' => auth()->user()->team_id,
+                'table_name' => 'teams',
+                'table_row_id' => $team->id,
+                'file_name' => $uploaded->getClientOriginalName(),
+                'file_type' => $uploaded->getMimeType(),
+                'type_file_id' => 8,
+                'path' => $path,
+            ]);
+        }
+
         return response()->json([
             'success' => true,
             'error' => 'none',
@@ -241,6 +256,28 @@ class TeamController extends Controller
                 'file_name' => $uploaded->getClientOriginalName(),
                 'file_type' => $uploaded->getMimeType(),
                 'type_file_id' => 2,
+                'path' => $path,
+            ]);
+        }
+
+        if ($request->hasFile('invoice_quote_icon')) {
+            $uploaded = $request->file('invoice_quote_icon');
+            $path = $uploaded->store("teams/{$team->id}", 'public');
+
+            optional(
+                File::where('table_name', 'teams')
+                    ->where('table_row_id', $team->id)
+                    ->where('type_file_id', 8)
+                    ->first()
+            )?->delete();
+
+            File::create([
+                'team_id' => auth()->user()->team_id,
+                'table_name' => 'teams',
+                'table_row_id' => $team->id,
+                'file_name' => $uploaded->getClientOriginalName(),
+                'file_type' => $uploaded->getMimeType(),
+                'type_file_id' => 8,
                 'path' => $path,
             ]);
         }

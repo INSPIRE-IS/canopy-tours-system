@@ -11,18 +11,104 @@ use App\Models\Email;
 use App\Models\AuditLog;
 use App\Models\Invoice;
 use App\Models\InvoiceTemplate;
+use App\Models\Team;
 use App\Models\TypeInvoice;
 use App\Services\RendererService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use App\Models\File;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Spatie\Browsershot\Browsershot;
 
 class InvoiceController extends Controller
 {
+    public function previewTeam(Team $team)
+    {
+        abort_if(Gate::denies('teams_show'), 403);
+
+        $team->loadMissing('file_logo', 'file_invoice_quote_icon');
+
+        $logoPath = $this->normalizePublicStoragePath($team->file_logo?->getRawOriginal('path'));
+        $invoiceQuoteIconPath = $this->normalizePublicStoragePath($team->file_invoice_quote_icon?->getRawOriginal('path')) ?: $logoPath;
+        $addressLines = array_values(array_filter([
+            $team->address_line_1 ?: ($team->address ?: 'PO Box / Street Address Placeholder'),
+            $team->address_line_2,
+            $team->city ?: 'City Placeholder',
+            $team->postal_code ?: ($team->address_code ?: 'Postal Code Placeholder'),
+        ]));
+        $bankName = trim(implode(' - ', array_filter([
+            $team->bank_name ?: 'Bank Name Placeholder',
+            $team->bank_branch_name,
+        ])));
+
+        $total = 2400.00;
+        $amountExVat = round($total / 1.15, 2);
+
+        $data = [
+            'document' => [
+                'label' => 'Quote',
+                'number_label' => 'Quote #',
+            ],
+            'site' => [
+                'name' => $team->full_name ?: ($team->name ?: 'Site Name Placeholder'),
+                'reg_no' => $team->reg_no ?: 'Reg No Placeholder',
+                'vat_no' => $team->vat_no ?: 'VAT No Placeholder',
+                'address_lines' => $addressLines,
+                'telephone' => $team->telephone ?: 'Telephone Placeholder',
+                'email' => $team->email ?: 'email@example.com',
+                'website_url' => $team->website_url ?: 'www.example.com',
+                'invoice_note' => $team->invoice_note ?: 'Cancellation policy / invoice note placeholder.',
+            ],
+            'client' => [
+                'name' => 'Attention / Group Name Placeholder',
+                'phone' => 'Client Telephone Placeholder',
+                'email' => 'client@example.com',
+            ],
+            'invoice' => [
+                'number' => 'PREVIEW',
+                'date' => now()->toDateString(),
+            ],
+            'booking' => [
+                'ref' => 'REF-PREVIEW',
+            ],
+            'services' => [
+                [
+                    'name' => 'Sample Activity / Service',
+                    'date' => now()->toDateString(),
+                    'time' => '09:00',
+                    'adults' => 2,
+                    'children' => 1,
+                    'guides' => 0,
+                    'total' => $total,
+                ],
+            ],
+            'file_logo' => $logoPath ?: 'images/logo.png',
+            'invoice_quote_icon' => $invoiceQuoteIconPath ?: ($logoPath ?: 'images/logo.png'),
+            'amount_ex_vat' => $amountExVat,
+            'vat' => round($total - $amountExVat, 2),
+            'vat_amount' => $total,
+            'amount_paid' => 0,
+            'balance_due' => $total,
+            'notes' => 'Booking invoice note placeholder.',
+            'bank' => [
+                'owner' => $team->account_owner ?: 'Account Name Placeholder',
+                'number' => $team->account_number ?: 'Account Number Placeholder',
+                'type' => $team->account_type ?: 'Account Type Placeholder',
+                'name' => $bankName,
+                'branch_name' => $team->bank_branch_name,
+                'branch_code' => $team->branch_code ?: 'Branch Code Placeholder',
+            ],
+        ];
+
+        return Pdf::loadView('invoices.invoice', $data)
+            ->setPaper('A4', 'portrait')
+            ->stream("site-invoice-preview-{$team->id}.pdf");
+    }
+
     public function preview(Request $request)
     {
         $data = $request->all(); // booking form draft
@@ -197,6 +283,30 @@ class InvoiceController extends Controller
         }
 
         return $html;
+    }
+
+    private function normalizePublicStoragePath(?string $path): ?string
+    {
+        if (!$path) {
+            return null;
+        }
+
+        if (Str::startsWith($path, ['http://', 'https://'])) {
+            $parsedPath = parse_url($path, PHP_URL_PATH);
+            if (is_string($parsedPath) && str_contains($parsedPath, '/storage/')) {
+                return ltrim($parsedPath, '/');
+            }
+
+            return null;
+        }
+
+        $path = ltrim($path, '/');
+
+        if (Str::startsWith($path, ['storage/', 'images/'])) {
+            return $path;
+        }
+
+        return 'storage/' . $path;
     }
 
     public function resend_invoice($booking_id)

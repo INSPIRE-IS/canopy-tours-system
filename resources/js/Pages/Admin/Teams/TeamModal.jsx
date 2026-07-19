@@ -12,6 +12,7 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams, permissions = {}
     // console.log("teams", teams);
     const [logo, setLogo] = useState(null);
     const [image, setImage] = useState(null);
+    const [invoiceQuoteIcon, setInvoiceQuoteIcon] = useState(null);
 
     const canEditGateways = !!permissions?.gateways_edit;
     const isAdminUser = !!user?.is_admin || user?.roles?.some((role) => role?.id === 1);
@@ -30,11 +31,19 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams, permissions = {}
         color: "",
         reg_no: "",
         address: "",
+        address_line_1: "",
+        address_line_2: "",
+        city: "",
+        postal_code: "",
         address_code: "",
+        telephone: "",
+        email: "",
+        website_url: "",
         account_owner: "",
         account_number: "",
         account_type: "",
         bank_name: "",
+        bank_branch_name: "",
         branch_code: "",
         is_published: true,
         invoice_note: "",
@@ -61,11 +70,19 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams, permissions = {}
                 color: team.color || "",
                 reg_no: team.reg_no || "",
                 address: team.address || "",
+                address_line_1: team.address_line_1 || "",
+                address_line_2: team.address_line_2 || "",
+                city: team.city || "",
+                postal_code: team.postal_code || "",
                 address_code: team.address_code || "",
+                telephone: team.telephone || "",
+                email: team.email || "",
+                website_url: team.website_url || "",
                 account_owner: team.account_owner || "",
                 account_number: team.account_number || "",
                 account_type: team.account_type || "",
                 bank_name: team.bank_name || "",
+                bank_branch_name: team.bank_branch_name || "",
                 branch_code: team.branch_code || "",
                 is_published: team.is_published ?? true,
                 invoice_note: team.invoice_note || "",
@@ -85,6 +102,7 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams, permissions = {}
         }
         setLogo(null);
         setImage(null);
+        setInvoiceQuoteIcon(null);
         setReplacePayfastMerchantKey(false);
         setReplacePayfastPassphrase(false);
     }, [mode, team]);
@@ -92,6 +110,11 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams, permissions = {}
     const handleChange = (target, value) => {
         setData(target, value);
         //setData("name", e.target.value);
+    };
+
+    const handlePreviewInvoiceQuote = () => {
+        if (!team?.id) return;
+        window.open(route("admin.teams.invoice-preview", team.id), "_blank", "noopener,noreferrer");
     };
 
     const handleSubmit = (e) => {
@@ -114,11 +137,19 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams, permissions = {}
         formData.append('color', data.color);
         formData.append('reg_no', data.reg_no);
         formData.append('address', data.address);
+        formData.append('address_line_1', data.address_line_1);
+        formData.append('address_line_2', data.address_line_2);
+        formData.append('city', data.city);
+        formData.append('postal_code', data.postal_code);
         formData.append('address_code', data.address_code);
+        formData.append('telephone', data.telephone);
+        formData.append('email', data.email);
+        formData.append('website_url', data.website_url);
         formData.append('account_owner', data.account_owner);
         formData.append('account_number', data.account_number);
         formData.append('account_type', data.account_type);
         formData.append('bank_name', data.bank_name);
+        formData.append('bank_branch_name', data.bank_branch_name);
         formData.append('branch_code', data.branch_code);
         if (canPublishSite) {
             formData.append('is_published', data.is_published ? 1 : 0);
@@ -151,6 +182,9 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams, permissions = {}
         }
         if (image) {
             formData.append('image', image);
+        }
+        if (invoiceQuoteIcon) {
+            formData.append('invoice_quote_icon', invoiceQuoteIcon);
         }
 
         for (let pair of formData.entries()) {
@@ -201,11 +235,21 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams, permissions = {}
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
             <div className="bg-white rounded-lg shadow-lg p-6 w-[50%] h-[98%] overflow-y-auto">
-                <h2 className="text-xl font-bold mb-4">
-                    {mode === "create" && "Create Site"}
-                    {mode === "edit" && "Edit Site"}
-                    {mode === "view" && "View Site"}
-                </h2>
+                <div className="flex items-center justify-between gap-4 mb-4">
+                    <h2 className="text-xl font-bold">
+                        {mode === "create" && "Create Site"}
+                        {mode === "edit" && "Edit Site"}
+                        {mode === "view" && "View Site"}
+                    </h2>
+                    {mode !== "create" && team?.id && (
+                        <OutlineButton
+                            title="Preview Invoice/Quote"
+                            width="w-[220px]"
+                            onClick={handlePreviewInvoiceQuote}
+                            props={{ type: "button" }}
+                        />
+                    )}
+                </div>
                 <form onSubmit={handleSubmit}>
 
 
@@ -270,7 +314,7 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams, permissions = {}
                         /> */}
 
                         <InputText
-                            title="Address"
+                            title="Legacy Address"
                             field="address"
                             value={data.address}
                             mode={mode}
@@ -280,6 +324,40 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams, permissions = {}
                     </div>
                     <div className="flex flex-row w-full items-center gap-2 justify-start mb-4">
                         <InputText
+                            title="Address Line 1"
+                            field="address_line_1"
+                            value={data.address_line_1}
+                            mode={mode}
+                            handleChange={handleChange}
+                            errors={errors}
+                        />
+                        <InputText
+                            title="Address Line 2"
+                            field="address_line_2"
+                            value={data.address_line_2}
+                            mode={mode}
+                            handleChange={handleChange}
+                            errors={errors}
+                        />
+                    </div>
+                    <div className="flex flex-row w-full items-center gap-2 justify-start mb-4">
+                        <InputText
+                            title="City"
+                            field="city"
+                            value={data.city}
+                            mode={mode}
+                            handleChange={handleChange}
+                            errors={errors}
+                        />
+                        <InputText
+                            title="Postal Code"
+                            field="postal_code"
+                            value={data.postal_code}
+                            mode={mode}
+                            handleChange={handleChange}
+                            errors={errors}
+                        />
+                        <InputText
                             title="Address Code"
                             field="address_code"
                             value={data.address_code}
@@ -287,6 +365,8 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams, permissions = {}
                             handleChange={handleChange}
                             errors={errors}
                         />
+                    </div>
+                    <div className="flex flex-row w-full items-center gap-2 justify-start mb-4">
                         <InputText
                             title="Reg No"
                             field="reg_no"
@@ -299,6 +379,33 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams, permissions = {}
                             title="Vat No"
                             field="vat_no"
                             value={data.vat_no}
+                            mode={mode}
+                            handleChange={handleChange}
+                            errors={errors}
+                        />
+                    </div>
+                    <div className="flex flex-row w-full items-center gap-2 justify-start mb-4">
+                        <InputText
+                            title="Telephone"
+                            field="telephone"
+                            value={data.telephone}
+                            mode={mode}
+                            handleChange={handleChange}
+                            errors={errors}
+                        />
+                        <InputText
+                            title="Email"
+                            field="email"
+                            value={data.email}
+                            type="email"
+                            mode={mode}
+                            handleChange={handleChange}
+                            errors={errors}
+                        />
+                        <InputText
+                            title="Website"
+                            field="website_url"
+                            value={data.website_url}
                             mode={mode}
                             handleChange={handleChange}
                             errors={errors}
@@ -337,6 +444,14 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams, permissions = {}
                             title="Bank Name"
                             field="bank_name"
                             value={data.bank_name}
+                            mode={mode}
+                            handleChange={handleChange}
+                            errors={errors}
+                        />
+                        <InputText
+                            title="Bank Branch Name"
+                            field="bank_branch_name"
+                            value={data.bank_branch_name}
                             mode={mode}
                             handleChange={handleChange}
                             errors={errors}
@@ -469,7 +584,7 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams, permissions = {}
                             </div>
                         </>
                     )}
-                    <label className="block font-semibold mb-1">Site/Invoice/Quote Icon</label>
+                    <label className="block font-semibold mb-1">Site Icon</label>
                     <span className="border-bottom border-[1px] border-black flex flex-row w-full items-center gap-2 justify-start mb-4">
 
                     </span>
@@ -498,8 +613,26 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams, permissions = {}
                         </div>
                     )}
                     <div className="flex flex-row w-full items-center gap-2 justify-start mb-4">
-                        <label className="block font-semibold mb-1">Upload New Logo (optional)</label>
+                        <label className="block font-semibold mb-1">Upload New Site Icon (optional)</label>
                         <input type="file" onChange={e => setLogo(e.target.files[0])} />
+                    </div>
+                    <label className="block font-semibold mb-1">Invoice/Quote Icon</label>
+                    <span className="border-bottom border-[1px] border-black flex flex-row w-full items-center gap-2 justify-start mb-4">
+
+                    </span>
+                    {mode !== "create" && team?.file_invoice_quote_icon?.path && (
+                        <div className="flex flex-row w-full items-center gap-2 justify-start mb-4">
+                            <label className="block font-semibold mb-1">Current Invoice/Quote Icon</label>
+                            <img
+                                src={`/storage/${team?.file_invoice_quote_icon.path}`}
+                                alt={team?.file_invoice_quote_icon.file_name}
+                                className="w-full max-w-[420px] h-auto rounded shadow"
+                            />
+                        </div>
+                    )}
+                    <div className="flex flex-row w-full items-center gap-2 justify-start mb-4">
+                        <label className="block font-semibold mb-1">Upload New Invoice/Quote Icon (optional)</label>
+                        <input type="file" onChange={e => setInvoiceQuoteIcon(e.target.files[0])} />
                     </div>
                     <label className="block font-semibold mb-1">Site Main Image</label>
                     <span className="border-bottom border-[1px] border-black flex flex-row w-full items-center gap-2 justify-start mb-4">

@@ -28,11 +28,19 @@ class Team extends Model
         'color',
         'reg_no',
         'address',
+        'address_line_1',
+        'address_line_2',
+        'city',
+        'postal_code',
         'address_code',
+        'telephone',
+        'email',
+        'website_url',
         'account_owner',
         'account_number',
         'account_type',
         'bank_name',
+        'bank_branch_name',
         'branch_code',
         'is_published',
         'invoice_note',
@@ -66,6 +74,11 @@ class Team extends Model
     public function file_image()
     {
         return $this->hasOne(File::class, 'table_row_id')->where('table_name', 'teams')->where('type_file_id', 2);
+    }
+
+    public function file_invoice_quote_icon()
+    {
+        return $this->hasOne(File::class, 'table_row_id')->where('table_name', 'teams')->where('type_file_id', 8);
     }
 
     public function team()
