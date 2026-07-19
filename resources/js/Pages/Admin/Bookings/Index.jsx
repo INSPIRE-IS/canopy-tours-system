@@ -1324,17 +1324,25 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                                                                         </td>
                                                                         <td className="w-[185px] p-3">
                                                                             <div className="flex flex-col lg:flex-row lg:items-center gap-2">
-                                                                                <button
-                                                                                    type="button"
-                                                                                    onClick={() => router.get(route('admin.bookings.add', {
-                                                                                        booking: booking.id,
-                                                                                        booking_item_id: booking.booking_item_id,
-                                                                                    }))}
-                                                                                    className={`btn-tool ${booking.is_cancelled ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                                                                    disabled={booking.is_cancelled}
-                                                                                >
-                                                                                    {icons.eye} View
-                                                                                </button>
+                                                                                {booking.is_cancelled ? (
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        className="btn-tool opacity-50 cursor-not-allowed"
+                                                                                        disabled
+                                                                                    >
+                                                                                        {icons.eye} View
+                                                                                    </button>
+                                                                                ) : (
+                                                                                    <a
+                                                                                        href={route('admin.bookings.add', {
+                                                                                            booking: booking.id,
+                                                                                            booking_item_id: booking.booking_item_id,
+                                                                                        })}
+                                                                                        className="btn-tool"
+                                                                                    >
+                                                                                        {icons.eye} View
+                                                                                    </a>
+                                                                                )}
                                                                                 <div
                                                                                     className="relative"
                                                                                     onClick={() =>
@@ -1387,7 +1395,7 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                                                                                     }, booking?.customers?.[0], `${row.key}-${index}`)}
                                                                                     className="btn-tool"
                                                                                 >
-                                                                                    {icons.tools} Tools
+                                                                                    {icons.tools} Customer Tools
                                                                                 </button>
                                                                             </div>
                                                                         </td>
@@ -1534,26 +1542,24 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                                                 </div>
                                             </div>
                                             <div className="flex flex-wrap gap-2">
-                                                <button
-                                                    type="button"
+                                                <a
                                                     className="btn-tool"
-                                                    onClick={() => router.get(route('admin.bookings.add', {
+                                                    href={route('admin.bookings.add', {
                                                         booking: activity.id,
                                                         booking_item_id: activity.booking_item_id,
-                                                    }))}
+                                                    })}
                                                 >
                                                     {icons.eye} View
-                                                </button>
-                                                <button
-                                                    type="button"
+                                                </a>
+                                                <a
                                                     className="btn-tool"
-                                                    onClick={() => router.get(route('admin.bookings.edit', {
+                                                    href={route('admin.bookings.edit', {
                                                         booking: activity.id,
                                                         booking_item_id: activity.booking_item_id,
-                                                    }))}
+                                                    })}
                                                 >
                                                     Edit
-                                                </button>
+                                                </a>
                                             </div>
                                         </div>
                                     </div>

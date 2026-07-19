@@ -57,6 +57,15 @@ export default function CustomerToolsModal({ index, booking, customer, position,
     const visibleButtons = Array.isArray(allowedTools) && allowedTools.length > 0
         ? toolButtons.filter((btn) => allowedTools.includes(btn.id))
         : toolButtons;
+    const bookingEditHref = booking?.id
+        ? route('admin.bookings.edit', {
+            booking: booking.id,
+            booking_item_id: booking.booking_item_id,
+        })
+        : null;
+    const addPaymentHref = booking?.id
+        ? route('admin.booking-payments.create', booking.id)
+        : null;
 
     return (
         <div
@@ -71,16 +80,42 @@ export default function CustomerToolsModal({ index, booking, customer, position,
                 </div>
 
                 <div className="flex flex-col gap-2">
-                    {visibleButtons.map((btn) => (
-                        <button
-                            key={btn.id}
-                            type="button"
-                            onClick={() => CustomerToolClick(btn.id, index, booking, customer)}
-                            className={btn.className}
-                        >
-                            {btn.icon} {btn.label}
-                        </button>
-                    ))}
+                    {visibleButtons.map((btn) => {
+                        if (btn.id === 'edit_booking' && bookingEditHref) {
+                            return (
+                                <a
+                                    key={btn.id}
+                                    href={bookingEditHref}
+                                    className={btn.className}
+                                >
+                                    {btn.icon} {btn.label}
+                                </a>
+                            );
+                        }
+
+                        if (btn.id === 'add_payment' && addPaymentHref) {
+                            return (
+                                <a
+                                    key={btn.id}
+                                    href={addPaymentHref}
+                                    className={btn.className}
+                                >
+                                    {btn.icon} {btn.label}
+                                </a>
+                            );
+                        }
+
+                        return (
+                            <button
+                                key={btn.id}
+                                type="button"
+                                onClick={() => CustomerToolClick(btn.id, index, booking, customer)}
+                                className={btn.className}
+                            >
+                                {btn.icon} {btn.label}
+                            </button>
+                        );
+                    })}
                     {/* <button type="button" onClick={() => BookingToolClick('remove_resource', booking)} className="btn-tool">{icons.remove_resource} Remove Resources</button> */}
 
                     {/* <button type='button' onClick={() => CustomerToolClick('customer_invoice', index, booking, customer)} className="btn-tool">{icons.customer_invoice} Customer Invoice</button>
