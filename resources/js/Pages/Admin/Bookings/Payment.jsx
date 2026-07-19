@@ -26,7 +26,7 @@ export default function Dashboard({ auth, booking, payment_history = [], booking
     // We currently keep certain legacy/unused options seeded in the DB, but hide them in the admin UI.
     // This avoids breaking existing records while keeping the payment screen simple.
     const hiddenPayOptionSlugs = new Set(['split_payments']);
-    const hiddenPaymentMethodSlugs = new Set(['masterpass', 'paypal', 'snapscan', 'zapper']);
+    const hiddenPaymentMethodSlugs = new Set(['masterpass', 'paypal', 'snapscan', 'zapper', 'voucher']);
 
     const visiblePayOptions = payOptionList.filter((option) => {
         const slug = (option.slug || '').toLowerCase();
@@ -43,7 +43,18 @@ export default function Dashboard({ auth, booking, payment_history = [], booking
     const vatRate = Number(vatLookup.rate || 0);
     const vatMultiplier = Number(vatLookup.multiplier || (1 + vatRate));
     const paymentHistory = Array.isArray(payment_history) ? payment_history : [];
+    const bookingItems = Array.isArray(booking?.booking_items) ? booking.booking_items : [];
     const formatMoney = (value) => `R${Number(value || 0).toFixed(2)}`;
+    const formatDate = (value) => {
+        if (!value) return '-';
+        const dateOnly = String(value).split(' ')[0];
+        return dateOnly || '-';
+    };
+    const formatTime = (item) => {
+        const rawTime = item?.booking_inventory?.inventory_time_slot?.start_time;
+        return rawTime ? String(rawTime).slice(0, 5) : '-';
+    };
+    const activityTotal = (item) => Number(item?.booking_fee?.tot_amount ?? 0);
     const calculateVatFields = (total) => {
         const paymentTotal = Number(total || 0);
         const exVat = vatMultiplier > 0 ? paymentTotal / vatMultiplier : paymentTotal;
@@ -79,6 +90,7 @@ export default function Dashboard({ auth, booking, payment_history = [], booking
     });
 
     const [showPayLinkModal, setShowPayLinkModal] = useState(false);
+    const [showEditBookingModal, setShowEditBookingModal] = useState(false);
     const [payLinkSending, setPayLinkSending] = useState(false);
     const [showRefundModal, setShowRefundModal] = useState(false);
     const [refundProcessing, setRefundProcessing] = useState(false);
@@ -118,6 +130,23 @@ export default function Dashboard({ auth, booking, payment_history = [], booking
     const requiresShortPaymentNote = isAdjustedPayment;
     const requiresAdditionalPaymentNote = hasAdditionalPayment;
     const leadEmail = booking?.customer?.email_address || booking?.lead_email || '';
+    const goToBookingEdit = (bookingItemId = null) => {
+        const params = bookingItemId
+            ? { booking: booking.id, booking_item_id: bookingItemId, return_to_payment: 1 }
+            : { booking: booking.id, return_to_payment: 1 };
+
+        router.get(route('admin.bookings.edit', params));
+    };
+
+    const handleEditBookingPrice = () => {
+        if (bookingItems.length <= 1) {
+            goToBookingEdit(bookingItems[0]?.id);
+            return;
+        }
+
+        setShowEditBookingModal(true);
+    };
+
     useEffect(() => {
         if (flash?.success) {
             showToast(flash.success, "success");
@@ -447,16 +476,7 @@ export default function Dashboard({ auth, booking, payment_history = [], booking
                                 </div>
 
                             </div>
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 ">
-                                <CustomInputText
-                                    title="Voucher Code"
-                                    name="voucher_code"
-                                    type='text'
-                                    value={data.voucher_code}
-                                    onChange={(e) => { handleChange(e.target.name, e.target.value) }}
-                                    errors={errors}
-                                />
-
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 ">
                                 <CustomInputText
                                     title="Redeemer Name"
                                     name="redeemer_name"
@@ -513,6 +533,12 @@ export default function Dashboard({ auth, booking, payment_history = [], booking
 
                             </div>
                             <div className="flex flex-row flex-wrap items-center w-full gap-4 ">
+                                <OutlineButton
+                                    title="Edit Booking Price / Promo"
+                                    onClick={handleEditBookingPrice}
+                                    width="w-[220px]"
+                                    props={{ type: 'button' }}
+                                />
                                 <BlueButton
                                     title="Add Payment Now"
                                     width="w-[169px]"
@@ -719,6 +745,55 @@ export default function Dashboard({ auth, booking, payment_history = [], booking
                             disabled={payLinkSending || isFullyPaid || !leadEmail}
                             props={{ type: 'button' }}
                             width="w-[140px]"
+                        />
+                    </div>
+                </div>
+            </Modal>
+
+            <Modal show={showEditBookingModal} onClose={() => setShowEditBookingModal(false)} maxWidth="2xl">
+                <div className="p-6 space-y-5">
+                    <div>
+                        <h3 className="text-lg font-semibold text-gray-900">Choose Activity To Edit</h3>
+                        <p className="text-sm text-gray-600">
+                            Price changes, birthday specials, discounts, and promo codes are managed on the booking edit screen before payment is recorded.
+                        </p>
+                    </div>
+
+                    <div className="space-y-3">
+                        {bookingItems.map((item) => (
+                            <div key={item.id} className="rounded-[10px] border border-gray-200 bg-white p-4 shadow-sm">
+                                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                    <div>
+                                        <p className="text-sm font-semibold text-gray-900">
+                                            {item.service?.name || 'Activity'} {item.season?.name ? `- ${item.season.name}` : ''}
+                                        </p>
+                                        <p className="text-xs text-gray-500">
+                                            {formatDate(item.booking_inventory?.date)} at {formatTime(item)}
+                                        </p>
+                                        <p className="text-xs text-gray-500">
+                                            Adults {Number(item.pax_adults || 0)} | Children {Number(item.pax_children || 0)} | Guides {Number(item.pax_guides || 0)}
+                                        </p>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        <span className="text-sm font-semibold text-gray-900">{formatMoney(activityTotal(item))}</span>
+                                        <BlueButton
+                                            title="Edit"
+                                            width="w-[100px]"
+                                            onClick={() => goToBookingEdit(item.id)}
+                                            type="button"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="flex justify-end">
+                        <OutlineButton
+                            title="Cancel"
+                            onClick={() => setShowEditBookingModal(false)}
+                            width="w-[120px]"
+                            props={{ type: 'button' }}
                         />
                     </div>
                 </div>

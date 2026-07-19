@@ -71,7 +71,13 @@ class BookingPaymentController extends Controller
         $status_payments = StatusPayment::select('name', 'id')->get();
         $updated_bies = User::select('name', 'id')->get();
 
-        $booking->load('booking_items', 'customer');
+        $booking->load([
+            'booking_items.service',
+            'booking_items.season',
+            'booking_items.booking_fee',
+            'booking_items.booking_inventory.inventory_time_slot',
+            'customer',
+        ]);
         $latestPayment = BookingPayment::where('booking_id', $booking->id)
             ->latest('id')
             ->first();
