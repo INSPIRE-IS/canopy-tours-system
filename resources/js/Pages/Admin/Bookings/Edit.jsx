@@ -279,14 +279,18 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
         console.log('booking_date', data.booking_date);
         console.log('start_time', data.start_time);
         if (data.adults > 0 || data.children > 0 || data.guides > 0) {
-            if (hasPersistedPriceLinesRef.current) {
-                if (Array.isArray(pricing?.line_items) && pricing.line_items.length > 0) {
-                    setPaxGroups(pricing.line_items);
-                }
-                return;
-            }
-            if (Array.isArray(pricing?.line_items) && pricing.line_items.length > 0) {
-                setPaxGroups(pricing.line_items);
+            const pricingLineItems = Array.isArray(pricing?.line_items) ? pricing.line_items : [];
+            const pricingLineCounts = pricingLineItems.reduce((counts, line) => {
+                counts[line.type] = (counts[line.type] || 0) + Number(line.count || 0);
+                return counts;
+            }, {});
+            const pricingLinesMatchCurrentPax = pricingLineItems.length > 0
+                && Number(pricingLineCounts.adult || 0) === Number(data.adults || 0)
+                && Number(pricingLineCounts.child || 0) === Number(data.children || 0)
+                && Number(pricingLineCounts.guide || 0) === Number(data.guides || 0);
+
+            if (pricingLinesMatchCurrentPax) {
+                setPaxGroups(pricingLineItems);
                 return;
             }
             let rate_per_adult = data?.rate_per_adult || 0;
@@ -323,7 +327,9 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
             if (data.guides > 0) {
                 groups.push({ type: "guide", count: parseInt(data.guides), discount_id: null, base_rate: rate_per_guide, final_rate: rate_per_guide });
             }
-            const existingDiscountLines = Array.isArray(data.discount_lines) ? data.discount_lines : [];
+            const existingDiscountLines = (Array.isArray(data.discount_lines) && data.discount_lines.length > 0)
+                ? data.discount_lines
+                : pricingLineItems.filter(line => line.discount_id);
             let mergedGroups = existingDiscountLines.length > 0
                 ? mergeDiscountLinesWithBase(groups, existingDiscountLines)
                 : groups;
@@ -548,6 +554,20 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
         }
 
         if (paxGroups.some(g => g.discount_id)) {
+            const currentBaseGroups = buildBasePaxGroups(
+                Number(data.adults || 0),
+                Number(data.children || 0),
+                Number(data.guides || 0),
+                {
+                    adult: Number(data.base_per_adult || data.rate_per_adult || 0),
+                    child: Number(data.base_per_child || data.rate_per_child || 0),
+                    guide: Number(data.base_per_guide || data.rate_per_guide || 0),
+                }
+            );
+            const discountGroups = mergeDiscountLinesWithBase(
+                currentBaseGroups,
+                paxGroups.filter(g => g.discount_id)
+            );
             const discountKey = paxGroups
                 .filter(g => g.discount_id)
                 .map(g => `${g.type}:${g.discount_id}:${g.count}`)
@@ -555,7 +575,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
             const key = `discount|${discountKey}|${data.adults}|${data.children}|${data.guides}|${data.booking_date}|${data.start_time}`;
             if (lastPricingKeyRef.current !== key) {
                 lastPricingKeyRef.current = key;
-                handleCalculate('discount', paxGroups);
+                handleCalculate('discount', discountGroups);
             }
             return;
         }
@@ -1223,12 +1243,25 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
         }
 
         if (season) {
-            const formattedTimeSlots = [
-                { id: 0, name: "All" },
-                ...(season?.inventory?.inventory_time_slots?.map(slot => ({
+            const currentSlotId = bookingInventory?.inventory_time_slot_id;
+            const currentSlotName = bookingTime ? bookingTime.slice(0, 5) : '';
+            const seasonSlots = (season?.inventory?.inventory_time_slots || [])
+                .slice()
+                .sort((a, b) => String(a.start_time || '').localeCompare(String(b.start_time || '')))
+                .map(slot => ({
                     id: slot.id,
                     name: slot.start_time.slice(0, 5),
-                })) || [])
+                }));
+            const hasCurrentSlot = seasonSlots.some(slot => String(slot.id) === String(currentSlotId));
+            const timeSlotOptions = [
+                ...seasonSlots,
+                ...(!hasCurrentSlot && currentSlotId && currentSlotName
+                    ? [{ id: currentSlotId, name: currentSlotName }]
+                    : []),
+            ].sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+            const formattedTimeSlots = [
+                { id: 0, name: "All" },
+                ...timeSlotOptions,
             ];
             setSelectedSeason(season);
             setActivityId(season.id);
@@ -1242,6 +1275,14 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
         if (bookingDate) {
             setActivityDate(parseDate(bookingDate));
         }
+        const initialSelectedSlot = bookingDate && bookingTime
+            ? {
+                activityDate: bookingDate,
+                day: format(parseDate(bookingDate), 'EEE dd'),
+                time: bookingTime.slice(0, 5),
+            }
+            : [];
+        setSelectedSlot(initialSelectedSlot || null);
         setCurrentBookingSlot({
             date: bookingDate || '',
             time: bookingTime || '',
@@ -1296,6 +1337,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
             override_timeslots: false,
             booking_date: bookingDate || '',
             start_time: bookingInventory?.inventory_time_slot_id || '',
+            selected_slot: initialSelectedSlot,
             adults: bookingInventory?.adults ?? bookingItem?.pax_adults ?? '',
             children: bookingInventory?.children ?? bookingItem?.pax_children ?? '',
             guides: bookingInventory?.guides ?? bookingItem?.pax_guides ?? '',
@@ -1664,6 +1706,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
         // Avoid "Pricing mismatch" by ensuring server-calculated totals are current for promo/wholesaler/invoice-discount flows.
         let serverCalculatedTotal = null;
         let invoiceDiscountIdToSend = data.invoice_discount_id || null;
+        let recalculatedGroupsForSubmit = null;
         try {
             const invoiceDiscountId = pricing?.applied_discounts?.find(d => d.applied_to === 'invoice')?.id ?? null;
             invoiceDiscountIdToSend = invoiceDiscountId || invoiceDiscountIdToSend;
@@ -1672,18 +1715,22 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
             const shouldRecalc = Boolean(data.is_wholesaler || currentPromoCode || promotionId || invoiceDiscountIdToSend || hasLineDiscounts || pricing?.applied_promotion);
             if (shouldRecalc) {
                 const calcType = (currentPromoCode || promotionId) ? 'promo' : data.is_wholesaler ? 'saler' : (invoiceDiscountIdToSend || hasLineDiscounts) ? 'discount' : 'base';
+                const currentBaseGroups = buildBasePaxGroups(
+                    Number(data.adults || 0),
+                    Number(data.children || 0),
+                    Number(data.guides || 0),
+                    {
+                        adult: Number(data.base_per_adult || data.rate_per_adult || 0),
+                        child: Number(data.base_per_child || data.rate_per_child || 0),
+                        guide: Number(data.base_per_guide || data.rate_per_guide || 0),
+                    }
+                );
                 const groupsForSubmit = calcType === 'promo'
-                    ? buildBasePaxGroups(
-                        Number(data.adults || 0),
-                        Number(data.children || 0),
-                        Number(data.guides || 0),
-                        {
-                            adult: Number(data.base_per_adult || data.rate_per_adult || 0),
-                            child: Number(data.base_per_child || data.rate_per_child || 0),
-                            guide: Number(data.base_per_guide || data.rate_per_guide || 0),
-                        }
-                    )
-                    : paxGroups;
+                    ? currentBaseGroups
+                    : hasLineDiscounts
+                        ? mergeDiscountLinesWithBase(currentBaseGroups, paxGroups.filter(g => g.discount_id))
+                        : paxGroups;
+                recalculatedGroupsForSubmit = groupsForSubmit;
                 const result = await handleCalculate(calcType, groupsForSubmit, invoiceDiscountIdToSend);
                 serverCalculatedTotal = Number(result?.total_price ?? 0) || null;
                 if (!serverCalculatedTotal) {
@@ -1697,7 +1744,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
             return;
         }
 
-        const discountLinesPayload = buildDiscountLinesPayload(paxGroups);
+        const discountLinesPayload = buildDiscountLinesPayload(recalculatedGroupsForSubmit || paxGroups);
         const currentPromoCode = promoCode || data.promoCode || null;
         const submitPayload = {
             ...data,
