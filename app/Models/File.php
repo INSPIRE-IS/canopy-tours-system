@@ -52,8 +52,31 @@ class File extends Model
 
     public function getPathAttribute($value)
     {
-        // Ensure public disk
-        logger()->info('value',  [$value]);
-        return asset('storage/' . $value);
+        if (!$value) {
+            return $value;
+        }
+
+        $path = (string) $value;
+        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+            $parsedPath = parse_url($path, PHP_URL_PATH) ?: '';
+            $storagePos = strrpos($parsedPath, '/storage/');
+            if ($storagePos !== false) {
+                return asset(ltrim(substr($parsedPath, $storagePos + 1), '/'));
+            }
+
+            return $path;
+        }
+
+        $path = ltrim($path, '/');
+        if (str_contains($path, '/storage/')) {
+            $storagePos = strrpos($path, '/storage/');
+            return asset(ltrim(substr($path, $storagePos + 1), '/'));
+        }
+
+        if (str_starts_with($path, 'storage/') || str_starts_with($path, 'images/')) {
+            return asset($path);
+        }
+
+        return asset('storage/' . $path);
     }
 }

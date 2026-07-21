@@ -291,7 +291,7 @@ const ViewBookingModal = ({ isOpen, onClose, mode, booking, services }) => {
                                 <div className="flex w-full bg-gray-100 justify-start items-center gap-2 border p-3 my-2 rounded">
                                     {customer.files?.map((file, index) => (
                                         <span key={index} >
-                                            <a href={`/storage/${file.path}`} target="_blank" rel="noopener noreferrer" className="bg-white btn-tool">{icons.docs} {file.file_name}</a>
+                                            <a href={file.path} target="_blank" rel="noopener noreferrer" className="bg-white btn-tool">{icons.docs} {file.file_name}</a>
                                         </span>
                                     ))}
                                 </div>

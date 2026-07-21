@@ -200,13 +200,13 @@ const handleSubmit = (e) => {
     <label className="block font-semibold mb-1">Current File</label>
     {service.file.file_type.startsWith("image/") ? (
       <img
-        src={`/storage/${service.file.path}`}
+        src={`${service.file.path}`}
         alt={service.file.file_name}
         className="w-32 h-auto rounded shadow"
       />
     ) : (
       <a
-        href={`/storage/${service.file.path}`}
+        href={`${service.file.path}`}
         target="_blank"
         rel="noopener noreferrer"
         className="text-blue-600 underline"

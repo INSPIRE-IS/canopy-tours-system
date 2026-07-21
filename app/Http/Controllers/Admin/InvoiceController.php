@@ -294,13 +294,18 @@ class InvoiceController extends Controller
         if (Str::startsWith($path, ['http://', 'https://'])) {
             $parsedPath = parse_url($path, PHP_URL_PATH);
             if (is_string($parsedPath) && str_contains($parsedPath, '/storage/')) {
-                return ltrim($parsedPath, '/');
+                $storagePos = strrpos($parsedPath, '/storage/');
+                return ltrim(substr($parsedPath, $storagePos + 1), '/');
             }
 
             return null;
         }
 
         $path = ltrim($path, '/');
+        if (str_contains($path, '/storage/')) {
+            $storagePos = strrpos($path, '/storage/');
+            return ltrim(substr($path, $storagePos + 1), '/');
+        }
 
         if (Str::startsWith($path, ['storage/', 'images/'])) {
             return $path;

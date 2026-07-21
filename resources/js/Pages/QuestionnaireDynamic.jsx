@@ -419,7 +419,7 @@ export default function BookingLookup({ auth, booking, bookingItem, leadGuides, 
           <div className="flex items-center justify-center w-[118px] h-[106px] ">
             {team?.file_logo?.path != null ? (
               <img
-                src={`/storage/${team?.file_logo?.path}`}
+                src={`${team?.file_logo?.path}`}
                 alt="Canopy Tours"
                 className="w-full h-full object-contain min-w-[100px] min-h-[90px]"
               />

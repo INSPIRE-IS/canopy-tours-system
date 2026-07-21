@@ -112,6 +112,22 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams, permissions = {}
         //setData("name", e.target.value);
     };
 
+    const publicFileUrl = (file) => {
+        const path = file?.path;
+        if (!path) return null;
+
+        if (/^https?:\/\//i.test(path)) {
+            return path;
+        }
+
+        const cleanPath = String(path).replace(/^\/+/, "");
+        if (cleanPath.startsWith("storage/") || cleanPath.startsWith("images/")) {
+            return `/${cleanPath}`;
+        }
+
+        return `/storage/${cleanPath}`;
+    };
+
     const handlePreviewInvoiceQuote = () => {
         if (!team?.id) return;
         window.open(route("admin.teams.invoice-preview", team.id), "_blank", "noopener,noreferrer");
@@ -594,13 +610,13 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams, permissions = {}
                             <label className="block font-semibold mb-1">Current Icon</label>
                             {team?.file_logo?.path != null ? (
                                 <img
-                                    src={`/storage/${team?.file_logo.path}`}
+                                    src={publicFileUrl(team?.file_logo)}
                                     alt={team?.file_logo.file_name}
                                     className="w-32 h-auto rounded shadow"
                                 />
                             ) : (
                                 <a
-                                    href={`/storage/${team?.file_logo.path}`}
+                                    href={publicFileUrl(team?.file_logo)}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="text-blue-600 underline"
@@ -624,7 +640,7 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams, permissions = {}
                         <div className="flex flex-row w-full items-center gap-2 justify-start mb-4">
                             <label className="block font-semibold mb-1">Current Invoice/Quote Icon</label>
                             <img
-                                src={`/storage/${team?.file_invoice_quote_icon.path}`}
+                                src={publicFileUrl(team?.file_invoice_quote_icon)}
                                 alt={team?.file_invoice_quote_icon.file_name}
                                 className="w-full max-w-[420px] h-auto rounded shadow"
                             />
@@ -643,13 +659,13 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams, permissions = {}
                             <label className="block font-semibold mb-1">Current Image</label>
                             {team?.file_image?.path != null ? (
                                 <img
-                                    src={`/storage/${team?.file_image.path}`}
+                                    src={publicFileUrl(team?.file_image)}
                                     alt={team?.file_image.file_name}
                                     className="w-32 h-auto rounded shadow"
                                 />
                             ) : (
                                 <a
-                                    href={`/storage/${team?.file_image.path}`}
+                                    href={publicFileUrl(team?.file_image)}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="text-blue-600 underline"

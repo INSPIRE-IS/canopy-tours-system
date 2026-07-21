@@ -142,8 +142,8 @@ class RendererService
         $amountPaid = round(min((float) $amountTotal, (float) ($booking->tot_paid ?? 0)), 2);
         $balanceDue = round(max(0, (float) $amountTotal - $amountPaid), 2);
 
-        $logoPath = $this->normalizePublicStoragePath($booking->team->file_logo?->path) ?: 'images/logo.png';
-        $invoiceQuoteIconPath = $this->normalizePublicStoragePath($booking->team->file_invoice_quote_icon?->path) ?: $logoPath;
+        $logoPath = $this->normalizePublicStoragePath($booking->team->file_logo?->getRawOriginal('path')) ?: 'images/logo.png';
+        $invoiceQuoteIconPath = $this->normalizePublicStoragePath($booking->team->file_invoice_quote_icon?->getRawOriginal('path')) ?: $logoPath;
         $addressLines = array_values(array_filter([
             $site?->address_line_1,
             $site?->address_line_2,
@@ -227,13 +227,18 @@ class RendererService
         if (Str::startsWith($path, ['http://', 'https://'])) {
             $parsedPath = parse_url($path, PHP_URL_PATH);
             if (is_string($parsedPath) && str_contains($parsedPath, '/storage/')) {
-                return ltrim($parsedPath, '/');
+                $storagePos = strrpos($parsedPath, '/storage/');
+                return ltrim(substr($parsedPath, $storagePos + 1), '/');
             }
 
             return null;
         }
 
         $path = ltrim($path, '/');
+        if (str_contains($path, '/storage/')) {
+            $storagePos = strrpos($path, '/storage/');
+            return ltrim(substr($path, $storagePos + 1), '/');
+        }
 
         if (Str::startsWith($path, ['storage/', 'images/'])) {
             return $path;

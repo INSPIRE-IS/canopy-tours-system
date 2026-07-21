@@ -379,7 +379,7 @@ const ServiceModal = ({ isOpen, onClose, mode, service, serviceFields, auth, tea
                                 />
                             ) : (
                                 <a
-                                    href={`/storage/${service.file.path}`}
+                                    href={`${service.file.path}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="text-blue-600 underline"
