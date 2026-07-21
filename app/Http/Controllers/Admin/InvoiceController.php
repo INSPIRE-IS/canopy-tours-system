@@ -34,6 +34,8 @@ class InvoiceController extends Controller
 
         $logoPath = $this->normalizePublicStoragePath($team->file_logo?->getRawOriginal('path'));
         $invoiceQuoteIconPath = $this->normalizePublicStoragePath($team->file_invoice_quote_icon?->getRawOriginal('path')) ?: $logoPath;
+        $logoSrc = $this->publicImageSource($logoPath ?: 'images/logo.png');
+        $invoiceQuoteIconSrc = $this->publicImageSource($invoiceQuoteIconPath ?: ($logoPath ?: 'images/logo.png')) ?: $logoSrc;
         $addressLines = array_values(array_filter([
             $team->address_line_1 ?: ($team->address ?: 'PO Box / Street Address Placeholder'),
             $team->address_line_2,
@@ -86,8 +88,8 @@ class InvoiceController extends Controller
                     'total' => $total,
                 ],
             ],
-            'file_logo' => $logoPath ?: 'images/logo.png',
-            'invoice_quote_icon' => $invoiceQuoteIconPath ?: ($logoPath ?: 'images/logo.png'),
+            'file_logo' => $logoSrc ?: ($logoPath ?: 'images/logo.png'),
+            'invoice_quote_icon' => $invoiceQuoteIconSrc ?: ($logoSrc ?: ($invoiceQuoteIconPath ?: ($logoPath ?: 'images/logo.png'))),
             'amount_ex_vat' => $amountExVat,
             'vat' => round($total - $amountExVat, 2),
             'vat_amount' => $total,
@@ -284,6 +286,30 @@ class InvoiceController extends Controller
 
         return $html;
     }
+
+    private function publicImageSource(?string $path): ?string
+    {
+        if (!$path) {
+            return null;
+        }
+
+        if (Str::startsWith($path, ['data:', 'http://', 'https://'])) {
+            return $path;
+        }
+
+        $relativePath = ltrim($path, '/');
+        $absolutePath = Str::startsWith($relativePath, 'storage/')
+            ? storage_path('app/public/' . substr($relativePath, strlen('storage/')))
+            : public_path($relativePath);
+
+        if (!is_file($absolutePath) || !is_readable($absolutePath)) {
+            return null;
+        }
+
+        $mimeType = mime_content_type($absolutePath) ?: 'image/png';
+        return 'data:' . $mimeType . ';base64,' . base64_encode(file_get_contents($absolutePath));
+    }
+
 
     private function normalizePublicStoragePath(?string $path): ?string
     {

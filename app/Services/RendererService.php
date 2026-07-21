@@ -144,6 +144,8 @@ class RendererService
 
         $logoPath = $this->normalizePublicStoragePath($booking->team->file_logo?->getRawOriginal('path')) ?: 'images/logo.png';
         $invoiceQuoteIconPath = $this->normalizePublicStoragePath($booking->team->file_invoice_quote_icon?->getRawOriginal('path')) ?: $logoPath;
+        $logoSrc = $this->publicImageSource($logoPath);
+        $invoiceQuoteIconSrc = $this->publicImageSource($invoiceQuoteIconPath) ?: $logoSrc;
         $addressLines = array_values(array_filter([
             $site?->address_line_1,
             $site?->address_line_2,
@@ -196,8 +198,8 @@ class RendererService
                 'ref' => $booking->reference,
             ],
             'services' => $services,
-            'file_logo' => $logoPath,
-            'invoice_quote_icon' => $invoiceQuoteIconPath,
+            'file_logo' => $logoSrc ?: $logoPath,
+            'invoice_quote_icon' => $invoiceQuoteIconSrc ?: ($logoSrc ?: $invoiceQuoteIconPath),
             'amount_ex_vat' => $amountExVat,
             'vat'           => $vat,
             'vat_amount'    => $amountTotal,
@@ -217,6 +219,30 @@ class RendererService
         // 🔹 Load Blade view with data
         return $data;
     }
+
+    private function publicImageSource(?string $path): ?string
+    {
+        if (!$path) {
+            return null;
+        }
+
+        if (Str::startsWith($path, ['data:', 'http://', 'https://'])) {
+            return $path;
+        }
+
+        $relativePath = ltrim($path, '/');
+        $absolutePath = Str::startsWith($relativePath, 'storage/')
+            ? storage_path('app/public/' . substr($relativePath, strlen('storage/')))
+            : public_path($relativePath);
+
+        if (!is_file($absolutePath) || !is_readable($absolutePath)) {
+            return null;
+        }
+
+        $mimeType = mime_content_type($absolutePath) ?: 'image/png';
+        return 'data:' . $mimeType . ';base64,' . base64_encode(file_get_contents($absolutePath));
+    }
+
 
     private function normalizePublicStoragePath(?string $path): ?string
     {

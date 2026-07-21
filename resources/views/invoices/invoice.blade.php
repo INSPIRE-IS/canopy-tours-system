@@ -42,9 +42,9 @@
         <tr>
             <td class="logo" style="width:60%;">
                 @if(!empty($invoice_quote_icon))
-                    <img src="{{ public_path($invoice_quote_icon) }}" alt="Invoice/Quote Logo">
+                    <img src="{{ $invoice_quote_icon }}" alt="Invoice/Quote Logo">
                 @elseif(!empty($file_logo))
-                    <img src="{{ public_path($file_logo) }}" alt="Logo">
+                    <img src="{{ $file_logo }}" alt="Logo">
                 @endif
             </td>
             <td style="width:40%;">
