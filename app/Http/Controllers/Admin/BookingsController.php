@@ -122,6 +122,27 @@ class BookingsController extends Controller
         }
     }
 
+    private function isSameOrReducedBookingSlot(BookingItem $bookingItem, string $bookingDate, int $inventoryTimeSlotId, int $requestedPax, int $serviceId): bool
+    {
+        $bookingInventory = $bookingItem->booking_inventory;
+        if (!$bookingInventory) {
+            return false;
+        }
+
+        $currentDate = $bookingInventory->getRawOriginal('date') ?: $bookingInventory->date;
+        if (!$currentDate) {
+            return false;
+        }
+
+        $currentPax = (int) ($bookingInventory->adults ?? $bookingItem->pax_adults ?? 0)
+            + (int) ($bookingInventory->children ?? $bookingItem->pax_children ?? 0);
+
+        return (int) $bookingItem->service_id === $serviceId
+            && Carbon::parse($currentDate)->toDateString() === Carbon::parse($bookingDate)->toDateString()
+            && (int) $bookingInventory->inventory_time_slot_id === $inventoryTimeSlotId
+            && $requestedPax <= $currentPax;
+    }
+
     private function logAudit(
         string $description,
         Booking $booking,
@@ -1881,6 +1902,7 @@ class BookingsController extends Controller
             'booking_detail', //:id,booking_id ,start_time,end_time
             'booking_fee', //:id,booking_id,tot_amount
             'booking_inventory', // :id,booking_id,inventory_id
+            'booking_inventory.inventory_time_slot',
             'booking_inventory.inventory_override',
             'booking_staff', // :id,booking_id,user_id
             'booking_staff.user', // :id,name,email,contact_number
@@ -2211,8 +2233,19 @@ class BookingsController extends Controller
                         ->all();
                 }
                 $requestedPax = $adultsCount + $childrenCount;
+                $sameOrReducedSlot = $this->isSameOrReducedBookingSlot(
+                    $bookingItem,
+                    $bookingDate,
+                    $inventoryTimeSlot->id,
+                    $requestedPax,
+                    (int) $season->service_id
+                );
+                if ($sameOrReducedSlot && (bool) ($bookingItem->booking_detail?->is_override_capacity ?? false)) {
+                    // Preserve legacy/current override approval when staff only edit pricing/notes.
+                    $validated['override_capacity'] = true;
+                }
                 $canOverrideCapacity = !empty($validated['override_capacity']) && (bool) $service->allow_internal_capacity_override;
-                if (!$canOverrideCapacity) {
+                if (!$canOverrideCapacity && !$sameOrReducedSlot) {
                     $this->validateSlotCapacity(
                         $service,
                         $bookingDate,
