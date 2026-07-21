@@ -143,6 +143,23 @@ class BookingsController extends Controller
             && $requestedPax <= $currentPax;
     }
 
+    private function assertWholesalerRateExists(?int $wholesalerId, int $seasonId): void
+    {
+        if (!$wholesalerId) {
+            return;
+        }
+
+        $exists = WholesalerRate::where('wholesaler_id', $wholesalerId)
+            ->where('season_id', $seasonId)
+            ->exists();
+
+        if (!$exists) {
+            throw ValidationException::withMessages([
+                'wholesaler_id' => 'The selected wholesaler does not have rates for this season/date. Please choose another rate or recalculate from rack.',
+            ]);
+        }
+    }
+
     private function logAudit(
         string $description,
         Booking $booking,
@@ -927,6 +944,10 @@ class BookingsController extends Controller
                 $adultsCount = (int) ($validated['adults'] ?? 0);
                 $childrenCount = (int) ($validated['children'] ?? 0);
                 $guidesCount = (int) ($validated['guides'] ?? 0);
+                $this->assertWholesalerRateExists(
+                    $validated['is_wholesaler'] ? ($validated['wholesaler_id'] ?? null) : null,
+                    (int) $validated['season_id']
+                );
                 $pricing = app(PricingService::class)->calculate([
                     'service_id' => $validated['service_id'],
                     'season_id' => $validated['season_id'],
@@ -943,6 +964,11 @@ class BookingsController extends Controller
                     'override_rate_child' => $validated['rate_per_child'] ?? null,
                     'override_rate_guide' => $validated['rate_per_guide'] ?? null,
                 ]);
+                if (!empty($validated['promoCode']) && empty($pricing['applied_promotion'])) {
+                    throw ValidationException::withMessages([
+                        'promoCode' => 'The selected promo is not valid for this service/date. Please choose another promo or recalculate from rack.',
+                    ]);
+                }
                 $this->assertPricingMatches((float) $validated['booking_total'], (float) $pricing['total_price']);
                 $rateAdult = round((float) ($pricing['applied_rates']['adult'] ?? 0), 2);
                 $rateChild = round((float) ($pricing['applied_rates']['child'] ?? 0), 2);
@@ -1586,6 +1612,7 @@ class BookingsController extends Controller
                     $wholesalerId = null;
                     $isWholesaler = false;
                 }
+                $this->assertWholesalerRateExists($wholesalerId ? (int) $wholesalerId : null, (int) $activity['season_id']);
 
                 $pricing = app(PricingService::class)->calculate([
                     'service_id' => $activity['service_id'],
@@ -1603,6 +1630,11 @@ class BookingsController extends Controller
                     'override_rate_child' => $activity['rate_per_child'] ?? null,
                     'override_rate_guide' => $activity['rate_per_guide'] ?? null,
                 ]);
+                if (!empty($promoCode) && empty($pricing['applied_promotion'])) {
+                    throw ValidationException::withMessages([
+                        'promoCode' => 'The selected promo is not valid for this service/date. Please choose another promo or recalculate from rack.',
+                    ]);
+                }
                 $this->assertPricingMatches((float) $activity['booking_total'], (float) $pricing['total_price']);
 
                 $rateAdult = round((float) ($pricing['applied_rates']['adult'] ?? 0), 2);
@@ -2194,6 +2226,10 @@ class BookingsController extends Controller
                     ]);
                 }
                 $guidesCount = (int) ($validated['guides'] ?? 0);
+                $this->assertWholesalerRateExists(
+                    $validated['is_wholesaler'] ? ($validated['wholesaler_id'] ?? null) : null,
+                    (int) $validated['season_id']
+                );
                 $pricing = app(PricingService::class)->calculate([
                     'service_id' => $validated['service_id'],
                     'season_id' => $validated['season_id'],
@@ -2210,6 +2246,11 @@ class BookingsController extends Controller
                     'override_rate_child' => $validated['rate_per_child'] ?? null,
                     'override_rate_guide' => $validated['rate_per_guide'] ?? null,
                 ]);
+                if (!empty($validated['promoCode']) && empty($pricing['applied_promotion'])) {
+                    throw ValidationException::withMessages([
+                        'promoCode' => 'The selected promo is not valid for this service/date. Please choose another promo or recalculate from rack.',
+                    ]);
+                }
                 $this->assertPricingMatches((float) $validated['booking_total'], (float) $pricing['total_price']);
                 $rateAdult = round((float) ($pricing['applied_rates']['adult'] ?? 0), 2);
                 $rateChild = round((float) ($pricing['applied_rates']['child'] ?? 0), 2);
@@ -4492,7 +4533,24 @@ class BookingsController extends Controller
         ]);
 
         try {
+            if (!empty($data['wholesaler_id'])) {
+                $hasWholesalerRate = WholesalerRate::where('wholesaler_id', $data['wholesaler_id'])
+                    ->where('season_id', $data['season_id'])
+                    ->exists();
+                if (!$hasWholesalerRate) {
+                    return response()->json([
+                        'message' => 'The selected wholesaler does not have rates for this season/date. Please choose another rate or recalculate from rack.',
+                    ], 422);
+                }
+            }
+
             $pricing = app(PricingService::class)->calculate($data);
+            if ((!empty($data['promo_code']) || !empty($data['promotion_id'])) && empty($pricing['applied_promotion'])) {
+                return response()->json([
+                    'message' => 'The selected promo is not valid for this service/date. Please choose another promo or recalculate from rack.',
+                ], 422);
+            }
+
             $formatRates = fn(array $values) => array_map(
                 fn($value) => number_format((float) $value, 2, '.', ''),
                 $values

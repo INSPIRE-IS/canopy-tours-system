@@ -508,6 +508,25 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
         if (!selectedService || !selectedSeason || !data.booking_date || !data.start_time) return;
         if ((Number(data.adults || 0) + Number(data.children || 0)) < 1) return;
 
+        if (data.is_wholesaler && data.wholesaler_id) {
+            const key = `wholesaler|${data.wholesaler_id}|${data.adults}|${data.children}|${data.guides}|${data.booking_date}|${data.start_time}|${data.season_id}`;
+            if (lastPricingKeyRef.current !== key) {
+                lastPricingKeyRef.current = key;
+                const baseGroups = buildBasePaxGroups(
+                    Number(data.adults || 0),
+                    Number(data.children || 0),
+                    Number(data.guides || 0),
+                    {
+                        adult: Number(data.base_per_adult || data.rate_per_adult || 0),
+                        child: Number(data.base_per_child || data.rate_per_child || 0),
+                        guide: Number(data.base_per_guide || data.rate_per_guide || 0),
+                    }
+                );
+                handleCalculate('saler', baseGroups);
+            }
+            return;
+        }
+
         if (activePromoCode || promotionId) {
             const promoKey = activePromoCode || promotionId;
             const key = `promo|${promoKey}|${data.adults}|${data.children}|${data.guides}|${data.booking_date}|${data.start_time}`;
@@ -569,6 +588,9 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
         data.guides,
         data.booking_date,
         data.start_time,
+        data.is_wholesaler,
+        data.wholesaler_id,
+        data.season_id,
         selectedService,
         selectedSeason,
         hasInvoiceDiscount,
@@ -1532,7 +1554,9 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
                     base_per_guide: season?.rake_rate_guide || 0,
                 };
 
-                if (!data.wholesaler_id && !data.is_wholesaler && !isInitializing) {
+                const shouldPreservePricingMode = computedMode !== PRICING_MODES.STANDARD;
+
+                if (!data.wholesaler_id && !data.is_wholesaler && !isInitializing && !shouldPreservePricingMode) {
                     setData(prev => ({
                         ...prev,
                         season_id: season.id,
@@ -1567,7 +1591,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
             }
         }
 
-    }, [data.booking_date, isInitializing]);
+    }, [data.booking_date, isInitializing, computedMode]);
 
     useEffect(() => {
         if (!data.booking_date || !data.start_time || Number(data.start_time) === 0) {
