@@ -313,15 +313,23 @@ class SeedCoreData extends Command
 
         $affiliateTypes = [
             ['id' => 1, 'name' => 'Repeat Guest'],
-            ['id' => 2, 'name' => 'Brochure'],
+            ['id' => 2, 'name' => 'Newspaper / magazine / brochure'],
             ['id' => 3, 'name' => 'Internet'],
-            ['id' => 4, 'name' => 'Travel Guide'],
             ['id' => 5, 'name' => 'Travel Agent'],
-            ['id' => 6, 'name' => 'TV or Newspaper'],
+            ['id' => 6, 'name' => 'TV and radio'],
+            ['id' => 7, 'name' => 'Word of mouth'],
+            ['id' => 8, 'name' => 'Accommodation'],
+            ['id' => 9, 'name' => 'Road sign'],
+            ['id' => 10, 'name' => 'Other'],
         ];
         foreach ($affiliateTypes as $affiliateType) {
-            TypeReferral::updateOrCreate(['id' => $affiliateType['id']], $affiliateType);
+            TypeReferral::withTrashed()->updateOrCreate(
+                ['id' => $affiliateType['id']],
+                $affiliateType + ['deleted_at' => null]
+            );
         }
+
+        TypeReferral::where('name', 'Travel Guide')->delete();
 
         $type_categories = [
             ['id' => 1, 'name' => 'Details'],
