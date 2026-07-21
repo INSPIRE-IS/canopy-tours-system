@@ -1397,10 +1397,13 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
             if (returnedSlots.length) {
                 const formatted = [
                     { id: 0, name: 'All' },
-                    ...returnedSlots.map(slot => ({
-                        id: slot.id,
-                        name: slot.start_time.slice(0, 5),
-                    })),
+                    ...returnedSlots
+                        .slice()
+                        .sort((a, b) => String(a.start_time || '').localeCompare(String(b.start_time || '')))
+                        .map(slot => ({
+                            id: slot.id,
+                            name: slot.start_time.slice(0, 5),
+                        })),
                 ];
                 setTimeslots(formatted);
                 const match = formatted.find(s => s.name === timeValue);
@@ -1487,10 +1490,13 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
             const formatted = returnedSlots.length
                 ? [
                     { id: 0, name: 'All' },
-                    ...returnedSlots.map(slot => ({
-                        id: slot.id,
-                        name: slot.start_time.slice(0, 5),
-                    })),
+                    ...returnedSlots
+                        .slice()
+                        .sort((a, b) => String(a.start_time || '').localeCompare(String(b.start_time || '')))
+                        .map(slot => ({
+                            id: slot.id,
+                            name: slot.start_time.slice(0, 5),
+                        })),
                 ]
                 : timeslots;
 

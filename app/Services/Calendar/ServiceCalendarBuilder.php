@@ -34,8 +34,9 @@ class ServiceCalendarBuilder
                 // filter the collection by start_time
                 return $collection->where('id', $startTime);
             })
-            //->pluck('start_time')
-            ->unique()->sort();
+            ->unique('id')
+            ->sortBy(fn($slot) => (string) $slot->start_time)
+            ->values();
         logger()->info("$serviceId, $seasonId, $startDate, $endDate");
         $calendar = self::initCalendar($season, $service, $bookingData, $startDate, $endDate, $totalRequested, $allowedDays, $timeSlots, $lockoutHours, $currentBooking, $overrideMap);
 
