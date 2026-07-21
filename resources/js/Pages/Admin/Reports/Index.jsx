@@ -38,6 +38,7 @@ export default function Index({ auth, services = [], paymentTypes = [] }) {
         include_group_type: false,
         include_nationality: false,
         include_meal: false,
+        include_gender: false,
         delivery: 'download',
     });
 
@@ -405,7 +406,7 @@ export default function Index({ auth, services = [], paymentTypes = [] }) {
                                 options={services}
                                 optionText="All services"
                             />
-                            <div className="grid gap-2 md:grid-cols-3">
+                            <div className="grid gap-2 md:grid-cols-4">
                                 <CustomCheckbox
                                     label="Group Type"
                                     name="include_group_type"
@@ -422,6 +423,12 @@ export default function Index({ auth, services = [], paymentTypes = [] }) {
                                     label="Meal Option"
                                     name="include_meal"
                                     checked={manifestFilters.include_meal}
+                                    onChange={(name, checked) => setManifestFilters(prev => ({ ...prev, [name]: checked }))}
+                                />
+                                <CustomCheckbox
+                                    label="Gender"
+                                    name="include_gender"
+                                    checked={manifestFilters.include_gender}
                                     onChange={(name, checked) => setManifestFilters(prev => ({ ...prev, [name]: checked }))}
                                 />
                             </div>

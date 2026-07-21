@@ -7,6 +7,7 @@ use App\Models\Country;
 use App\Models\CustomerManifest;
 use App\Models\Question;
 use App\Models\QuestionAnswer;
+use App\Models\TypeGender;
 use App\Models\TypeGroup;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -19,6 +20,7 @@ class CheckInManifestReportExport implements FromQuery, WithHeadings, WithMappin
 {
     private array $answersByBookingItem = [];
     private array $typeGroupMap = [];
+    private array $typeGenderMap = [];
     private array $countryMap = [];
     private array $lunchOptions = [];
 
@@ -30,8 +32,14 @@ class CheckInManifestReportExport implements FromQuery, WithHeadings, WithMappin
         private readonly bool $includeGroupType,
         private readonly bool $includeNationality,
         private readonly bool $includeMeal,
+        private readonly bool $includeGender,
     ) {
         $this->typeGroupMap = TypeGroup::select('id', 'name')
+            ->get()
+            ->pluck('name', 'id')
+            ->toArray();
+
+        $this->typeGenderMap = TypeGender::select('id', 'name')
             ->get()
             ->pluck('name', 'id')
             ->toArray();
@@ -121,6 +129,9 @@ class CheckInManifestReportExport implements FromQuery, WithHeadings, WithMappin
         if ($this->includeMeal) {
             $headings[] = 'Meal Option';
         }
+        if ($this->includeGender) {
+            $headings[] = 'Gender';
+        }
 
         return $headings;
     }
@@ -147,7 +158,7 @@ class CheckInManifestReportExport implements FromQuery, WithHeadings, WithMappin
             $manifest->latest_booking_note ?? '',
         ];
 
-        if ($this->includeGroupType || $this->includeNationality || $this->includeMeal) {
+        if ($this->includeGroupType || $this->includeNationality || $this->includeMeal || $this->includeGender) {
             $bookingItemId = $bookingItem?->id;
             $customerId = $manifest->customer_id;
             $answers = $this->getAnswersForCustomer($bookingItemId, $customerId);
@@ -168,6 +179,12 @@ class CheckInManifestReportExport implements FromQuery, WithHeadings, WithMappin
                 $mealValue = $answers['lunch_option'] ?? null;
                 $row[] = $mealValue !== null
                     ? ($this->lunchOptions[(string) $mealValue] ?? $mealValue)
+                    : '';
+            }
+            if ($this->includeGender) {
+                $genderValue = $answers['gender'] ?? $answers['gender_id'] ?? null;
+                $row[] = $genderValue !== null
+                    ? ($this->typeGenderMap[(string) $genderValue] ?? $genderValue)
                     : '';
             }
         }
