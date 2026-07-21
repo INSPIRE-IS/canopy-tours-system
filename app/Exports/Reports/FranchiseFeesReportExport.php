@@ -68,7 +68,9 @@ class FranchiseFeesReportExport implements FromCollection, WithHeadings, ShouldA
         $rows->push($this->summaryRow('Turnover excl VAT', $this->money($totalInclVat - $vat)));
         $rows->push($this->summaryRow('Average Per Guest', $totalPax > 0 ? $this->money($totalInclVat / $totalPax) : $this->money(0)));
         $rows->push($this->summaryRow('Royalty @ 10%', $this->money($totalInclVat * 0.10)));
-        $rows->push($this->summaryRow('Marketing Account', 'Confirm percentage per franchise'));
+        $rows->push($this->summaryRow('Marketing Account @ 2.5%', $this->money($totalInclVat * 0.025)));
+        $rows->push($this->blankRow());
+        $rows->push($this->summaryRow('Report Notes', 'V1 buckets known 10/15/20/25%, student, wholesaler/trade, complimentary, and full-rate rows; unmapped promos/discounts/custom rates are grouped under Other with notes.'));
 
         return $rows;
     }
@@ -83,12 +85,20 @@ class FranchiseFeesReportExport implements FromCollection, WithHeadings, ShouldA
             'Cumulative Total',
             'Full Rate Pax',
             'Full Rate Income',
-            'Wholesaler Pax',
-            'Wholesaler Income',
-            'Promotion Pax',
-            'Promotion Income',
-            'Discount Pax',
-            'Discount Income',
+            'Complimentary Pax',
+            'Complimentary Income',
+            'Trade Exchange Pax',
+            'Trade Exchange Income',
+            '10% Pax',
+            '10% Income',
+            '15% Pax',
+            '15% Income',
+            '20% Pax',
+            '20% Income',
+            '25% Pax',
+            '25% Income',
+            'Student Rate Pax',
+            'Student Rate Income',
             'Other Pax',
             'Other Income',
             'TOTAL',
@@ -102,12 +112,12 @@ class FranchiseFeesReportExport implements FromCollection, WithHeadings, ShouldA
             ->select('booking_items.*')
             ->with([
                 'booking:id,reference,lead_name,deleted_at',
-                'booking.booking_discounts.booking_discount_items.discount:id,name',
+                'booking.booking_discounts.booking_discount_items.discount:id,name,percent_off',
                 'booking_detail:id,booking_item_id,is_override_time_slots',
                 'booking_fee:id,booking_item_id,tot_amount',
                 'booking_inventory:id,booking_item_id,date,inventory_override_id',
                 'booking_inventory.inventory_override:id,note',
-                'promotion:id,name,promo_code,type',
+                'promotion:id,name,promo_code,type,value',
                 'service:id,name',
                 'season:id,rake_rate_adult,rake_rate_child,rake_rate_guide',
             ])
@@ -185,8 +195,15 @@ class FranchiseFeesReportExport implements FromCollection, WithHeadings, ShouldA
         $row['pax'] += $pax;
         $row['total'] += $total;
 
+        if ($pax > 0 && $total <= 0.01) {
+            $this->addBucket($row, 'complimentary', $pax, $total, $this->otherComment($item));
+            return;
+        }
+
         $discountItems = $item->booking?->booking_discounts
-            ? $item->booking->booking_discounts->flatMap(fn($discount) => $discount->booking_discount_items ?? collect())
+            ? $item->booking->booking_discounts
+                ->filter(fn($discount) => empty($discount->booking_item_id) || (int) $discount->booking_item_id === (int) $item->id)
+                ->flatMap(fn($discount) => $discount->booking_discount_items ?? collect())
             : collect();
 
         if ($discountItems->isNotEmpty()) {
@@ -195,14 +212,14 @@ class FranchiseFeesReportExport implements FromCollection, WithHeadings, ShouldA
         }
 
         if (!empty($item->wholesaler_id)) {
-            $this->addBucket($row, 'wholesaler', $pax, $total, $this->wholesalerNames[$item->wholesaler_id] ?? 'Wholesaler rate');
+            $this->addBucket($row, 'trade_exchange', $pax, $total, $this->wholesalerNames[$item->wholesaler_id] ?? 'Wholesaler rate');
             return;
         }
 
         if (!empty($item->promotion_id)) {
             $promotion = $item->promotion;
             $label = trim(($promotion?->name ?? 'Promotion') . ' ' . ($promotion?->promo_code ? '(' . $promotion->promo_code . ')' : ''));
-            $this->addBucket($row, 'promotion', $pax, $total, $label);
+            $this->addBucket($row, $this->promoBucket($promotion?->type, $promotion?->value), $pax, $total, $label);
             return;
         }
 
@@ -217,8 +234,6 @@ class FranchiseFeesReportExport implements FromCollection, WithHeadings, ShouldA
     private function applyDiscountBooking(array &$row, BookingItem $item, Collection $discountItems): void
     {
         $coveredCounts = ['adult' => 0, 'child' => 0, 'guide' => 0];
-        $discountIncome = 0.0;
-        $discountPax = 0;
 
         foreach ($discountItems as $discountItem) {
             $count = (int) ($discountItem->count ?? 0);
@@ -226,15 +241,11 @@ class FranchiseFeesReportExport implements FromCollection, WithHeadings, ShouldA
             $type = $discountItem->pax_type ?? 'adult';
 
             $coveredCounts[$type] = ($coveredCounts[$type] ?? 0) + $count;
-            $discountPax += $count;
-            $discountIncome += $count * $rate;
 
             $name = $discountItem->discount?->name
                 ?? $this->discountNames[$discountItem->discount_id] ?? 'Discount';
-            $row['comments'][] = $name;
+            $this->addBucket($row, $this->discountBucket($discountItem), $count, $count * $rate, $name);
         }
-
-        $this->addBucket($row, 'discount', $discountPax, $discountIncome, null);
 
         foreach (['adult', 'child', 'guide'] as $type) {
             $remaining = max(0, $this->paxCountForType($item, $type) - ($coveredCounts[$type] ?? 0));
@@ -247,6 +258,41 @@ class FranchiseFeesReportExport implements FromCollection, WithHeadings, ShouldA
             $bucket = $this->rateMatchesRack($item, $type, $rate) ? 'full' : 'other';
             $this->addBucket($row, $bucket, $remaining, $income, $bucket === 'other' ? $this->otherComment($item) : null);
         }
+    }
+
+    private function discountBucket(object $discountItem): string
+    {
+        $rate = (float) ($discountItem->final_rate ?? 0);
+        if ($rate <= 0.01) {
+            return 'complimentary';
+        }
+
+        $name = strtolower((string) ($discountItem->discount?->name ?? $this->discountNames[$discountItem->discount_id] ?? ''));
+        if (str_contains($name, 'student')) {
+            return 'student';
+        }
+
+        return $this->percentBucket((float) ($discountItem->discount?->percent_off ?? 0));
+    }
+
+    private function promoBucket(?string $type, mixed $value): string
+    {
+        if ($type === 'percent') {
+            return $this->percentBucket((float) $value);
+        }
+
+        return 'other';
+    }
+
+    private function percentBucket(float $percent): string
+    {
+        foreach ([10, 15, 20, 25] as $knownPercent) {
+            if (abs($percent - $knownPercent) < 0.01) {
+                return 'discount_' . $knownPercent;
+            }
+        }
+
+        return 'other';
     }
 
     private function addBucket(array &$row, string $bucket, int $pax, float $income, ?string $comment): void
@@ -352,12 +398,20 @@ class FranchiseFeesReportExport implements FromCollection, WithHeadings, ShouldA
             'total' => 0.0,
             'full_pax' => 0,
             'full_income' => 0.0,
-            'wholesaler_pax' => 0,
-            'wholesaler_income' => 0.0,
-            'promotion_pax' => 0,
-            'promotion_income' => 0.0,
-            'discount_pax' => 0,
-            'discount_income' => 0.0,
+            'complimentary_pax' => 0,
+            'complimentary_income' => 0.0,
+            'trade_exchange_pax' => 0,
+            'trade_exchange_income' => 0.0,
+            'discount_10_pax' => 0,
+            'discount_10_income' => 0.0,
+            'discount_15_pax' => 0,
+            'discount_15_income' => 0.0,
+            'discount_20_pax' => 0,
+            'discount_20_income' => 0.0,
+            'discount_25_pax' => 0,
+            'discount_25_income' => 0.0,
+            'student_pax' => 0,
+            'student_income' => 0.0,
             'other_pax' => 0,
             'other_income' => 0.0,
             'comments' => [],
@@ -374,12 +428,20 @@ class FranchiseFeesReportExport implements FromCollection, WithHeadings, ShouldA
             $this->money($runningTotal),
             $row['full_pax'] ?: '',
             $this->money($row['full_income']),
-            $row['wholesaler_pax'] ?: '',
-            $this->money($row['wholesaler_income']),
-            $row['promotion_pax'] ?: '',
-            $this->money($row['promotion_income']),
-            $row['discount_pax'] ?: '',
-            $this->money($row['discount_income']),
+            $row['complimentary_pax'] ?: '',
+            $this->money($row['complimentary_income']),
+            $row['trade_exchange_pax'] ?: '',
+            $this->money($row['trade_exchange_income']),
+            $row['discount_10_pax'] ?: '',
+            $this->money($row['discount_10_income']),
+            $row['discount_15_pax'] ?: '',
+            $this->money($row['discount_15_income']),
+            $row['discount_20_pax'] ?: '',
+            $this->money($row['discount_20_income']),
+            $row['discount_25_pax'] ?: '',
+            $this->money($row['discount_25_income']),
+            $row['student_pax'] ?: '',
+            $this->money($row['student_income']),
             $row['other_pax'] ?: '',
             $this->money($row['other_income']),
             $this->money($row['total']),

@@ -182,7 +182,7 @@ export default function Index({ auth, services = [], paymentTypes = [] }) {
                             <span className="font-semibold text-lg text-gray-800">Franchise Fees</span>
                         </div>
                         <p className="text-sm text-gray-600 mb-4">
-                            Monthly activity-date worksheet grouping rack, wholesaler, promotion, discount, and other custom rates.
+                            Monthly activity-date worksheet grouping full rate, complimentary, trade exchange, discount bands, student, and other custom rates.
                         </p>
                         <div className="grid gap-4">
                             <div className="grid gap-4 md:grid-cols-2">
