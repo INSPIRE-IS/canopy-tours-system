@@ -110,7 +110,7 @@ class ReportsController extends Controller
             'type_payment_id' => 'nullable|exists:type_payments,id',
             'include_group_type' => 'nullable|in:0,1,true,false',
             'include_nationality' => 'nullable|in:0,1,true,false',
-            'include_meal' => 'nullable|in:0,1,true,false',
+            'include_referral' => 'nullable|in:0,1,true,false',
             'include_gender' => 'nullable|in:0,1,true,false',
             'delivery' => 'nullable|in:download,email',
         ]);
@@ -121,7 +121,7 @@ class ReportsController extends Controller
         $endDate = $validated['end_date'] ?? null;
         $includeGroupType = filter_var($validated['include_group_type'] ?? false, FILTER_VALIDATE_BOOLEAN);
         $includeNationality = filter_var($validated['include_nationality'] ?? false, FILTER_VALIDATE_BOOLEAN);
-        $includeMeal = filter_var($validated['include_meal'] ?? false, FILTER_VALIDATE_BOOLEAN);
+        $includeReferral = filter_var($validated['include_referral'] ?? false, FILTER_VALIDATE_BOOLEAN);
         $includeGender = filter_var($validated['include_gender'] ?? false, FILTER_VALIDATE_BOOLEAN);
 
         if ($validated['report'] === 'bookings') {
@@ -145,7 +145,7 @@ class ReportsController extends Controller
                 $serviceId ? (int) $serviceId : null,
                 $includeGroupType,
                 $includeNationality,
-                $includeMeal,
+                $includeReferral,
                 $includeGender
             );
             $label = 'Check-in Manifest';

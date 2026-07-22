@@ -1044,10 +1044,10 @@ class SeedHelpQuestions extends Command
             [
                 'category' => 'Reports',
                 'question' => 'How do the Check-in/Manifest optional fields work?',
-                'description' => 'Optional columns for group type, nationality, and meal choice.',
+                'description' => 'Optional columns for group type, nationality, referral source, and gender.',
                 'where' => '<a href="/admin/reports">Admin > Reports</a>',
-                'business_rules' => 'The optional columns pull from questionnaire answers by slug: `type_group_id` for Group Type, `country_id`/`nationality_id` for Nationality (fallback to customer nationality if missing), and `lunch_option` for Meal. If a value is missing, the column is left blank. Checked-in is based on indemnity completion; Arrived is based on attendance status.',
-                'examples' => 'If a guest never completed the questionnaire, Group Type and Meal will be blank. If they completed check-in but were marked No Show, Checked-in = Yes and Arrived = No.',
+                'business_rules' => 'The optional columns pull from questionnaire answers by slug: `type_group_id` for Group Type, `country_id`/`nationality_id` for Nationality (fallback to customer nationality if missing), `referral_id` for Referral Captured, and `gender`/`gender_id` for Gender. If a value is missing, the column is left blank. Checked-in is based on indemnity completion; Arrived is based on attendance status.',
+                'examples' => 'If a guest never completed the questionnaire, Group Type and Referral Captured will be blank. If they completed check-in but were marked No Show, Checked-in = Yes and Arrived = No.',
                 'is_internal' => true,
             ],
             [

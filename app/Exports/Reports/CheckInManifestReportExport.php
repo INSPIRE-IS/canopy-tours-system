@@ -5,10 +5,10 @@ namespace App\Exports\Reports;
 use App\Models\BookingNote;
 use App\Models\Country;
 use App\Models\CustomerManifest;
-use App\Models\Question;
 use App\Models\QuestionAnswer;
 use App\Models\TypeGender;
 use App\Models\TypeGroup;
+use App\Models\TypeReferral;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Maatwebsite\Excel\Concerns\FromQuery;
@@ -21,8 +21,8 @@ class CheckInManifestReportExport implements FromQuery, WithHeadings, WithMappin
     private array $answersByBookingItem = [];
     private array $typeGroupMap = [];
     private array $typeGenderMap = [];
+    private array $typeReferralMap = [];
     private array $countryMap = [];
-    private array $lunchOptions = [];
 
     public function __construct(
         private readonly int $teamId,
@@ -31,7 +31,7 @@ class CheckInManifestReportExport implements FromQuery, WithHeadings, WithMappin
         private readonly ?int $serviceId,
         private readonly bool $includeGroupType,
         private readonly bool $includeNationality,
-        private readonly bool $includeMeal,
+        private readonly bool $includeReferral,
         private readonly bool $includeGender,
     ) {
         $this->typeGroupMap = TypeGroup::select('id', 'name')
@@ -44,25 +44,17 @@ class CheckInManifestReportExport implements FromQuery, WithHeadings, WithMappin
             ->pluck('name', 'id')
             ->toArray();
 
+        $this->typeReferralMap = TypeReferral::select('id', 'name')
+            ->get()
+            ->pluck('name', 'id')
+            ->toArray();
+
         $this->countryMap = Country::select('id', 'nationality', 'name')
             ->get()
             ->mapWithKeys(function ($country) {
                 return [$country->id => $country->nationality ?: $country->name];
             })
             ->toArray();
-
-        $lunchQuestion = Question::select('options')
-            ->where('slug', 'lunch_option')
-            ->first();
-        if ($lunchQuestion && is_array($lunchQuestion->options)) {
-            foreach ($lunchQuestion->options as $option) {
-                $id = $option['id'] ?? null;
-                if ($id === null) {
-                    continue;
-                }
-                $this->lunchOptions[(string) $id] = $option['name'] ?? $id;
-            }
-        }
     }
 
     public function query(): Builder
@@ -126,8 +118,8 @@ class CheckInManifestReportExport implements FromQuery, WithHeadings, WithMappin
         if ($this->includeNationality) {
             $headings[] = 'Nationality';
         }
-        if ($this->includeMeal) {
-            $headings[] = 'Meal Option';
+        if ($this->includeReferral) {
+            $headings[] = 'Referral Captured';
         }
         if ($this->includeGender) {
             $headings[] = 'Gender';
@@ -158,7 +150,7 @@ class CheckInManifestReportExport implements FromQuery, WithHeadings, WithMappin
             $manifest->latest_booking_note ?? '',
         ];
 
-        if ($this->includeGroupType || $this->includeNationality || $this->includeMeal || $this->includeGender) {
+        if ($this->includeGroupType || $this->includeNationality || $this->includeReferral || $this->includeGender) {
             $bookingItemId = $bookingItem?->id;
             $customerId = $manifest->customer_id;
             $answers = $this->getAnswersForCustomer($bookingItemId, $customerId);
@@ -175,10 +167,10 @@ class CheckInManifestReportExport implements FromQuery, WithHeadings, WithMappin
                     ? ($this->countryMap[(string) $countryValue] ?? $countryValue)
                     : '';
             }
-            if ($this->includeMeal) {
-                $mealValue = $answers['lunch_option'] ?? null;
-                $row[] = $mealValue !== null
-                    ? ($this->lunchOptions[(string) $mealValue] ?? $mealValue)
+            if ($this->includeReferral) {
+                $referralValue = $answers['referral_id'] ?? null;
+                $row[] = $referralValue !== null
+                    ? ($this->typeReferralMap[(string) $referralValue] ?? $referralValue)
                     : '';
             }
             if ($this->includeGender) {

@@ -37,7 +37,7 @@ export default function Index({ auth, services = [], paymentTypes = [] }) {
         service_id: '',
         include_group_type: false,
         include_nationality: false,
-        include_meal: false,
+        include_referral: false,
         include_gender: false,
         delivery: 'download',
     });
@@ -420,9 +420,9 @@ export default function Index({ auth, services = [], paymentTypes = [] }) {
                                     onChange={(name, checked) => setManifestFilters(prev => ({ ...prev, [name]: checked }))}
                                 />
                                 <CustomCheckbox
-                                    label="Meal Option"
-                                    name="include_meal"
-                                    checked={manifestFilters.include_meal}
+                                    label="Referral Captured"
+                                    name="include_referral"
+                                    checked={manifestFilters.include_referral}
                                     onChange={(name, checked) => setManifestFilters(prev => ({ ...prev, [name]: checked }))}
                                 />
                                 <CustomCheckbox
