@@ -7,13 +7,16 @@ use App\Http\Requests\StoreCloseoutRequest;
 use App\Http\Requests\UpdateCloseoutRequest;
 use App\Models\Closeout;
 use App\Models\CloseoutDayTimeSlot;
+use App\Models\InventoryTimeSlot;
 use App\Models\Season;
 use App\Models\Service;
 use App\Models\User;
+use Carbon\Carbon;
 use Gate;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Session;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\Response;
 
 class CloseoutsController extends Controller
@@ -31,12 +34,45 @@ class CloseoutsController extends Controller
         $searchTerm = $request->get('search', '');
         $sortColumn = $request->get('sort', 'name');
         $sortDirection = $request->get('direction', 'asc');
+        $allowedSorts = ['id', 'name', 'service_id', 'season_id', 'start_date', 'end_date'];
+        if (!in_array($sortColumn, $allowedSorts, true)) {
+            $sortColumn = 'name';
+        }
+        $sortDirection = $sortDirection === 'desc' ? 'desc' : 'asc';
         /** @var \App\Models\User $user */
         $teamId = Session::get('team_id');
-        $closeouts = Closeout::with(['service', 'season.inventory', 'closeout_day_time_slots.time_slot'])
-            ->where('name', 'like', '%' . $searchTerm . '%')
-            ->orderBy($sortColumn, $sortDirection)
+        $baseCloseoutsQuery = Closeout::with(['service', 'season.inventory', 'closeout_day_time_slots.time_slot'])
+            ->where('name', 'like', '%' . $searchTerm . '%');
+
+        if ($request->boolean('check_overlaps')) {
+            $baseCloseoutsQuery
+                ->orderBy('service_id')
+                ->orderBy('season_id')
+                ->orderBy('start_date')
+                ->orderBy('end_date');
+        } else {
+            $baseCloseoutsQuery->orderBy($sortColumn, $sortDirection);
+        }
+
+        $closeouts = (clone $baseCloseoutsQuery)
             ->paginate(10);
+
+        $overlapGroups = $this->buildOverlapGroups(
+            Closeout::with(['service', 'season', 'closeout_day_time_slots.time_slot'])->get()
+        );
+
+        $overlapIds = collect($overlapGroups)
+            ->flatMap(fn ($group) => $group['closeout_ids'])
+            ->unique()
+            ->values();
+
+        foreach ($closeouts->items() as $closeout) {
+            $closeout->setAttribute('has_overlap', $overlapIds->contains($closeout->id));
+            $closeout->setAttribute('overlap_groups', collect($overlapGroups)
+                ->filter(fn ($group) => in_array($closeout->id, $group['closeout_ids'], true))
+                ->values()
+                ->all());
+        }
         //dd($closeouts);
         $services = Service::with('seasons', 'seasons.inventory', 'seasons.inventory.inventory_type_days.type_day', 'seasons.inventory.inventory_time_slots')->select('id', 'name')->get();
         //dd($services[0]->seasons[0]->inventory->inventory_time_slots);
@@ -52,11 +88,15 @@ class CloseoutsController extends Controller
             'sortColumn' => $sortColumn,
             'sortDirection' => $sortDirection,
             'fieldValues' => null,
+            'overlapGroups' => $overlapGroups,
+            'checkOverlaps' => $request->boolean('check_overlaps'),
         ]);
     }
 
     public function store(StoreCloseoutRequest $request)
     {
+        $this->validateNoCloseoutOverlap($request);
+
         //dd($request->all());
         //$closeout = Closeout::create($request->all());
         $closeout = Closeout::create($request->only([
@@ -71,13 +111,13 @@ class CloseoutsController extends Controller
             'updated_by_id'
         ]));
 
-        foreach ($request->day_id as $index => $dayId) {
+        foreach ($request->input('day_id', []) as $index => $dayId) {
             logger()->info('dayId ' . $dayId);
-            logger()->info('time_slot_id ' . $request->time_slot_id[$index]);
+            logger()->info('time_slot_id ' . $request->input('time_slot_id', [])[$index]);
             $res = CloseoutDayTimeSlot::create([
                 'closeout_id' => $closeout->id,
                 'day_id' => $dayId,
-                'time_slot_id' => $request->time_slot_id[$index],
+                'time_slot_id' => $request->input('time_slot_id', [])[$index],
                 'team_id' => $closeout->team_id,
             ]);
             logger()->info('res ' . $res);
@@ -91,6 +131,8 @@ class CloseoutsController extends Controller
 
     public function update(UpdateCloseoutRequest $request, Closeout $closeout)
     {
+        $this->validateNoCloseoutOverlap($request, $closeout);
+
         $closeout->update($request->only([
             'service_id',
             'season_id',
@@ -106,11 +148,11 @@ class CloseoutsController extends Controller
         foreach ($closeout_day_time_slots as $closeout_day_time_slot) {
             $closeout_day_time_slot->delete();
         }
-        foreach ($request->day_id as $index => $dayId) {
+        foreach ($request->input('day_id', []) as $index => $dayId) {
             CloseoutDayTimeSlot::create([
                 'closeout_id' => $closeout->id,
                 'day_id' => $dayId,
-                'time_slot_id' => $request->time_slot_id[$index],
+                'time_slot_id' => $request->input('time_slot_id', [])[$index],
                 'team_id' => $closeout->team_id,
             ]);
         }
@@ -129,10 +171,195 @@ class CloseoutsController extends Controller
 
     public function destroy(Closeout $closeout)
     {
-        abort_if(Gate::denies('closeout_delete'), Response::HTTP_FORBIDDEN, '403 Forbidden');
+        abort_if(Gate::denies('closeouts_delete'), Response::HTTP_FORBIDDEN, '403 Forbidden');
 
+        $closeout->closeout_day_time_slots()->delete();
         $closeout->delete();
 
         return back();
+    }
+
+    private function validateNoCloseoutOverlap(Request $request, ?Closeout $ignoreCloseout = null): void
+    {
+        $dayIds = $request->input('day_id', []);
+        $timeSlotIds = $request->input('time_slot_id', []);
+
+        if (!is_array($dayIds) || !is_array($timeSlotIds) || count($dayIds) !== count($timeSlotIds)) {
+            throw ValidationException::withMessages([
+                'day_id' => 'Closeout day/time selections are invalid. Please reselect the days and times.',
+            ]);
+        }
+
+        $proposed = [
+            'id' => $ignoreCloseout?->id,
+            'name' => $request->input('name'),
+            'service_id' => (int) $request->input('service_id'),
+            'season_id' => (int) $request->input('season_id'),
+            'start_date' => $this->normalDate($request->input('start_date')),
+            'end_date' => $this->normalDate($request->input('end_date')),
+            'cells' => $this->cellsFromRequest($dayIds, $timeSlotIds),
+        ];
+
+        $existingCloseouts = Closeout::with('closeout_day_time_slots.time_slot')
+            ->where('service_id', $proposed['service_id'])
+            ->where('season_id', $proposed['season_id'])
+            ->when($ignoreCloseout, fn ($query) => $query->where('id', '!=', $ignoreCloseout->id))
+            ->get();
+
+        $conflicts = $existingCloseouts
+            ->map(fn (Closeout $closeout) => $this->overlapConflictFor($proposed, $this->closeoutOverlapPayload($closeout)))
+            ->filter()
+            ->values();
+
+        if ($conflicts->isNotEmpty()) {
+            $names = $conflicts
+                ->pluck('other_name')
+                ->unique()
+                ->take(3)
+                ->implode(', ');
+
+            throw ValidationException::withMessages([
+                'start_date' => "This closeout overlaps existing closed day/time slots ({$names}). Adjust the dates or open those cells on one closeout first.",
+            ]);
+        }
+    }
+
+    private function buildOverlapGroups($closeouts): array
+    {
+        $payloads = $closeouts
+            ->map(fn (Closeout $closeout) => $this->closeoutOverlapPayload($closeout))
+            ->values();
+
+        $groups = [];
+
+        for ($i = 0; $i < $payloads->count(); $i++) {
+            for ($j = $i + 1; $j < $payloads->count(); $j++) {
+                $conflict = $this->overlapConflictFor($payloads[$i], $payloads[$j]);
+                if ($conflict) {
+                    $groups[] = [
+                        'closeout_ids' => [$payloads[$i]['id'], $payloads[$j]['id']],
+                        'service_id' => $payloads[$i]['service_id'],
+                        'service_name' => $payloads[$i]['service_name'],
+                        'season_id' => $payloads[$i]['season_id'],
+                        'season_name' => $payloads[$i]['season_name'],
+                        'date_window' => $conflict['date_window'],
+                        'cells' => $conflict['cells'],
+                        'names' => [$payloads[$i]['name'], $payloads[$j]['name']],
+                    ];
+                }
+            }
+        }
+
+        return $groups;
+    }
+
+    private function overlapConflictFor(array $left, array $right): ?array
+    {
+        if ($left['service_id'] !== $right['service_id'] || $left['season_id'] !== $right['season_id']) {
+            return null;
+        }
+
+        if ($left['end_date'] < $right['start_date'] || $right['end_date'] < $left['start_date']) {
+            return null;
+        }
+
+        $overlapCells = collect($left['cells'])
+            ->filter(fn ($leftCell) => collect($right['cells'])->contains(
+                fn ($rightCell) => $this->closeoutCellsOverlap($leftCell, $rightCell)
+            ))
+            ->map(fn ($cell) => $cell['label'])
+            ->unique()
+            ->values()
+            ->all();
+
+        if (empty($overlapCells)) {
+            return null;
+        }
+
+        return [
+            'other_id' => $right['id'],
+            'other_name' => $right['name'],
+            'date_window' => [
+                'start' => max($left['start_date'], $right['start_date']),
+                'end' => min($left['end_date'], $right['end_date']),
+            ],
+            'cells' => $overlapCells,
+        ];
+    }
+
+    private function closeoutCellsOverlap(array $leftCell, array $rightCell): bool
+    {
+        $sameDay = $leftCell['day_id'] === '*' || $rightCell['day_id'] === '*' || $leftCell['day_id'] === $rightCell['day_id'];
+        $sameTime = $leftCell['time_key'] === '*' || $rightCell['time_key'] === '*' || $leftCell['time_key'] === $rightCell['time_key'];
+
+        return $sameDay && $sameTime;
+    }
+
+    private function closeoutOverlapPayload(Closeout $closeout): array
+    {
+        return [
+            'id' => $closeout->id,
+            'name' => $closeout->name,
+            'service_id' => (int) $closeout->service_id,
+            'service_name' => $closeout->service?->name,
+            'season_id' => (int) $closeout->season_id,
+            'season_name' => $closeout->season?->name,
+            'start_date' => $this->normalDate($closeout->getRawOriginal('start_date') ?: $closeout->start_date),
+            'end_date' => $this->normalDate($closeout->getRawOriginal('end_date') ?: $closeout->end_date),
+            'cells' => $this->cellsFromCloseout($closeout),
+        ];
+    }
+
+    private function cellsFromCloseout(Closeout $closeout): array
+    {
+        if ($closeout->closeout_day_time_slots->isEmpty()) {
+            return [[
+                'day_id' => '*',
+                'time_key' => '*',
+                'label' => 'All days / all times',
+            ]];
+        }
+
+        return $closeout->closeout_day_time_slots
+            ->map(function (CloseoutDayTimeSlot $slot) {
+                $time = $slot->time_slot?->start_time ? substr($slot->time_slot->start_time, 0, 5) : (string) $slot->time_slot_id;
+
+                return [
+                    'day_id' => (int) $slot->day_id,
+                    'time_key' => $time,
+                    'label' => "Day {$slot->day_id} {$time}",
+                ];
+            })
+            ->unique(fn ($cell) => $cell['day_id'] . '|' . $cell['time_key'])
+            ->values()
+            ->all();
+    }
+
+    private function cellsFromRequest(array $dayIds, array $timeSlotIds): array
+    {
+        $slotTimes = InventoryTimeSlot::withTrashed()
+            ->whereIn('id', $timeSlotIds)
+            ->get()
+            ->mapWithKeys(fn (InventoryTimeSlot $slot) => [$slot->id => substr((string) $slot->start_time, 0, 5)]);
+
+        return collect($dayIds)
+            ->map(function ($dayId, $index) use ($timeSlotIds, $slotTimes) {
+                $timeSlotId = $timeSlotIds[$index] ?? null;
+                $timeKey = $slotTimes[$timeSlotId] ?? (string) $timeSlotId;
+
+                return [
+                    'day_id' => (int) $dayId,
+                    'time_key' => $timeKey,
+                    'label' => "Day {$dayId} {$timeKey}",
+                ];
+            })
+            ->unique(fn ($cell) => $cell['day_id'] . '|' . $cell['time_key'])
+            ->values()
+            ->all();
+    }
+
+    private function normalDate($date): string
+    {
+        return Carbon::parse($date)->toDateString();
     }
 }

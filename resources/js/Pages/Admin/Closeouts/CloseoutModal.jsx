@@ -64,6 +64,17 @@ const CloseoutModal = ({ isOpen, onClose, mode, closeout = null, services, auth,
 
     useEffect(() => {
         if ((mode === "edit" || mode === "view") && closeout && inventory) {
+            if ((closeout.closeout_day_time_slots || []).length === 0) {
+                const allPairs = [];
+                (inventory.inventory_type_days || []).forEach(day => {
+                    inventoryTimeSlots.forEach(slot => {
+                        allPairs.push({ day_id: Number(day.type_day_id), time_slot_id: Number(slot.id) });
+                    });
+                });
+                setSelectedSlots(allPairs);
+                return;
+            }
+
             const currentSlotIds = new Set(inventoryTimeSlots.map(slot => Number(slot.id)));
             const currentSlotByTime = new Map(inventoryTimeSlots.map(slot => [normalizeTime(slot.start_time), slot]));
             const slots = closeout.closeout_day_time_slots.map(slot => {
@@ -179,6 +190,11 @@ const CloseoutModal = ({ isOpen, onClose, mode, closeout = null, services, auth,
         data.day_id = selectedSlots.map(s => s.day_id);
         data.time_slot_id = selectedSlots.map(s => s.time_slot_id);
 
+        if (data.day_id.length === 0) {
+            alert('No slots are selected to close. If you want to reopen this whole period, use Remove on the closeout table instead of saving this closeout.');
+            return;
+        }
+
         if (mode === "create") {
             post(route("admin.closeouts.store"), {
                 onSuccess: () => onClose(),
@@ -287,6 +303,11 @@ const CloseoutModal = ({ isOpen, onClose, mode, closeout = null, services, auth,
 
                     {inventory && (
                         <div className="mb-4 overflow-x-auto">
+                            {selectedSlots.length === 0 && (
+                                <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                                    No slots are selected to close. This closeout cannot be saved empty. If you want to reopen the whole period, close this modal and use Remove on the closeout table.
+                                </div>
+                            )}
                             <div className="flex justify-end gap-2 mb-2">
                                 <OutlineButton
                                     title="Close All"

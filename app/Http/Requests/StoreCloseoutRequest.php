@@ -25,11 +25,15 @@ class StoreCloseoutRequest extends FormRequest
         return [
             'name' => 'required|string|max:255',
             'start_date' => 'required|date',
-            'end_date' => 'required|date',
+            'end_date' => 'required|date|after_or_equal:start_date',
             'reason' => 'required|string|max:255',
             'service_id' => 'required|integer',
             'season_id' => 'required|integer',
             'team_id' => 'required|integer',
+            'day_id' => 'required|array|min:1',
+            'day_id.*' => 'required|integer',
+            'time_slot_id' => 'required|array|min:1',
+            'time_slot_id.*' => 'required|integer',
         ];
     }
 }
