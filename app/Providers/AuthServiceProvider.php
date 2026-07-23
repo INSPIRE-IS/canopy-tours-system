@@ -3,9 +3,6 @@
 namespace App\Providers;
 
 
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
-
 // use Illuminate\Support\Facades\Gate;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
 
@@ -25,11 +22,6 @@ class AuthServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        if (app()->environment(['local', 'staging', 'development'])) {
-            // log::info('Mail is set to sandbox');
-            Mail::alwaysTo('sandbox@inspireonline.co.za'); // O@BczDAVgrz2{89e
-        }
-
         $this->registerPolicies();
         //
     }

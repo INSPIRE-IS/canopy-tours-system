@@ -13,6 +13,8 @@ return [
     |
     */
 
+    'auto_send' => env('AUTO_SEND', true),
+
     'default' => env('MAIL_MAILER', 'smtp'),
 
     /*

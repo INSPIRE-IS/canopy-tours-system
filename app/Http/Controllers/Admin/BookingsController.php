@@ -160,6 +160,11 @@ class BookingsController extends Controller
         }
     }
 
+    private function shouldSendBookingDocument(bool $autoSetting, bool $explicitRequest): bool
+    {
+        return (config('mail.auto_send') && $autoSetting) || $explicitRequest;
+    }
+
     private function logAudit(
         string $description,
         Booking $booking,
@@ -860,8 +865,8 @@ class BookingsController extends Controller
         $pickupEnabled = $settings['enable_pickup_dropoff'] ?? true;
         $autoSendInvoiceSetting = $settings['auto_send_invoice_on_booking'] ?? true;
         $autoSendQuoteSetting = $settings['auto_send_quote_on_booking'] ?? false;
-        $autoSendInvoice = $autoSendInvoiceSetting ? true : (bool) ($validated['send_invoice'] ?? false);
-        $autoSendQuote = $autoSendQuoteSetting ? true : (bool) ($validated['send_quote'] ?? false);
+        $autoSendInvoice = $this->shouldSendBookingDocument($autoSendInvoiceSetting, (bool) ($validated['send_invoice'] ?? false));
+        $autoSendQuote = $this->shouldSendBookingDocument($autoSendQuoteSetting, (bool) ($validated['send_quote'] ?? false));
         $validated['needs_pickup'] = $pickupEnabled ? ($validated['needs_pickup'] ?? false) : false;
         try {
             $activityItems = $this->normaliseActivityItems($request->input('activity_items', []));
@@ -2146,8 +2151,8 @@ class BookingsController extends Controller
         $pickupEnabled = $settings['enable_pickup_dropoff'] ?? true;
         $autoSendInvoiceSetting = $settings['auto_send_invoice_on_booking'] ?? true;
         $autoSendQuoteSetting = $settings['auto_send_quote_on_booking'] ?? false;
-        $autoSendInvoice = $autoSendInvoiceSetting ? true : (bool) ($validated['send_invoice'] ?? false);
-        $autoSendQuote = $autoSendQuoteSetting ? true : (bool) ($validated['send_quote'] ?? false);
+        $autoSendInvoice = $this->shouldSendBookingDocument($autoSendInvoiceSetting, (bool) ($validated['send_invoice'] ?? false));
+        $autoSendQuote = $this->shouldSendBookingDocument($autoSendQuoteSetting, (bool) ($validated['send_quote'] ?? false));
         $validated['needs_pickup'] = $pickupEnabled ? ($validated['needs_pickup'] ?? false) : false;
 
         try {
