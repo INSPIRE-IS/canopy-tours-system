@@ -26,6 +26,7 @@ use App\Models\Inventory;
 use App\Models\InventoryOverride;
 use App\Models\InventorySlotRange;
 use App\Models\InventoryTimeSlot;
+use App\Models\InventoryTypeDay;
 use App\Models\Promotion;
 use App\Models\QuestionAnswer;
 use App\Models\Season;
@@ -920,10 +921,6 @@ class BookingsController extends Controller
                     $validated['is_wholesaler'] = false;
                 }
                 $inventory = Inventory::where('season_id', $season->id)->first();
-                //$FullNameOfDay = Carbon::parse($validated['date'])->format('l'); // e.g., Monday
-                //$ShortNameOfDay = Carbon::parse($validated['date'])->format('D'); // e.g., Mon
-                $isoNameOfDay = Carbon::parse($selected_slot['activityDate'])->format('N'); // iso week starts on Monday
-                //$numericNameOfDay = Carbon::parse($validated['date'])->format('w'); // week starts on Sunday
 
                 // if (($validated['wholesaler_id'] && $validated['promoCode']) || (!$validated['wholesaler_id'] && $validated['discount_lines']) || ($validated['promoCode'] && $validated['discount_lines'])) {
                 //     abort(404, 'Tonly one type of discount is permitted.');
@@ -932,6 +929,7 @@ class BookingsController extends Controller
                 if (!$inventory) {
                     abort(404, 'This season has no inventory.');
                 }
+                $inventoryTypeDayId = $this->resolveInventoryTypeDayId($inventory, $selected_slot['activityDate'] ?? $validated['booking_date']);
                 $overrideTimeSlots = !empty($validated['override_timeslots']);
                 if ($overrideTimeSlots && !(bool) $inventory->allow_internal_override) {
                     throw ValidationException::withMessages([
@@ -1153,7 +1151,7 @@ class BookingsController extends Controller
                     'guides'     => (int) ($validated['guides'] ?? 0),
                     'pax'            => (int) ($validated['adults'] ?? 0) + (int) ($validated['children'] ?? 0),
                     'date'           => $validated['booking_date'],
-                    'inventory_type_day_id' => $isoNameOfDay,
+                    'inventory_type_day_id' => $inventoryTypeDayId,
                     'inventory_time_slot_id' => $inventoryTimeSlot->id,
                     'inventory_override_id' => $overrideRates ? $inventoryOverride?->id : null,
                     'team_id'        => auth()->user()->team_id,
@@ -1527,6 +1525,22 @@ class BookingsController extends Controller
         //return redirect()->route('admin.bookings.index');
     }
 
+    private function resolveInventoryTypeDayId(Inventory $inventory, string $date): int
+    {
+        $typeDayId = Carbon::parse($date)->dayOfWeekIso;
+        $inventoryTypeDayId = InventoryTypeDay::where('inventory_id', $inventory->id)
+            ->where('type_day_id', $typeDayId)
+            ->value('id');
+
+        if (!$inventoryTypeDayId) {
+            throw ValidationException::withMessages([
+                'booking_date' => 'Selected booking date is not available for this inventory.',
+            ]);
+        }
+
+        return (int) $inventoryTypeDayId;
+    }
+
     private function normaliseActivityItems(array $items): array
     {
         return collect($items)
@@ -1739,7 +1753,7 @@ class BookingsController extends Controller
                     'guides' => (int) ($activity['guides'] ?? 0),
                     'pax' => (int) ($activity['adults'] ?? 0) + (int) ($activity['children'] ?? 0),
                     'date' => $activity['booking_date'],
-                    'inventory_type_day_id' => Carbon::parse($activity['booking_date'])->format('N'),
+                    'inventory_type_day_id' => $this->resolveInventoryTypeDayId($inventory, $activity['booking_date']),
                     'inventory_time_slot_id' => $inventoryTimeSlot->id,
                     'inventory_override_id' => $overrideRates ? $inventoryOverride?->id : null,
                     'team_id' => $teamId,
@@ -2216,7 +2230,7 @@ class BookingsController extends Controller
                     ]);
                 }
 
-                $isoNameOfDay = Carbon::parse($bookingDate)->format('N');
+                $inventoryTypeDayId = $this->resolveInventoryTypeDayId($inventory, $bookingDate);
 
                 $adultsCount = (int) ($validated['adults'] ?? 0);
                 $childrenCount = (int) ($validated['children'] ?? 0);
@@ -2432,7 +2446,7 @@ class BookingsController extends Controller
                     'guides' => $guidesCount,
                     'pax' => $adultsCount + $childrenCount,
                     'date' => $bookingDate,
-                    'inventory_type_day_id' => $isoNameOfDay,
+                    'inventory_type_day_id' => $inventoryTypeDayId,
                     'inventory_time_slot_id' => $inventoryTimeSlot?->id,
                     'inventory_override_id' => $overrideRates ? $inventoryOverride?->id : null,
                     'team_id' => auth()->user()->team_id,
@@ -4203,6 +4217,115 @@ class BookingsController extends Controller
         });
 
         return back()->with('success', 'Bookings cancelled for that slot.');
+    }
+
+    public function updateTimeslot(Request $request)
+    {
+        $validated = $request->validate([
+            'booking_id' => 'required|exists:bookings,id',
+            'booking_item_id' => 'nullable|exists:booking_items,id',
+            'booking_date' => 'required|date',
+            'start_time' => 'required|integer',
+        ]);
+
+        DB::transaction(function () use ($validated) {
+            $booking = Booking::where('id', $validated['booking_id'])
+                ->where('team_id', auth()->user()->team_id)
+                ->firstOrFail();
+
+            $bookingItemQuery = BookingItem::with(['service', 'booking_inventory', 'booking_detail'])
+                ->where('booking_id', $booking->id)
+                ->where('team_id', auth()->user()->team_id);
+
+            if (!empty($validated['booking_item_id'])) {
+                $bookingItemQuery->where('id', $validated['booking_item_id']);
+            }
+
+            $bookingItem = $bookingItemQuery->orderBy('id')->firstOrFail();
+            $inventory = Inventory::where('season_id', $bookingItem->season_id)->first();
+
+            if (!$inventory) {
+                throw ValidationException::withMessages([
+                    'booking_date' => 'This season has no inventory.',
+                ]);
+            }
+
+            $inventoryTimeSlot = InventoryTimeSlot::where('inventory_id', $inventory->id)
+                ->where('id', $validated['start_time'])
+                ->first();
+
+            if (!$inventoryTimeSlot) {
+                throw ValidationException::withMessages([
+                    'start_time' => 'Selected time slot does not exist for this inventory.',
+                ]);
+            }
+
+            $inventoryTypeDayId = $this->resolveInventoryTypeDayId($inventory, $validated['booking_date']);
+            $requestedPax = (int) ($bookingItem->booking_inventory?->pax ?? ($bookingItem->pax_adults + $bookingItem->pax_children));
+            $sameOrReducedSlot = $this->isSameOrReducedBookingSlot(
+                $bookingItem,
+                $validated['booking_date'],
+                $inventoryTimeSlot->id,
+                $requestedPax,
+                (int) $bookingItem->service_id
+            );
+
+            if (!$sameOrReducedSlot) {
+                $this->validateSlotCapacity(
+                    $bookingItem->service,
+                    $validated['booking_date'],
+                    $inventoryTimeSlot->id,
+                    $requestedPax,
+                    auth()->user()->team_id,
+                    $bookingItem->id
+                );
+            }
+
+            $bookingDetail = $bookingItem->booking_detail;
+            if (!$bookingDetail) {
+                $bookingDetail = BookingDetail::create([
+                    'booking_item_id' => $bookingItem->id,
+                    'team_id' => auth()->user()->team_id,
+                ]);
+            }
+
+            BookingInventory::updateOrCreate(
+                ['booking_item_id' => $bookingItem->id],
+                [
+                    'booking_detail_id' => $bookingDetail->id,
+                    'adults' => (int) $bookingItem->pax_adults,
+                    'children' => (int) $bookingItem->pax_children,
+                    'guides' => (int) $bookingItem->pax_guides,
+                    'pax' => $requestedPax,
+                    'date' => $validated['booking_date'],
+                    'inventory_type_day_id' => $inventoryTypeDayId,
+                    'inventory_time_slot_id' => $inventoryTimeSlot->id,
+                    'team_id' => auth()->user()->team_id,
+                ]
+            );
+
+            if ($bookingItem->booking_inventory?->inventory_override_id) {
+                InventoryOverride::where('id', $bookingItem->booking_inventory->inventory_override_id)
+                    ->where('team_id', auth()->user()->team_id)
+                    ->update([
+                        'date' => $validated['booking_date'],
+                        'time' => $inventoryTimeSlot->start_time,
+                        'updated_by_id' => auth()->id(),
+                    ]);
+            }
+
+            $booking->update([
+                'due_date' => $validated['booking_date'],
+            ]);
+
+            $this->logAudit('Booking timeslot updated', $booking, $bookingItem, [
+                'booking_date' => $validated['booking_date'],
+                'inventory_time_slot_id' => $inventoryTimeSlot->id,
+                'start_time' => $inventoryTimeSlot->start_time,
+            ]);
+        });
+
+        return back()->with('success', 'Booking time slot updated.');
     }
 
     public function sendEmail(Request $request)

@@ -1657,6 +1657,11 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
 
         transform(() => submitPayload);
         post(route('admin.bookings.store'), {
+            onSuccess: () => {
+                if (submitPayload.pay_later) {
+                    router.visit(route('admin.bookings.index'));
+                }
+            },
             onError: (errs) => {
                 const msg = errs?.booking_total || errs?.start_time || errs?.booking_date || 'Please fix the highlighted fields and try again.';
                 showToast(msg, 'error');

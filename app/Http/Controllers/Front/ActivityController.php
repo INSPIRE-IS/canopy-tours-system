@@ -45,6 +45,20 @@ use Str;
 
 class ActivityController extends Controller
 {
+    private function resolveInventoryTypeDayId(Inventory $inventory, string $date): int
+    {
+        $typeDayId = Carbon::parse($date)->dayOfWeekIso;
+        $inventoryTypeDayId = InventoryTypeDay::where('inventory_id', $inventory->id)
+            ->where('type_day_id', $typeDayId)
+            ->value('id');
+
+        if (!$inventoryTypeDayId) {
+            abort(404, 'Selected booking date is not available for this inventory.');
+        }
+
+        return (int) $inventoryTypeDayId;
+    }
+
     private function syncBookingPriceLines(BookingItem $bookingItem, array $pricing, string $activityDate, ?string $activityTime): void
     {
         $bookingItem->price_lines()->delete();
@@ -548,13 +562,10 @@ class ActivityController extends Controller
                     abort(404);
                 }
                 $inventory = Inventory::with(['inventory_time_slots'])->where('season_id', $season->id)->first();
-                //$FullNameOfDay = Carbon::parse($validated['slot_date'])->format('l'); // e.g., Monday
-                //$ShortNameOfDay = Carbon::parse($validated['slot_date'])->format('D'); // e.g., Mon
-                $isoNameOfDay = Carbon::parse($validated['slot_date'])->format('N'); // iso week starts on Monday
-                //$numericNameOfDay = Carbon::parse($validated['slot_date'])->format('w'); // week starts on Sunday
                 if (!$inventory) {
                     abort(404, 'This season has no inventory.');
                 }
+                $inventoryTypeDayId = $this->resolveInventoryTypeDayId($inventory, $validated['slot_date']);
 
                 $adults = (int) ($validated['adults'] ?? 0);
                 $children = (int) ($validated['children'] ?? 0);
@@ -758,7 +769,7 @@ class ActivityController extends Controller
                     'children'   => $children,
                     'guides'     => $guides,
                     'pax'            => $adults + $children,
-                    'inventory_type_day_id' => $isoNameOfDay,
+                    'inventory_type_day_id' => $inventoryTypeDayId,
                     'inventory_time_slot_id' => $inventoryTimeSlot->id,
                     'inventory_override_id' => null,
                     'team_id'        => $season->team_id,

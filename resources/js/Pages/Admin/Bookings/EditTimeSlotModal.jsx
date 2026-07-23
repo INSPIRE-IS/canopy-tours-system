@@ -46,7 +46,7 @@ const EditTimeSlotModal = ({ isOpen, onClose, mode, booking, services }) => {
                 season_id: booking.season_id,
                 booking_date: booking.booking_date,
                 inventory_time_slot_id: booking.inventory_time_slot_id,
-                start_time: booking.time,
+                start_time: booking.inventory_time_slot_id,
             });
             setActivityDate(new Date(booking.booking_date));
         }
@@ -82,10 +82,13 @@ const EditTimeSlotModal = ({ isOpen, onClose, mode, booking, services }) => {
 
                 const formattedTimeSlots = [
                     // { id: 0, name: "All" },
-                    ...(season?.inventory?.inventory_time_slots?.map(slot => ({
-                        id: slot.id,
-                        name: slot.start_time.slice(0, 5), // e.g., '08:00' from '08:00:00'
-                    })) || [])
+                    ...(season?.inventory?.inventory_time_slots
+                        ?.slice()
+                        ?.sort((a, b) => String(a.start_time).localeCompare(String(b.start_time)))
+                        ?.map(slot => ({
+                            id: slot.id,
+                            name: slot.start_time.slice(0, 5), // e.g., '08:00' from '08:00:00'
+                        })) || [])
                 ];
                 console.log('-------------formattedTimeSlots---------', formattedTimeSlots);
                 setTimeslots(formattedTimeSlots);
@@ -104,19 +107,11 @@ const EditTimeSlotModal = ({ isOpen, onClose, mode, booking, services }) => {
     const handleSubmit = (e) => {
         e.preventDefault();
         console.log('data', data);
-        return;
 
         if (mode === "edit") {
             post(route("admin.bookings.update-timeslot"), {
                 onSuccess: () => onClose(),
                 onError: (err) => { console.log(err); },
-                data: {
-                    booking_id: data.booking_id,
-                    service_id: data.service_id,
-                    season_id: data.season_id,
-                    booking_date: data.booking_date,
-                    inventory_time_slot_id: data.inventory_time_slot_id,
-                },
             });
         }
     };
@@ -162,7 +157,6 @@ const EditTimeSlotModal = ({ isOpen, onClose, mode, booking, services }) => {
                             label="Start Time"
                             name="start_time"
                             value={data.start_time}
-
                             onChange={(e) => {
                                 setData('start_time', e.target.value);
                                 setSelectedTime(e.target.value);

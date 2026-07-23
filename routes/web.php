@@ -289,6 +289,7 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['auth', 'v
     Route::post('bookings/notes', [BookingsController::class, 'addNote'])->name('bookings.notes.store');
     Route::post('bookings/log-checkin', [BookingsController::class, 'logCheckinAction'])->name('bookings.log-checkin');
     Route::post('bookings/cancel-slot', [BookingsController::class, 'cancelSlot'])->name('bookings.cancel-slot');
+    Route::post('bookings/update-timeslot', [BookingsController::class, 'updateTimeslot'])->name('bookings.update-timeslot');
     Route::post('bookings/{booking}/reinstate', [BookingsController::class, 'reinstate'])->name('bookings.reinstate');
     // Route::get('bookings/cancel-booking/{booking}', [BookingsController::class, 'cancelBooking'])->name('bookings.cancel-booking');
     Route::resource('bookings', BookingsController::class);
