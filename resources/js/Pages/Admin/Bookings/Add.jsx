@@ -1,5 +1,6 @@
 import CustomerToolsModal from '@/Components/CustomerToolsModal';
 import GuestEmailModal from '@/Components/GuestEmailModal';
+import GuestLinksModal from '@/Components/GuestLinksModal';
 import Header from '@/Components/Header';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
@@ -47,6 +48,7 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
     const [checkInTarget, setCheckInTarget] = useState(null);
     const [checkInAnswersTarget, setCheckInAnswersTarget] = useState(null);
     const [customerToolsTarget, setCustomerToolsTarget] = useState(null);
+    const [guestLinksTarget, setGuestLinksTarget] = useState(null);
     const [guestEmailTarget, setGuestEmailTarget] = useState(null);
     const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
     const [noteInput, setNoteInput] = useState('');
@@ -230,12 +232,7 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
 
     const CustomerToolClick = (tool, toolsBooking, customer) => {
         if (tool === 'customer_invoice') {
-            const file = (toolsBooking?.files || []).find(f => f?.table_name === 'invoices');
-            if (!file?.path) {
-                showToast('No invoice found.', 'error');
-                return;
-            }
-            window.open(file.path, '_blank', 'noopener,noreferrer');
+            setGuestLinksTarget({ booking: toolsBooking, customer });
             return;
         }
 
@@ -387,11 +384,17 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                             onClick={() => {
                                 logCheckInAction('open_checkin_options');
                                 setCheckInTarget({
+                                    id: booking?.id,
                                     booking_item_id: bookingItem?.id,
                                     reference: booking?.reference,
                                     lead_name: data.lead_person,
                                     lead_phone: data.lead_mobile,
                                     lead_email: data.lead_email,
+                                    lead_id: booking?.lead_id || booking?.customer_id,
+                                    customer_id: booking?.customer_id,
+                                    customers: bookingItem?.customers || booking?.customers || [],
+                                    service: bookingItem?.service?.name,
+                                    time: bookingItem?.booking_inventory?.inventory_time_slot?.start_time,
                                 });
                             }}
                             className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-red-gradient-overlay border-[#C65468] text-white shadow-inset-white cursor-pointer"
@@ -418,11 +421,17 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                             onClick={() => {
                                 logCheckInAction('open_checkin_options');
                                 setCheckInTarget({
+                                    id: booking?.id,
                                     booking_item_id: bookingItem?.id,
                                     reference: booking?.reference,
                                     lead_name: data.lead_person,
                                     lead_phone: data.lead_mobile,
                                     lead_email: data.lead_email,
+                                    lead_id: booking?.lead_id || booking?.customer_id,
+                                    customer_id: booking?.customer_id,
+                                    customers: bookingItem?.customers || booking?.customers || [],
+                                    service: bookingItem?.service?.name,
+                                    time: bookingItem?.booking_inventory?.inventory_time_slot?.start_time,
                                 });
                             }}
                         />
@@ -464,21 +473,14 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                             width="w-[158.8px]"
                             height="h-[31px]"
                             className="mt-4"
-                            onClick={() => {
-                                // router.get(route('admin.invoices.download', { 'booking': booking?.id }))
-                                if (booking?.files?.length == 0) {
-                                    prompt('No invoice found');
-                                    return;
-                                }
-
-                                const file = booking?.files?.find(f => f.table_name == 'invoices');
-                                if (!file) {
-                                    prompt('No invoice found');
-                                    return;
-                                }
-                                const fileUrl = `${file.path}`;
-                                window.open(fileUrl, '_blank', 'noopener,noreferrer');
-                            }}
+                            onClick={() => setGuestLinksTarget({
+                                booking: {
+                                    ...booking,
+                                    booking_item_id: bookingItem?.id,
+                                    customers: bookingItem?.customers || [],
+                                },
+                                customer: booking?.customer || bookingItem?.customers?.[0] || null,
+                            })}
                         />
                         {/* <a
                             href={route('admin.invoices.download', { booking: booking.id })}
@@ -1247,6 +1249,13 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                     onClose={() => setCheckInTarget(null)}
                     booking={checkInTarget}
                     contextLabel="booking"
+                    onEmail={(target) => {
+                        setGuestEmailTarget({
+                            ...target,
+                            include_checkin_link: true,
+                        });
+                        setIsEmailModalOpen(true);
+                    }}
                 />
 
                 <CheckInAnswersModal
@@ -1279,6 +1288,24 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                     }}
                     mode="create"
                     booking={guestEmailTarget}
+                />
+                <GuestLinksModal
+                    isOpen={!!guestLinksTarget}
+                    onClose={() => setGuestLinksTarget(null)}
+                    booking={guestLinksTarget?.booking}
+                    customer={guestLinksTarget?.customer}
+                    onEmail={({ booking, customer }) => {
+                        setGuestEmailTarget({
+                            ...booking,
+                            customers: booking?.customers?.length ? booking.customers : (customer ? [customer] : []),
+                            customer_id: booking?.customer_id ?? customer?.id ?? null,
+                            lead_id: booking?.lead_id ?? customer?.id ?? booking?.customer_id ?? null,
+                            lead_name: booking?.lead_name ?? customer?.full_name ?? '',
+                            include_invoice_link: true,
+                            include_payment_link: true,
+                        });
+                        setIsEmailModalOpen(true);
+                    }}
                 />
 
             </div>

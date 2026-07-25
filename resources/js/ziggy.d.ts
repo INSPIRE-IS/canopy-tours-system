@@ -41,6 +41,13 @@ declare module 'ziggy-js' {
             "binding": "id"
         }
     ],
+    "front.invoices.signed": [
+        {
+            "name": "booking",
+            "required": true,
+            "binding": "id"
+        }
+    ],
     "front.payment.gift": [
         {
             "name": "gift",
@@ -862,6 +869,13 @@ declare module 'ziggy-js' {
     "admin.booking.activity.calendar": [],
     "admin.booking.calculate": [],
     "admin.bookings.send-email": [],
+    "admin.bookings.guest-links": [
+        {
+            "name": "booking",
+            "required": true,
+            "binding": "id"
+        }
+    ],
     "admin.bookings.add": [
         {
             "name": "booking",

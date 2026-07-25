@@ -18,7 +18,7 @@ const normalizeWhatsAppNumber = (raw) => {
     return cleaned;
 };
 
-export default function CheckInOptionsModal({ isOpen, onClose, booking, contextLabel = 'booking' }) {
+export default function CheckInOptionsModal({ isOpen, onClose, booking, contextLabel = 'booking', onEmail = null }) {
     const { showToast } = useToast();
 
     if (!isOpen || !booking) return null;
@@ -51,6 +51,13 @@ export default function CheckInOptionsModal({ isOpen, onClose, booking, contextL
         const message = `Hi${lead_name ? ` ${lead_name}` : ''}, please complete your check-in here: ${baseUrl}`;
         const waUrl = `https://wa.me/${normalized}?text=${encodeURIComponent(message)}`;
         window.open(waUrl, '_blank', 'noopener,noreferrer');
+    };
+
+    const handleEmail = () => {
+        if (typeof onEmail === 'function') {
+            onEmail(booking);
+        }
+        onClose();
     };
 
     return (
@@ -90,6 +97,13 @@ export default function CheckInOptionsModal({ isOpen, onClose, booking, contextL
                         className="w-full px-4 py-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50"
                     >
                         Copy link
+                    </button>
+                    <button
+                        type="button"
+                        onClick={handleEmail}
+                        className="w-full px-4 py-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50"
+                    >
+                        Open email options
                     </button>
                 </div>
                 <p className="text-xs text-gray-400">

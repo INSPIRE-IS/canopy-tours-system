@@ -48,6 +48,7 @@ use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Str;
 use Symfony\Component\HttpFoundation\Response;
+use Illuminate\Support\Facades\URL;
 use App\Mail\InvoiceMail;
 use App\Mail\MessageGuestMail;
 use App\Models\BoardingPassTemplate;
@@ -4341,17 +4342,96 @@ class BookingsController extends Controller
     {
         $validated = $request->validate([
             'booking_id' => 'required|exists:bookings,id',
+            'booking_item_id' => 'nullable|exists:booking_items,id',
             'customer_id' => 'required|exists:customers,id',
             'recipient' => 'required|email',
             'subject' => 'required',
             'content' => 'required',
+            'include_invoice_link' => 'nullable|boolean',
+            'include_checkin_link' => 'nullable|boolean',
+            'include_payment_link' => 'nullable|boolean',
+            'include_invoice_pdf' => 'nullable|boolean',
+            'include_boarding_pass_pdf' => 'nullable|boolean',
         ]);
 
-        $booking = Booking::findOrFail($request->input('booking_id'));
+        $booking = Booking::with(['booking_items.booking_inventory.inventory_time_slot'])->findOrFail($request->input('booking_id'));
         $customer = Customer::findOrFail($request->input('customer_id'));
         $recipient = $validated['recipient'];
         $subject = $validated['subject'];
         $content = $validated['content'];
+        $links = [];
+        $attachments = [];
+
+        if (!empty($validated['include_invoice_link'])) {
+            $links[] = [
+                'label' => 'View Invoice',
+                'url' => URL::temporarySignedRoute(
+                    'front.invoices.signed',
+                    now()->addDays(7),
+                    ['booking' => $booking->id]
+                ),
+            ];
+        }
+
+        if (!empty($validated['include_checkin_link'])) {
+            $bookingItem = $booking->booking_items
+                ->firstWhere('id', (int) ($validated['booking_item_id'] ?? 0))
+                ?? $booking->booking_items->first();
+
+            if (!$bookingItem) {
+                throw ValidationException::withMessages([
+                    'include_checkin_link' => 'A check-in link could not be generated because this booking has no activity item.',
+                ]);
+            }
+
+            $links[] = [
+                'label' => 'Complete Check-in',
+                'url' => $this->signedCheckinLink($booking, $bookingItem, $customer),
+            ];
+        }
+
+        if (!empty($validated['include_payment_link'])) {
+            $links[] = [
+                'label' => 'Make Payment',
+                'url' => URL::temporarySignedRoute(
+                    'front.payment.booking.signed',
+                    now()->addDays(7),
+                    ['booking' => $booking->id]
+                ),
+            ];
+        }
+
+        if (!empty($validated['include_invoice_pdf'])) {
+            $invoicePath = $this->latestInvoicePdfPath($booking);
+            if (!$invoicePath) {
+                throw ValidationException::withMessages([
+                    'include_invoice_pdf' => 'An invoice PDF could not be found. Please regenerate or resend the invoice first.',
+                ]);
+            }
+            $attachments[] = $invoicePath;
+        }
+
+        if (!empty($validated['include_boarding_pass_pdf'])) {
+            $bookingItem = $booking->booking_items
+                ->firstWhere('id', (int) ($validated['booking_item_id'] ?? 0))
+                ?? $booking->booking_items->first();
+
+            $boardingPassPath = $bookingItem ? $this->latestBoardingPassPdfPath($bookingItem) : null;
+            if (!$boardingPassPath) {
+                throw ValidationException::withMessages([
+                    'include_boarding_pass_pdf' => 'A boarding pass PDF could not be found for this activity.',
+                ]);
+            }
+            $attachments[] = $boardingPassPath;
+        }
+
+        if (!empty($links)) {
+            $content .= '<hr><p><strong>Useful links</strong></p><ul>';
+            foreach ($links as $link) {
+                $content .= '<li><a href="' . e($link['url']) . '">' . e($link['label']) . '</a></li>';
+            }
+            $content .= '</ul>';
+        }
         // $subject = 'New Booking';
         // $content = '<p>Hello,</p><p>A new booking has been created for you.</p><p>Please login to your account to view the booking.</p>';
         Email::create([
@@ -4370,11 +4450,125 @@ class BookingsController extends Controller
         $this->logAudit('Email sent (manual)', $booking, null, [
             'subject' => $subject,
             'receiver' => $recipient,
+            'links' => array_column($links, 'label'),
+            'attachments' => array_map('basename', $attachments),
         ]);
 
-        Mail::to($recipient)->send(new MessageGuestMail($subject, $content));
+        Mail::to($recipient)->send(new MessageGuestMail($subject, $content, $attachments));
 
         return redirect()->back()->with('success', 'Message sent');
+    }
+
+    public function guestLinks(Request $request, Booking $booking)
+    {
+        $this->assertBookingBelongsToTeam($booking);
+
+        $validated = $request->validate([
+            'customer_id' => 'nullable|exists:customers,id',
+            'booking_item_id' => 'nullable|exists:booking_items,id',
+        ]);
+
+        $customer = Customer::find($validated['customer_id'] ?? $booking->customer_id);
+        $booking->load(['booking_items.booking_inventory.inventory_time_slot']);
+
+        return response()->json([
+            'recipient' => $customer?->email_address,
+            'customer_name' => $customer?->full_name ?? $booking->lead_name,
+            'links' => $this->buildGuestLinks($booking, $customer, $validated['booking_item_id'] ?? null),
+        ]);
+    }
+
+    private function signedCheckinLink(Booking $booking, BookingItem $bookingItem, Customer $customer): string
+    {
+        $bookingInventory = $bookingItem->booking_inventory;
+        $bookingDate = $bookingInventory?->getRawOriginal('date') ?? $bookingInventory?->date;
+        $startTime = $bookingInventory?->inventory_time_slot?->start_time;
+        $expiresAt = now()->addDays(7);
+
+        if ($bookingDate && $startTime) {
+            try {
+                $activityStart = Carbon::parse(trim("{$bookingDate} {$startTime}"), config('app.timezone'));
+                if ($activityStart->isFuture()) {
+                    $expiresAt = $activityStart;
+                }
+            } catch (\Throwable $e) {
+                Log::warning('Manual guest check-in link expiry fallback used', [
+                    'booking_id' => $booking->id,
+                    'booking_item_id' => $bookingItem->id,
+                    'message' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        return URL::temporarySignedRoute(
+            'front.booking-questionnaire.checkin',
+            $expiresAt,
+            array_filter([
+                'reference' => $booking->reference,
+                'customer' => $customer->id,
+                'booking_item_id' => $bookingItem->id,
+            ], static fn($value) => $value !== null && $value !== '')
+        );
+    }
+
+    private function buildGuestLinks(Booking $booking, ?Customer $customer, ?int $bookingItemId = null): array
+    {
+        $links = [
+            [
+                'key' => 'invoice',
+                'label' => 'View Invoice',
+                'url' => URL::temporarySignedRoute(
+                    'front.invoices.signed',
+                    now()->addDays(7),
+                    ['booking' => $booking->id]
+                ),
+            ],
+            [
+                'key' => 'payment',
+                'label' => 'Make Payment',
+                'url' => URL::temporarySignedRoute(
+                    'front.payment.booking.signed',
+                    now()->addDays(7),
+                    ['booking' => $booking->id]
+                ),
+            ],
+        ];
+
+        return $links;
+    }
+
+    private function latestInvoicePdfPath(Booking $booking): ?string
+    {
+        $file = File::where('booking_id', $booking->id)
+            ->where('type_file_id', 4)
+            ->latest('id')
+            ->first();
+
+        if (!$file?->path || !Storage::disk('public')->exists($file->path)) {
+            return null;
+        }
+
+        return Storage::disk('public')->path($file->path);
+    }
+
+    private function latestBoardingPassPdfPath(BookingItem $bookingItem): ?string
+    {
+        $file = File::where('booking_id', $bookingItem->booking_id)
+            ->where('type_file_id', 6)
+            ->where('table_row_id', $bookingItem->id)
+            ->latest('id')
+            ->first();
+
+        if (!$file?->path || !Storage::disk('public')->exists($file->path)) {
+            return null;
+        }
+
+        return Storage::disk('public')->path($file->path);
+    }
+
+    private function assertBookingBelongsToTeam(Booking $booking): void
+    {
+        abort_if((int) $booking->team_id !== (int) auth()->user()->team_id, 403);
     }
 
     public function calendar(Request $request)

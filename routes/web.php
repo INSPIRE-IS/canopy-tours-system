@@ -108,6 +108,9 @@ Route::delete('/payment/booking/{booking}/items/{bookingItem}', [PaymentControll
 Route::get('/payment/booking/signed/{booking}', [PaymentController::class, 'bookingSigned'])
     ->name('front.payment.booking.signed')
     ->middleware('signed');
+Route::get('front/invoices/signed/{booking}', [PaymentController::class, 'invoiceSigned'])
+    ->name('front.invoices.signed')
+    ->middleware('signed');
 Route::get('/payment/gift/{gift}', [PaymentController::class, 'gift'])->name('front.payment.gift');
 
 // Fake PayFast screen
@@ -285,6 +288,7 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['auth', 'v
     Route::get('/booking/activity/calendar', [BookingsController::class, 'calendar'])->name('booking.activity.calendar');
     Route::post('/bookings/calculate-price', [BookingsController::class, 'calculate'])->name('booking.calculate');
     Route::post('/bookings/send-email', [BookingsController::class, 'sendEmail'])->name('bookings.send-email');
+    Route::get('/bookings/{booking}/guest-links', [BookingsController::class, 'guestLinks'])->name('bookings.guest-links');
     Route::get('bookings/add/{booking}', [BookingsController::class, 'add'])->name('bookings.add');
     Route::post('bookings/notes', [BookingsController::class, 'addNote'])->name('bookings.notes.store');
     Route::post('bookings/log-checkin', [BookingsController::class, 'logCheckinAction'])->name('bookings.log-checkin');

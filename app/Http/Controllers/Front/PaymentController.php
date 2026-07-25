@@ -1513,6 +1513,31 @@ class PaymentController extends Controller
         // or ->download("invoice-{$invoice->id}.pdf");
     }
 
+    public function invoiceSigned(Booking $booking)
+    {
+        $renderService = app(RendererService::class);
+
+        $booking = Booking::with([
+            'team.file_logo',
+            'booking_items',
+            'booking_items.customers',
+            'booking_items.booking_fee',
+        ])->findOrFail($booking->id);
+
+        $customer = Customer::find($booking->customer_id);
+        $invoiceTypeId = TypeInvoice::where('slug', 'std')->value('id');
+        $invoice = Invoice::where('booking_id', $booking->id)
+            ->when($invoiceTypeId, fn($query) => $query->where('type_invoice_id', $invoiceTypeId))
+            ->latest('id')
+            ->first();
+
+        $data = $renderService->invoice($booking, $customer, $invoice);
+        $invoicePdf = Pdf::loadView('invoices.invoice', $data);
+        $invoicePdf->setPaper('A4', 'portrait');
+
+        return $invoicePdf->stream();
+    }
+
     private function renderTemplate(string $template, array $data): string
     {
         // https://canopy-tours.inspireonline.co.za/images/logo.png

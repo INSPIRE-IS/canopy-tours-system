@@ -2,6 +2,7 @@
 import BookingRateBreakdown from '@/Components/BookingRateBreakdown';
 import CustomerToolsModal from '@/Components/CustomerToolsModal';
 import GuestEmailModal from '@/Components/GuestEmailModal';
+import GuestLinksModal from '@/Components/GuestLinksModal';
 import BookingNotesModal from '@/Components/BookingNotesModal';
 import CheckInOptionsModal from '@/Components/CheckInOptionsModal';
 import FeedbackOptionsModal from '@/Components/FeedbackOptionsModal';
@@ -44,6 +45,7 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
     const [customerToolsTarget, setCustomerToolsTarget] = useState(null); // { customer, booking, position }
     const [bookingToolsTarget, setBookingToolsTarget] = useState(null); // { customer, position }
     const [guestEmailTarget, setGuestEmailTarget] = useState(null); // { customer, position }
+    const [guestLinksTarget, setGuestLinksTarget] = useState(null);
     const [bookingNotesTarget, setBookingNotesTarget] = useState(null);
     const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
     const [isViewBookingModalOpen, setIsViewBookingModalOpen] = useState(false);
@@ -235,11 +237,17 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
             return;
         }
         setCheckInTarget({
+            id: booking.id,
             booking_item_id: booking.booking_item_id,
             reference: booking.reference,
             lead_name: booking.lead_name,
             lead_phone: booking.lead_phone,
             lead_email: booking.lead_email,
+            lead_id: booking.lead_id,
+            customer_id: booking.customer_id,
+            customers: booking.customers || [],
+            service: booking.service,
+            time: booking.time,
         });
     };
 
@@ -312,18 +320,8 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
             setIsManifestModalOpen(true);
         }
         if (tool === 'customer_invoice') {
-            if (!customer?.files || customer.files.length === 0) {
-                prompt('No invoice found');
-                return;
-            }
-
-            const file = customer.files.find(f => f.table_name == 'invoices');
-            if (!file) {
-                prompt('No invoice found');
-                return;
-            }
-            const fileUrl = `${file.path}`;
-            window.open(fileUrl, '_blank', 'noopener,noreferrer');
+            setGuestLinksTarget({ booking, customer });
+            setCustomerToolsTarget(null);
         }
         if (tool === 'edit_booking') {
             router.get(route('admin.bookings.edit', {
@@ -1582,6 +1580,24 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                     mode='create'
                     booking={guestEmailTarget}
                 />
+                <GuestLinksModal
+                    isOpen={!!guestLinksTarget}
+                    onClose={() => setGuestLinksTarget(null)}
+                    booking={guestLinksTarget?.booking}
+                    customer={guestLinksTarget?.customer}
+                    onEmail={({ booking, customer }) => {
+                        setGuestEmailTarget({
+                            ...booking,
+                            customers: booking?.customers?.length ? booking.customers : (customer ? [customer] : []),
+                            customer_id: booking?.customer_id ?? customer?.id ?? null,
+                            lead_id: booking?.lead_id ?? customer?.id ?? booking?.customer_id ?? null,
+                            lead_name: booking?.lead_name ?? customer?.full_name ?? '',
+                            include_invoice_link: true,
+                            include_payment_link: true,
+                        });
+                        setIsEmailModalOpen(true);
+                    }}
+                />
                 <BookingNotesModal
                     isOpen={!!bookingNotesTarget}
                     onClose={() => setBookingNotesTarget(null)}
@@ -1612,6 +1628,13 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                     onClose={() => setCheckInTarget(null)}
                     booking={checkInTarget}
                     contextLabel="booking"
+                    onEmail={(target) => {
+                        setGuestEmailTarget({
+                            ...target,
+                            include_checkin_link: true,
+                        });
+                        setIsEmailModalOpen(true);
+                    }}
                 />
 
                 <FeedbackOptionsModal
