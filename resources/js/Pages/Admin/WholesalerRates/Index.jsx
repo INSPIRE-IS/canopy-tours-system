@@ -28,7 +28,7 @@ export default function Index({ auth, rates, searchTerm, sortColumn, sortDirecti
   };
 
   const handleSearchSubmit = () => {
-    window.location.href = route('admin.wholesaler_rates.index', {
+    window.location.href = route('admin.wholesaler-rates.index', {
       search: search,
       sort: sortColumn,
       direction: sortDirection
@@ -37,7 +37,7 @@ export default function Index({ auth, rates, searchTerm, sortColumn, sortDirecti
 
   const handleDelete = (item) => {
     if (confirm("Are you sure?")) {
-      router.delete(route('admin.wholesaler_rates.destroy', item), { preserveScroll: true });
+      router.delete(route('admin.wholesaler-rates.destroy', item), { preserveScroll: true });
     }
   };
   function toggleDropdown(tab, routeName) {

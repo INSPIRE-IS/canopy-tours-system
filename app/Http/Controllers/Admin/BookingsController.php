@@ -144,7 +144,7 @@ class BookingsController extends Controller
             && $requestedPax <= $currentPax;
     }
 
-    private function assertWholesalerRateExists(?int $wholesalerId, int $seasonId): void
+    private function assertWholesalerRateExists(?int $wholesalerId, int $seasonId, int $serviceId): void
     {
         if (!$wholesalerId) {
             return;
@@ -152,6 +152,8 @@ class BookingsController extends Controller
 
         $exists = WholesalerRate::where('wholesaler_id', $wholesalerId)
             ->where('season_id', $seasonId)
+            ->where('service_id', $serviceId)
+            ->where('team_id', auth()->user()->team_id)
             ->exists();
 
         if (!$exists) {
@@ -721,7 +723,7 @@ class BookingsController extends Controller
         $users = User::select('name', 'id')->get();
         $today = now()->toDateString();
         $status_bookings = TypeBooking::select('name', 'id')->get();
-        $wholesalers = Wholesaler::select('id', 'name')->get();
+        $wholesalers = Wholesaler::select('id', 'name')->where('team_id', auth()->user()->team_id)->get();
         //$services = Service::select('id', 'name')->get();
         $services = Service::select('id', 'name', 'allow_internal_capacity_override', 'duration', 'capacity')
             ->whereHas('seasons', function ($query) use ($today) {
@@ -760,6 +762,7 @@ class BookingsController extends Controller
         $discounts = Discount::select('id', 'name', 'applies_to', 'percent_off')->with('services')->get();
         //dd($discounts);
         $wholesaler_rates = WholesalerRate::select('id', 'wholesaler_id', 'service_id', 'season_id', 'price_adult', 'price_child', 'price_guide')
+            ->where('team_id', auth()->user()->team_id)
             ->with('service', 'season', 'wholesaler')
             ->get();
         $promos = Promotion::select('id', 'name', 'promo_code', 'type', 'value', 'service_id', 'booking_start_date', 'booking_end_date', 'activity_start_date', 'activity_end_date')
@@ -949,7 +952,8 @@ class BookingsController extends Controller
                 $guidesCount = (int) ($validated['guides'] ?? 0);
                 $this->assertWholesalerRateExists(
                     $validated['is_wholesaler'] ? ($validated['wholesaler_id'] ?? null) : null,
-                    (int) $validated['season_id']
+                    (int) $validated['season_id'],
+                    (int) $validated['service_id']
                 );
                 $pricing = app(PricingService::class)->calculate([
                     'service_id' => $validated['service_id'],
@@ -1631,7 +1635,7 @@ class BookingsController extends Controller
                     $wholesalerId = null;
                     $isWholesaler = false;
                 }
-                $this->assertWholesalerRateExists($wholesalerId ? (int) $wholesalerId : null, (int) $activity['season_id']);
+                $this->assertWholesalerRateExists($wholesalerId ? (int) $wholesalerId : null, (int) $activity['season_id'], (int) $activity['service_id']);
 
                 $pricing = app(PricingService::class)->calculate([
                     'service_id' => $activity['service_id'],
@@ -1988,7 +1992,7 @@ class BookingsController extends Controller
         $currentServiceId = $booking_items?->service_id;
         $currentSeasonId = $booking_items?->season_id;
         $status_bookings = TypeBooking::select('name', 'id')->get();
-        $wholesalers = Wholesaler::select('id', 'name')->get();
+        $wholesalers = Wholesaler::select('id', 'name')->where('team_id', auth()->user()->team_id)->get();
         //$services = Service::select('id', 'name')->get();
         $services = Service::select('id', 'name', 'allow_internal_capacity_override', 'duration', 'capacity')
             ->where(function ($query) use ($today, $currentServiceId) {
@@ -2036,6 +2040,7 @@ class BookingsController extends Controller
         $vouchers = Voucher::select('id', 'voucher_code as name', 'amount', 'note', 'expire_date', 'season_id', 'service_id')->with('season', 'service')->get();
         $discounts = Discount::select('id', 'name', 'applies_to', 'percent_off')->with('services')->get();
         $wholesaler_rates = WholesalerRate::select('id', 'wholesaler_id', 'service_id', 'season_id', 'price_adult', 'price_child', 'price_guide')
+            ->where('team_id', auth()->user()->team_id)
             ->with('service', 'season', 'wholesaler')
             ->get();
         $promos = Promotion::select('id', 'name', 'promo_code', 'type', 'value', 'service_id', 'booking_start_date', 'booking_end_date', 'activity_start_date', 'activity_end_date')
@@ -2247,7 +2252,8 @@ class BookingsController extends Controller
                 $guidesCount = (int) ($validated['guides'] ?? 0);
                 $this->assertWholesalerRateExists(
                     $validated['is_wholesaler'] ? ($validated['wholesaler_id'] ?? null) : null,
-                    (int) $validated['season_id']
+                    (int) $validated['season_id'],
+                    (int) $validated['service_id']
                 );
                 $pricing = app(PricingService::class)->calculate([
                     'service_id' => $validated['service_id'],
@@ -3457,7 +3463,7 @@ class BookingsController extends Controller
         $users = User::select('name', 'id')->get();
         $today = now()->toDateString();
         $status_bookings = TypeBooking::select('name', 'id')->get();
-        $wholesalers = Wholesaler::select('id', 'name')->get();
+        $wholesalers = Wholesaler::select('id', 'name')->where('team_id', auth()->user()->team_id)->get();
         //$services = Service::select('id', 'name')->get();
         $services = Service::select('id', 'name', 'allow_internal_capacity_override', 'duration', 'capacity')
             ->whereHas('seasons', function ($query) use ($today) {
@@ -3494,7 +3500,10 @@ class BookingsController extends Controller
 
         $vouchers = Voucher::select('id', 'voucher_code as name', 'amount', 'note', 'expire_date', 'season_id', 'service_id')->with('season', 'service')->get();
         $discounts = Discount::select('id', 'name', 'applies_to', 'percent_off')->with('services')->get();
-        $wholesaler_rates = WholesalerRate::select('id', 'wholesaler_id', 'season_id', 'price_adult', 'price_child', 'price_guide')->with('season', 'wholesaler')->get();
+        $wholesaler_rates = WholesalerRate::select('id', 'wholesaler_id', 'service_id', 'season_id', 'price_adult', 'price_child', 'price_guide')
+            ->where('team_id', auth()->user()->team_id)
+            ->with('season', 'wholesaler')
+            ->get();
         $promos = Promotion::select('id', 'name', 'promo_code', 'type', 'value', 'service_id', 'booking_start_date', 'booking_end_date', 'activity_start_date', 'activity_end_date')
             ->where('booking_start_date', '<=', $today)
             ->where('booking_end_date', '>=', $today)
@@ -4661,9 +4670,13 @@ class BookingsController extends Controller
         ]);
 
         try {
+            $data['team_id'] = auth()->user()->team_id;
+
             if (!empty($data['wholesaler_id'])) {
                 $hasWholesalerRate = WholesalerRate::where('wholesaler_id', $data['wholesaler_id'])
                     ->where('season_id', $data['season_id'])
+                    ->where('service_id', $data['service_id'])
+                    ->where('team_id', $data['team_id'])
                     ->exists();
                 if (!$hasWholesalerRate) {
                     return response()->json([

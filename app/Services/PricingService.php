@@ -48,6 +48,8 @@ class PricingService
             if (!empty($data['wholesaler_id'])) {
                 $wr = WholesalerRate::where('wholesaler_id', $data['wholesaler_id'])
                     ->where('season_id', $season->id)
+                    ->where('service_id', $data['service_id'])
+                    ->when(!empty($data['team_id']), fn ($query) => $query->where('team_id', $data['team_id']))
                     ->first();
                 if ($wr) {
                     $rates['adult'] = $wr->price_adult ?? $rates['adult'];

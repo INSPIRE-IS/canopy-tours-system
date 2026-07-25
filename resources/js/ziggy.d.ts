@@ -14,49 +14,126 @@ declare module 'ziggy-js' {
     "front.activity": [],
     "front.activity.calendar": [],
     "front.booking.store": [],
-    "front.payment.review": [
+    "front.booking.gift-store": [],
+    "front.payment.booking": [
         {
             "name": "booking",
             "required": true,
             "binding": "id"
         }
     ],
+    "front.payment.booking-items.destroy": [
+        {
+            "name": "booking",
+            "required": true,
+            "binding": "id"
+        },
+        {
+            "name": "bookingItem",
+            "required": true,
+            "binding": "id"
+        }
+    ],
+    "front.payment.booking.signed": [
+        {
+            "name": "booking",
+            "required": true,
+            "binding": "id"
+        }
+    ],
+    "front.payment.gift": [
+        {
+            "name": "gift",
+            "required": true,
+            "binding": "id"
+        }
+    ],
     "front.payment.simulated": [],
+    "front.payment.payfast.booking": [
+        {
+            "name": "booking",
+            "required": true,
+            "binding": "id"
+        }
+    ],
+    "front.payment.payfast.gift": [
+        {
+            "name": "gift",
+            "required": true,
+            "binding": "id"
+        }
+    ],
+    "front.payment.payfast.notify": [],
+    "front.payment.payfast.return": [],
+    "front.payment.payfast.cancel": [],
     "front.payment.offline": [],
+    "front.invoices.download": [
+        {
+            "name": "booking",
+            "required": true,
+            "binding": "id"
+        }
+    ],
+    "front.details.download": [
+        {
+            "name": "booking",
+            "required": true,
+            "binding": "id"
+        }
+    ],
     "front.voucher": [],
+    "front.test-boarding-pass": [
+        {
+            "name": "site",
+            "required": false
+        }
+    ],
+    "front.test-boarding-pass.pdf": [
+        {
+            "name": "site",
+            "required": false
+        }
+    ],
+    "front.customer-manifests.edit": [],
     "check-reference": [
         {
             "name": "reference",
             "required": true
         }
     ],
-    "questionnaire.index": [],
-    "questionnaire.create": [],
-    "questionnaire.store": [],
-    "questionnaire.show": [
+    "front.booking-questionnaire.signed": [],
+    "front.booking-questionnaire.checkin": [],
+    "booking-questionnaire.index": [],
+    "booking-questionnaire.create": [],
+    "booking-questionnaire.store": [],
+    "booking-questionnaire.show": [
         {
-            "name": "questionnaire",
+            "name": "booking_questionnaire",
             "required": true
         }
     ],
-    "questionnaire.edit": [
+    "booking-questionnaire.edit": [
         {
-            "name": "questionnaire",
+            "name": "booking_questionnaire",
             "required": true
         }
     ],
-    "questionnaire.update": [
+    "booking-questionnaire.update": [
         {
-            "name": "questionnaire",
+            "name": "booking_questionnaire",
             "required": true
         }
     ],
-    "questionnaire.destroy": [
+    "booking-questionnaire.destroy": [
         {
-            "name": "questionnaire",
+            "name": "booking_questionnaire",
             "required": true
         }
     ],
+    "front.feedback-questionnaire.index": [],
+    "front.feedback-questionnaire.signed": [],
+    "front.feedback-questionnaire.feedback": [],
+    "front.feedback-questionnaire.store": [],
     "services.options": [],
     "seasons.options": [],
     "wholesalers.options": [],
@@ -152,6 +229,38 @@ declare module 'ziggy-js' {
             "binding": "id"
         }
     ],
+    "admin.settings.index": [],
+    "admin.settings.store": [],
+    "admin.boardingpass.index": [],
+    "admin.boardingpass.create": [],
+    "admin.boardingpass.store": [],
+    "admin.boardingpass.show": [
+        {
+            "name": "boardingpass",
+            "required": true,
+            "binding": "id"
+        }
+    ],
+    "admin.boardingpass.edit": [
+        {
+            "name": "boardingpass",
+            "required": true
+        }
+    ],
+    "admin.boardingpass.update": [
+        {
+            "name": "boardingpass",
+            "required": true,
+            "binding": "id"
+        }
+    ],
+    "admin.boardingpass.destroy": [
+        {
+            "name": "boardingpass",
+            "required": true,
+            "binding": "id"
+        }
+    ],
     "admin.users.index": [],
     "admin.users.create": [],
     "admin.users.store": [],
@@ -182,6 +291,20 @@ declare module 'ziggy-js' {
         }
     ],
     "admin.user-alerts.read": [],
+    "admin.user-alerts.context": [
+        {
+            "name": "alert",
+            "required": true,
+            "binding": "id"
+        }
+    ],
+    "admin.user-alerts.resolve": [
+        {
+            "name": "alert",
+            "required": true,
+            "binding": "id"
+        }
+    ],
     "admin.user-alerts.index": [],
     "admin.user-alerts.create": [],
     "admin.user-alerts.store": [],
@@ -269,6 +392,20 @@ declare module 'ziggy-js' {
             "binding": "id"
         }
     ],
+    "admin.inventories.availability-preview": [
+        {
+            "name": "inventory",
+            "required": true,
+            "binding": "id"
+        }
+    ],
+    "admin.inventories.schedule": [
+        {
+            "name": "inventory",
+            "required": true,
+            "binding": "id"
+        }
+    ],
     "admin.inventories.index": [],
     "admin.inventories.create": [],
     "admin.inventories.store": [],
@@ -295,6 +432,35 @@ declare module 'ziggy-js' {
     "admin.inventories.destroy": [
         {
             "name": "inventory",
+            "required": true,
+            "binding": "id"
+        }
+    ],
+    "admin.inventory-slot-ranges.index": [],
+    "admin.inventory-slot-ranges.create": [],
+    "admin.inventory-slot-ranges.store": [],
+    "admin.inventory-slot-ranges.show": [
+        {
+            "name": "inventory_slot_range",
+            "required": true
+        }
+    ],
+    "admin.inventory-slot-ranges.edit": [
+        {
+            "name": "inventory_slot_range",
+            "required": true
+        }
+    ],
+    "admin.inventory-slot-ranges.update": [
+        {
+            "name": "inventory_slot_range",
+            "required": true,
+            "binding": "id"
+        }
+    ],
+    "admin.inventory-slot-ranges.destroy": [
+        {
+            "name": "inventory_slot_range",
             "required": true,
             "binding": "id"
         }
@@ -358,6 +524,33 @@ declare module 'ziggy-js' {
             "binding": "id"
         }
     ],
+    "admin.wholesaler-contacts.index": [],
+    "admin.wholesaler-contacts.create": [],
+    "admin.wholesaler-contacts.store": [],
+    "admin.wholesaler-contacts.show": [
+        {
+            "name": "wholesaler_contact",
+            "required": true
+        }
+    ],
+    "admin.wholesaler-contacts.edit": [
+        {
+            "name": "wholesaler_contact",
+            "required": true
+        }
+    ],
+    "admin.wholesaler-contacts.update": [
+        {
+            "name": "wholesaler_contact",
+            "required": true
+        }
+    ],
+    "admin.wholesaler-contacts.destroy": [
+        {
+            "name": "wholesaler_contact",
+            "required": true
+        }
+    ],
     "admin.vouchers.index": [],
     "admin.vouchers.create": [],
     "admin.vouchers.store": [],
@@ -387,28 +580,28 @@ declare module 'ziggy-js' {
             "binding": "id"
         }
     ],
-    "admin.wholesaler_rates.index": [],
-    "admin.wholesaler_rates.create": [],
-    "admin.wholesaler_rates.store": [],
-    "admin.wholesaler_rates.show": [
+    "admin.wholesaler-rates.index": [],
+    "admin.wholesaler-rates.create": [],
+    "admin.wholesaler-rates.store": [],
+    "admin.wholesaler-rates.show": [
         {
             "name": "wholesaler_rate",
             "required": true
         }
     ],
-    "admin.wholesaler_rates.edit": [
+    "admin.wholesaler-rates.edit": [
         {
             "name": "wholesaler_rate",
             "required": true
         }
     ],
-    "admin.wholesaler_rates.update": [
+    "admin.wholesaler-rates.update": [
         {
             "name": "wholesaler_rate",
             "required": true
         }
     ],
-    "admin.wholesaler_rates.destroy": [
+    "admin.wholesaler-rates.destroy": [
         {
             "name": "wholesaler_rate",
             "required": true
@@ -473,6 +666,40 @@ declare module 'ziggy-js' {
             "binding": "id"
         }
     ],
+    "admin.booking_vouchers.download": [
+        {
+            "name": "bookingVoucher",
+            "required": true,
+            "binding": "id"
+        }
+    ],
+    "admin.booking_vouchers.index": [],
+    "admin.booking_vouchers.create": [],
+    "admin.booking_vouchers.store": [],
+    "admin.booking_vouchers.show": [
+        {
+            "name": "booking_voucher",
+            "required": true
+        }
+    ],
+    "admin.booking_vouchers.edit": [
+        {
+            "name": "booking_voucher",
+            "required": true
+        }
+    ],
+    "admin.booking_vouchers.update": [
+        {
+            "name": "booking_voucher",
+            "required": true
+        }
+    ],
+    "admin.booking_vouchers.destroy": [
+        {
+            "name": "booking_voucher",
+            "required": true
+        }
+    ],
     "admin.inventories-overrides.index": [],
     "admin.inventories-overrides.create": [],
     "admin.inventories-overrides.store": [],
@@ -533,6 +760,7 @@ declare module 'ziggy-js' {
             "binding": "id"
         }
     ],
+    "admin.reports.export": [],
     "admin.reports.index": [],
     "admin.reports.create": [],
     "admin.reports.store": [],
@@ -560,6 +788,16 @@ declare module 'ziggy-js' {
             "required": true
         }
     ],
+    "admin.dynamic-questionnaires.index": [],
+    "admin.dynamic-questionnaires.update": [
+        {
+            "name": "service",
+            "required": true,
+            "binding": "id"
+        }
+    ],
+    "admin.dynamic-questionnaires.questions.store": [],
+    "admin.dynamic-questionnaires.questions.update": [],
     "admin.help-questions.index": [],
     "admin.help-questions.create": [],
     "admin.help-questions.store": [],
@@ -614,8 +852,33 @@ declare module 'ziggy-js' {
             "required": true
         }
     ],
+    "admin.details.download": [
+        {
+            "name": "booking",
+            "required": true,
+            "binding": "id"
+        }
+    ],
     "admin.booking.activity.calendar": [],
     "admin.booking.calculate": [],
+    "admin.bookings.send-email": [],
+    "admin.bookings.add": [
+        {
+            "name": "booking",
+            "required": true,
+            "binding": "id"
+        }
+    ],
+    "admin.bookings.notes.store": [],
+    "admin.bookings.log-checkin": [],
+    "admin.bookings.cancel-slot": [],
+    "admin.bookings.update-timeslot": [],
+    "admin.bookings.reinstate": [
+        {
+            "name": "booking",
+            "required": true
+        }
+    ],
     "admin.bookings.index": [],
     "admin.bookings.create": [],
     "admin.bookings.store": [],
@@ -647,13 +910,149 @@ declare module 'ziggy-js' {
             "binding": "id"
         }
     ],
-    "admin.checkins.index": [
+    "admin.customer-manifests.add": [],
+    "admin.customer-manifests.edit-single": [
+        {
+            "name": "booking_item_id",
+            "required": true
+        }
+    ],
+    "admin.customer-manifests.edit": [
+        {
+            "name": "booking_item_id",
+            "required": true
+        }
+    ],
+    "admin.customer-manifests.status": [],
+    "admin.booking-payments.create": [
         {
             "name": "booking",
+            "required": true,
+            "binding": "id"
+        }
+    ],
+    "admin.booking-payments.simulated": [
+        {
+            "name": "booking",
+            "required": true,
+            "binding": "id"
+        }
+    ],
+    "admin.booking-payments.paylink": [
+        {
+            "name": "booking",
+            "required": true,
+            "binding": "id"
+        }
+    ],
+    "admin.booking-payments.refund": [
+        {
+            "name": "booking",
+            "required": true,
+            "binding": "id"
+        }
+    ],
+    "admin.booking-payments.store": [],
+    "admin.booking-payments.edit": [
+        {
+            "name": "booking",
+            "required": true,
+            "binding": "id"
+        }
+    ],
+    "admin.booking-payments.update": [],
+    "admin.invoice-templates.index": [],
+    "admin.invoice-templates.create": [],
+    "admin.invoice-templates.store": [],
+    "admin.invoice-templates.show": [
+        {
+            "name": "invoice_template",
+            "required": true
+        }
+    ],
+    "admin.invoice-templates.edit": [
+        {
+            "name": "invoice_template",
+            "required": true
+        }
+    ],
+    "admin.invoice-templates.update": [
+        {
+            "name": "invoice_template",
+            "required": true
+        }
+    ],
+    "admin.invoice-templates.destroy": [
+        {
+            "name": "invoice_template",
+            "required": true
+        }
+    ],
+    "admin.invoices.resend-invoice": [
+        {
+            "name": "booking_id",
+            "required": true
+        }
+    ],
+    "admin.bookings.preview-invoice": [],
+    "admin.teams.invoice-preview": [
+        {
+            "name": "team",
+            "required": true,
+            "binding": "id"
+        }
+    ],
+    "admin.invoices.preview": [
+        {
+            "name": "invoice",
+            "required": true,
+            "binding": "id"
+        }
+    ],
+    "admin.invoices.download": [
+        {
+            "name": "invoice",
+            "required": true
+        }
+    ],
+    "admin.questionnaires.answers.store": [],
+    "admin.questionnaire.index": [],
+    "admin.questionnaire.create": [],
+    "admin.questionnaire.store": [],
+    "admin.questionnaire.show": [
+        {
+            "name": "questionnaire",
+            "required": true,
+            "binding": "id"
+        }
+    ],
+    "admin.questionnaire.edit": [
+        {
+            "name": "questionnaire",
+            "required": true
+        }
+    ],
+    "admin.questionnaire.update": [
+        {
+            "name": "questionnaire",
+            "required": true,
+            "binding": "id"
+        }
+    ],
+    "admin.questionnaire.destroy": [
+        {
+            "name": "questionnaire",
+            "required": true,
+            "binding": "id"
+        }
+    ],
+    "admin.checkins.index": [
+        {
+            "name": "booking_id",
             "required": true
         },
         {
-            "name": "customer",
+            "name": "customer_id",
             "required": false
         }
     ],

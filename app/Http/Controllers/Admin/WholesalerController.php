@@ -6,8 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Wholesaler;
 use Gate;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
-use Illuminate\Support\Facades\Session;
 
 class WholesalerController extends Controller
 {
@@ -20,13 +20,13 @@ class WholesalerController extends Controller
         $searchTerm = $request->get('search', '');
         $sortColumn = $request->get('sort', 'name');
         $sortDirection = $request->get('direction', 'asc');
-        /** @var \App\Models\User $user */
-        $teamId = Session::get('team_id');
+
         $wholesalers = Wholesaler::with([
             'created_by',
             'updated_by',
             'team',
         ])
+            ->where('team_id', auth()->user()->team_id)
             ->where('name', 'like', '%' . $searchTerm . '%')
             ->orderBy($sortColumn, $sortDirection)
             ->paginate(10);
@@ -45,8 +45,18 @@ class WholesalerController extends Controller
      */
     public function store(Request $request)
     {
-        //dd($request->all());
-        $wholesaler = Wholesaler::create($request->all());
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:255', Rule::unique('wholesalers', 'name')->where('team_id', auth()->user()->team_id)],
+            'reg_no' => ['nullable', 'string', 'max:255'],
+            'vat_no' => ['nullable', 'string', 'max:255'],
+            'address' => ['nullable', 'string'],
+            'description' => ['nullable', 'string'],
+        ]);
+
+        $data['team_id'] = auth()->user()->team_id;
+        $data['created_by_id'] = auth()->id();
+
+        Wholesaler::create($data);
         return redirect()->route('admin.wholesalers.index');
     }
 
@@ -55,7 +65,27 @@ class WholesalerController extends Controller
      */
     public function update(Request $request, Wholesaler $wholesaler)
     {
-        $wholesaler->update($request->all());
+        abort_if((int) $wholesaler->team_id !== (int) auth()->user()->team_id, 403);
+
+        $data = $request->validate([
+            'name' => [
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('wholesalers', 'name')
+                    ->where('team_id', auth()->user()->team_id)
+                    ->ignore($wholesaler->id),
+            ],
+            'reg_no' => ['nullable', 'string', 'max:255'],
+            'vat_no' => ['nullable', 'string', 'max:255'],
+            'address' => ['nullable', 'string'],
+            'description' => ['nullable', 'string'],
+        ]);
+
+        $data['team_id'] = auth()->user()->team_id;
+        $data['updated_by_id'] = auth()->id();
+
+        $wholesaler->update($data);
         return redirect()->route('admin.wholesalers.index');
     }
 
@@ -64,6 +94,8 @@ class WholesalerController extends Controller
      */
     public function destroy(Wholesaler $wholesaler)
     {
+        abort_if((int) $wholesaler->team_id !== (int) auth()->user()->team_id, 403);
+
         $wholesaler->delete();
         return redirect()->route('admin.wholesalers.index');
     }

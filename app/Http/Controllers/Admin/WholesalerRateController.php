@@ -8,6 +8,7 @@ use App\Models\Season;
 use App\Models\Service;
 use App\Models\Wholesaler;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 class WholesalerRateController extends Controller
@@ -17,8 +18,10 @@ class WholesalerRateController extends Controller
         $search = $request->get('search', '');
         $sort = $request->get('sort', 'id');
         $direction = $request->get('direction', 'desc');
+        $teamId = auth()->user()->team_id;
 
         $rates = WholesalerRate::with(['season', 'wholesaler.team', 'service'])
+            ->where('team_id', $teamId)
             ->when($search, function ($q) use ($search) {
                 $q->whereHas('wholesaler', function ($qq) use ($search) {
                     $qq->where('name', 'like', '%' . $search . '%');
@@ -28,7 +31,10 @@ class WholesalerRateController extends Controller
             ->paginate(10)
             ->withQueryString();
         // dd($rates);
-        $services = Service::with('seasons')->select('id', 'name')->get();
+        $services = Service::with(['seasons' => fn ($query) => $query->where('team_id', $teamId)])
+            ->select('id', 'name')
+            ->where('team_id', $teamId)
+            ->get();
 
         return Inertia::render('Admin/WholesalerRates/Index', [
             'rates' => $rates,
@@ -36,21 +42,28 @@ class WholesalerRateController extends Controller
             'sortColumn' => $sort,
             'sortDirection' => $direction,
             'services' => $services,
-            'wholesalers' => Wholesaler::select('id', 'name')->orderBy('name')->get(),
+            'wholesalers' => Wholesaler::select('id', 'name')->where('team_id', $teamId)->orderBy('name')->get(),
         ]);
     }
 
     public function store(Request $request)
     {
+        $teamId = auth()->user()->team_id;
+
         $data = $request->validate([
-            'wholesaler_id' => ['required', 'exists:wholesalers,id'],
-            'service_id' => ['required', 'exists:services,id'],
-            'season_id' => ['required', 'exists:seasons,id'],
+            'wholesaler_id' => ['required', Rule::exists('wholesalers', 'id')->where('team_id', $teamId)],
+            'service_id' => ['required', Rule::exists('services', 'id')->where('team_id', $teamId)],
+            'season_id' => [
+                'required',
+                Rule::exists('seasons', 'id')
+                    ->where('team_id', $teamId)
+                    ->where('service_id', $request->input('service_id')),
+            ],
             'price_adult' => ['required', 'numeric', 'min:0'],
             'price_child' => ['nullable', 'numeric', 'min:0'],
             'price_guide' => ['nullable', 'numeric', 'min:0'],
         ]);
-        $data['team_id'] = auth()->user()->team_id;
+        $data['team_id'] = $teamId;
 
         WholesalerRate::create($data);
         return redirect()->back()->with('message', 'Wholesaler rate created.');
@@ -58,14 +71,23 @@ class WholesalerRateController extends Controller
 
     public function update(Request $request, WholesalerRate $wholesalerRate)
     {
+        $teamId = auth()->user()->team_id;
+        abort_if((int) $wholesalerRate->team_id !== (int) $teamId, 403);
+
         $data = $request->validate([
-            'wholesaler_id' => ['required', 'exists:wholesalers,id'],
-            'service_id' => ['required', 'exists:services,id'],
-            'season_id' => ['required', 'exists:seasons,id'],
+            'wholesaler_id' => ['required', Rule::exists('wholesalers', 'id')->where('team_id', $teamId)],
+            'service_id' => ['required', Rule::exists('services', 'id')->where('team_id', $teamId)],
+            'season_id' => [
+                'required',
+                Rule::exists('seasons', 'id')
+                    ->where('team_id', $teamId)
+                    ->where('service_id', $request->input('service_id')),
+            ],
             'price_adult' => ['required', 'numeric', 'min:0'],
             'price_child' => ['nullable', 'numeric', 'min:0'],
             'price_guide' => ['nullable', 'numeric', 'min:0'],
         ]);
+        $data['team_id'] = $teamId;
 
         $wholesalerRate->update($data);
         return redirect()->back()->with('message', 'Wholesaler rate updated.');
@@ -73,6 +95,8 @@ class WholesalerRateController extends Controller
 
     public function destroy(WholesalerRate $wholesalerRate)
     {
+        abort_if((int) $wholesalerRate->team_id !== (int) auth()->user()->team_id, 403);
+
         $wholesalerRate->delete();
         return redirect()->back()->with('message', 'Wholesaler rate removed.');
     }

@@ -10,6 +10,7 @@ const Modal = ({ isOpen, onClose, mode, item = null, permissions, wholesalers, s
   const [seasons, setSeasons] = useState([]);
   const { data, setData, post, put, errors, reset, processing } = useForm({
     wholesaler_id: "",
+    service_id: "",
     season_id: "",
     price_adult: "",
     price_child: "",
@@ -24,6 +25,7 @@ const Modal = ({ isOpen, onClose, mode, item = null, permissions, wholesalers, s
     if (item && mode !== "create") {
       setData({
         wholesaler_id: item?.wholesaler_id || "",
+        service_id: item?.service_id || "",
         season_id: item?.season_id || "",
         price_adult: item?.price_adult || "",
         price_child: item?.price_child || "",
@@ -66,9 +68,9 @@ const Modal = ({ isOpen, onClose, mode, item = null, permissions, wholesalers, s
     e.preventDefault();
     if (mode === "create") {
       console.log('data ', data);
-      post(route('admin.wholesaler_rates.store'), { onSuccess: () => onClose() });
+      post(route('admin.wholesaler-rates.store'), { onSuccess: () => onClose() });
     } else if (mode === "edit") {
-      put(route('admin.wholesaler_rates.update', item.id), { onSuccess: () => onClose() });
+      put(route('admin.wholesaler-rates.update', item.id), { onSuccess: () => onClose() });
     }
   };
 

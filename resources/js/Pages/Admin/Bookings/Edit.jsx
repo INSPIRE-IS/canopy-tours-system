@@ -5,7 +5,7 @@ import Calendar from '@/Components/ui/calendar';
 import Button from '@/Components/ui/button';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { format, addDays, addWeeks, addMonths, set } from 'date-fns';
 import CustomSelect from '@/Components/CustomSelect';
 import InputText from '@/Components/InputText';
@@ -223,7 +223,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
         ? Array.from(
             new Map(
                 (wholesaler_rates || [])
-                    .filter(r => r.service_id === selectedService.id)
+                    .filter(r => Number(r.service_id) === Number(selectedService.id))
                     .map(r => {
                         const w = r.wholesaler || wholesalers.find(x => x.id === r.wholesaler_id);
                         return [w?.id, w];
@@ -231,6 +231,11 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
             ).values()
         ).filter(Boolean)
         : (wholesalers || []);
+    const selectedWholesalerRates = useMemo(() => (wholesaler_rates || []).filter(rate =>
+        Number(rate.wholesaler_id) === Number(data.wholesaler_id)
+        && Number(rate.season_id) === Number(selectedSeason?.id || data.season_id)
+        && Number(rate.service_id) === Number(selectedService?.id || data.service_id)
+    ), [wholesaler_rates, data.wholesaler_id, data.season_id, data.service_id, selectedSeason?.id, selectedService?.id]);
     const hasWholesalers = Array.isArray(serviceWholesalers) && serviceWholesalers.length > 0;
     const activePromoCode = promoCode || data.promoCode || null;
     const hasPromo = !!activePromoCode;
@@ -630,7 +635,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
             //setPricingMode(PRICING_MODES.WHOLESALER);
             //resetPricingState('wholesaler');
 
-            const wholesaler_rates_list = wholesaler_rates.filter(s => s.id === parseInt(data.wholesaler_id));
+            const wholesaler_rates_list = selectedWholesalerRates;
             //console.log('wholesaler_rates_list', wholesaler_rates_list);
             let wholesalerList = [];
             wholesaler_rates_list.forEach(rate => {
@@ -666,7 +671,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
         }
         prevIsWholesalerRef.current = data.is_wholesaler;
 
-    }, [data.wholesaler_id, data.is_wholesaler, wholesalerApplied, isInitializing]);
+    }, [data.wholesaler_id, data.is_wholesaler, wholesalerApplied, isInitializing, selectedWholesalerRates]);
 
     const handleDateChange = (newDate) => {
         // setActivityDate(newDate);
