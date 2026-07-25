@@ -5,6 +5,7 @@ namespace App\Exports\Reports;
 use App\Models\BookingItem;
 use App\Models\BookingNote;
 use App\Models\Discount;
+use App\Models\LookupItem;
 use App\Models\Wholesaler;
 use Carbon\Carbon;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -65,11 +66,15 @@ class FranchiseFeesReportExport implements FromCollection, WithHeadings, ShouldA
         $rows->push($this->summaryRow('Total Pax', (string) $totalPax));
         $rows->push($this->summaryRow('Total incl VAT', $this->money($totalInclVat)));
         $vat = round($totalInclVat - ($totalInclVat / 1.15), 2);
+        $turnoverExclVat = $totalInclVat - $vat;
         $rows->push($this->summaryRow('VAT', $this->money($vat)));
-        $rows->push($this->summaryRow('Turnover excl VAT', $this->money($totalInclVat - $vat)));
+        $rows->push($this->summaryRow('Turnover excl VAT', $this->money($turnoverExclVat)));
         $rows->push($this->summaryRow('Average Per Guest', $totalPax > 0 ? $this->money($totalInclVat / $totalPax) : $this->money(0)));
-        $rows->push($this->summaryRow('Royalty @ 10%', $this->money($totalInclVat * 0.10)));
-        $rows->push($this->summaryRow('Marketing Account @ 2.5%', $this->money($totalInclVat * 0.025)));
+        $reportSettings = LookupItem::franchiseFeeSettingsForTeam($this->teamId);
+        $royaltyPercent = (float) ($reportSettings['franchise_royalty_percent'] ?? 10.0);
+        $marketingPercent = (float) ($reportSettings['franchise_marketing_percent'] ?? 2.5);
+        $rows->push($this->summaryRow("Royalty @ {$this->percentLabel($royaltyPercent)}", $this->money($turnoverExclVat * ($royaltyPercent / 100))));
+        $rows->push($this->summaryRow("Marketing Account @ {$this->percentLabel($marketingPercent)}", $this->money($turnoverExclVat * ($marketingPercent / 100))));
         $rows->push($this->blankRow());
         $rows->push($this->summaryRow('Report Notes', 'V1 buckets known 10/15/20/25%, student, configured trade-exchange wholesalers, complimentary, and full-rate rows; unmapped promos/discounts/non-trade wholesalers/custom rates are grouped under Other with notes.'));
 
@@ -480,5 +485,10 @@ class FranchiseFeesReportExport implements FromCollection, WithHeadings, ShouldA
     private function money(float $amount): string
     {
         return number_format(round($amount, 2), 2, '.', '');
+    }
+
+    private function percentLabel(float $percent): string
+    {
+        return rtrim(rtrim(number_format($percent, 2, '.', ''), '0'), '.') . '%';
     }
 }

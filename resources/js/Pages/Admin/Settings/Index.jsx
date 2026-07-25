@@ -5,7 +5,7 @@ import { Head } from '@inertiajs/react';
 import SettingsHeader from '@/Components/HeaderSites';
 import BlueButton from '@/Components/BlueButton';
 
-export default function Index({ permissions, settings = [] }) {
+export default function Index({ permissions, settings = [], reportSettings = [], canManageReportSettings = false }) {
     const { props } = usePage();
     const [isOpenTab, setIsOpenTab] = useState('Settings');
 
@@ -15,12 +15,29 @@ export default function Index({ permissions, settings = [] }) {
             return acc;
         }, {})
     ), [settings]);
+    const reportSettingsMap = useMemo(() => (
+        reportSettings.reduce((acc, item) => {
+            acc[item.slug] = item.rate ?? '';
+            return acc;
+        }, {})
+    ), [reportSettings]);
+    const formDefaults = useMemo(() => ({
+        ...settingsMap,
+        report_settings: reportSettingsMap,
+    }), [settingsMap, reportSettingsMap]);
 
-    const { data, setData, post, processing, isDirty } = useForm(settingsMap);
+    const { data, setData, post, processing, isDirty } = useForm(formDefaults);
 
     useEffect(() => {
-        setData(settingsMap);
-    }, [settingsMap, setData]);
+        setData(formDefaults);
+    }, [formDefaults, setData]);
+
+    const setReportSetting = (slug, value) => {
+        setData('report_settings', {
+            ...(data.report_settings || {}),
+            [slug]: value,
+        });
+    };
 
     const handleSubmit = () => {
         post(route("admin.settings.store"), {
@@ -85,6 +102,55 @@ export default function Index({ permissions, settings = [] }) {
                         </div>
                     </div>
                 </div>
+
+                {canManageReportSettings && reportSettings.length > 0 && (
+                    <div className="bg-white border border-secondary-100 mt-6">
+                        <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+                            <div className="flex justify-start items-center px-4 pt-4 pb-[9px]">
+                                <span className="flex items-center gap-2">
+                                    <img src="/assets/icons/task-square.svg" alt="report settings" className="w-5 h-5" />
+                                    <span className="font-semibold text-lg text-gray-800 block text-start">Admin Report Settings</span>
+                                </span>
+                            </div>
+                            <div className="px-4 pb-4 text-sm text-gray-600">
+                                Hidden franchise report percentages. Leave blank to use the system default.
+                            </div>
+                            <div className="px-4 pb-[9px]">
+                                <table className="min-w-full divide-y divide-gray-200 text-sm">
+                                    <thead className="bg-gray-50 text-left text-gray-500">
+                                        <tr className="flex justify-between items-center">
+                                            <th className="w-[35%] p-3">Setting</th>
+                                            <th className="w-[45%] p-3">Description</th>
+                                            <th className="w-[20%] p-3">Percent</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-100">
+                                        {reportSettings.map((setting) => (
+                                            <tr key={setting.slug} className="flex justify-between items-center hover:bg-gray-50">
+                                                <td className="w-[35%] p-3">{setting.name}</td>
+                                                <td className="w-[45%] p-3 text-gray-600">
+                                                    {setting.description || `Default: ${setting.fallback}%`}
+                                                </td>
+                                                <td className="w-[20%] p-3">
+                                                    <input
+                                                        type="number"
+                                                        min="0"
+                                                        max="100"
+                                                        step="0.01"
+                                                        placeholder={`${setting.fallback}`}
+                                                        value={data.report_settings?.[setting.slug] ?? ''}
+                                                        onChange={(event) => setReportSetting(setting.slug, event.target.value)}
+                                                        className="block w-full h-[42px] border-gray-300 shadow-sm input-text rounded-[10px] hover:border-black focus:outline-none focus:ring-0 focus:border-black"
+                                                    />
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
 
         </AuthenticatedLayout>

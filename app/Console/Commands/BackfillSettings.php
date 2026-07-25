@@ -27,12 +27,14 @@ class BackfillSettings extends Command
             LookupItem::ensureSettingsForTeam((int) $teamId);
             LookupItem::where('lookup_id', $lookupId)
                 ->where('team_id', (int) $teamId)
+                ->whereNotIn('slug', $this->rateSettingSlugs())
                 ->update([
                     'value' => 0,
                     'multiplier' => null,
                 ]);
             LookupItem::where('lookup_id', $lookupId)
                 ->whereNull('team_id')
+                ->whereNotIn('slug', $this->rateSettingSlugs())
                 ->update([
                     'value' => 0,
                     'multiplier' => null,
@@ -46,6 +48,7 @@ class BackfillSettings extends Command
             LookupItem::ensureSettingsForTeam($team->id);
             LookupItem::where('lookup_id', $lookupId)
                 ->where('team_id', $team->id)
+                ->whereNotIn('slug', $this->rateSettingSlugs())
                 ->update([
                     'value' => 0,
                     'multiplier' => null,
@@ -53,6 +56,7 @@ class BackfillSettings extends Command
         }
         LookupItem::where('lookup_id', $lookupId)
             ->whereNull('team_id')
+            ->whereNotIn('slug', $this->rateSettingSlugs())
             ->update([
                 'value' => 0,
                 'multiplier' => null,
@@ -61,5 +65,13 @@ class BackfillSettings extends Command
         $this->info('Settings backfilled for all teams.');
 
         return self::SUCCESS;
+    }
+
+    private function rateSettingSlugs(): array
+    {
+        return [
+            'franchise_royalty_percent',
+            'franchise_marketing_percent',
+        ];
     }
 }

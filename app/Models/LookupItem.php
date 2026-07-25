@@ -109,6 +109,26 @@ class LookupItem extends Model
             ->all();
     }
 
+    public static function franchiseFeeSettingsForTeam(?int $teamId): array
+    {
+        static::ensureSettingsForTeam($teamId);
+
+        $lookup = Lookup::where('slug', 'settings')->first();
+        if (!$lookup) {
+            return [
+                'franchise_royalty_percent' => 10.0,
+                'franchise_marketing_percent' => 2.5,
+            ];
+        }
+
+        $items = static::defaultsForTeam($teamId, $lookup->id)->keyBy('slug');
+
+        return [
+            'franchise_royalty_percent' => static::settingRate($items->get('franchise_royalty_percent'), 10.0),
+            'franchise_marketing_percent' => static::settingRate($items->get('franchise_marketing_percent'), 2.5),
+        ];
+    }
+
     private static function settingsDefinitions(): array
     {
         return [
@@ -147,6 +167,20 @@ class LookupItem extends Model
                 'name' => 'Show Booking Information',
                 'default' => false,
             ],
+            [
+                'slug' => 'franchise_royalty_percent',
+                'name' => 'Franchise Royalty Percent',
+                'default' => null,
+                'rate_default' => null,
+                'setting_type' => 'rate',
+            ],
+            [
+                'slug' => 'franchise_marketing_percent',
+                'name' => 'Franchise Marketing Percent',
+                'default' => null,
+                'rate_default' => null,
+                'setting_type' => 'rate',
+            ],
         ];
     }
 
@@ -163,34 +197,38 @@ class LookupItem extends Model
             ->whereNull('team_id')
             ->get();
 
-        if ($defaults->isEmpty()) {
-            $today = now()->toDateString();
-            foreach (static::settingsDefinitions() as $definition) {
-                static::create([
+        $today = now()->toDateString();
+        foreach (static::settingsDefinitions() as $definition) {
+            static::firstOrCreate(
+                [
                     'lookup_id' => $lookup->id,
                     'slug' => $definition['slug'],
+                    'team_id' => null,
+                ],
+                [
                     'name' => $definition['name'],
                     'info' => $definition['name'],
-                    'rate' => null,
+                    'rate' => $definition['rate_default'] ?? null,
                     'multiplier' => null,
-                    'value' => $definition['default'] ? 1 : 0,
+                    'value' => ($definition['setting_type'] ?? 'boolean') === 'rate'
+                        ? null
+                        : ($definition['default'] ? 1 : 0),
                     'effective_from' => $today,
                     'effective_to' => null,
                     'is_default' => true,
                     'is_active' => true,
-                    'team_id' => null,
-                ]);
-            }
-
-            $defaults = static::query()
-                ->where('lookup_id', $lookup->id)
-                ->where('is_default', true)
-                ->whereNull('team_id')
-                ->get();
+                ]
+            );
         }
 
+        $defaults = static::query()
+            ->where('lookup_id', $lookup->id)
+            ->where('is_default', true)
+            ->whereNull('team_id')
+            ->get();
+
         $defaults->each(function ($item) {
-            if ($item->value === null) {
+            if ($item->value === null && !static::isRateSetting($item->slug)) {
                 $fallback = $item->multiplier;
                 $item->value = 0;
                 $item->multiplier = null;
@@ -207,7 +245,7 @@ class LookupItem extends Model
             ->where('team_id', $teamId)
             ->get()
             ->each(function ($item) {
-                if ($item->value === null) {
+                if ($item->value === null && !static::isRateSetting($item->slug)) {
                     $fallback = $item->multiplier;
                     $item->value = 0;
                     $item->multiplier = null;
@@ -227,7 +265,7 @@ class LookupItem extends Model
                     'info' => $default->info ?? $default->name ?? $default->slug,
                     'rate' => $default->rate,
                     'multiplier' => null,
-                    'value' => $default->value ?? 0,
+                    'value' => static::isRateSetting($default->slug) ? null : ($default->value ?? 0),
                     'effective_from' => $default->effective_from ?? now()->toDateString(),
                     'effective_to' => $default->effective_to,
                     'is_default' => true,
@@ -235,5 +273,22 @@ class LookupItem extends Model
                 ]
             );
         }
+    }
+
+    private static function isRateSetting(?string $slug): bool
+    {
+        return in_array($slug, [
+            'franchise_royalty_percent',
+            'franchise_marketing_percent',
+        ], true);
+    }
+
+    private static function settingRate(?self $item, float $fallback): float
+    {
+        if (!$item || $item->rate === null || $item->rate === '') {
+            return $fallback;
+        }
+
+        return (float) $item->rate;
     }
 }

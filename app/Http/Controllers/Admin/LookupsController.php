@@ -24,6 +24,7 @@ class LookupsController extends Controller
             : collect();
 
         $settings = $items
+            ->reject(fn($item) => in_array($item->slug, $this->reportSettingSlugs(), true))
             ->sortBy('id')
             ->map(function ($item) {
                 $label = $item->name ?? $item->slug;
@@ -41,8 +42,25 @@ class LookupsController extends Controller
             })
             ->values();
 
+        $reportSettings = $items
+            ->filter(fn($item) => in_array($item->slug, $this->reportSettingSlugs(), true))
+            ->sortBy('id')
+            ->map(function ($item) {
+                return [
+                    'slug' => $item->slug,
+                    'name' => $item->name ?? $item->slug,
+                    'description' => $item->info ?? '',
+                    'rate' => $item->rate,
+                    'fallback' => $item->slug === 'franchise_royalty_percent' ? 10 : 2.5,
+                ];
+            })
+            ->values();
+        $canManageReportSettings = auth()->user()->roles->contains(1);
+
         return Inertia::render('Admin/Settings/Index', [
             'settings' => $settings,
+            'reportSettings' => $reportSettings,
+            'canManageReportSettings' => $canManageReportSettings,
         ]);
     }
 
@@ -60,10 +78,15 @@ class LookupsController extends Controller
 
         LookupItem::ensureSettingsForTeam($teamId);
         $items = LookupItem::defaultsForTeam($teamId, $lookup->id);
-        $rules = $items->mapWithKeys(fn($item) => [$item->slug => 'boolean'])->all();
+        $booleanItems = $items->reject(fn($item) => in_array($item->slug, $this->reportSettingSlugs(), true));
+        $rules = $booleanItems->mapWithKeys(fn($item) => [$item->slug => 'boolean'])->all();
+        if (auth()->user()->roles->contains(1)) {
+            $rules['report_settings.franchise_royalty_percent'] = ['nullable', 'numeric', 'min:0', 'max:100'];
+            $rules['report_settings.franchise_marketing_percent'] = ['nullable', 'numeric', 'min:0', 'max:100'];
+        }
         $validated = $request->validate($rules);
 
-        foreach ($items as $item) {
+        foreach ($booleanItems as $item) {
             $slug = $item->slug;
             $value = (bool) ($validated[$slug] ?? $item->value ?? 0);
 
@@ -87,8 +110,42 @@ class LookupsController extends Controller
             );
         }
 
+        if (auth()->user()->roles->contains(1)) {
+            foreach ($this->reportSettingSlugs() as $slug) {
+                $source = $items->firstWhere('slug', $slug);
+                $rate = $validated['report_settings'][$slug] ?? null;
+
+                LookupItem::updateOrCreate(
+                    [
+                        'lookup_id' => $lookup->id,
+                        'slug' => $slug,
+                        'team_id' => $teamId,
+                    ],
+                    [
+                        'name' => $source->name ?? str_replace('_', ' ', $slug),
+                        'info' => $source->info ?? $source->name ?? $slug,
+                        'rate' => $rate === null || $rate === '' ? null : (float) $rate,
+                        'multiplier' => null,
+                        'value' => null,
+                        'effective_from' => $today,
+                        'effective_to' => null,
+                        'is_default' => true,
+                        'is_active' => true,
+                    ]
+                );
+            }
+        }
+
         return redirect()
             ->route('admin.settings.index')
             ->with('success', 'Settings updated.');
+    }
+
+    private function reportSettingSlugs(): array
+    {
+        return [
+            'franchise_royalty_percent',
+            'franchise_marketing_percent',
+        ];
     }
 }

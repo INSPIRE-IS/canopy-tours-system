@@ -289,6 +289,38 @@ class SeedCoreData extends Command
             LookupItem::updateOrCreate(['id' => $lookup_item['id']], $lookup_item);
         }
 
+        foreach ([
+            [
+                'name' => 'Franchise Royalty Percent',
+                'slug' => 'franchise_royalty_percent',
+                'info' => 'Hidden admin setting for Franchise Fees royalty percentage. Leave rate blank to use 10%.',
+            ],
+            [
+                'name' => 'Franchise Marketing Percent',
+                'slug' => 'franchise_marketing_percent',
+                'info' => 'Hidden admin setting for Franchise Fees marketing percentage. Leave rate blank to use 2.5%.',
+            ],
+        ] as $reportSetting) {
+            LookupItem::updateOrCreate(
+                [
+                    'slug' => $reportSetting['slug'],
+                    'lookup_id' => 4,
+                    'team_id' => null,
+                ],
+                [
+                    'name' => $reportSetting['name'],
+                    'info' => $reportSetting['info'],
+                    'rate' => null,
+                    'multiplier' => null,
+                    'value' => null,
+                    'effective_from' => '2020-01-01',
+                    'effective_to' => null,
+                    'is_default' => 1,
+                    'is_active' => 1,
+                ]
+            );
+        }
+
 
         // StatusBookings
         $type_bookings = [
