@@ -38,7 +38,7 @@ const Modal = ({ isOpen, onClose, mode, item = null, permissions, wholesalers, s
     } else if (mode === "create") {
       reset(); // Clear form for create mode
     }
-  }, [mode, item, auth]);
+  }, [mode, item?.id, isOpen]);
 
   useEffect(() => {
     if (data && data?.service_id) {
@@ -96,14 +96,14 @@ const Modal = ({ isOpen, onClose, mode, item = null, permissions, wholesalers, s
                 options={wholesalers}
                 mode={mode}
                 onChange={(e) => handleChange(e.target.name, e.target.value)}
-                errors={errors.wholesaler_id}
+                errors={errors}
               />
               <CustomSelect
                 label="Service"
                 name="service_id"
                 value={data?.service_id ?? ""}
                 onChange={(e) => handleChange(e.target.name, e.target.value)}
-                error={errors.service_id}
+                errors={errors}
                 options={services}
               />
               <CustomSelect
@@ -112,7 +112,7 @@ const Modal = ({ isOpen, onClose, mode, item = null, permissions, wholesalers, s
                 value={data?.season_id ?? ""}
 
                 onChange={(e) => handleChange(e.target.name, e.target.value)}
-                error={errors.season_id}
+                errors={errors}
                 options={seasons}
               />
             </div>

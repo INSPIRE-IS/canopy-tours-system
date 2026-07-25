@@ -19,6 +19,7 @@ class FranchiseFeesReportExport implements FromCollection, WithHeadings, ShouldA
     private array $bookingNotesByItem = [];
     private array $discountNames = [];
     private array $wholesalerNames = [];
+    private array $tradeExchangeWholesalers = [];
 
     public function __construct(
         private readonly int $teamId,
@@ -70,7 +71,7 @@ class FranchiseFeesReportExport implements FromCollection, WithHeadings, ShouldA
         $rows->push($this->summaryRow('Royalty @ 10%', $this->money($totalInclVat * 0.10)));
         $rows->push($this->summaryRow('Marketing Account @ 2.5%', $this->money($totalInclVat * 0.025)));
         $rows->push($this->blankRow());
-        $rows->push($this->summaryRow('Report Notes', 'V1 buckets known 10/15/20/25%, student, wholesaler/trade, complimentary, and full-rate rows; unmapped promos/discounts/custom rates are grouped under Other with notes.'));
+        $rows->push($this->summaryRow('Report Notes', 'V1 buckets known 10/15/20/25%, student, configured trade-exchange wholesalers, complimentary, and full-rate rows; unmapped promos/discounts/non-trade wholesalers/custom rates are grouped under Other with notes.'));
 
         return $rows;
     }
@@ -156,8 +157,16 @@ class FranchiseFeesReportExport implements FromCollection, WithHeadings, ShouldA
                 ->map(fn(Collection $notes) => $notes->pluck('note')->filter()->unique()->values()->all())
                 ->toArray();
 
-        $this->discountNames = Discount::select('id', 'name')->pluck('name', 'id')->toArray();
-        $this->wholesalerNames = Wholesaler::select('id', 'name')->pluck('name', 'id')->toArray();
+        $this->discountNames = Discount::select('id', 'name')->where('team_id', $this->teamId)->pluck('name', 'id')->toArray();
+        $wholesalers = Wholesaler::select('id', 'name', 'is_trade_exchange')
+            ->where('team_id', $this->teamId)
+            ->get();
+        $this->wholesalerNames = $wholesalers->pluck('name', 'id')->toArray();
+        $this->tradeExchangeWholesalers = $wholesalers
+            ->filter(fn(Wholesaler $wholesaler) => (bool) $wholesaler->is_trade_exchange)
+            ->pluck('id')
+            ->map(fn($id) => (int) $id)
+            ->all();
     }
 
     private function initialRows(Collection $items): array
@@ -212,7 +221,12 @@ class FranchiseFeesReportExport implements FromCollection, WithHeadings, ShouldA
         }
 
         if (!empty($item->wholesaler_id)) {
-            $this->addBucket($row, 'trade_exchange', $pax, $total, $this->wholesalerNames[$item->wholesaler_id] ?? 'Wholesaler rate');
+            $wholesalerName = $this->wholesalerNames[$item->wholesaler_id] ?? 'Wholesaler rate';
+            $bucket = in_array((int) $item->wholesaler_id, $this->tradeExchangeWholesalers, true)
+                ? 'trade_exchange'
+                : 'other';
+
+            $this->addBucket($row, $bucket, $pax, $total, $wholesalerName);
             return;
         }
 

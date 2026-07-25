@@ -9,6 +9,7 @@ use App\Models\Service;
 use App\Models\Wholesaler;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 class WholesalerRateController extends Controller
@@ -64,6 +65,7 @@ class WholesalerRateController extends Controller
             'price_guide' => ['nullable', 'numeric', 'min:0'],
         ]);
         $data['team_id'] = $teamId;
+        $this->assertUniqueRate($data);
 
         WholesalerRate::create($data);
         return redirect()->back()->with('message', 'Wholesaler rate created.');
@@ -88,6 +90,7 @@ class WholesalerRateController extends Controller
             'price_guide' => ['nullable', 'numeric', 'min:0'],
         ]);
         $data['team_id'] = $teamId;
+        $this->assertUniqueRate($data, $wholesalerRate->id);
 
         $wholesalerRate->update($data);
         return redirect()->back()->with('message', 'Wholesaler rate updated.');
@@ -99,5 +102,23 @@ class WholesalerRateController extends Controller
 
         $wholesalerRate->delete();
         return redirect()->back()->with('message', 'Wholesaler rate removed.');
+    }
+
+    private function assertUniqueRate(array $data, ?int $ignoreId = null): void
+    {
+        $exists = WholesalerRate::withTrashed()
+            ->where('wholesaler_id', $data['wholesaler_id'])
+            ->where('service_id', $data['service_id'])
+            ->where('season_id', $data['season_id'])
+            ->when($ignoreId, fn ($query) => $query->where('id', '!=', $ignoreId))
+            ->exists();
+
+        if (!$exists) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'season_id' => 'This wholesaler, service, and season combination is already saved. Please choose different options or close this form and edit the existing record.',
+        ]);
     }
 }

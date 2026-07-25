@@ -103,7 +103,8 @@ export default function Index({ permissions, wholesalers, auth, searchTerm, sort
                                         <thead className="bg-gray-50 text-left text-gray-500">
                                             <tr className='flex justify-between items-center'>
                                                 <th className="w-[95px] p-3">ID</th>
-                                                <th className="w-[300px] p-3">Name</th>
+                                                <th className="w-[260px] p-3">Name</th>
+                                                <th className="w-[160px] p-3">Franchise Category</th>
                                                 <th className="w-[185px] p-3">Actions</th>
                                             </tr>
                                         </thead>
@@ -111,7 +112,16 @@ export default function Index({ permissions, wholesalers, auth, searchTerm, sort
                                             {wholesalers?.data.map((wholesaler, i) => (
                                                 <tr key={wholesaler.id} className="flex justify-between items-center hover:bg-gray-50">
                                                     <td className="w-[95px] p-3">{wholesaler.id}</td>
-                                                    <td className="w-[300px] p-3">{wholesaler.name}</td>
+                                                    <td className="w-[260px] p-3">{wholesaler.name}</td>
+                                                    <td className="w-[160px] p-3">
+                                                        {wholesaler.is_trade_exchange ? (
+                                                            <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-700">
+                                                                Trade Exchange
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-gray-400">-</span>
+                                                        )}
+                                                    </td>
                                                     <td className="w-[185px] p-3 flex  gap-2">
                                                         {permissions.wholesalers_edit && (
                                                             <button onClick={() => handleOpenModal("edit", wholesaler)}

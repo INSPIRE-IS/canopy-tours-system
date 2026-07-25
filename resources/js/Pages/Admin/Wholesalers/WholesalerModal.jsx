@@ -4,6 +4,7 @@ import InputText from "@/Components/InputText";
 import OutlineButton from "@/Components/OutlineButton";
 import BlueButton from "@/Components/BlueButton";
 import CustomTextarea from "@/Components/CustomTextarea";
+import CustomCheckbox from "@/Components/CustomCheckbox";
 import parse from "html-react-parser";
 
 
@@ -20,6 +21,7 @@ const WholesalerModal = ({ isOpen, onClose, mode, wholesaler = null, wholesalerF
         vat_no: "",
         address: "",
         description: "",
+        is_trade_exchange: false,
         created_by_id: auth?.user?.id,
         updated_by_id: auth?.user?.id,
     });
@@ -32,6 +34,7 @@ const WholesalerModal = ({ isOpen, onClose, mode, wholesaler = null, wholesalerF
                 vat_no: wholesaler?.vat_no || "",
                 address: wholesaler?.address || "",
                 description: wholesaler?.description || "",
+                is_trade_exchange: Boolean(wholesaler?.is_trade_exchange),
                 created_by_id: wholesaler.created_by_id || auth?.user?.id,
                 updated_by_id: wholesaler.updated_by_id || auth?.user?.id,
             });
@@ -98,6 +101,21 @@ const WholesalerModal = ({ isOpen, onClose, mode, wholesaler = null, wholesalerF
                             handleChange={handleChange}
                             errors={errors}
                         />
+                    </div>
+                    <div className="flex flex-col w-full gap-1 mb-4">
+                        <CustomCheckbox
+                            label="Trade Exchange"
+                            name="is_trade_exchange"
+                            checked={Boolean(data.is_trade_exchange)}
+                            mode={mode}
+                            disabled={mode === "view"}
+                            onChange={handleChange}
+                            errors={errors}
+                            helper="Tick this only when this wholesaler represents a trade exchange/barter arrangement for franchise reporting."
+                        />
+                        <p className="text-xs text-gray-500">
+                            Franchise Fees will only place this wholesaler under Trade Exchange when this is enabled.
+                        </p>
                     </div>
                     <div className="flex flex-col w-full items-center gap-2 justify-between mb-4">
                         <CustomTextarea

@@ -15,6 +15,10 @@ class Wholesaler extends Model
 
     public $table = 'wholesalers';
 
+    protected $casts = [
+        'is_trade_exchange' => 'boolean',
+    ];
+
     protected $dates = [
         'created_at',
         'updated_at',
@@ -27,6 +31,7 @@ class Wholesaler extends Model
         'vat_no',
         'address',
         'description',
+        'is_trade_exchange',
         'created_by_id',
         'updated_by_id',
         'created_at',

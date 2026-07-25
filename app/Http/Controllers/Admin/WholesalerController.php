@@ -51,8 +51,10 @@ class WholesalerController extends Controller
             'vat_no' => ['nullable', 'string', 'max:255'],
             'address' => ['nullable', 'string'],
             'description' => ['nullable', 'string'],
+            'is_trade_exchange' => ['nullable', 'boolean'],
         ]);
 
+        $data['is_trade_exchange'] = (bool) ($data['is_trade_exchange'] ?? false);
         $data['team_id'] = auth()->user()->team_id;
         $data['created_by_id'] = auth()->id();
 
@@ -80,8 +82,10 @@ class WholesalerController extends Controller
             'vat_no' => ['nullable', 'string', 'max:255'],
             'address' => ['nullable', 'string'],
             'description' => ['nullable', 'string'],
+            'is_trade_exchange' => ['nullable', 'boolean'],
         ]);
 
+        $data['is_trade_exchange'] = (bool) ($data['is_trade_exchange'] ?? false);
         $data['team_id'] = auth()->user()->team_id;
         $data['updated_by_id'] = auth()->id();
 
