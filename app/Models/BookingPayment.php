@@ -66,7 +66,7 @@ class BookingPayment extends Model
 
     public function type_payment()
     {
-        return $this->belongsTo(TypePayment::class, 'type_payment_id');
+        return $this->belongsTo(TypePayment::class, 'type_payment_id')->withTrashed();
     }
 
     public function gateway()

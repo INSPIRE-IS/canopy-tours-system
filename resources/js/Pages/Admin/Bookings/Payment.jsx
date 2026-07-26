@@ -26,7 +26,7 @@ export default function Dashboard({ auth, booking, payment_history = [], booking
     // We currently keep certain legacy/unused options seeded in the DB, but hide them in the admin UI.
     // This avoids breaking existing records while keeping the payment screen simple.
     const hiddenPayOptionSlugs = new Set(['split_payments']);
-    const hiddenPaymentMethodSlugs = new Set(['masterpass', 'paypal', 'snapscan', 'zapper', 'voucher']);
+    const hiddenPaymentMethodSlugs = new Set(['cheque', 'debit_card', 'masterpass', 'paypal', 'snapscan', 'zapper', 'voucher']);
 
     const visiblePayOptions = payOptionList.filter((option) => {
         const slug = (option.slug || '').toLowerCase();

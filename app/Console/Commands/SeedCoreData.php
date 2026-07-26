@@ -117,9 +117,7 @@ class SeedCoreData extends Command
         // TypePayments
         $typePayments = [
             ['id' => 1, 'name' => 'Cash'],
-            ['id' => 2, 'name' => 'Cheque'],
             ['id' => 3, 'name' => 'Credit Card'],
-            ['id' => 4, 'name' => 'Debit Card'],
             ['id' => 5, 'name' => 'Direct Deposit / EFT'],
             ['id' => 6, 'name' => 'Masterpass'],
             ['id' => 7, 'name' => 'Paypal'],
@@ -130,6 +128,7 @@ class SeedCoreData extends Command
         foreach ($typePayments as $payment) {
             TypePayment::updateOrCreate(['id' => $payment['id']], $payment);
         }
+        TypePayment::whereIn('id', [2, 4])->delete(); // Legacy: Cheque/Debit Card are no longer offered.
 
         $lookups = [
             [
