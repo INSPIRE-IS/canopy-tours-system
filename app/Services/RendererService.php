@@ -70,13 +70,13 @@ class RendererService
             'quote' => 'Quote',
             'proforma' => 'Proforma Invoice',
             'receipt' => 'Receipt',
-            default => 'Invoice',
+            default => 'Tax Invoice',
         };
         $documentNumberLabel = match ($typeSlug) {
             'quote' => 'Quote #',
             'proforma' => 'Proforma #',
             'receipt' => 'Receipt #',
-            default => 'Invoice #',
+            default => 'Tax Invoice #',
         };
         $wholesalerBooking = WholesalerBooking::with('wholesaler')
             ->where('booking_id', $booking->id)
