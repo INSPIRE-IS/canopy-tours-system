@@ -5,7 +5,7 @@ import CustomSelect from '@/Components/CustomSelect';
 import NavSelect from '@/Components/NavSelect';
 import TopNav from '@/Components/TopNav';
 
-export default function ReviewPayment({ auth, booking, lookups, payfastStatus, canRemoveItems = false }) {
+export default function ReviewPayment({ auth, booking, lookups, payfastStatus, canRemoveItems = false, payfastUrl = null }) {
   //const { props, booking } = usePage();
   console.log('auth ', auth);
   console.log('booking ', booking);
@@ -13,6 +13,7 @@ export default function ReviewPayment({ auth, booking, lookups, payfastStatus, c
   const [removingItemId, setRemovingItemId] = useState(null);
   const [teamId, setTeamId] = useState(booking.team_id);
   const totalDue = Number(booking?.grand_tot_due || 0);
+  const isBookingPayable = Number(booking?.status_payment_id || 0) === 1 && totalDue > 0;
   const bookingItems = booking?.booking_items || [];
 
   // VAT lookup has had multiple historical shapes:
@@ -106,7 +107,11 @@ export default function ReviewPayment({ auth, booking, lookups, payfastStatus, c
 
 
   const handlePayFast = () => {
-    window.location.href = route('front.payment.payfast.booking', booking.id);
+    if (!isBookingPayable) {
+      return;
+    }
+
+    window.location.href = payfastUrl || route('front.payment.payfast.booking', booking.id);
   };
 
   const formatMoney = (value) => `R${Number(value || 0).toFixed(2)}`;
@@ -197,19 +202,27 @@ export default function ReviewPayment({ auth, booking, lookups, payfastStatus, c
             </div>
           )}
 
-          <div>
-            <h2 className="font-semibold mb-2">Payment Method</h2>
-            <p>Pay Online (PayFast)</p>
-          </div>
+          {isBookingPayable ? (
+            <div>
+              <h2 className="font-semibold mb-2">Payment Method</h2>
+              <p>Pay Online (PayFast)</p>
+            </div>
+          ) : (
+            <div className="rounded-lg border border-green-200 bg-green-50 p-4 text-sm text-green-800">
+              This booking has no outstanding online payment amount.
+            </div>
+          )}
 
           <div className="flex justify-center gap-4">
-            <button
-              onClick={handlePayFast}
-              disabled={payfastStatus && !payfastStatus.enabled}
-              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-            >
-              Continue to Payment
-            </button>
+            {isBookingPayable && (
+              <button
+                onClick={handlePayFast}
+                disabled={payfastStatus && !payfastStatus.enabled}
+                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+              >
+                Continue to Payment
+              </button>
+            )}
             <a
               href={route('front.invoices.download', booking.id)}
               target="_blank"

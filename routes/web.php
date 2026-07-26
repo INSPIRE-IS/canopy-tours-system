@@ -118,6 +118,9 @@ Route::get('/payment/simulated', [PaymentController::class, 'simulated'])->name(
 
 // PayFast redirect + callbacks
 Route::get('/payment/payfast/booking/{booking}', [PaymentController::class, 'payfastBooking'])->name('front.payment.payfast.booking');
+Route::get('/payment/payfast/booking/signed/{booking}', [PaymentController::class, 'payfastBookingSigned'])
+    ->name('front.payment.payfast.booking.signed')
+    ->middleware('signed');
 Route::get('/payment/payfast/gift/{gift}', [PaymentController::class, 'payfastGift'])->name('front.payment.payfast.gift');
 Route::post('/payment/payfast/notify', [PaymentController::class, 'payfastNotify'])->name('front.payment.payfast.notify');
 Route::get('/payment/payfast/return', [PaymentController::class, 'payfastReturn'])->name('front.payment.payfast.return');

@@ -747,7 +747,7 @@ class SeedHelpQuestions extends Command
                 'question' => 'How do we record a manual payment?',
                 'description' => 'Record offline payments or send an online PayLink to a guest.',
                 'where' => 'Open a booking > Payments or <a href="/admin/booking-payments/create/BOOKING_ID">/admin/booking-payments/create/BOOKING_ID</a>',
-                'business_rules' => 'Booking totals are VAT-inclusive. Offline payments (cash/EFT/card machine) can be recorded in admin. Booking Payment Amount is the portion allocated to the booking balance and cannot exceed the outstanding booking balance. The system reverse-calculates ex-VAT and VAT from that booking amount and stores the payment row separately. Additional Amount is optional for tips, food, drinks, or merchandise and is not added to the booking invoice VAT/balance. Partial payments accumulate against the booking until the balance is fully paid. Pay Online sends a signed PayLink to the booking lead email (time-limited). The payment page is payment-only; use Edit Booking Price / Promo before payment when a promo, discount, birthday special, wholesaler rate, or rack-rate override must change the booking total. Do not treat the PayFast return page as confirmation; the PayFast notify callback is the source of truth for marking a payment COMPLETE.',
+                'business_rules' => 'Booking totals are VAT-inclusive. Offline payments (cash/EFT/card machine) can be recorded in admin. Booking Payment Amount is the portion allocated to the booking balance and cannot exceed the outstanding booking balance. The system reverse-calculates ex-VAT and VAT from that booking amount and stores the payment row separately. Additional Amount is optional for tips, food, drinks, or merchandise and is not added to the booking invoice VAT/balance. Partial payments accumulate against the booking until the balance is fully paid. Pay Online sends a signed PayLink to the booking lead email. Guest invoice/payment links do not expire; if a booking is already paid, the payment page shows that no online payment amount is outstanding. The payment page is payment-only; use Edit Booking Price / Promo before payment when a promo, discount, birthday special, wholesaler rate, or rack-rate override must change the booking total. Do not treat the PayFast return page as confirmation; the PayFast notify callback is the source of truth for marking a payment COMPLETE.',
                 'related' => 'payments, offline payments, cash, partial payment, additional amount, tip, food, merchandise, invoice, VAT, PayLink, promo, discount, booking edit',
                 'is_internal' => false,
             ],
@@ -774,9 +774,9 @@ class SeedHelpQuestions extends Command
             [
                 'category' => 'Bookings - Payments',
                 'question' => 'How do I send a PayFast payment link (PayLink)?',
-                'description' => 'Send a secure, time-limited link so the guest can pay online.',
+                'description' => 'Send a secure signed link so the guest can pay online.',
                 'where' => '<a href="/admin/bookings">Admin > Bookings</a> (Tools > Payments) or <a href="/admin/booking-payments/create/BOOKING_ID">/admin/booking-payments/create/BOOKING_ID</a>',
-                'business_rules' => 'PayLink emails a signed checkout URL to the booking lead customer email. The link expires after about 80 minutes. If the lead email is missing on the booking, update the lead details on Booking Edit and try again.',
+                'business_rules' => 'PayLink emails a signed checkout URL to the booking lead customer email. Guest payment links do not expire. If the booking is already paid, the payment page opens but does not offer PayFast checkout. PayFast notify/ITN remains the source of truth for marking the booking paid; the PayFast return page is only a customer-facing confirmation/processing page. If the lead email is missing on the booking, update the lead details on Booking Edit and try again.',
                 'examples' => 'If the guest says they did not receive the link, confirm the lead email address and resend.',
                 'related' => 'payfast, paylink, payments, checkout, signed link, booking',
                 'is_internal' => false,
@@ -1176,6 +1176,3 @@ class SeedHelpQuestions extends Command
         return implode('', $parts);
     }
 }
-
-
-

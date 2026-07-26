@@ -36,6 +36,7 @@ use App\Services\RendererService;
 use App\Services\PayfastService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\URL;
 use Spatie\Browsershot\Browsershot;
 use Illuminate\Support\Arr;
 use Str;
@@ -98,25 +99,26 @@ class PaymentController extends Controller
             'booking' => $booking->load($this->paymentBookingRelations()),
             'lookups' => $lookups,
             'canRemoveItems' => true,
+            'payfastUrl' => route('front.payment.payfast.booking', ['booking' => $booking->id]),
         ]);
     }
 
     public function bookingSigned(Booking $booking)
     {
-        if ($booking->status_payment_id != 1) {
-            return redirect()->route('front.welcome');
-        }
-
         $teamId = $booking->team_id;
         $lookups = LookupItem::findDefaultForTeam('vat_rate', $teamId);
 
         $payfastStatus = config('app.debug') ? $this->getPayfastStatus($booking->team_id) : null;
+        $isPayable = (int) $booking->status_payment_id === 1 && (float) $booking->grand_tot_due > 0;
 
         return Inertia::render('BookingPayment', [
             'booking' => $booking->load($this->paymentBookingRelations()),
             'lookups' => $lookups,
             'payfastStatus' => $payfastStatus,
             'canRemoveItems' => false,
+            'payfastUrl' => $isPayable
+                ? URL::signedRoute('front.payment.payfast.booking.signed', ['booking' => $booking->id])
+                : null,
         ]);
     }
 
@@ -242,8 +244,22 @@ class PaymentController extends Controller
 
     public function payfastBooking(Booking $booking, PayfastService $payfast)
     {
+        return $this->redirectToPayfastBooking($booking, $payfast, false);
+    }
+
+    public function payfastBookingSigned(Booking $booking, PayfastService $payfast)
+    {
+        return $this->redirectToPayfastBooking($booking, $payfast, true);
+    }
+
+    private function redirectToPayfastBooking(Booking $booking, PayfastService $payfast, bool $signedAccess)
+    {
         $sessionId = session()->getId() ?? null;
-        if ($sessionId != $booking->session_id || $booking->status_payment_id != 1) {
+        if (! $signedAccess && $sessionId != $booking->session_id) {
+            return redirect()->route('front.welcome');
+        }
+
+        if ((int) $booking->status_payment_id !== 1 || (float) $booking->grand_tot_due <= 0) {
             return redirect()->route('front.welcome');
         }
 
@@ -251,7 +267,7 @@ class PaymentController extends Controller
         $config = $this->resolvePayfastConfig($booking->team_id);
         if (! $config['enabled']) {
             return redirect()
-                ->route('front.payment.booking', ['booking' => $booking->id])
+                ->back()
                 ->with('error', 'PayFast is not configured for this site.');
         }
 
@@ -2342,4 +2358,3 @@ class PaymentController extends Controller
         return $pdf->stream('booking-details.pdf');
     }
 }
-
