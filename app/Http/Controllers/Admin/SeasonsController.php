@@ -84,7 +84,7 @@ class SeasonsController extends Controller
 
     public function destroy(Season $season)
     {
-        abort_if(Gate::denies('season_delete'), Response::HTTP_FORBIDDEN, '403 Forbidden');
+        abort_if(Gate::denies('seasons_delete'), Response::HTTP_FORBIDDEN, '403 Forbidden');
 
         $season->delete();
 

@@ -267,7 +267,7 @@ class ServicesController extends Controller
 
     public function show(Service $service)
     {
-        abort_if(Gate::denies('service_show'), Response::HTTP_FORBIDDEN, '403 Forbidden');
+        abort_if(Gate::denies('services_show'), Response::HTTP_FORBIDDEN, '403 Forbidden');
 
         $service->load('created_by', 'updated_by', 'team');
 
@@ -276,7 +276,7 @@ class ServicesController extends Controller
 
     public function destroy(Service $service)
     {
-        abort_if(Gate::denies('service_delete'), Response::HTTP_FORBIDDEN, '403 Forbidden');
+        abort_if(Gate::denies('services_delete'), Response::HTTP_FORBIDDEN, '403 Forbidden');
 
         $service->delete();
 

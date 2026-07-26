@@ -10,11 +10,11 @@ import BlueButton from '@/Components/BlueButton';
 import Pagination from '@/Components/Pagination';
 
 
-export default function Index({ permissions,services, auth, searchTerm, sortColumn, sortDirection }) {
-  //const [modalOpen, setModalOpen] = useState(false);
+export default function Index({ permissions, services, auth, searchTerm, sortColumn, sortDirection }) {
+    //const [modalOpen, setModalOpen] = useState(false);
 
-  const [selectedservice, setSelectedservice] = useState(null);
-  const { props } = usePage();
+    const [selectedservice, setSelectedservice] = useState(null);
+    const { props } = usePage();
     console.log('auth on service ', auth);
     const [search, setSearch] = useState(searchTerm);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -39,7 +39,7 @@ export default function Index({ permissions,services, auth, searchTerm, sortColu
     };
 
     const handleSearchSubmit = (e) => {
-       // e.preventDefault();
+        // e.preventDefault();
         // Redirect to the route with search query and other parameters
         console.log('search ', search);
 
@@ -53,17 +53,17 @@ export default function Index({ permissions,services, auth, searchTerm, sortColu
     const handleDelete = (service) => {
         if (confirm("Are you sure you want to delete this service?")) {
             //post(route("services.destroy", service), { _method: "DELETE",});
-            router.delete(route('services.destroy', service), {preserveScroll: true});
+            router.delete(route('admin.services.destroy', service), { preserveScroll: true });
         }
     };
 
-  return (
-    // <AuthenticatedLayout user={props.auth.user}>
-    <AuthenticatedLayout
-        user={props.auth.user}
+    return (
+        // <AuthenticatedLayout user={props.auth.user}>
+        <AuthenticatedLayout
+            user={props.auth.user}
             header={<h2 className="font-semibold text-xl text-gray-800 leading-tight">services</h2>}
-    >
-        <Head title="services" />
+        >
+            <Head title="services" />
             <div className="bg-white p-6 ">
                 {/* top */}
                 <div className="flex justify-between items-center mb-6">
@@ -71,59 +71,59 @@ export default function Index({ permissions,services, auth, searchTerm, sortColu
 
                     <span className="flex gap-2">
                         {permissions.service_create && (
-                        <BlueButton title="Add service" onClick={() => handleOpenModal("create")} icon={true}/>
+                            <BlueButton title="Add service" onClick={() => handleOpenModal("create")} icon={true} />
                         )}
                     </span>
                 </div>
                 {/* bottom */}
                 <div className="bg-white border border-secondary-100">
                     <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                    <div className="flex justify-start items-center px-4 pt-4 pb-[9px] ">
-                        <span className='flex items-center gap-2'>
-                            <img src="/assets/icons/task-square.svg" alt="bookings" className="w-5 h-5" />
-                            <span className="font-semibold text-lg text-gray-800 block text-start">services</span>
-                        </span>
-                    </div>
-                    <div className="flex justify-between items-center px-4 pb-[9px] ">
-                        {/* table */}
+                        <div className="flex justify-start items-center px-4 pt-4 pb-[9px] ">
+                            <span className='flex items-center gap-2'>
+                                <img src="/assets/icons/task-square.svg" alt="bookings" className="w-5 h-5" />
+                                <span className="font-semibold text-lg text-gray-800 block text-start">services</span>
+                            </span>
+                        </div>
+                        <div className="flex justify-between items-center px-4 pb-[9px] ">
+                            {/* table */}
 
-                        <table className="min-w-full divide-y divide-gray-200 text-sm">
-                            <thead className="bg-gray-50 text-left text-gray-500">
-                            <tr className='flex justify-between items-center'>
-                                <th className="w-[95px] p-3">ID</th>
-                                <th className="w-[95px] p-3">Name</th>
-                                <th className="w-[185px] p-3">Actions</th>
-                            </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-100">
-                            {services?.data.map((service, i) => (
-                                <tr key={service.id} className="flex justify-between items-center hover:bg-gray-50">
-                                <td className="w-[95px] p-3">{service.id}</td>
-                                <td className="w-[95px] p-3">{service.name}</td>
-                                <td className="w-[185px] p-3 flex  gap-2">
-                                    {permissions.service_edit && (
-                                    <button onClick={() => handleOpenModal("edit",service)}
-                                    className="flex items-center gap-1 text-green-600 hover:text-green-800">
-                                    Edit
-                                    </button>)}
+                            <table className="min-w-full divide-y divide-gray-200 text-sm">
+                                <thead className="bg-gray-50 text-left text-gray-500">
+                                    <tr className='flex justify-between items-center'>
+                                        <th className="w-[95px] p-3">ID</th>
+                                        <th className="w-[95px] p-3">Name</th>
+                                        <th className="w-[185px] p-3">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100">
+                                    {services?.data.map((service, i) => (
+                                        <tr key={service.id} className="flex justify-between items-center hover:bg-gray-50">
+                                            <td className="w-[95px] p-3">{service.id}</td>
+                                            <td className="w-[95px] p-3">{service.name}</td>
+                                            <td className="w-[185px] p-3 flex  gap-2">
+                                                {permissions.service_edit && (
+                                                    <button onClick={() => handleOpenModal("edit", service)}
+                                                        className="flex items-center gap-1 text-green-600 hover:text-green-800">
+                                                        Edit
+                                                    </button>)}
 
-                                    {permissions.service_edit && (
-                                    <button onClick={() => handleDelete(service)}
-                                    className="flex items-center gap-1 text-red-600 hover:text-red-800">
-                                    Remove
-                                    </button>)}
-                                    {permissions.service_edit && (
-                                    <button onClick={() => handleOpenModal("view",service)}
-                                    className="flex items-center gap-1 text-blue-600 hover:text-blue-800">
-                                    View
-                                    </button>)}                                 
-                                </td>
-                                </tr>
-                            ))}
-                            </tbody>
-                        </table>
+                                                {permissions.service_edit && (
+                                                    <button onClick={() => handleDelete(service)}
+                                                        className="flex items-center gap-1 text-red-600 hover:text-red-800">
+                                                        Remove
+                                                    </button>)}
+                                                {permissions.service_edit && (
+                                                    <button onClick={() => handleOpenModal("view", service)}
+                                                        className="flex items-center gap-1 text-blue-600 hover:text-blue-800">
+                                                        View
+                                                    </button>)}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
 
-                    </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -131,7 +131,7 @@ export default function Index({ permissions,services, auth, searchTerm, sortColu
 
             <div className="mt-4">
                 <Pagination links={services?.links} />
-            </div>  
+            </div>
 
             <ServiceModal
                 isOpen={isModalOpen}
@@ -139,8 +139,8 @@ export default function Index({ permissions,services, auth, searchTerm, sortColu
                 mode={modalMode}
                 service={selectedservice}
                 auth={auth}
-                team = {auth?.team}
+                team={auth?.team}
             />
-    </AuthenticatedLayout>
-  );
+        </AuthenticatedLayout>
+    );
 }

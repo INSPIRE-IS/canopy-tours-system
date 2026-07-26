@@ -7,7 +7,7 @@ import OutlineButton from "@/Components/OutlineButton";
 import BlueButton from "@/Components/BlueButton";
 import InputRichText from "@/Components/InputRichText";
 
-const SeasonModal = ({ isOpen, onClose, mode, season = null, services, auth, team}) => {
+const SeasonModal = ({ isOpen, onClose, mode, season = null, services, auth, team }) => {
     // console.log("mode", mode);
     console.log("season", season);
     console.log("auth", auth);
@@ -19,9 +19,9 @@ const SeasonModal = ({ isOpen, onClose, mode, season = null, services, auth, tea
         name: "",
         start_date: "",
         end_date: "",
-        rake_rate_adult: "",
-        rake_rate_child: "",
-        rake_rate_guide: "",
+        rake_rate_adult: "0",
+        rake_rate_child: "0",
+        rake_rate_guide: "0",
         allow_internal_price_override: 0,
         internal_only: 0,
         capacity: "",
@@ -37,9 +37,9 @@ const SeasonModal = ({ isOpen, onClose, mode, season = null, services, auth, tea
                 name: season.name || "",
                 start_date: season.start_date || "",
                 end_date: season.end_date || "",
-                rake_rate_adult: season.rake_rate_adult || "",
-                rake_rate_child: season.rake_rate_child || "",
-                rake_rate_guide: season.rake_rate_guide || "",
+                rake_rate_adult: season.rake_rate_adult || "0",
+                rake_rate_child: season.rake_rate_child || "0",
+                rake_rate_guide: season.rake_rate_guide || "0",
                 allow_internal_price_override: season.allow_internal_price_override || 0,
                 internal_only: season.internal_only || 0,
                 status: season.status || 0,
@@ -48,70 +48,70 @@ const SeasonModal = ({ isOpen, onClose, mode, season = null, services, auth, tea
         } else if (mode === "create") {
             reset(); // Clear form for create mode
         }
-    }, [mode,season,team]);
-const handleFieldChange = (target, value) => {
-    console.log('target ', target);
-    console.log('value ', value);
-setData(prevData => ({
-  ...prevData,
-  fields: {
-    ...prevData.fields,
-    [`${target}`]: value,
-  },
-}));
-  console.log('data --------------------------', data);
-};
+    }, [mode, season, team]);
+    const handleFieldChange = (target, value) => {
+        console.log('target ', target);
+        console.log('value ', value);
+        setData(prevData => ({
+            ...prevData,
+            fields: {
+                ...prevData.fields,
+                [`${target}`]: value,
+            },
+        }));
+        console.log('data --------------------------', data);
+    };
     const handleChange = (target, value) => {
         console.log('target ', target);
         console.log('value ', value);
         setData(target, value);
         //setData("name", e.target.value);
     };
-// const handleSubmit = (e) => {
-//     e.preventDefault();
-//     console.log('data ', data);
+    // const handleSubmit = (e) => {
+    //     e.preventDefault();
+    //     console.log('data ', data);
 
-//     const formData = new FormData();
-//     formData.append('service_id', data.service_id);
-//     formData.append('name', data.name);
-//     formData.append('created_by_id', data.created_by_id);
-//     formData.append('updated_by_id', data.updated_by_id);
+    //     const formData = new FormData();
+    //     formData.append('service_id', data.service_id);
+    //     formData.append('name', data.name);
+    //     formData.append('created_by_id', data.created_by_id);
+    //     formData.append('updated_by_id', data.updated_by_id);
 
-//     // Dynamic fields
-//     Object.entries(data.fields).forEach(([key, value]) => {
-//         formData.append(`fields[${key}]`, value);
-//     });
+    //     // Dynamic fields
+    //     Object.entries(data.fields).forEach(([key, value]) => {
+    //         formData.append(`fields[${key}]`, value);
+    //     });
 
-//     // File (if present)
-//     if (file) {
-//         formData.append('file', file);
-//     }
-// for (let pair of formData.entries()) {
-//     console.log(pair[0] + ':', pair[1]);
-// }
-// console.log('mode', mode);
+    //     // File (if present)
+    //     if (file) {
+    //         formData.append('file', file);
+    //     }
+    // for (let pair of formData.entries()) {
+    //     console.log(pair[0] + ':', pair[1]);
+    // }
+    // console.log('mode', mode);
 
-//     if(mode === "create") {
+    //     if(mode === "create") {
 
-//         axios.post(route("admin.seasons.store"), formData, {
-//             headers: {
-//                 "Content-Type": "multipart/form-data",
-//             },
-//         }).then(() => onClose());
-//     }else{
-//         formData.append('_method', 'PUT');
-//         axios.post(route('admin.seasons.update', season.id), formData, {
-//             headers: {
-//                 'Content-Type': 'multipart/form-data',
-//             },
-//         }).then(() => onClose());
+    //         axios.post(route("admin.seasons.store"), formData, {
+    //             headers: {
+    //                 "Content-Type": "multipart/form-data",
+    //             },
+    //         }).then(() => onClose());
+    //     }else{
+    //         formData.append('_method', 'PUT');
+    //         axios.post(route('admin.seasons.update', season.id), formData, {
+    //             headers: {
+    //                 'Content-Type': 'multipart/form-data',
+    //             },
+    //         }).then(() => onClose());
 
-//         // router.post(route('services.update', service.id), formData, {
-//         // method: 'put',
-//         // preserveScroll: true,
-//         // })
-//     }
-// };
+    //         // router.post(route('services.update', service.id), formData, {
+    //         // method: 'put',
+    //         // preserveScroll: true,
+    //         // })
+    //     }
+    // };
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -146,7 +146,7 @@ setData(prevData => ({
                             onChange={(e) => handleChange(e.target.name, e.target.value)}
                             error={errors.service_id}
                             options={services}
-                        /> 
+                        />
                         <InputText
                             title="name"
                             field="name"
@@ -167,7 +167,7 @@ setData(prevData => ({
                             handleChange={handleChange}
                             errors={errors}
                         />
-                        
+
                         <InputText
                             title="End Date"
                             field="end_date"
@@ -176,7 +176,7 @@ setData(prevData => ({
                             mode={mode}
                             handleChange={handleChange}
                             errors={errors}
-                        />    
+                        />
                     </div>
                     <div className="flex flex-row w-full items-center gap-2 justify-start mb-4">
                         <InputText
@@ -202,7 +202,7 @@ setData(prevData => ({
                             mode={mode}
                             handleChange={handleChange}
                             errors={errors}
-                        />                        
+                        />
                     </div>
                     {/* <div className="flex flex-row w-full items-center gap-2 justify-start mb-4">
 
@@ -226,25 +226,25 @@ setData(prevData => ({
 
                     </div>
                     <div className="flex flex-row w-full items-center gap-2 justify-start mb-4">
-                            <CustomCheckbox
-                                label="Allow Internal Price Override"
-                                name="allow_internal_price_override"
-                                checked={data.allow_internal_price_override}
-                                mode={mode}
-                                onChange={handleChange}
-                                errors={errors}
-                            />
-                            <CustomCheckbox
-                                label="Close Booking"
-                                name="status"
-                                checked={data.status}
-                                mode={mode}
-                                onChange={handleChange}
-                                errors={errors}
-                            />
+                        <CustomCheckbox
+                            label="Allow Internal Price Override"
+                            name="allow_internal_price_override"
+                            checked={data.allow_internal_price_override}
+                            mode={mode}
+                            onChange={handleChange}
+                            errors={errors}
+                        />
+                        <CustomCheckbox
+                            label="Close Booking"
+                            name="status"
+                            checked={data.status}
+                            mode={mode}
+                            onChange={handleChange}
+                            errors={errors}
+                        />
                     </div>
                     <div className="flex justify-center gap-4">
-                        <OutlineButton title="Cancel" onClick={onClose} width="w-[180px]"/>
+                        <OutlineButton title="Cancel" onClick={onClose} width="w-[180px]" />
                         {mode !== "view" && (
                             <BlueButton title={mode === "create" ? "Create" : "Update"} width="w-[180px]" onClick={handleSubmit} disabled={processing} type="submit" />
                         )}

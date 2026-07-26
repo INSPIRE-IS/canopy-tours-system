@@ -55,7 +55,7 @@ export default function Index({ permissions, seasons, services, auth, searchTerm
     const handleDelete = (season) => {
         if (confirm("Are you sure you want to delete this season?")) {
             //post(route("seasons.destroy", season), { _method: "DELETE",});
-            router.delete(route('seasons.destroy', season), { preserveScroll: true });
+            router.delete(route('admin.seasons.destroy', season), { preserveScroll: true });
         }
     };
 

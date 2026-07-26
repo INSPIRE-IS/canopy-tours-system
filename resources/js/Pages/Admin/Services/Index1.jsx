@@ -54,7 +54,7 @@ export default function Index({ permissions, services, serviceFields, auth, sear
     const handleDelete = (service) => {
         if (confirm("Are you sure you want to delete this service?")) {
             //post(route("services.destroy", service), { _method: "DELETE",});
-            router.delete(route('services.destroy', service), { preserveScroll: true });
+            router.delete(route('admin.services.destroy', service), { preserveScroll: true });
         }
     };
 
