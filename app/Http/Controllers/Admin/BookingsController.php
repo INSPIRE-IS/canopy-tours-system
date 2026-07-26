@@ -4365,9 +4365,8 @@ class BookingsController extends Controller
         if (!empty($validated['include_invoice_link'])) {
             $links[] = [
                 'label' => 'View Invoice',
-                'url' => URL::temporarySignedRoute(
+                'url' => URL::signedRoute(
                     'front.invoices.signed',
-                    now()->addDays(7),
                     ['booking' => $booking->id]
                 ),
             ];
@@ -4393,9 +4392,8 @@ class BookingsController extends Controller
         if (!empty($validated['include_payment_link'])) {
             $links[] = [
                 'label' => 'Make Payment',
-                'url' => URL::temporarySignedRoute(
+                'url' => URL::signedRoute(
                     'front.payment.booking.signed',
-                    now()->addDays(7),
                     ['booking' => $booking->id]
                 ),
             ];
@@ -4517,18 +4515,16 @@ class BookingsController extends Controller
             [
                 'key' => 'invoice',
                 'label' => 'View Invoice',
-                'url' => URL::temporarySignedRoute(
+                'url' => URL::signedRoute(
                     'front.invoices.signed',
-                    now()->addDays(7),
                     ['booking' => $booking->id]
                 ),
             ],
             [
                 'key' => 'payment',
                 'label' => 'Make Payment',
-                'url' => URL::temporarySignedRoute(
+                'url' => URL::signedRoute(
                     'front.payment.booking.signed',
-                    now()->addDays(7),
                     ['booking' => $booking->id]
                 ),
             ],

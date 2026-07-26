@@ -763,9 +763,8 @@ class BookingPaymentController extends Controller
             return response()->json(['message' => 'Booking customer email not found.'], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
-        $payLink = URL::temporarySignedRoute(
+        $payLink = URL::signedRoute(
             'front.payment.booking.signed',
-            now()->addMinutes(80),
             ['booking' => $booking->id]
         );
 
