@@ -80,11 +80,11 @@ export default function Index({ auth, rates, searchTerm, sortColumn, sortDirecti
                       <tr className='flex justify-between items-center'>
                         <th className="w-[80px] p-3">ID</th>
                         <th className="w-[180px] p-3">Wholesaler</th>
-                        <th className="w-[180px] p-3">Service</th>
-                        <th className="w-[180px] p-3">Season</th>
-                        <th className="w-[140px] p-3">Adult</th>
-                        <th className="w-[140px] p-3">Child</th>
-                        <th className="w-[140px] p-3">Guide</th>
+                        <th className="w-[140px] p-3">Service</th>
+                        <th className="w-[140px] p-3">Season</th>
+                        <th className="w-[100px] p-3">Adult</th>
+                        <th className="w-[100px] p-3">Child</th>
+                        <th className="w-[100px] p-3">Guide</th>
                         <th className="w-[185px] p-3"></th>
                       </tr>
                     </thead>
@@ -93,11 +93,11 @@ export default function Index({ auth, rates, searchTerm, sortColumn, sortDirecti
                         <tr key={item.id} className="flex justify-between items-center hover:bg-gray-50">
                           <td className="w-[80px] p-3">{item.id}</td>
                           <td className="w-[180px] p-3">{item.wholesaler?.name}</td>
-                          <td className="w-[180px] p-3">{item.service?.name}</td>
-                          <td className="w-[180px] p-3">{item.season?.name ?? item.season?.id}</td>
-                          <td className="w-[140px] p-3">{item.price_adult}</td>
-                          <td className="w-[140px] p-3">{item.price_child}</td>
-                          <td className="w-[140px] p-3">{item.price_guide}</td>
+                          <td className="w-[140px] p-3">{item.service?.name}</td>
+                          <td className="w-[140px] p-3">{item.season?.name ?? item.season?.id}</td>
+                          <td className="w-[100px] p-3">{item.price_adult}</td>
+                          <td className="w-[100px] p-3">{item.price_child}</td>
+                          <td className="w-[100px] p-3">{item.price_guide}</td>
                           <td className="w-[185px] p-3 flex gap-2">
                             {permissions?.wholesaler_rates_edit && (
                               <button onClick={() => handleOpenModal("edit", item)} className="text-green-600 hover:text-green-800">Edit</button>
