@@ -97,6 +97,21 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
     const prefillsRef = useRef(null);
     const prevServiceIdRef = useRef(null);
     const pickupEnabled = settings?.enable_pickup_dropoff ?? true;
+    const InfoHint = ({ text }) => (
+        <span
+            title={text}
+            aria-label={text}
+            className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-gray-400 text-[10px] font-semibold leading-none text-gray-500 hover:border-gray-700 hover:text-gray-800"
+        >
+            i
+        </span>
+    );
+    const noteHelp = {
+        invoice: 'Client-facing note that appears on the invoice/quote PDF.',
+        email: 'Extra wording for the email sent to the guest. This is not an automated scheduled reminder.',
+        booking: 'Internal operational note for staff, such as tea/coffee/sandwich details. Not used for Franchise Fees.',
+        override: 'Manual rate override reason. This is the pricing note that can be used for reporting, including Franchise Fees.',
+    };
 
     // console.log('schedule ',schedule);
     const { data, setData, post, processing, errors, transform } = useForm({
@@ -954,6 +969,13 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
             setWholesalerApplied(false);
         }
         resetPromoDiscountAndRates();
+    };
+
+    const handleDiscountChange = (value) => {
+        if (hasDiscounts || hasPromo || data.is_wholesaler || data.wholesaler_id) {
+            handleResetToRack();
+        }
+        setDiscountId(value || null);
     };
 
     const handleChange = (target, value) => {
@@ -2269,7 +2291,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                     />
                                     <div className="flex items-center w-full  gap-4">
                                         <CustomInputText
-                                            title="Reason for Override"
+                                            title={<span className="inline-flex items-center gap-1">Reason for Override <InfoHint text={noteHelp.override} /></span>}
                                             id="override_reason"
                                             name="override_reason"
                                             type='text'
@@ -2293,7 +2315,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                                     name="discountId"
                                                     value={discountId}
                                                     width={"w-full"}
-                                                    onChange={(e) => { setDiscountId(e.target.value); }}
+                                                    onChange={(e) => { handleDiscountChange(e.target.value); }}
                                                     error={errors.discountId}
                                                     options={discountList}
                                                 />
@@ -2768,7 +2790,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                             {icons.notes}
                                         </div>
                                         <div className="flex flex-col items-start ">
-                                            <span className="text-booking-card-title">Add Invoice Note</span>
+                                            <span className="inline-flex items-center gap-1 text-booking-card-title">Add Invoice Note <InfoHint text={noteHelp.invoice} /></span>
                                         </div>
                                     </div>
                                     <CustomTextarea
@@ -2784,7 +2806,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                             {icons.emails}
                                         </div>
                                         <div className="flex flex-col items-start ">
-                                            <span className="text-booking-card-title">Add Email Reminder</span>
+                                            <span className="inline-flex items-center gap-1 text-booking-card-title">Add Email Reminder <InfoHint text={noteHelp.email} /></span>
                                         </div>
                                     </div>
                                     <CustomTextarea
@@ -2801,7 +2823,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                             {icons.calendars}
                                         </div>
                                         <div className="flex flex-col items-start ">
-                                            <span className="text-booking-card-title">Add Booking Note</span>
+                                            <span className="inline-flex items-center gap-1 text-booking-card-title">Add Booking Note <InfoHint text={noteHelp.booking} /></span>
                                         </div>
                                     </div>
                                     <CustomTextarea
@@ -2877,23 +2899,6 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                             <div className="flex items-center mr-[128px]">
                                 <label className="text-booking-subheading">Booking Details</label>
                             </div>
-                            <div className="flex items-center mt-2 space-x-4">
-                                <CustomCheckbox
-                                    label="Corporate Customer"
-                                    name="corporate_customer"
-                                    checked={data.corporate_customer}
-                                    onChange={handleChange}
-                                    errors={errors}
-                                />
-                                <CustomCheckbox
-                                    label="Send SMS Notification Immediately"
-                                    name="send_sms"
-                                    checked={data.send_sms}
-                                    onChange={handleChange}
-                                    errors={errors}
-                                />
-                            </div>
-
                         </div>
 
 

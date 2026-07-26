@@ -823,8 +823,8 @@ class BookingsController extends Controller
 
             'service_id' => 'required_without:activity_items|nullable|integer', //   "season_id" => "2"
             'season_id' => 'required_without:activity_items|nullable|integer', //   "season_id" => "2"
-            'corporate_customer' => 'boolean', //   "corporate_customer" => "true"
-            'send_sms' => 'boolean', //   "send_sms" => "true"
+            'corporate_customer' => 'nullable|boolean', // Hidden legacy field; keep nullable for old payloads.
+            'send_sms' => 'nullable|boolean', // Hidden legacy field; keep nullable for old payloads.
             'booking_date' => 'required_without:activity_items|nullable|date', //   "booking_date" => "2025-07-28"
             'start_time' => 'required_without:activity_items|nullable', //   "start_time" => "08:00:00"
 
@@ -1033,8 +1033,8 @@ class BookingsController extends Controller
                         'lead_name' => $customer->full_name,
                         'type_booking_id' => 1,
                         'status_payment_id' => 1,
-                        'is_sms' => $validated['send_sms'] ?? 0,
-                        'is_corporate' => $validated['corporate_customer'],
+                        'is_sms' => (bool) ($validated['send_sms'] ?? false),
+                        'is_corporate' => (bool) ($validated['corporate_customer'] ?? false),
                         'due_date' => $validated['booking_date'],
                         'tot_paid' => 0,
                         'grand_tot_due' => $amount,
@@ -1584,8 +1584,8 @@ class BookingsController extends Controller
                 'lead_name' => $customer->full_name,
                 'type_booking_id' => 1,
                 'status_payment_id' => 1,
-                'is_sms' => $validated['send_sms'] ?? 0,
-                'is_corporate' => $validated['corporate_customer'],
+                'is_sms' => (bool) ($validated['send_sms'] ?? false),
+                'is_corporate' => (bool) ($validated['corporate_customer'] ?? false),
                 'due_date' => $activityItems[0]['booking_date'] ?? $validated['booking_date'],
                 'tot_paid' => 0,
                 'grand_tot_due' => 0,
@@ -2124,8 +2124,8 @@ class BookingsController extends Controller
 
             'service_id' => 'required|integer',
             'season_id' => 'required|integer',
-            'corporate_customer' => 'boolean',
-            'send_sms' => 'boolean',
+            'corporate_customer' => 'nullable|boolean',
+            'send_sms' => 'nullable|boolean',
             'booking_date' => 'required|date',
             'start_time' => 'required',
 
