@@ -95,7 +95,7 @@ class CloseoutsController extends Controller
 
     public function store(StoreCloseoutRequest $request)
     {
-        $this->validateNoCloseoutOverlap($request);
+        $this->removeOverlappingCloseoutCellsFromRequest($request);
 
         //dd($request->all());
         //$closeout = Closeout::create($request->all());
@@ -131,7 +131,7 @@ class CloseoutsController extends Controller
 
     public function update(UpdateCloseoutRequest $request, Closeout $closeout)
     {
-        $this->validateNoCloseoutOverlap($request, $closeout);
+        $this->removeOverlappingCloseoutCellsFromRequest($request, $closeout);
 
         $closeout->update($request->only([
             'service_id',
@@ -179,7 +179,7 @@ class CloseoutsController extends Controller
         return back();
     }
 
-    private function validateNoCloseoutOverlap(Request $request, ?Closeout $ignoreCloseout = null): void
+    private function removeOverlappingCloseoutCellsFromRequest(Request $request, ?Closeout $ignoreCloseout = null): void
     {
         $dayIds = $request->input('day_id', []);
         $timeSlotIds = $request->input('time_slot_id', []);
@@ -191,13 +191,10 @@ class CloseoutsController extends Controller
         }
 
         $proposed = [
-            'id' => $ignoreCloseout?->id,
-            'name' => $request->input('name'),
             'service_id' => (int) $request->input('service_id'),
             'season_id' => (int) $request->input('season_id'),
             'start_date' => $this->normalDate($request->input('start_date')),
             'end_date' => $this->normalDate($request->input('end_date')),
-            'cells' => $this->cellsFromRequest($dayIds, $timeSlotIds),
         ];
 
         $existingCloseouts = Closeout::with('closeout_day_time_slots.time_slot')
@@ -206,22 +203,41 @@ class CloseoutsController extends Controller
             ->when($ignoreCloseout, fn ($query) => $query->where('id', '!=', $ignoreCloseout->id))
             ->get();
 
-        $conflicts = $existingCloseouts
-            ->map(fn (Closeout $closeout) => $this->overlapConflictFor($proposed, $this->closeoutOverlapPayload($closeout)))
-            ->filter()
+        $existingPayloads = $existingCloseouts
+            ->map(fn (Closeout $closeout) => $this->closeoutOverlapPayload($closeout))
             ->values();
 
-        if ($conflicts->isNotEmpty()) {
-            $names = $conflicts
-                ->pluck('other_name')
-                ->unique()
-                ->take(3)
-                ->implode(', ');
+        $filteredCells = collect($this->cellsFromRequest($dayIds, $timeSlotIds))
+            ->reject(fn ($cell) => $this->cellIsAlreadyClosedByExistingCloseout($proposed, $cell, $existingPayloads))
+            ->values();
 
+        if ($filteredCells->isEmpty()) {
             throw ValidationException::withMessages([
-                'start_date' => "This closeout overlaps existing closed day/time slots ({$names}). Adjust the dates or open those cells on one closeout first.",
+                'day_id' => 'All selected day/time slots are already closed by another closeout. Use Remove/Edit on the existing closeout if you want to reopen those slots.',
             ]);
         }
+
+        $request->merge([
+            'day_id' => $filteredCells->pluck('day_id')->all(),
+            'time_slot_id' => $filteredCells->pluck('time_slot_id')->all(),
+        ]);
+    }
+
+    private function cellIsAlreadyClosedByExistingCloseout(array $proposed, array $cell, $existingPayloads): bool
+    {
+        foreach ($existingPayloads as $existing) {
+            if ($proposed['end_date'] < $existing['start_date'] || $existing['end_date'] < $proposed['start_date']) {
+                continue;
+            }
+
+            foreach ($existing['cells'] as $existingCell) {
+                if ($this->closeoutCellsOverlap($cell, $existingCell)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     private function buildOverlapGroups($closeouts): array
@@ -349,6 +365,7 @@ class CloseoutsController extends Controller
 
                 return [
                     'day_id' => (int) $dayId,
+                    'time_slot_id' => (int) $timeSlotId,
                     'time_key' => $timeKey,
                     'label' => "Day {$dayId} {$timeKey}",
                 ];
