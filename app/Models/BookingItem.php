@@ -28,6 +28,7 @@ class BookingItem extends Model
         'price_guide',
         'promotion_id',
         'wholesaler_id',
+        'wholesaler_rate_id',
         'discount_id',
         'created_at',
         'updated_at',
@@ -96,6 +97,11 @@ class BookingItem extends Model
     public function wholesaler()
     {
         return $this->belongsTo(Wholesaler::class, 'wholesaler_id');
+    }
+
+    public function wholesaler_rate()
+    {
+        return $this->belongsTo(WholesalerRate::class, 'wholesaler_rate_id');
     }
 
     public function inventory()

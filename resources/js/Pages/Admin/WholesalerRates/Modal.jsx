@@ -16,6 +16,7 @@ const Modal = ({ isOpen, onClose, mode, item = null, permissions, wholesalers, s
     price_child: "",
     price_guide: "",
     bill_back: false,
+    is_prepaid_voucher: false,
     team_id: auth?.user?.team_id,
     created_by_id: auth?.user?.id,
     updated_by_id: auth?.user?.id,
@@ -31,6 +32,7 @@ const Modal = ({ isOpen, onClose, mode, item = null, permissions, wholesalers, s
         price_child: item?.price_child || "",
         price_guide: item?.price_guide || "",
         bill_back: item?.bill_back || false,
+        is_prepaid_voucher: item?.is_prepaid_voucher || false,
         team_id: auth?.user?.team_id,
         created_by_id: item.created_by_id || auth?.user?.id,
         updated_by_id: item.updated_by_id || auth?.user?.id,
@@ -122,6 +124,12 @@ const Modal = ({ isOpen, onClose, mode, item = null, permissions, wholesalers, s
               <InputText title="Child Price" field="price_child" value={data?.price_child ?? ""} mode={mode} handleChange={handleChange} errors={errors} />
               <InputText title="Guide Price" field="price_guide" value={data?.price_guide ?? ""} mode={mode} handleChange={handleChange} errors={errors} />
               <CustomCheckbox label="Bill Back" name="bill_back" side="right" checked={data?.bill_back ?? false} mode={mode} onChange={handleChange} errors={errors} />
+              <div>
+                <CustomCheckbox label="Prepaid Voucher Partner" name="is_prepaid_voucher" side="right" checked={data?.is_prepaid_voucher ?? false} mode={mode} onChange={handleChange} errors={errors} />
+                <p className="mt-1 text-xs text-gray-500">
+                  Use when guests have already paid through an external voucher or partner platform. The booking keeps this rate for reporting, but the customer balance is marked paid.
+                </p>
+              </div>
             </div>
 
           </div>

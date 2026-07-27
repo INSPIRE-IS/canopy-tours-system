@@ -14,6 +14,7 @@ class WholesalerRate extends Model
 
     protected $attributes = [
         'price_guide' => 0.00,
+        'is_prepaid_voucher' => false,
     ];
 
     protected $fillable = [
@@ -24,7 +25,13 @@ class WholesalerRate extends Model
         'price_child',
         'price_guide',
         'bill_back',
+        'is_prepaid_voucher',
         'team_id',
+    ];
+
+    protected $casts = [
+        'bill_back' => 'boolean',
+        'is_prepaid_voucher' => 'boolean',
     ];
 
     public function service()

@@ -29,6 +29,7 @@ class BookingFee extends Model
         'tot_guides',
         'is_voucher',
         'voucher_code',
+        'is_prepaid_wholesaler_voucher',
         'invoice_note',
         'email_reminder',
         'is_email_reminder',
@@ -39,6 +40,11 @@ class BookingFee extends Model
         'updated_at',
         'deleted_at',
         'team_id',
+    ];
+
+    protected $casts = [
+        'is_voucher' => 'boolean',
+        'is_prepaid_wholesaler_voucher' => 'boolean',
     ];
 
     protected function serializeDate(DateTimeInterface $date)

@@ -29,6 +29,7 @@ class PricingService
         $rates = $baseRates;
 
         $appliedPromo = null;
+        $appliedWholesalerRate = null;
         $appliedDiscounts = [];
         $forcedTotal = null;
         $promoLineItems = [];
@@ -55,6 +56,17 @@ class PricingService
                     $rates['adult'] = $wr->price_adult ?? $rates['adult'];
                     $rates['child'] = $wr->price_child ?? $rates['child'];
                     $rates['guide'] = $wr->price_guide ?? $rates['guide'];
+                    $appliedWholesalerRate = [
+                        'id' => $wr->id,
+                        'wholesaler_id' => $wr->wholesaler_id,
+                        'service_id' => $wr->service_id,
+                        'season_id' => $wr->season_id,
+                        'price_adult' => (float) $wr->price_adult,
+                        'price_child' => (float) $wr->price_child,
+                        'price_guide' => (float) $wr->price_guide,
+                        'bill_back' => (bool) $wr->bill_back,
+                        'is_prepaid_voucher' => (bool) $wr->is_prepaid_voucher,
+                    ];
                 }
             }
 
@@ -436,6 +448,7 @@ class PricingService
             'base_rates' => $baseRates,
             'applied_rates' => $rates,
             'applied_promotion' => $appliedPromo,
+            'applied_wholesaler_rate' => $appliedWholesalerRate,
             'applied_discounts' => $appliedDiscounts,
             'total_price' => $total,
             'line_items' => $lineItems,

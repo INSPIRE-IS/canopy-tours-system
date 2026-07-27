@@ -7,6 +7,7 @@ use App\Models\BookingNote;
 use App\Models\Discount;
 use App\Models\LookupItem;
 use App\Models\Wholesaler;
+use App\Models\WholesalerRate;
 use Carbon\Carbon;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Database\Eloquent\Builder;
@@ -21,6 +22,8 @@ class FranchiseFeesReportExport implements FromCollection, WithHeadings, ShouldA
     private array $discountNames = [];
     private array $wholesalerNames = [];
     private array $tradeExchangeWholesalers = [];
+    private array $prepaidVoucherRateIds = [];
+    private array $prepaidVoucherRateKeys = [];
 
     public function __construct(
         private readonly int $teamId,
@@ -76,7 +79,7 @@ class FranchiseFeesReportExport implements FromCollection, WithHeadings, ShouldA
         $rows->push($this->summaryRow("Royalty @ {$this->percentLabel($royaltyPercent)}", $this->money($turnoverExclVat * ($royaltyPercent / 100))));
         $rows->push($this->summaryRow("Marketing Account @ {$this->percentLabel($marketingPercent)}", $this->money($turnoverExclVat * ($marketingPercent / 100))));
         $rows->push($this->blankRow());
-        $rows->push($this->summaryRow('Report Notes', 'V1 buckets known 10/15/20/25%, student, configured trade-exchange wholesalers, complimentary, and full-rate rows; unmapped promos/discounts/non-trade wholesalers/custom rates are grouped under Other with notes.'));
+        $rows->push($this->summaryRow('Report Notes', 'V1 buckets known 10/15/20/25%, student, configured trade-exchange wholesalers, prepaid voucher partner rates, complimentary, and full-rate rows; unmapped promos/discounts/non-trade wholesalers/custom rates are grouped under Other with notes.'));
 
         return $rows;
     }
@@ -95,6 +98,8 @@ class FranchiseFeesReportExport implements FromCollection, WithHeadings, ShouldA
             'Complimentary Income',
             'Trade Exchange Pax',
             'Trade Exchange Income',
+            'Voucher Partner Pax',
+            'Voucher Partner Income',
             '10% Pax',
             '10% Income',
             '15% Pax',
@@ -124,6 +129,7 @@ class FranchiseFeesReportExport implements FromCollection, WithHeadings, ShouldA
                 'booking_inventory:id,booking_item_id,date,inventory_override_id',
                 'booking_inventory.inventory_override:id,note',
                 'promotion:id,name,promo_code,type,value',
+                'wholesaler_rate:id,wholesaler_id,service_id,season_id,is_prepaid_voucher',
                 'service:id,name',
                 'season:id,rake_rate_adult,rake_rate_child,rake_rate_guide',
             ])
@@ -172,6 +178,17 @@ class FranchiseFeesReportExport implements FromCollection, WithHeadings, ShouldA
             ->pluck('id')
             ->map(fn($id) => (int) $id)
             ->all();
+
+        $voucherRates = WholesalerRate::select('id', 'wholesaler_id', 'service_id', 'season_id')
+            ->where('team_id', $this->teamId)
+            ->where('is_prepaid_voucher', true)
+            ->get();
+        $this->prepaidVoucherRateIds = $voucherRates->pluck('id')->map(fn($id) => (int) $id)->all();
+        $this->prepaidVoucherRateKeys = $voucherRates
+            ->mapWithKeys(fn(WholesalerRate $rate) => [
+                $this->wholesalerRateKey((int) $rate->wholesaler_id, (int) $rate->service_id, (int) $rate->season_id) => true,
+            ])
+            ->all();
     }
 
     private function initialRows(Collection $items): array
@@ -208,6 +225,11 @@ class FranchiseFeesReportExport implements FromCollection, WithHeadings, ShouldA
 
         $row['pax'] += $pax;
         $row['total'] += $total;
+
+        if ($this->isPrepaidVoucherPartner($item)) {
+            $this->addBucket($row, 'voucher_partner', $pax, $total, $this->wholesalerNames[$item->wholesaler_id] ?? 'Prepaid voucher partner');
+            return;
+        }
 
         if ($pax > 0 && $total <= 0.01) {
             $this->addBucket($row, 'complimentary', $pax, $total, $this->otherComment($item));
@@ -301,6 +323,32 @@ class FranchiseFeesReportExport implements FromCollection, WithHeadings, ShouldA
         }
 
         return 'other';
+    }
+
+    private function isPrepaidVoucherPartner(BookingItem $item): bool
+    {
+        if (!$item->wholesaler_id) {
+            return false;
+        }
+
+        if ($item->wholesaler_rate_id && in_array((int) $item->wholesaler_rate_id, $this->prepaidVoucherRateIds, true)) {
+            return true;
+        }
+
+        if ($item->relationLoaded('wholesaler_rate') && (bool) ($item->wholesaler_rate?->is_prepaid_voucher ?? false)) {
+            return true;
+        }
+
+        return !empty($this->prepaidVoucherRateKeys[$this->wholesalerRateKey(
+            (int) $item->wholesaler_id,
+            (int) $item->service_id,
+            (int) $item->season_id
+        )]);
+    }
+
+    private function wholesalerRateKey(int $wholesalerId, int $serviceId, int $seasonId): string
+    {
+        return "{$wholesalerId}:{$serviceId}:{$seasonId}";
     }
 
     private function percentBucket(float $percent): string
@@ -421,6 +469,8 @@ class FranchiseFeesReportExport implements FromCollection, WithHeadings, ShouldA
             'complimentary_income' => 0.0,
             'trade_exchange_pax' => 0,
             'trade_exchange_income' => 0.0,
+            'voucher_partner_pax' => 0,
+            'voucher_partner_income' => 0.0,
             'discount_10_pax' => 0,
             'discount_10_income' => 0.0,
             'discount_15_pax' => 0,
@@ -451,6 +501,8 @@ class FranchiseFeesReportExport implements FromCollection, WithHeadings, ShouldA
             $this->money($row['complimentary_income']),
             $row['trade_exchange_pax'] ?: '',
             $this->money($row['trade_exchange_income']),
+            $row['voucher_partner_pax'] ?: '',
+            $this->money($row['voucher_partner_income']),
             $row['discount_10_pax'] ?: '',
             $this->money($row['discount_10_income']),
             $row['discount_15_pax'] ?: '',

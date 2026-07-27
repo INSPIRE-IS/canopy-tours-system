@@ -173,6 +173,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
         referral_source: '',
         // booking payment
         booking_total: 0,
+        is_prepaid_wholesaler_voucher: false,
         invoice_discount_id: null,
         deposit_due: lookups.find(l => l.slug == 'deposit_due')?.multiplier || 1,
         due_today: lookups.find(l => l.slug == 'due_today')?.multiplier || 1,
@@ -279,6 +280,8 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
         && Number(rate.season_id) === Number(selectedSeason?.id || data.season_id)
         && Number(rate.service_id) === Number(selectedService?.id || data.service_id)
     ), [wholesaler_rates, data.wholesaler_id, data.season_id, data.service_id, selectedSeason?.id, selectedService?.id]);
+    const selectedWholesalerRate = selectedWholesalerRates[0] || null;
+    const isPrepaidWholesalerVoucher = Boolean(data.is_wholesaler && (data.is_prepaid_wholesaler_voucher || (wholesalerApplied && selectedWholesalerRate?.is_prepaid_voucher)));
     const hasWholesalers = Array.isArray(serviceWholesalers) && serviceWholesalers.length > 0;
     const hasPromo = !!promoCode;
     const hasDiscountSelection = !!discountId;
@@ -507,6 +510,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                 rate_per_child: applied_rates.child ?? prev.rate_per_child,
                 rate_per_guide: applied_rates.guide ?? prev.rate_per_guide,
                 booking_total: total_price || 0,
+                is_prepaid_wholesaler_voucher: Boolean(res.data.applied_wholesaler_rate?.is_prepaid_voucher),
             }));
             const responseGroups = Array.isArray(res.data.line_items) && res.data.line_items.length > 0
                 ? res.data.line_items
@@ -913,6 +917,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
             rate_per_child: baseRates.child,
             rate_per_guide: baseRates.guide,
             booking_total: booking_total || 0,
+            is_prepaid_wholesaler_voucher: false,
         }));
 
         setPaxGroups(buildBasePaxGroups(adultCount, childCount, guideCount, baseRates));
@@ -1464,6 +1469,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
             rate_per_child: 0,
             rate_per_guide: 0,
             booking_total: 0,
+            is_prepaid_wholesaler_voucher: false,
             discount_lines: [],
             invoice_discount_id: null,
             promoCode: null,
@@ -1843,6 +1849,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
     const currentActivityDisplayItem = hasCompleteCurrentActivity()
         ? {
             booking_total: Number(data.booking_total || 0),
+            pricing,
         }
         : null;
     const visibleActivityItems = [
@@ -1851,6 +1858,12 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
     ];
     const activityItemsTotal = visibleActivityItems.reduce((sum, item) => sum + Number(item.booking_total || 0), 0);
     const bookingTotalForPayment = visibleActivityItems.length > 0 ? activityItemsTotal : total;
+    const payableTotalForPayment = visibleActivityItems.length > 0
+        ? visibleActivityItems.reduce((sum, item) => {
+            const prepaid = Boolean(item.pricing?.applied_wholesaler_rate?.is_prepaid_voucher);
+            return sum + (prepaid ? 0 : Number(item.booking_total || 0));
+        }, 0)
+        : (isPrepaidWholesalerVoucher ? 0 : total);
     const graduatedPromo = pricing?.applied_promotion?.type === 'graduated';
     const promoTotal = Number(pricing?.total_price ?? data.booking_total ?? 0);
     const promoAdjustmentTarget = graduatedPromo
@@ -2993,13 +3006,13 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                 <div className="flex items-center space-x-[37px]">
                                     <span className="text-booking-lbl-main w-[160px] font-normal text-right">Deposit Due Today</span>
                                     <div className="flex items-center justify-between w-[417px] h-[43px] bg-[#DBECFD4D] pl-[17px] py-[12.5px] rounded-[6px]">
-                                        <span className="text-booking-lbl-main-sub text-[#AFAFAF]">R {((Number(data?.deposit_due) || 0) * (Number(bookingTotalForPayment) || 0)).toFixed(2)}</span>
+                                        <span className="text-booking-lbl-main-sub text-[#AFAFAF]">R {((Number(data?.deposit_due) || 0) * (Number(payableTotalForPayment) || 0)).toFixed(2)}</span>
                                     </div>
                                 </div>
                                 <div className="flex items-center space-x-[37px]">
                                     <span className="text-booking-lbl-main w-[160px] text-right">Total Due Today</span>
                                     <div className="flex items-center justify-between w-[417px] h-[43px] bg-[#DBECFD4D] pl-[17px] py-[12.5px] rounded-[6px]">
-                                        <span className="text-booking-lbl-main-sub text-[#FF0000]">R {((Number(data?.due_today) || 0) * (Number(bookingTotalForPayment) || 0)).toFixed(2)}</span>
+                                        <span className="text-booking-lbl-main-sub text-[#FF0000]">R {((Number(data?.due_today) || 0) * (Number(payableTotalForPayment) || 0)).toFixed(2)}</span>
                                     </div>
                                 </div>
                                 <div className="flex items-center space-x-[37px]">
@@ -3008,6 +3021,11 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                         <span className="text-booking-lbl-main-sub text-[#4D81E7]">R {((Number(data?.rack_value) || 0) * (Number(bookingTotalForPayment) || 0)).toFixed(2)}</span>
                                     </div>
                                 </div>
+                                {payableTotalForPayment === 0 && bookingTotalForPayment > 0 && (
+                                    <div className="w-[417px] rounded-[6px] bg-[#DBECFD4D] px-4 py-3 text-sm text-gray-600">
+                                        External prepaid voucher: booking value is kept for reporting; customer balance is marked paid.
+                                    </div>
+                                )}
                             </div>
 
                             {data.bill_back && (<span className="text-booking-lbl-main w-full text-center font-normal my-7">

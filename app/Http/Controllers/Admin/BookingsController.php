@@ -235,6 +235,32 @@ class BookingsController extends Controller
         }
     }
 
+    private function isPrepaidWholesalerVoucher(array $pricing): bool
+    {
+        return (bool) data_get($pricing, 'applied_wholesaler_rate.is_prepaid_voucher', false);
+    }
+
+    private function appliedWholesalerRateId(array $pricing): ?int
+    {
+        $rateId = data_get($pricing, 'applied_wholesaler_rate.id');
+
+        return $rateId ? (int) $rateId : null;
+    }
+
+    private function refreshBookingPaymentTotals(Booking $booking, ?float $grandTotal = null, array $extra = []): void
+    {
+        $booking->load('booking_items.booking_fee');
+
+        $total = $grandTotal ?? round((float) $booking->booking_items->sum(fn ($item) => (float) ($item->booking_fee?->tot_amount ?? 0)), 2);
+        $paid = round((float) $booking->booking_items->sum(fn ($item) => (float) ($item->booking_fee?->tot_paid ?? 0)), 2);
+
+        $booking->update(array_merge([
+            'grand_tot_due' => round($total, 2),
+            'tot_paid' => min(round($total, 2), $paid),
+            'status_payment_id' => $total > 0 && $paid >= round($total, 2) ? 2 : 1,
+        ], $extra));
+    }
+
 
     private function syncBookingPriceLines(
         BookingItem $bookingItem,
@@ -249,6 +275,8 @@ class BookingsController extends Controller
         $promoLabel = trim(($promo['name'] ?? 'Promotion') . (!empty($promo['promo_code']) ? ' (' . $promo['promo_code'] . ')' : ''));
         $invoiceDiscountId = $context['invoice_discount_id'] ?? null;
         $wholesalerId = $context['wholesaler_id'] ?? null;
+        $wholesalerRateId = $context['wholesaler_rate_id'] ?? data_get($pricing, 'applied_wholesaler_rate.id');
+        $prepaidWholesalerVoucher = (bool) ($context['is_prepaid_wholesaler_voucher'] ?? data_get($pricing, 'applied_wholesaler_rate.is_prepaid_voucher', false));
         $overrideRates = (bool) ($context['override_rates'] ?? false);
         $discountLabels = collect($pricing['applied_discounts'] ?? [])
             ->filter(fn ($discount) => !empty($discount['id']))
@@ -307,6 +335,8 @@ class BookingsController extends Controller
                 'meta' => array_filter([
                     'override_reason' => $context['override_reason'] ?? null,
                     'promo_code' => $promo['promo_code'] ?? null,
+                    'wholesaler_rate_id' => $wholesalerRateId,
+                    'is_prepaid_wholesaler_voucher' => $prepaidWholesalerVoucher ?: null,
                     'pricing_total' => $pricing['total_price'] ?? null,
                 ], fn ($value) => $value !== null && $value !== ''),
             ]);
@@ -762,7 +792,7 @@ class BookingsController extends Controller
         $vouchers = Voucher::select('id', 'voucher_code as name', 'amount', 'note', 'expire_date', 'season_id', 'service_id')->with('season', 'service')->get();
         $discounts = Discount::select('id', 'name', 'applies_to', 'percent_off')->with('services')->get();
         //dd($discounts);
-        $wholesaler_rates = WholesalerRate::select('id', 'wholesaler_id', 'service_id', 'season_id', 'price_adult', 'price_child', 'price_guide')
+        $wholesaler_rates = WholesalerRate::select('id', 'wholesaler_id', 'service_id', 'season_id', 'price_adult', 'price_child', 'price_guide', 'bill_back', 'is_prepaid_voucher')
             ->where('team_id', auth()->user()->team_id)
             ->with('service', 'season', 'wholesaler')
             ->get();
@@ -882,7 +912,7 @@ class BookingsController extends Controller
                     'activity_count' => count($activityItems),
                 ]);
                 $message = "Booking {$booking->reference} saved successfully.";
-                if ($validated['pay_later']) {
+                if ($validated['pay_later'] || (float) ($booking->tot_paid ?? 0) >= (float) ($booking->grand_tot_due ?? 0)) {
                     return redirect()
                         ->route('admin.bookings.index')
                         ->with('success', $message);
@@ -985,6 +1015,8 @@ class BookingsController extends Controller
                 $amount_children = round((float) ($pricing['totals_by_type']['child'] ?? 0), 2);
                 $amount_guides = round((float) ($pricing['totals_by_type']['guide'] ?? 0), 2);
                 $discountLines = $pricing['discount_lines'] ?? [];
+                $prepaidWholesalerVoucher = $this->isPrepaidWholesalerVoucher($pricing);
+                $appliedWholesalerRateId = $this->appliedWholesalerRateId($pricing);
                 $invoiceDiscountId = (int) ($validated['invoice_discount_id'] ?? 0);
                 if ($invoiceDiscountId && empty($discountLines)) {
                     // Persist invoice-level discounts as per-type discount lines so booking_discount_items can represent them.
@@ -1089,6 +1121,7 @@ class BookingsController extends Controller
                     'price_guide'    => $rateGuide,
                     'promotion_id'   => $promotion ? $promotion->id : null,
                     'wholesaler_id'  => $validated['wholesaler_id'],
+                    'wholesaler_rate_id' => $appliedWholesalerRateId,
                     'discount_id'    => $booking_price ? $booking_price->id : null,
                     'team_id' => auth()->user()->team_id,
                 ]);
@@ -1170,15 +1203,20 @@ class BookingsController extends Controller
                     'tot_guides'     => $amount_guides,
                     'is_voucher'     => $validated['redeem_voucher'] ? 1 : 0,
                     'voucher_code'   => $validated['redeem_voucher'] ?? '',
+                    'is_prepaid_wholesaler_voucher' => $prepaidWholesalerVoucher,
                     'tot_amount'     => $amount,
+                    'tot_paid'       => $prepaidWholesalerVoucher ? $amount : 0,
                     'team_id'        => auth()->user()->team_id,
                 ]);
+                $this->refreshBookingPaymentTotals($booking, $amount);
 
                 $this->syncBookingPriceLines($booking_item, $pricing, $validated['booking_date'], $inventoryTimeSlot->start_time, [
                     'team_id' => auth()->user()->team_id,
                     'wholesaler_id' => $validated['is_wholesaler'] ? ($validated['wholesaler_id'] ?? null) : null,
                     'invoice_discount_id' => $validated['invoice_discount_id'] ?? null,
                     'promotion_id' => $promotion?->id,
+                    'wholesaler_rate_id' => $appliedWholesalerRateId,
+                    'is_prepaid_wholesaler_voucher' => $prepaidWholesalerVoucher,
                     'override_rates' => $overrideRates,
                     'override_reason' => $validated['override_reason'] ?? null,
                 ]);
@@ -1494,7 +1532,7 @@ class BookingsController extends Controller
                 'booking' => $booking,
             ]);
             $message = "Booking {$booking->reference} saved successfully.";
-            if ($validated['pay_later']) {
+            if ($validated['pay_later'] || (float) ($booking->tot_paid ?? 0) >= (float) ($booking->grand_tot_due ?? 0)) {
                 return redirect()
                     ->route('admin.bookings.index')
                     ->with('success', $message);
@@ -1668,6 +1706,8 @@ class BookingsController extends Controller
                 $amountChildren = round((float) ($pricing['totals_by_type']['child'] ?? 0), 2);
                 $amountGuides = round((float) ($pricing['totals_by_type']['guide'] ?? 0), 2);
                 $amount = round((float) ($pricing['total_price'] ?? 0), 2);
+                $prepaidWholesalerVoucher = $this->isPrepaidWholesalerVoucher($pricing);
+                $appliedWholesalerRateId = $this->appliedWholesalerRateId($pricing);
                 $discountLines = $pricing['discount_lines'] ?? [];
                 if ($invoiceDiscountId && empty($discountLines)) {
                     $discountLines = collect($pricing['line_items'] ?? [])
@@ -1703,6 +1743,7 @@ class BookingsController extends Controller
                     'price_guide' => $rateGuide,
                     'promotion_id' => $promotion?->id,
                     'wholesaler_id' => $wholesalerId,
+                    'wholesaler_rate_id' => $appliedWholesalerRateId,
                     'discount_id' => null,
                     'team_id' => $teamId,
                 ]);
@@ -1772,7 +1813,9 @@ class BookingsController extends Controller
                     'tot_guides' => $amountGuides,
                     'is_voucher' => $validated['redeem_voucher'] ? 1 : 0,
                     'voucher_code' => $validated['redeem_voucher'] ?? '',
+                    'is_prepaid_wholesaler_voucher' => $prepaidWholesalerVoucher,
                     'tot_amount' => $amount,
+                    'tot_paid' => $prepaidWholesalerVoucher ? $amount : 0,
                     'team_id' => $teamId,
                 ]);
 
@@ -1781,6 +1824,8 @@ class BookingsController extends Controller
                     'wholesaler_id' => $wholesalerId,
                     'invoice_discount_id' => $invoiceDiscountId ?: null,
                     'promotion_id' => $promotion?->id,
+                    'wholesaler_rate_id' => $appliedWholesalerRateId,
+                    'is_prepaid_wholesaler_voucher' => $prepaidWholesalerVoucher,
                     'override_rates' => $overrideRates,
                     'override_reason' => $activity['override_reason'] ?? null,
                 ]);
@@ -1839,7 +1884,7 @@ class BookingsController extends Controller
                 ]);
             }
 
-            $booking->update(['grand_tot_due' => round($totalAmount, 2)]);
+            $this->refreshBookingPaymentTotals($booking, round($totalAmount, 2));
 
             $invoiceTypeId = $this->getTypeInvoiceId(TypeInvoice::SLUG_STD);
             $template = InvoiceTemplate::where('is_default', true)
@@ -2040,7 +2085,7 @@ class BookingsController extends Controller
 
         $vouchers = Voucher::select('id', 'voucher_code as name', 'amount', 'note', 'expire_date', 'season_id', 'service_id')->with('season', 'service')->get();
         $discounts = Discount::select('id', 'name', 'applies_to', 'percent_off')->with('services')->get();
-        $wholesaler_rates = WholesalerRate::select('id', 'wholesaler_id', 'service_id', 'season_id', 'price_adult', 'price_child', 'price_guide')
+        $wholesaler_rates = WholesalerRate::select('id', 'wholesaler_id', 'service_id', 'season_id', 'price_adult', 'price_child', 'price_guide', 'bill_back', 'is_prepaid_voucher')
             ->where('team_id', auth()->user()->team_id)
             ->with('service', 'season', 'wholesaler')
             ->get();
@@ -2323,6 +2368,8 @@ class BookingsController extends Controller
                     );
                 }
                 $amount = round((float) ($pricing['total_price'] ?? 0), 2);
+                $prepaidWholesalerVoucher = $this->isPrepaidWholesalerVoucher($pricing);
+                $appliedWholesalerRateId = $this->appliedWholesalerRateId($pricing);
 
                 $inventoryOverride = null;
                 if ($overrideRates) {
@@ -2397,6 +2444,7 @@ class BookingsController extends Controller
                     'price_guide' => $rateGuide,
                     'promotion_id' => $promotion?->id,
                     'wholesaler_id' => $validated['wholesaler_id'],
+                    'wholesaler_rate_id' => $appliedWholesalerRateId,
                 ]);
 
                 DB::table('booking_items_customer')
@@ -2473,12 +2521,19 @@ class BookingsController extends Controller
                     'tot_guides' => $amount_guides,
                     'is_voucher' => $validated['redeem_voucher'] ? 1 : 0,
                     'voucher_code' => $validated['redeem_voucher'] ?? '',
+                    'is_prepaid_wholesaler_voucher' => $prepaidWholesalerVoucher,
                     'tot_amount' => $amount,
                     'team_id' => auth()->user()->team_id,
                 ];
                 if ($bookingItem->booking_fee) {
+                    if ($prepaidWholesalerVoucher) {
+                        $bookingFeeData['tot_paid'] = $amount;
+                    } elseif ($bookingItem->booking_fee->is_prepaid_wholesaler_voucher) {
+                        $bookingFeeData['tot_paid'] = 0;
+                    }
                     $bookingItem->booking_fee->update($bookingFeeData);
                 } else {
+                    $bookingFeeData['tot_paid'] = $prepaidWholesalerVoucher ? $amount : 0;
                     BookingFee::create($bookingFeeData);
                 }
 
@@ -2487,6 +2542,8 @@ class BookingsController extends Controller
                     'wholesaler_id' => $validated['is_wholesaler'] ? ($validated['wholesaler_id'] ?? null) : null,
                     'invoice_discount_id' => $validated['invoice_discount_id'] ?? null,
                     'promotion_id' => $promotion?->id,
+                    'wholesaler_rate_id' => $appliedWholesalerRateId,
+                    'is_prepaid_wholesaler_voucher' => $prepaidWholesalerVoucher,
                     'override_rates' => $overrideRates,
                     'override_reason' => $validated['override_reason'] ?? null,
                 ]);
@@ -2545,8 +2602,7 @@ class BookingsController extends Controller
                     ->where('booking_id', $booking->id)
                     ->get();
                 $parentTotal = round((float) $invoiceBookingItems->sum(fn($item) => (float) ($item->booking_fee?->tot_amount ?? 0)), 2);
-                $booking->update([
-                    'grand_tot_due' => $parentTotal,
+                $this->refreshBookingPaymentTotals($booking, $parentTotal, [
                     'due_date' => $invoiceBookingItems
                         ->pluck('booking_inventory.date')
                         ->filter()
@@ -3501,7 +3557,7 @@ class BookingsController extends Controller
 
         $vouchers = Voucher::select('id', 'voucher_code as name', 'amount', 'note', 'expire_date', 'season_id', 'service_id')->with('season', 'service')->get();
         $discounts = Discount::select('id', 'name', 'applies_to', 'percent_off')->with('services')->get();
-        $wholesaler_rates = WholesalerRate::select('id', 'wholesaler_id', 'service_id', 'season_id', 'price_adult', 'price_child', 'price_guide')
+        $wholesaler_rates = WholesalerRate::select('id', 'wholesaler_id', 'service_id', 'season_id', 'price_adult', 'price_child', 'price_guide', 'bill_back', 'is_prepaid_voucher')
             ->where('team_id', auth()->user()->team_id)
             ->with('season', 'wholesaler')
             ->get();
@@ -4891,6 +4947,7 @@ class BookingsController extends Controller
                 'base_rates'         => $formatRates($pricing['base_rates'] ?? []),
                 'applied_rates'      => $formatRates($pricing['applied_rates'] ?? []),
                 'applied_promotion'  => $pricing['applied_promotion'],
+                'applied_wholesaler_rate' => $pricing['applied_wholesaler_rate'] ?? null,
                 'applied_discounts'  => $pricing['applied_discounts'],
                 'total_price'        => number_format((float) ($pricing['total_price'] ?? 0), 2, '.', ''),
                 'line_items'         => $pricing['line_items'] ?? [],

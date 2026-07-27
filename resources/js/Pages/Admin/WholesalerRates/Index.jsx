@@ -85,6 +85,7 @@ export default function Index({ auth, rates, searchTerm, sortColumn, sortDirecti
                         <th className="w-[100px] p-3">Adult</th>
                         <th className="w-[100px] p-3">Child</th>
                         <th className="w-[100px] p-3">Guide</th>
+                        <th className="w-[120px] p-3">Voucher</th>
                         <th className="w-[185px] p-3"></th>
                       </tr>
                     </thead>
@@ -98,6 +99,7 @@ export default function Index({ auth, rates, searchTerm, sortColumn, sortDirecti
                           <td className="w-[100px] p-3">{item.price_adult}</td>
                           <td className="w-[100px] p-3">{item.price_child}</td>
                           <td className="w-[100px] p-3">{item.price_guide}</td>
+                          <td className="w-[120px] p-3">{item.is_prepaid_voucher ? 'Yes' : 'No'}</td>
                           <td className="w-[185px] p-3 flex gap-2">
                             {permissions?.wholesaler_rates_edit && (
                               <button onClick={() => handleOpenModal("edit", item)} className="text-green-600 hover:text-green-800">Edit</button>

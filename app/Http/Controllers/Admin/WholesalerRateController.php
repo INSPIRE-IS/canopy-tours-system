@@ -63,8 +63,12 @@ class WholesalerRateController extends Controller
             'price_adult' => ['required', 'numeric', 'min:0'],
             'price_child' => ['nullable', 'numeric', 'min:0'],
             'price_guide' => ['nullable', 'numeric', 'min:0'],
+            'bill_back' => ['nullable', 'boolean'],
+            'is_prepaid_voucher' => ['nullable', 'boolean'],
         ]);
         $data['team_id'] = $teamId;
+        $data['bill_back'] = (bool) ($data['bill_back'] ?? false);
+        $data['is_prepaid_voucher'] = (bool) ($data['is_prepaid_voucher'] ?? false);
         $this->assertUniqueRate($data);
 
         WholesalerRate::create($data);
@@ -88,8 +92,12 @@ class WholesalerRateController extends Controller
             'price_adult' => ['required', 'numeric', 'min:0'],
             'price_child' => ['nullable', 'numeric', 'min:0'],
             'price_guide' => ['nullable', 'numeric', 'min:0'],
+            'bill_back' => ['nullable', 'boolean'],
+            'is_prepaid_voucher' => ['nullable', 'boolean'],
         ]);
         $data['team_id'] = $teamId;
+        $data['bill_back'] = (bool) ($data['bill_back'] ?? false);
+        $data['is_prepaid_voucher'] = (bool) ($data['is_prepaid_voucher'] ?? false);
         $this->assertUniqueRate($data, $wholesalerRate->id);
 
         $wholesalerRate->update($data);
