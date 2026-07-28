@@ -16,15 +16,12 @@ export default function Index({ permissions, seasons, services, auth, searchTerm
 
     const [selectedSeason, setSelectedSeason] = useState(null);
     const { props } = usePage();
-    console.log('seasons on season ', seasons);
     const [isOpenTab, setIsOpenTab] = useState('Seasons');
     const [search, setSearch] = useState(searchTerm);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalMode, setModalMode] = useState("create");
 
     const handleOpenModal = (mode, season = null) => {
-        console.log('mode ', mode);
-        console.log('season ', season);
         setModalMode(mode);
         setSelectedSeason(season);
         setIsModalOpen(true);
@@ -36,15 +33,12 @@ export default function Index({ permissions, seasons, services, auth, searchTerm
     };
 
     const handleSearchChange = (e) => {
-        console.log('value ', e.target.value);
         setSearch(e.target.value);
     };
 
     const handleSearchSubmit = (e) => {
         // e.preventDefault();
         // Redirect to the route with search query and other parameters
-        console.log('search ', search);
-
         window.location.href = route('seasons.index', {
             search,
             sort: sortColumn,
@@ -108,6 +102,7 @@ export default function Index({ permissions, seasons, services, auth, searchTerm
                                                 <th className="w-[132px] p-3">Service</th>
                                                 <th className="w-[132px] p-3">Start date</th>
                                                 <th className="w-[132px] p-3">End date</th>
+                                                <th className="w-[132px] p-3">Visibility</th>
                                                 <th className="w-[185px] p-3">Actions</th>
                                             </tr>
                                         </thead>
@@ -119,6 +114,11 @@ export default function Index({ permissions, seasons, services, auth, searchTerm
                                                     <td className="w-[132px] p-3">{season.service.name}</td>
                                                     <td className="w-[132px] p-3">{season.start_date}</td>
                                                     <td className="w-[132px] p-3">{season.end_date}</td>
+                                                    <td className="w-[132px] p-3">
+                                                        <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${season.internal_only ? 'bg-amber-100 text-amber-800' : 'bg-green-100 text-green-800'}`}>
+                                                            {season.internal_only ? 'Staff only' : 'Bookable online'}
+                                                        </span>
+                                                    </td>
                                                     <td className="w-[185px] p-3 flex  gap-2">
                                                         {permissions.seasons_edit && (
                                                             <button onClick={() => handleOpenModal("edit", season)}

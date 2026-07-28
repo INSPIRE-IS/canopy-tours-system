@@ -9,9 +9,6 @@ import InputRichText from "@/Components/InputRichText";
 
 const SeasonModal = ({ isOpen, onClose, mode, season = null, services, auth, team }) => {
     // console.log("mode", mode);
-    console.log("season", season);
-    console.log("auth", auth);
-    console.log("services", services);
 
     const { data, setData, post, put, errors, reset, processing } = useForm({
         service_id: "",
@@ -50,8 +47,6 @@ const SeasonModal = ({ isOpen, onClose, mode, season = null, services, auth, tea
         }
     }, [mode, season, team]);
     const handleFieldChange = (target, value) => {
-        console.log('target ', target);
-        console.log('value ', value);
         setData(prevData => ({
             ...prevData,
             fields: {
@@ -59,11 +54,8 @@ const SeasonModal = ({ isOpen, onClose, mode, season = null, services, auth, tea
                 [`${target}`]: value,
             },
         }));
-        console.log('data --------------------------', data);
     };
     const handleChange = (target, value) => {
-        console.log('target ', target);
-        console.log('value ', value);
         setData(target, value);
         //setData("name", e.target.value);
     };
@@ -230,6 +222,14 @@ const SeasonModal = ({ isOpen, onClose, mode, season = null, services, auth, tea
                             label="Allow Internal Price Override"
                             name="allow_internal_price_override"
                             checked={data.allow_internal_price_override}
+                            mode={mode}
+                            onChange={handleChange}
+                            errors={errors}
+                        />
+                        <CustomCheckbox
+                            label="Staff Only / Not Online Bookable"
+                            name="internal_only"
+                            checked={data.internal_only}
                             mode={mode}
                             onChange={handleChange}
                             errors={errors}
