@@ -34,7 +34,7 @@ class CloseoutsController extends Controller
         $searchTerm = $request->get('search', '');
         $sortColumn = $request->get('sort', 'name');
         $sortDirection = $request->get('direction', 'asc');
-        $allowedSorts = ['id', 'name', 'service_id', 'season_id', 'start_date', 'end_date'];
+        $allowedSorts = ['id', 'name', 'service_id', 'season_id', 'start_date', 'end_date', 'priority'];
         if (!in_array($sortColumn, $allowedSorts, true)) {
             $sortColumn = 'name';
         }
@@ -95,21 +95,24 @@ class CloseoutsController extends Controller
 
     public function store(StoreCloseoutRequest $request)
     {
-        $this->removeOverlappingCloseoutCellsFromRequest($request);
+        $this->normalizeCloseoutCellsInRequest($request);
 
         //dd($request->all());
         //$closeout = Closeout::create($request->all());
-        $closeout = Closeout::create($request->only([
+        $closeoutData = $request->only([
             'service_id',
             'season_id',
             'name',
             'start_date',
             'end_date',
             'reason',
+            'priority',
             'team_id',
             'created_by_id',
             'updated_by_id'
-        ]));
+        ]);
+        $closeoutData['priority'] = $closeoutData['priority'] ?? 50;
+        $closeout = Closeout::create($closeoutData);
 
         foreach ($request->input('day_id', []) as $index => $dayId) {
             logger()->info('dayId ' . $dayId);
@@ -131,19 +134,22 @@ class CloseoutsController extends Controller
 
     public function update(UpdateCloseoutRequest $request, Closeout $closeout)
     {
-        $this->removeOverlappingCloseoutCellsFromRequest($request, $closeout);
+        $this->normalizeCloseoutCellsInRequest($request);
 
-        $closeout->update($request->only([
+        $closeoutData = $request->only([
             'service_id',
             'season_id',
             'name',
             'start_date',
             'end_date',
             'reason',
+            'priority',
             'team_id',
             'created_by_id',
             'updated_by_id'
-        ]));
+        ]);
+        $closeoutData['priority'] = $closeoutData['priority'] ?? 50;
+        $closeout->update($closeoutData);
         $closeout_day_time_slots = CloseoutDayTimeSlot::where('closeout_id', $closeout->id)->get();
         foreach ($closeout_day_time_slots as $closeout_day_time_slot) {
             $closeout_day_time_slot->delete();
@@ -179,7 +185,7 @@ class CloseoutsController extends Controller
         return back();
     }
 
-    private function removeOverlappingCloseoutCellsFromRequest(Request $request, ?Closeout $ignoreCloseout = null): void
+    private function normalizeCloseoutCellsInRequest(Request $request): void
     {
         $dayIds = $request->input('day_id', []);
         $timeSlotIds = $request->input('time_slot_id', []);
@@ -190,54 +196,18 @@ class CloseoutsController extends Controller
             ]);
         }
 
-        $proposed = [
-            'service_id' => (int) $request->input('service_id'),
-            'season_id' => (int) $request->input('season_id'),
-            'start_date' => $this->normalDate($request->input('start_date')),
-            'end_date' => $this->normalDate($request->input('end_date')),
-        ];
+        $requestedCells = collect($this->cellsFromRequest($dayIds, $timeSlotIds))->values();
 
-        $existingCloseouts = Closeout::with('closeout_day_time_slots.time_slot')
-            ->where('service_id', $proposed['service_id'])
-            ->where('season_id', $proposed['season_id'])
-            ->when($ignoreCloseout, fn ($query) => $query->where('id', '!=', $ignoreCloseout->id))
-            ->get();
-
-        $existingPayloads = $existingCloseouts
-            ->map(fn (Closeout $closeout) => $this->closeoutOverlapPayload($closeout))
-            ->values();
-
-        $filteredCells = collect($this->cellsFromRequest($dayIds, $timeSlotIds))
-            ->reject(fn ($cell) => $this->cellIsAlreadyClosedByExistingCloseout($proposed, $cell, $existingPayloads))
-            ->values();
-
-        if ($filteredCells->isEmpty()) {
+        if ($requestedCells->isEmpty()) {
             throw ValidationException::withMessages([
-                'day_id' => 'All selected day/time slots are already closed by another closeout. Use Remove/Edit on the existing closeout if you want to reopen those slots.',
+                'day_id' => 'No slots are selected to close. If you want to reopen this whole period, use Remove on the closeout table instead of saving this closeout.',
             ]);
         }
 
         $request->merge([
-            'day_id' => $filteredCells->pluck('day_id')->all(),
-            'time_slot_id' => $filteredCells->pluck('time_slot_id')->all(),
+            'day_id' => $requestedCells->pluck('day_id')->all(),
+            'time_slot_id' => $requestedCells->pluck('time_slot_id')->all(),
         ]);
-    }
-
-    private function cellIsAlreadyClosedByExistingCloseout(array $proposed, array $cell, $existingPayloads): bool
-    {
-        foreach ($existingPayloads as $existing) {
-            if ($proposed['end_date'] < $existing['start_date'] || $existing['end_date'] < $proposed['start_date']) {
-                continue;
-            }
-
-            foreach ($existing['cells'] as $existingCell) {
-                if ($this->closeoutCellsOverlap($cell, $existingCell)) {
-                    return true;
-                }
-            }
-        }
-
-        return false;
     }
 
     private function buildOverlapGroups($closeouts): array
@@ -322,6 +292,7 @@ class CloseoutsController extends Controller
             'season_name' => $closeout->season?->name,
             'start_date' => $this->normalDate($closeout->getRawOriginal('start_date') ?: $closeout->start_date),
             'end_date' => $this->normalDate($closeout->getRawOriginal('end_date') ?: $closeout->end_date),
+            'priority' => (int) ($closeout->priority ?? 50),
             'cells' => $this->cellsFromCloseout($closeout),
         ];
     }

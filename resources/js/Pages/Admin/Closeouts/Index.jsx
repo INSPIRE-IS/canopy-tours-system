@@ -14,8 +14,6 @@ import AvailabilityPreviewModal from '../Inventories/AvailabilityPreviewModal';
 
 export default function Index({ permissions, closeouts, seasons, services, auth, searchTerm, sortColumn, sortDirection, overlapGroups = [], checkOverlaps = false }) {
     //const [modalOpen, setModalOpen] = useState(false);
-    console.log('auth on user ', auth);
-    console.log('closeouts ', closeouts);
 
     const [selectedCloseout, setSelectedCloseout] = useState(null);
     const { props } = usePage();
@@ -37,8 +35,6 @@ export default function Index({ permissions, closeouts, seasons, services, auth,
             })));
 
     const handleOpenModal = (mode, closeout = null) => {
-        console.log('mode ', mode);
-        console.log('closeout ', closeout);
         setModalMode(mode);
         setSelectedCloseout(closeout);
         setIsModalOpen(true);
@@ -50,15 +46,12 @@ export default function Index({ permissions, closeouts, seasons, services, auth,
     };
 
     const handleSearchChange = (e) => {
-        console.log('value ', e.target.value);
         setSearch(e.target.value);
     };
 
     const handleSearchSubmit = (e) => {
         // e.preventDefault();
         // Redirect to the route with search query and other parameters
-        console.log('search ', search);
-
         window.location.href = route('admin.closeouts.index', {
             search,
             sort: sortColumn,
@@ -156,6 +149,7 @@ export default function Index({ permissions, closeouts, seasons, services, auth,
                                                 <th className="w-[105px] p-3">Start Date</th>
                                                 <th className="w-[105px] p-3">End Date</th>
                                                 <th className="w-[95px] p-3">Season</th>
+                                                <th className="w-[80px] p-3">Priority</th>
                                                 <th className="w-[185px] p-3">Actions</th>
                                             </tr>
                                         </thead>
@@ -181,6 +175,7 @@ export default function Index({ permissions, closeouts, seasons, services, auth,
                                                     <td className="w-[105px] p-3">{closeout.start_date}</td>
                                                     <td className="w-[105px] p-3">{closeout.end_date}</td>
                                                     <td className="w-[95px] p-3">{closeout.season?.name}</td>
+                                                    <td className="w-[80px] p-3">{closeout.priority ?? 50}</td>
                                                     <td className="w-[185px] p-3 flex  gap-2">
                                                         {permissions.closeouts_edit && (
                                                             <button onClick={() => handleOpenModal("edit", closeout)}

@@ -22,25 +22,38 @@ class ServiceCloseoutCalendarBuilder
         $closeouts = Closeout::with('closeout_day_time_slots')
             ->where('service_id', $serviceId)
             ->where('season_id', $seasonId)
+            ->orderByDesc('priority')
+            ->orderBy('start_date')
             ->get();
 
-        // 2) Build map of date => 'ALL' or date => [time_slot_id => true]
+        // 2) Build map of date => closeout rules. Overlaps are allowed because
+        // closeouts only close slots; priority controls admin explanation order.
         $blockedSlots = [];
 
         foreach ($closeouts as $c) {
             $start = Carbon::parse($c->start_date);
             $end   = Carbon::parse($c->end_date);
+            $rule = [
+                'type' => 'closeout',
+                'id' => $c->id,
+                'name' => $c->name,
+                'reason' => $c->reason,
+                'priority' => (int) ($c->priority ?? 50),
+                'start_date' => $start->toDateString(),
+                'end_date' => $end->toDateString(),
+                'date_range_days' => $start->diffInDays($end) + 1,
+            ];
 
             foreach (CarbonPeriod::create($start, $end) as $date) {
                 $dateStr   = $date->toDateString();
                 $dayOfWeek = $date->dayOfWeekIso; // 1..7
 
                 if ($c->closeout_day_time_slots->isEmpty()) {
-                    $blockedSlots[$dateStr] = 'ALL';
+                    $blockedSlots[$dateStr]['ALL'][] = $rule;
                 } else {
                     foreach ($c->closeout_day_time_slots as $slot) {
                         if ((int)$slot->day_id === $dayOfWeek) {
-                            $blockedSlots[$dateStr][$slot->time_slot_id] = true;
+                            $blockedSlots[$dateStr][$slot->time_slot_id][] = $rule;
                         }
                     }
                 }
@@ -68,10 +81,19 @@ class ServiceCloseoutCalendarBuilder
                     continue; // safety
                 }
 
+                $matchingCloseoutRules = self::matchingCloseoutRules($blockedSlots, $dateStr, $slotId);
+
                 // Date overrides are deliberate exceptions and must win over closeouts.
                 // This lets staff reopen a public-holiday/group slot without editing a
                 // long-running closeout period.
                 if (!empty($row['days'][$label]['is_date_override'])) {
+                    if (!empty($matchingCloseoutRules)) {
+                        $row['days'][$label]['rule_sources'] = array_merge(
+                            $row['days'][$label]['rule_sources'] ?? [],
+                            $matchingCloseoutRules
+                        );
+                        $row['days'][$label]['suppressed_closeout_rules'] = $matchingCloseoutRules;
+                    }
                     continue;
                 }
 
@@ -81,34 +103,51 @@ class ServiceCloseoutCalendarBuilder
                 }
 
                 // Apply closeouts
-                if (!isset($blockedSlots[$dateStr])) {
+                if (empty($matchingCloseoutRules)) {
                     continue;
                 }
 
-                // Full day closeout
-                if ($blockedSlots[$dateStr] === 'ALL') {
-                    $row['days'][$label] = [
-                        'date'   => $dateStr,
-                        'slots'  => 0,
-                        'status' => 'blocked_day',
-                        'note'   => 'Blocked whole day',
-                    ];
-                    continue;
-                }
-
-                // Slot-level closeout (only if we know the slot id)
-                if ($slotId && isset($blockedSlots[$dateStr][$slotId])) {
-                    $row['days'][$label] = [
-                        'date'   => $dateStr,
-                        'slots'  => 0,
-                        'status' => 'blocked_slot',
-                        'note'   => 'Blocked slot',
-                    ];
-                }
+                $primaryRule = $matchingCloseoutRules[0];
+                $row['days'][$label] = [
+                    'date'   => $dateStr,
+                    'slots'  => 0,
+                    'capacity' => 0,
+                    'status' => 'blocked_slot',
+                    'note'   => 'Closed by ' . ($primaryRule['name'] ?? 'closeout'),
+                    'internal_only' => false,
+                    'is_date_override' => false,
+                    'rule_sources' => $matchingCloseoutRules,
+                ];
             }
         }
         unset($row); // break reference
 
         return $calendar;
+    }
+
+    private static function matchingCloseoutRules(array $blockedSlots, string $dateStr, ?int $slotId): array
+    {
+        if (!isset($blockedSlots[$dateStr])) {
+            return [];
+        }
+
+        $rules = [];
+        if (!empty($blockedSlots[$dateStr]['ALL'])) {
+            $rules = array_merge($rules, $blockedSlots[$dateStr]['ALL']);
+        }
+        if ($slotId && !empty($blockedSlots[$dateStr][$slotId])) {
+            $rules = array_merge($rules, $blockedSlots[$dateStr][$slotId]);
+        }
+
+        usort($rules, function ($left, $right) {
+            $priority = ($right['priority'] ?? 50) <=> ($left['priority'] ?? 50);
+            if ($priority !== 0) {
+                return $priority;
+            }
+
+            return ($left['date_range_days'] ?? 0) <=> ($right['date_range_days'] ?? 0);
+        });
+
+        return array_values($rules);
     }
 }

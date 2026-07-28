@@ -8,9 +8,24 @@ import CustomSelect from "@/Components/CustomSelect";
 
 const normalizeTime = (time) => String(time || "").slice(0, 5);
 const sortByStartTime = (slots = []) => [...slots].sort((a, b) => String(a.start_time).localeCompare(String(b.start_time)));
+const uniqueSlotPairs = (slots = []) => {
+    const seen = new Set();
+
+    return slots
+        .map((slot) => ({
+            day_id: Number(slot.day_id),
+            time_slot_id: Number(slot.time_slot_id),
+        }))
+        .filter((slot) => slot.day_id && slot.time_slot_id)
+        .filter((slot) => {
+            const key = `${slot.day_id}:${slot.time_slot_id}`;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+        });
+};
 
 const CloseoutModal = ({ isOpen, onClose, mode, closeout = null, services, auth, team_id }) => {
-    console.log('closeout ', closeout);
     const [seasons, setSeasons] = useState([]);
     const [inventory, setInventory] = useState(null); // NEW
     const [selectedSlots, setSelectedSlots] = useState([]); // NEW
@@ -20,6 +35,7 @@ const CloseoutModal = ({ isOpen, onClose, mode, closeout = null, services, auth,
         start_date: "",
         end_date: "",
         reason: "",
+        priority: 50,
         service_id: "",
         season_id: "",
         day_id: [],
@@ -39,6 +55,7 @@ const CloseoutModal = ({ isOpen, onClose, mode, closeout = null, services, auth,
                 start_date: closeout?.start_date || "",
                 end_date: closeout?.end_date || "",
                 reason: closeout?.reason || "",
+                priority: closeout?.priority ?? 50,
 
                 team_id: team_id,
                 updated_by_id: closeout.updated_by_id || auth?.user?.id,
@@ -71,7 +88,7 @@ const CloseoutModal = ({ isOpen, onClose, mode, closeout = null, services, auth,
                         allPairs.push({ day_id: Number(day.type_day_id), time_slot_id: Number(slot.id) });
                     });
                 });
-                setSelectedSlots(allPairs);
+                setSelectedSlots(uniqueSlotPairs(allPairs));
                 return;
             }
 
@@ -89,9 +106,7 @@ const CloseoutModal = ({ isOpen, onClose, mode, closeout = null, services, auth,
                     time_slot_id: Number(currentSlot.id),
                 };
             }).filter(Boolean);
-            console.log('slots ', slots);
-
-            setSelectedSlots(slots);
+            setSelectedSlots(uniqueSlotPairs(slots));
         }
     }, [mode, closeout, inventory, inventoryTimeSlots]);
     // When service changes, load seasons
@@ -117,23 +132,24 @@ const CloseoutModal = ({ isOpen, onClose, mode, closeout = null, services, auth,
 
     // Toggle entire day column
     const toggleDayColumn = (dayId) => {
+        const normalizedDayId = Number(dayId);
         const isAllClosed = inventoryTimeSlots.every(slot =>
-            selectedSlots.some(s => s.day_id === dayId && s.time_slot_id === slot.id)
+            selectedSlots.some(s => Number(s.day_id) === normalizedDayId && Number(s.time_slot_id) === Number(slot.id))
         );
 
         if (isAllClosed) {
             // Uncheck = remove all slots for this day
-            setSelectedSlots(prev => prev.filter(s => s.day_id !== dayId));
+            setSelectedSlots(prev => prev.filter(s => Number(s.day_id) !== normalizedDayId));
         } else {
             // Check all slots for this day
             setSelectedSlots(prev => {
                 const newSelections = [...prev];
                 inventoryTimeSlots.forEach(slot => {
-                    if (!newSelections.some(s => s.day_id === dayId && s.time_slot_id === slot.id)) {
-                        newSelections.push({ day_id: dayId, time_slot_id: slot.id });
+                    if (!newSelections.some(s => Number(s.day_id) === normalizedDayId && Number(s.time_slot_id) === Number(slot.id))) {
+                        newSelections.push({ day_id: normalizedDayId, time_slot_id: Number(slot.id) });
                     }
                 });
-                return newSelections;
+                return uniqueSlotPairs(newSelections);
             });
         }
     };
@@ -151,7 +167,6 @@ const CloseoutModal = ({ isOpen, onClose, mode, closeout = null, services, auth,
             const season = selectedService?.seasons.find(sea => sea.id === parseInt(data.season_id));
             if (season?.inventory) {
                 setInventory(season.inventory);
-                console.log('inventory ', season.inventory);
                 if (mode === "create") {
                     setSelectedSlots([]); // start EMPTY
                 }
@@ -163,13 +178,15 @@ const CloseoutModal = ({ isOpen, onClose, mode, closeout = null, services, auth,
     }, [data.service_id, data.season_id, services]);
 
     const toggleSlot = (dayId, timeSlotId) => {
-        const exists = selectedSlots.some(s => s.day_id === dayId && s.time_slot_id === timeSlotId);
+        const normalizedDayId = Number(dayId);
+        const normalizedTimeSlotId = Number(timeSlotId);
+        const exists = selectedSlots.some(s => Number(s.day_id) === normalizedDayId && Number(s.time_slot_id) === normalizedTimeSlotId);
         if (exists) {
             setSelectedSlots(prev =>
-                prev.filter(s => !(s.day_id === dayId && s.time_slot_id === timeSlotId))
+                prev.filter(s => !(Number(s.day_id) === normalizedDayId && Number(s.time_slot_id) === normalizedTimeSlotId))
             );
         } else {
-            setSelectedSlots(prev => [...prev, { day_id: dayId, time_slot_id: timeSlotId }]);
+            setSelectedSlots(prev => uniqueSlotPairs([...prev, { day_id: normalizedDayId, time_slot_id: normalizedTimeSlotId }]));
         }
     };
 
@@ -183,12 +200,14 @@ const CloseoutModal = ({ isOpen, onClose, mode, closeout = null, services, auth,
         // console.log('selectedSlots ', selectedSlots);
         // return;
 
-        // Pass selectedSlots to backend
-        setData("day_id", selectedSlots.map(s => s.day_id));
-        setData("time_slot_id", selectedSlots.map(s => s.time_slot_id));
+        const normalizedSlots = uniqueSlotPairs(selectedSlots);
 
-        data.day_id = selectedSlots.map(s => s.day_id);
-        data.time_slot_id = selectedSlots.map(s => s.time_slot_id);
+        // Pass unique day/time pairs to backend. Duplicates can trigger confusing overlap validation.
+        setData("day_id", normalizedSlots.map(s => s.day_id));
+        setData("time_slot_id", normalizedSlots.map(s => s.time_slot_id));
+
+        data.day_id = normalizedSlots.map(s => s.day_id);
+        data.time_slot_id = normalizedSlots.map(s => s.time_slot_id);
 
         if (data.day_id.length === 0) {
             alert('No slots are selected to close. If you want to reopen this whole period, use Remove on the closeout table instead of saving this closeout.');
@@ -256,7 +275,19 @@ const CloseoutModal = ({ isOpen, onClose, mode, closeout = null, services, auth,
                             handleChange={handleChange}
                             errors={errors}
                         />
+                        <InputText
+                            title="Priority"
+                            field="priority"
+                            value={data.priority}
+                            type="number"
+                            mode={mode}
+                            handleChange={handleChange}
+                            errors={errors}
+                        />
                     </div>
+                    <p className="mb-4 text-xs text-gray-600">
+                        Higher priority closeouts are shown first in the availability preview when multiple closeouts affect the same slot. Priority does not reopen or close slots by itself.
+                    </p>
                     <div className="flex flex-row w-full items-center gap-2 justify-between mb-4">
                         <div className="flex flex-col w-full min-h-[80px] items-center space-y-2">
                             <InputText
@@ -298,7 +329,7 @@ const CloseoutModal = ({ isOpen, onClose, mode, closeout = null, services, auth,
                         Select Service and Season then Tick the days/times you want to <span className="text-red-600 font-bold">CLOSE</span> during this period
                     </p>
                     <p className="mb-4 text-xs text-gray-600">
-                        Note: Closeouts block availability for both admin and online calendars. If you want a slot that is visible to staff only, use a Date Override with "Internal Only".
+                        Note: Closeouts block availability for both admin and online calendars. Overlapping closeouts are allowed; the highest priority rule is shown first in Preview Availability. Date Overrides still win when you intentionally reopen or adjust a closed slot.
                     </p>
 
                     {inventory && (
@@ -316,10 +347,10 @@ const CloseoutModal = ({ isOpen, onClose, mode, closeout = null, services, auth,
                                         const allPairs = [];
                                         inventory.inventory_type_days.forEach(day => {
                                             inventoryTimeSlots.forEach(slot => {
-                                                allPairs.push({ day_id: day.type_day_id, time_slot_id: slot.id });
+                                                allPairs.push({ day_id: Number(day.type_day_id), time_slot_id: Number(slot.id) });
                                             });
                                         });
-                                        setSelectedSlots(allPairs);
+                                        setSelectedSlots(uniqueSlotPairs(allPairs));
                                     }}
                                     width="w-[120px]"
                                 />
@@ -330,6 +361,11 @@ const CloseoutModal = ({ isOpen, onClose, mode, closeout = null, services, auth,
                                     width="w-[120px]"
                                 />
                             </div>
+                            {(errors.day_id || errors.time_slot_id) && (
+                                <div className="mb-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                                    {errors.day_id || errors.time_slot_id}
+                                </div>
+                            )}
 
                             <table className="w-full border border-gray-300 text-sm">
                                 <thead>
@@ -337,7 +373,7 @@ const CloseoutModal = ({ isOpen, onClose, mode, closeout = null, services, auth,
                                         <th className="border p-2 bg-gray-100">Time</th>
                                         {inventory.inventory_type_days.map(day => {
                                             const allClosed = inventoryTimeSlots.every(slot =>
-                                                selectedSlots.some(s => s.day_id === day.type_day_id && s.time_slot_id === slot.id)
+                                                selectedSlots.some(s => Number(s.day_id) === Number(day.type_day_id) && Number(s.time_slot_id) === Number(slot.id))
                                             );
                                             return (
                                                 <th key={day.id} className="border p-2 bg-gray-100 text-center">
@@ -359,17 +395,9 @@ const CloseoutModal = ({ isOpen, onClose, mode, closeout = null, services, auth,
                                         <tr key={slot.id}>
                                             <td className="border p-2">{slot.start_time.slice(0, 5)}</td>
                                             {inventory.inventory_type_days.map(day => {
-                                                console.log('day ', day);
-                                                console.log('selectedSlots ', selectedSlots);
                                                 const checked = selectedSlots.some(
-                                                    s => {
-                                                        console.log('s ', s);
-                                                        console.log('day.type_day.id ', day.type_day_id);
-                                                        console.log('slot.id ', slot.id);
-                                                        return s.day_id === day.type_day_id && s.time_slot_id === slot.id;
-                                                    }
+                                                    s => Number(s.day_id) === Number(day.type_day_id) && Number(s.time_slot_id) === Number(slot.id)
                                                 );
-                                                console.log('checked ', checked);
                                                 return (
                                                     <td
                                                         key={`${day.type_day_id}-${slot.id}`}

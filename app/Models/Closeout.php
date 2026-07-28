@@ -32,12 +32,17 @@ class Closeout extends Model
         'start_date',
         'end_date',
         'reason',
+        'priority',
         'created_by_id',
         'updated_by_id',
         'created_at',
         'updated_at',
         'deleted_at',
         'team_id',
+    ];
+
+    protected $casts = [
+        'priority' => 'integer',
     ];
 
     protected function serializeDate(DateTimeInterface $date)

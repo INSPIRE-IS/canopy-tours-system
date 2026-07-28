@@ -22,6 +22,13 @@ const clampDate = (date, min, max) => {
 
 const toDateInput = (date) => format(date, 'yyyy-MM-dd');
 const normalizeTime = (time) => String(time || '').slice(0, 5);
+const closeoutSourceLabel = (rule) => {
+    if (!rule) return '';
+
+    const priority = rule.priority ?? 50;
+    const dates = rule.start_date && rule.end_date ? ` • ${rule.start_date} to ${rule.end_date}` : '';
+    return `${rule.name || 'Closeout'} (priority ${priority})${dates}`;
+};
 
 const statusMeta = (cell) => {
     if (!cell) {
@@ -33,14 +40,14 @@ const statusMeta = (cell) => {
 
     if (cell.status === 'available' && cell.internal_only) {
         return {
-            label: 'Admin-only',
+            label: cell.is_date_override ? 'Admin-only override' : 'Admin-only',
             className: 'border-amber-200 bg-amber-50 text-amber-800',
         };
     }
 
     if (cell.status === 'available') {
         return {
-            label: 'Open',
+            label: cell.is_date_override ? 'Open by override' : 'Open',
             className: 'border-emerald-200 bg-emerald-50 text-emerald-800',
         };
     }
@@ -261,6 +268,24 @@ export default function AvailabilityPreviewModal({ isOpen, onClose, inventory, i
                                                         {cell?.is_date_override && (
                                                             <div className="mt-2 inline-flex rounded-full bg-white/70 px-2 py-0.5 text-[11px] font-semibold">
                                                                 Date override
+                                                            </div>
+                                                        )}
+                                                        {Array.isArray(cell?.rule_sources) && cell.rule_sources.length > 0 && (
+                                                            <div className="mt-2 space-y-1 text-[11px]">
+                                                                <div className="font-semibold">Rules:</div>
+                                                                {cell.rule_sources.slice(0, 3).map((rule, index) => (
+                                                                    <div key={`${rule.type || 'rule'}-${rule.id || index}`} className="rounded bg-white/70 px-2 py-1">
+                                                                        {closeoutSourceLabel(rule)}
+                                                                    </div>
+                                                                ))}
+                                                                {cell.rule_sources.length > 3 && (
+                                                                    <div className="opacity-70">+{cell.rule_sources.length - 3} more rules</div>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                        {Array.isArray(cell?.suppressed_closeout_rules) && cell.suppressed_closeout_rules.length > 0 && (
+                                                            <div className="mt-2 text-[11px] opacity-80">
+                                                                Overrides closeout: {cell.suppressed_closeout_rules.map((rule) => rule.name).filter(Boolean).join(', ')}
                                                             </div>
                                                         )}
                                                     </div>
