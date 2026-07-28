@@ -140,11 +140,22 @@
                                 </small>
                             </div>
                         @endif
+                        @if(!empty($service['display_note']))
+                            <div class="mt-1">
+                                <small>{{ $service['display_note'] }}</small>
+                            </div>
+                        @endif
                     </td>
                     <td class="border center">{{ $service['adults'] ?? 0 }}</td>
                     <td class="border center">{{ $service['children'] ?? 0 }}</td>
                     <td class="border center">{{ $service['guides'] ?? 0 }}</td>
-                    <td class="border right">{{ number_format($service['total'] ?? 0, 2) }}</td>
+                    <td class="border right">
+                        @if(!empty($service['is_prepaid_wholesaler_voucher']))
+                            Paid externally
+                        @else
+                            {{ number_format($service['total'] ?? 0, 2) }}
+                        @endif
+                    </td>
                 </tr>
             @endforeach
         </tbody>

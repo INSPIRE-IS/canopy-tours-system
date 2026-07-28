@@ -830,6 +830,16 @@ class SeedHelpQuestions extends Command
                 'is_internal' => false,
             ],
             [
+                'category' => 'Invoices',
+                'question' => 'Why do prepaid voucher partner invoices show R0 but reports show a value?',
+                'description' => 'Prepaid voucher partner bookings separate customer-facing invoice value from internal/reporting value.',
+                'where' => 'Customer Invoice PDFs and <a href="/admin/reports">Admin > Reports</a> > Franchise Fees',
+                'business_rules' => 'For wholesaler rates marked Prepaid Voucher Partner, the stored booking/fee amount remains the internal/reporting value used by admin totals and Franchise Fees. The customer invoice suppresses that partner settlement value: prepaid voucher lines show as paid externally and invoice subtotal/VAT/total/balance only include non-prepaid lines. This prevents the guest from seeing or being asked to pay the partner settlement amount while preserving reporting accuracy. Do not add a second amount column unless a future accounting requirement needs a separate settlement ledger.',
+                'examples' => 'If Hyperli sells a voucher and the site receives/reporting value is R600, the booking keeps R600 for Franchise Fees. The customer invoice line says Paid externally and the invoice total due is R0 when there are no other payable activities.',
+                'related' => 'invoice, prepaid voucher partner, wholesaler rates, Franchise Fees, paid externally, VAT',
+                'is_internal' => true,
+            ],
+            [
                 'category' => 'Boarding Passes',
                 'question' => 'Why is a boarding pass missing?',
                 'description' => 'Boarding passes are generated from templates.',

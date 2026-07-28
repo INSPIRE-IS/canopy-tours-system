@@ -47,6 +47,7 @@ class RendererService
             'items.season',
             'items.service',
             'items.booking_inventory.booking_item.booking_fee',
+            'items.booking_inventory.booking_item.wholesaler_rate',
         ])
             ->where('booking_id', $booking->id)
             ->when($invoiceTypeId, function ($query) use ($invoiceTypeId) {
@@ -60,6 +61,7 @@ class RendererService
                 'items.season',
                 'items.service',
                 'items.booking_inventory.booking_item.booking_fee',
+                'items.booking_inventory.booking_item.wholesaler_rate',
             ])->where('booking_id', $booking->id)->first();
         }
         if (!$invoice) {
@@ -110,11 +112,17 @@ class RendererService
             ? 'Thank you for considering Canopy Tours.'
             : 'Please pay within 7 days.';
         $services = $invoice->items->map(function ($item) {
-            $fee = $item->booking_inventory?->booking_item?->booking_fee;
+            $bookingItem = $item->booking_inventory?->booking_item;
+            $fee = $bookingItem?->booking_fee;
             $adultTotal = $fee?->tot_adults ?? ($item->price_adult ?? 0);
             $childTotal = $fee?->tot_children ?? ($item->price_child ?? 0);
             $guideTotal = $fee?->tot_guides ?? ($item->price_guide ?? 0);
-            $total = (float) $adultTotal + (float) $childTotal + (float) $guideTotal;
+            $reportTotal = (float) $adultTotal + (float) $childTotal + (float) $guideTotal;
+            $isPrepaidVoucherPartner = (bool) (
+                $fee?->is_prepaid_wholesaler_voucher
+                || $bookingItem?->wholesaler_rate?->is_prepaid_voucher
+            );
+            $customerTotal = $isPrepaidVoucherPartner ? 0.0 : $reportTotal;
             $inventoryDate = $item->booking_inventory?->date;
             $inventoryTime = $item->booking_inventory?->inventory_time_slot?->start_time;
 
@@ -128,7 +136,10 @@ class RendererService
                 'price_adult' => $adultTotal,
                 'price_child' => $childTotal,
                 'price_guide' => $guideTotal,
-                'total' => $total,
+                'total' => $customerTotal,
+                'report_total' => $reportTotal,
+                'is_prepaid_wholesaler_voucher' => $isPrepaidVoucherPartner,
+                'display_note' => $isPrepaidVoucherPartner ? 'Paid externally via voucher partner' : null,
             ];
         })->values()->toArray();
         $invoiceNote = BookingNote::where('booking_id', $booking->id)
@@ -136,10 +147,15 @@ class RendererService
             ->orderByDesc('created_at')
             ->value('note');
         //dd($services);
-        $amountTotal = $invoice->total ?? $booking->grand_tot_due ?? 0;
+        $reportAmountTotal = $invoice->total ?? $booking->grand_tot_due ?? 0;
+        $prepaidVoucherTotal = collect($services)
+            ->where('is_prepaid_wholesaler_voucher', true)
+            ->sum('report_total');
+        $amountTotal = round(max(0, (float) $reportAmountTotal - (float) $prepaidVoucherTotal), 2);
         $amountExVat = round(($amountTotal / 1.15), 2);
         $vat = round(($amountTotal - $amountExVat), 2);
-        $amountPaid = round(min((float) $amountTotal, (float) ($booking->tot_paid ?? 0)), 2);
+        $customerVisiblePaid = max(0, (float) ($booking->tot_paid ?? 0) - (float) $prepaidVoucherTotal);
+        $amountPaid = round(min((float) $amountTotal, $customerVisiblePaid), 2);
         $balanceDue = round(max(0, (float) $amountTotal - $amountPaid), 2);
 
         $logoPath = $this->normalizePublicStoragePath($booking->team->file_logo?->getRawOriginal('path')) ?: 'images/logo.png';
@@ -205,6 +221,8 @@ class RendererService
             'vat_amount'    => $amountTotal,
             'amount_paid'   => $amountPaid,
             'balance_due'   => $balanceDue,
+            'report_vat_amount' => $reportAmountTotal,
+            'prepaid_voucher_total' => $prepaidVoucherTotal,
             'notes'         => $invoiceNote ?: '',
             'bank' => [
                 'owner' => $site?->account_owner,
