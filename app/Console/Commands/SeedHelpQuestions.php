@@ -840,6 +840,16 @@ class SeedHelpQuestions extends Command
                 'is_internal' => true,
             ],
             [
+                'category' => 'Invoices',
+                'question' => 'How do developers safely regenerate existing invoice PDFs?',
+                'description' => 'Use the invoice regeneration command when stored invoice PDFs need to be re-rendered after display/template logic changes.',
+                'where' => '<code>php artisan invoices:regenerate</code> (server / CLI)',
+                'business_rules' => 'Stored invoice PDFs are snapshots. If invoice display rules change, older PDFs keep the old layout/values until regenerated. Use <code>invoices:regenerate</code> for document re-rendering only; it does not recalculate booking prices, payments, or invoice database totals. The command is safe by default: without <code>--force</code> it runs as dry-run and writes a CSV report to <code>storage/app/reports</code>. Use narrow filters such as <code>--booking=</code>, <code>--team=</code>, <code>--from=</code>, <code>--to=</code>, <code>--type=std</code>, and <code>--prepaid-voucher-only</code>. Run dry-run first, inspect the CSV, then re-run with <code>--force</code>.',
+                'examples' => '<p><strong>Preview one booking:</strong> <code>php artisan invoices:regenerate --booking=123 --dry-run</code></p><p><strong>Regenerate prepaid voucher invoices for a team/date window:</strong> <code>php artisan invoices:regenerate --team=3 --from=2026-07-01 --to=2026-07-31 --prepaid-voucher-only --force</code></p>',
+                'related' => 'invoice regeneration, PDF snapshots, prepaid voucher partner, maintenance command, dry-run, reports CSV',
+                'is_internal' => true,
+            ],
+            [
                 'category' => 'Boarding Passes',
                 'question' => 'Why is a boarding pass missing?',
                 'description' => 'Boarding passes are generated from templates.',
