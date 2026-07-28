@@ -9,6 +9,60 @@ import { useToast } from '@/Context/ToastContext';
 
 const formatDate = (date) => date.toISOString().slice(0, 10);
 
+function ServiceCheckboxGroup({ services = [], selectedIds = [], onChange }) {
+    const selectedSet = new Set(selectedIds.map(String));
+
+    const toggleService = (serviceId) => {
+        const id = String(serviceId);
+        const next = selectedSet.has(id)
+            ? selectedIds.filter(selectedId => String(selectedId) !== id)
+            : [...selectedIds, id];
+        onChange(next);
+    };
+
+    return (
+        <div>
+            <div className="flex items-center justify-between gap-3 mb-2">
+                <div>
+                    <label className="text-[#161618] font-poppins text-[12px] font-normal leading-[130%]">
+                        Services
+                    </label>
+                    <p className="text-xs text-gray-500 mt-1">Leave all unticked to include all services.</p>
+                </div>
+                <div className="flex gap-2 text-xs">
+                    <button
+                        type="button"
+                        className="text-primary-7 hover:underline"
+                        onClick={() => onChange(services.map(service => String(service.id)))}
+                    >
+                        Select all
+                    </button>
+                    <button
+                        type="button"
+                        className="text-gray-500 hover:underline"
+                        onClick={() => onChange([])}
+                    >
+                        Clear
+                    </button>
+                </div>
+            </div>
+            <div className="grid gap-2 md:grid-cols-3 border border-gray-200 rounded-[10px] p-3">
+                {services.map((service) => (
+                    <label key={service.id} className="flex items-center gap-2 text-sm text-gray-700">
+                        <input
+                            type="checkbox"
+                            className="rounded border-gray-300 text-primary-7 focus:ring-primary-7"
+                            checked={selectedSet.has(String(service.id))}
+                            onChange={() => toggleService(service.id)}
+                        />
+                        <span>{service.name}</span>
+                    </label>
+                ))}
+            </div>
+        </div>
+    );
+}
+
 export default function Index({ auth, services = [], paymentTypes = [] }) {
     const { showToast } = useToast();
     const today = new Date();
@@ -52,7 +106,7 @@ export default function Index({ auth, services = [], paymentTypes = [] }) {
     const [franchiseFilters, setFranchiseFilters] = useState({
         start_date: defaultStart,
         end_date: defaultEnd,
-        service_id: '',
+        service_ids: [],
         delivery: 'download',
     });
 
@@ -66,7 +120,13 @@ export default function Index({ auth, services = [], paymentTypes = [] }) {
     const buildParams = (report, filters) => {
         const params = { report, ...filters };
         Object.keys(params).forEach((key) => {
-            if (params[key] === '' || params[key] === null || params[key] === undefined || params[key] === false) {
+            if (
+                params[key] === ''
+                || params[key] === null
+                || params[key] === undefined
+                || params[key] === false
+                || (Array.isArray(params[key]) && params[key].length === 0)
+            ) {
                 delete params[key];
             }
         });
@@ -210,13 +270,10 @@ export default function Index({ auth, services = [], paymentTypes = [] }) {
                                     />
                                 </div>
                             </div>
-                            <CustomSelect
-                                label="Service"
-                                name="franchise_service_id"
-                                value={franchiseFilters.service_id}
-                                onChange={(e) => setFranchiseFilters(prev => ({ ...prev, service_id: e.target.value }))}
-                                options={services}
-                                optionText="All services"
+                            <ServiceCheckboxGroup
+                                services={services}
+                                selectedIds={franchiseFilters.service_ids}
+                                onChange={(serviceIds) => setFranchiseFilters(prev => ({ ...prev, service_ids: serviceIds }))}
                             />
                             <CustomSelect
                                 label="Delivery"

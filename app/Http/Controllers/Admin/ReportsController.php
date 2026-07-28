@@ -107,6 +107,8 @@ class ReportsController extends Controller
             'start_date' => 'nullable|date',
             'end_date' => 'nullable|date',
             'service_id' => 'nullable|exists:services,id',
+            'service_ids' => 'nullable|array',
+            'service_ids.*' => 'integer|exists:services,id',
             'type_payment_id' => 'nullable|exists:type_payments,id',
             'include_group_type' => 'nullable|in:0,1,true,false',
             'include_nationality' => 'nullable|in:0,1,true,false',
@@ -117,6 +119,12 @@ class ReportsController extends Controller
 
         $teamId = auth()->user()->team_id;
         $serviceId = $validated['service_id'] ?? null;
+        $serviceIds = collect($validated['service_ids'] ?? [])
+            ->filter()
+            ->map(fn($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
         $startDate = $validated['start_date'] ?? null;
         $endDate = $validated['end_date'] ?? null;
         $includeGroupType = filter_var($validated['include_group_type'] ?? false, FILTER_VALIDATE_BOOLEAN);
@@ -158,11 +166,15 @@ class ReportsController extends Controller
             );
             $label = 'Marketing Opt-In';
         } elseif ($validated['report'] === 'franchise_fees') {
+            $franchiseServiceIds = !empty($serviceIds)
+                ? $serviceIds
+                : ($serviceId ? [(int) $serviceId] : []);
+
             $export = new FranchiseFeesReportExport(
                 $teamId,
                 $startDate,
                 $endDate,
-                $serviceId ? (int) $serviceId : null
+                $franchiseServiceIds
             );
             $label = 'Franchise Fees';
         } else {

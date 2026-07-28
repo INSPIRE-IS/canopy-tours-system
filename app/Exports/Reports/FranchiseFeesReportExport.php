@@ -29,7 +29,7 @@ class FranchiseFeesReportExport implements FromCollection, WithHeadings, ShouldA
         private readonly int $teamId,
         private readonly ?string $startDate,
         private readonly ?string $endDate,
-        private readonly ?int $serviceId,
+        private readonly array $serviceIds = [],
     ) {
     }
 
@@ -136,8 +136,8 @@ class FranchiseFeesReportExport implements FromCollection, WithHeadings, ShouldA
             ->where('team_id', $this->teamId)
             ->whereHas('booking', fn(Builder $query) => $query->whereNull('deleted_at'));
 
-        if ($this->serviceId) {
-            $query->where('service_id', $this->serviceId);
+        if (!empty($this->serviceIds)) {
+            $query->whereIn('service_id', $this->serviceIds);
         }
 
         if ($this->startDate || $this->endDate) {
