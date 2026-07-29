@@ -27,6 +27,7 @@ export default function Index({ permissions, settings = [], reportSettings = [],
     }), [settingsMap, reportSettingsMap]);
 
     const { data, setData, post, processing, isDirty } = useForm(formDefaults);
+    const canOpenPulse = !!canManageReportSettings;
 
     useEffect(() => {
         setData(formDefaults);
@@ -61,6 +62,25 @@ export default function Index({ permissions, settings = [], reportSettings = [],
                         <BlueButton title="Save Changes" onClick={handleSubmit} icon={true} disabled={processing || !isDirty} />
                     </span>
                 </div>
+
+                {canOpenPulse && (
+                    <div className="mb-6 rounded-[10px] border border-secondary-100 bg-[#FBF9F7] p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                        <div>
+                            <h3 className="font-semibold text-gray-800">Application Monitoring</h3>
+                            <p className="text-sm text-gray-600">
+                                View Laravel Pulse performance, exceptions, slow requests, and system health.
+                            </p>
+                        </div>
+                        <a
+                            href="/pulse"
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center justify-center h-[42px] px-5 rounded-[10px] bg-[#2F66F6] text-white font-semibold text-sm hover:bg-[#2554D8]"
+                        >
+                            Open Monitoring
+                        </a>
+                    </div>
+                )}
 
                 <div className="bg-white border border-secondary-100">
                     <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg">
