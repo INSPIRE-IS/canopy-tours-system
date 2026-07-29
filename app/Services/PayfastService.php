@@ -6,11 +6,14 @@ class PayfastService
 {
     public function generateSignature(array $data, ?string $passphrase = null): string
     {
-        // Outgoing signature generation follows PayFast's "submit" guidance:
-        // - exclude blank values
-        // - sort keys alphabetically
+        return md5($this->generateSignatureString($data, $passphrase));
+    }
+
+    public function generateSignatureString(array $data, ?string $passphrase = null, bool $maskPassphrase = false): string
+    {
+        // PayFast checkout signatures use the exact submitted field order.
+        // Alphabetical sorting is only for PayFast API calls, not /eng/process posts.
         $data = $this->filterData($data, filterEmpty: true);
-        ksort($data);
 
         $pairs = [];
         foreach ($data as $key => $value) {
@@ -19,10 +22,12 @@ class PayfastService
 
         $signatureString = implode('&', $pairs);
         if ($passphrase !== null && $passphrase !== '') {
-            $signatureString .= '&passphrase=' . urlencode($passphrase);
+            $signatureString .= '&passphrase=' . ($maskPassphrase
+                ? '[set len=' . strlen($passphrase) . ']'
+                : urlencode(trim($passphrase)));
         }
 
-        return md5($signatureString);
+        return $signatureString;
     }
 
     public function verifySignature(array $data, string $signature, ?string $passphrase = null, bool $isItn = false): bool
@@ -52,7 +57,7 @@ class PayfastService
 
         $signatureString = implode('&', $pairs);
         if ($passphrase !== null && $passphrase !== '') {
-            $signatureString .= '&passphrase=' . urlencode($passphrase);
+            $signatureString .= '&passphrase=' . urlencode(trim($passphrase));
         }
 
         return md5($signatureString);

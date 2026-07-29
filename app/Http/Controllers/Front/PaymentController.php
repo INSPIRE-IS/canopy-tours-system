@@ -282,9 +282,19 @@ class PaymentController extends Controller
         ], $config);
 
         $data = $this->normalizePayfastData($data);
-        $data['signature'] = $payfast->generateSignature($data, $config['passphrase']);
+        $passphrase = $this->payfastPassphrase($config);
+        $data['signature'] = $payfast->generateSignature($data, $passphrase);
 
-        $this->logPayfastSubmitDebug('booking', $booking->id, $booking->team_id, $config, $data, $signedAccess);
+        $this->logPayfastSubmitDebug(
+            'booking',
+            $booking->id,
+            $booking->team_id,
+            $config,
+            $data,
+            $signedAccess,
+            $payfast->generateSignatureString($data, $passphrase, maskPassphrase: true),
+            $passphrase
+        );
         $this->logPayfastEvent('submit', $data, null, $this->resolvePayfastGatewayId(), $booking->team_id, $booking->id, null);
 
         return view('payfast.redirect', [
@@ -319,10 +329,20 @@ class PaymentController extends Controller
         ], $config);
 
         $data = $this->normalizePayfastData($data);
-        $data['signature'] = $payfast->generateSignature($data, $config['passphrase']);
+        $passphrase = $this->payfastPassphrase($config);
+        $data['signature'] = $payfast->generateSignature($data, $passphrase);
 
         $teamId = $this->resolveGiftTeamId($gift);
-        $this->logPayfastSubmitDebug('gift', $gift->id, $teamId, $config, $data, false);
+        $this->logPayfastSubmitDebug(
+            'gift',
+            $gift->id,
+            $teamId,
+            $config,
+            $data,
+            false,
+            $payfast->generateSignatureString($data, $passphrase, maskPassphrase: true),
+            $passphrase
+        );
         $this->logPayfastEvent('submit', $data, null, $this->resolvePayfastGatewayId(), $teamId, null, $gift->id);
 
         return view('payfast.redirect', [
@@ -718,7 +738,7 @@ class PaymentController extends Controller
                 'body'           => strip_tags($content), // or a summary
                 'attachment_path' => $voucherPdfPath ? ('gift_vouchers/' . $voucherCode . '.pdf') : null,
                 'sent'           => (bool) config('mail.auto_send'),
-                        'sent_at'        => config('mail.auto_send') ? now() : null,
+                'sent_at'        => config('mail.auto_send') ? now() : null,
                 'user_id'        => null,
                 'auditable_type' => 'App\Models\GiftVoucher',
                 'auditable_id'   => $voucher->id,
@@ -791,7 +811,12 @@ class PaymentController extends Controller
             }
 
             if ($gatewayConfig) {
-                $config = array_merge($config, $gatewayConfig->config ?? []);
+                $gatewayData = is_array($gatewayConfig->config) ? $gatewayConfig->config : [];
+                $config = array_merge($config, $gatewayData);
+                // Once a DB gateway row exists, it owns passphrase state.
+                // Blank means "this PayFast account has no passphrase" and must
+                // not fall back to PAYFAST_PASSPHRASE from .env.
+                $config['passphrase'] = $gatewayData['passphrase'] ?? '';
                 $config['is_sandbox'] = (bool) $gatewayConfig->is_sandbox;
                 $enabled = (bool) $gatewayConfig->is_enabled;
                 $source = $gatewayConfig->team_id ? 'team' : 'default';
@@ -820,6 +845,13 @@ class PaymentController extends Controller
             'notify_url' => $config['notify_url'] ?: route('front.payment.payfast.notify'),
             'trust_return' => (bool) $config['trust_return'],
         ];
+    }
+
+    private function payfastPassphrase(array $config): ?string
+    {
+        $passphrase = trim((string) ($config['passphrase'] ?? ''));
+
+        return $passphrase === '' ? null : $passphrase;
     }
 
     private function handlePayfastCallback(Request $request, string $event, ?PayfastService $payfast = null): array
@@ -1020,9 +1052,18 @@ class PaymentController extends Controller
         ]);
     }
 
-    private function logPayfastSubmitDebug(string $type, int $recordId, ?int $teamId, array $config, array $payload, bool $signedAccess): void
+    private function logPayfastSubmitDebug(
+        string $type,
+        int $recordId,
+        ?int $teamId,
+        array $config,
+        array $payload,
+        bool $signedAccess,
+        ?string $signatureString = null,
+        ?string $effectivePassphrase = null
+    ): void
     {
-        $passphrase = (string) ($config['passphrase'] ?? '');
+        $passphrase = (string) ($effectivePassphrase ?? '');
 
         Log::info('PayFast submit debug', [
             'type' => $type,
@@ -1047,8 +1088,36 @@ class PaymentController extends Controller
             'custom_str1' => $payload['custom_str1'] ?? null,
             'custom_str2' => $payload['custom_str2'] ?? null,
             'payload_keys' => array_keys($payload),
-            'signature' => $this->maskedValue($payload['signature'] ?? null),
+            'signature' => $payload['signature'] ?? null,
+            'signature_string_preview' => $this->payfastSignatureStringPreview($payload, $passphrase),
+            'signature_string_exact' => $signatureString,
         ]);
+    }
+
+    private function payfastSignatureStringPreview(array $payload, ?string $passphrase): string
+    {
+        unset($payload['signature']);
+
+        $pairs = [];
+        foreach ($payload as $key => $value) {
+            if ($value === null || $value === '') {
+                continue;
+            }
+
+            $displayValue = match ($key) {
+                'merchant_key' => '[masked]',
+                'email_address' => $this->maskedValue($value),
+                default => (string) $value,
+            };
+
+            $pairs[] = $key . '=' . urlencode(trim((string) $displayValue));
+        }
+
+        if ($passphrase !== null && $passphrase !== '') {
+            $pairs[] = 'passphrase=[set len=' . strlen($passphrase) . ']';
+        }
+
+        return implode('&', $pairs);
     }
 
     private function maskedValue($value): ?string
@@ -1109,10 +1178,60 @@ class PaymentController extends Controller
 
         $merged = array_merge($data, $base);
 
-        return array_filter(
+        return $this->orderPayfastCheckoutData(array_filter(
             $merged,
             fn($value) => $value !== null && $value !== ''
-        );
+        ));
+    }
+
+    private function orderPayfastCheckoutData(array $data): array
+    {
+        // PayFast checkout signatures are order-sensitive and must follow
+        // the checkout form attribute order, not alphabetical API ordering.
+        $orderedKeys = [
+            'merchant_id',
+            'merchant_key',
+            'return_url',
+            'cancel_url',
+            'notify_url',
+            'fica_idnumber',
+            'name_first',
+            'name_last',
+            'email_address',
+            'cell_number',
+            'm_payment_id',
+            'amount',
+            'item_name',
+            'item_description',
+            'custom_int1',
+            'custom_int2',
+            'custom_int3',
+            'custom_int4',
+            'custom_int5',
+            'custom_str1',
+            'custom_str2',
+            'custom_str3',
+            'custom_str4',
+            'custom_str5',
+            'email_confirmation',
+            'confirmation_address',
+            'payment_method',
+        ];
+
+        $ordered = [];
+        foreach ($orderedKeys as $key) {
+            if (array_key_exists($key, $data)) {
+                $ordered[$key] = $data[$key];
+            }
+        }
+
+        foreach ($data as $key => $value) {
+            if (! array_key_exists($key, $ordered)) {
+                $ordered[$key] = $value;
+            }
+        }
+
+        return $ordered;
     }
 
     private function formatPayfastAmount($value): ?string
@@ -1311,7 +1430,7 @@ class PaymentController extends Controller
                 'body'           => strip_tags($content), // strip_tags($html)or a summary
                 'attachment_path' => $invoiceFilename,
                 'sent'           => (bool) config('mail.auto_send'),
-                        'sent_at'        => config('mail.auto_send') ? now() : null,
+                'sent_at'        => config('mail.auto_send') ? now() : null,
                 'user_id'        => null,
                 'auditable_type' => 'App\Models\Invoice',
                 'auditable_id'   => $invoice->id,
@@ -1366,7 +1485,7 @@ class PaymentController extends Controller
                 'body'           => strip_tags($content), // or a summary
                 'attachment_path' => $fileName,
                 'sent'           => (bool) config('mail.auto_send'),
-                        'sent_at'        => config('mail.auto_send') ? now() : null,
+                'sent_at'        => config('mail.auto_send') ? now() : null,
                 'user_id'        => null,
                 'auditable_type' => BookingItem::class,
                 'auditable_id'   => $bookingItem->id,
@@ -1447,7 +1566,7 @@ class PaymentController extends Controller
             'body'           => strip_tags($content), // or a summary
             'attachment_path' => null,
             'sent'           => (bool) config('mail.auto_send'),
-                        'sent_at'        => config('mail.auto_send') ? now() : null,
+            'sent_at'        => config('mail.auto_send') ? now() : null,
             'user_id'        => null,
             'auditable_type' => 'App\Models\GiftVoucher',
             'auditable_id'   => $voucher->id,
