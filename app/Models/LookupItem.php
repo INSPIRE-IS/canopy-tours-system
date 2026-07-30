@@ -133,6 +133,18 @@ class LookupItem extends Model
     {
         return [
             [
+                'slug' => 'email_sending_enabled',
+                'name' => 'Enable Guest Email Sending',
+                'info' => 'Master site switch for sending guest emails. If disabled, automatic and manual guest emails are blocked.',
+                'default' => true,
+            ],
+            [
+                'slug' => 'manual_email_sending_enabled',
+                'name' => 'Enable Manual Email Sending',
+                'info' => 'Allow staff to deliberately send guest emails such as payment links, invoices, check-in links, and guest messages.',
+                'default' => true,
+            ],
+            [
                 'slug' => 'enable_pickup_dropoff',
                 'name' => 'Enable Pickup/Dropoff',
                 'default' => false,
@@ -140,11 +152,25 @@ class LookupItem extends Model
             [
                 'slug' => 'auto_send_invoice_on_booking',
                 'name' => 'Auto Send Invoice on Booking',
+                'info' => 'Automatically send invoice and boarding pass emails when a booking is created or updated.',
                 'default' => false,
             ],
             [
                 'slug' => 'auto_send_quote_on_booking',
                 'name' => 'Auto Send Quote on Booking',
+                'info' => 'Automatically send quote emails when a booking is created or updated.',
+                'default' => false,
+            ],
+            [
+                'slug' => 'auto_send_payment_confirmation',
+                'name' => 'Auto Send Payment Confirmation',
+                'info' => 'Automatically send confirmation emails after frontend PayFast or simulated payment flows complete.',
+                'default' => false,
+            ],
+            [
+                'slug' => 'auto_send_questionnaire_confirmation',
+                'name' => 'Auto Send Questionnaire Confirmation',
+                'info' => 'Automatically send indemnity or feedback confirmation emails after guests complete questionnaire flows.',
                 'default' => false,
             ],
             [
@@ -155,17 +181,17 @@ class LookupItem extends Model
             [
                 'slug' => 'show_send_invoice_checkbox',
                 'name' => 'Show Send Invoice Checkbox',
-                'default' => false,
+                'default' => true,
             ],
             [
                 'slug' => 'show_send_quote_checkbox',
                 'name' => 'Show Send Quote Checkbox',
-                'default' => false,
+                'default' => true,
             ],
             [
                 'slug' => 'show_booking_information',
                 'name' => 'Show Booking Information',
-                'default' => false,
+                'default' => true,
             ],
             [
                 'slug' => 'franchise_royalty_percent',
@@ -207,7 +233,7 @@ class LookupItem extends Model
                 ],
                 [
                     'name' => $definition['name'],
-                    'info' => $definition['name'],
+                    'info' => $definition['info'] ?? $definition['name'],
                     'rate' => $definition['rate_default'] ?? null,
                     'multiplier' => null,
                     'value' => ($definition['setting_type'] ?? 'boolean') === 'rate'

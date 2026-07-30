@@ -34,6 +34,7 @@ use App\Models\File;
 use App\Models\User;
 use App\Services\RendererService;
 use App\Services\PayfastService;
+use App\Services\EmailDispatchService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\URL;
@@ -43,6 +44,14 @@ use Str;
 
 class PaymentController extends Controller
 {
+    private function shouldAutoSendPaymentEmail(?int $teamId): bool
+    {
+        return app(EmailDispatchService::class)->canSendAutomatic(
+            $teamId,
+            EmailDispatchService::SETTING_AUTO_PAYMENT
+        );
+    }
+
     private function vatBreakdownForTeam(?int $teamId, float $totalDue): array
     {
         // VAT lookup has had multiple historical shapes:
@@ -493,6 +502,7 @@ class PaymentController extends Controller
 
                     $invoiceFilename = 'invoices/' . $data['invoice']['number'] . '.pdf';
                     Storage::disk('public')->put($invoiceFilename, $invoicePdf->output());
+                    $shouldSendPaymentEmail = $this->shouldAutoSendPaymentEmail($invoice->team_id);
                     $content = "
                             <p>Hello {$customer->full_name},</p>
                             <p>Your booking has been paid.</p>
@@ -505,26 +515,28 @@ class PaymentController extends Controller
                         'subject'        => 'Invoice ' . $data['invoice']['number'],
                         'body'           => strip_tags($content), // strip_tags($html)or a summary
                         'attachment_path' => $invoiceFilename,
-                        'sent'           => (bool) config('mail.auto_send'),
-                        'sent_at'        => config('mail.auto_send') ? now() : null,
+                        'sent'           => $shouldSendPaymentEmail,
+                        'sent_at'        => $shouldSendPaymentEmail ? now() : null,
                         'user_id'        => null,
                         'auditable_type' => 'App\Models\Invoice',
                         'auditable_id'   => $invoice->id,
                         'team_id'        => $invoice->team_id,
                     ]);
-                    AuditLog::create([
-                        'description' => 'Email sent (invoice payment)',
-                        'subject_id' => $booking->id,
-                        'subject_type' => Booking::class,
-                        'user_id' => null,
-                        'properties' => json_encode([
-                            'invoice_id' => $invoice->id,
-                            'receiver' => $customer->email_address,
-                            'subject' => 'Invoice ' . $data['invoice']['number'],
-                            'attachment' => $invoiceFilename,
-                        ]),
-                        'host' => request()->ip(),
-                    ]);
+                    if ($shouldSendPaymentEmail) {
+                        AuditLog::create([
+                            'description' => 'Email sent (invoice payment)',
+                            'subject_id' => $booking->id,
+                            'subject_type' => Booking::class,
+                            'user_id' => null,
+                            'properties' => json_encode([
+                                'invoice_id' => $invoice->id,
+                                'receiver' => $customer->email_address,
+                                'subject' => 'Invoice ' . $data['invoice']['number'],
+                                'attachment' => $invoiceFilename,
+                            ]),
+                            'host' => request()->ip(),
+                        ]);
+                    }
                     File::create([
                         'team_id'      => $invoice->team_id,
                         'table_name'   => 'invoices',
@@ -571,25 +583,27 @@ class PaymentController extends Controller
                         'subject'        => 'Your Boarding Pass – Invoice ',
                         'body'           => strip_tags($content), // or a summary
                         'attachment_path' => $fileName,
-                        'sent'           => (bool) config('mail.auto_send'),
-                        'sent_at'        => config('mail.auto_send') ? now() : null,
+                        'sent'           => $shouldSendPaymentEmail,
+                        'sent_at'        => $shouldSendPaymentEmail ? now() : null,
                         'user_id'        => null,
                         'auditable_type' => BookingItem::class,
                         'auditable_id'   => $bookingItem->id,
                         'team_id'        => $bookingItem->team_id,
                     ]);
-                    AuditLog::create([
-                        'description' => 'Email sent (boarding pass payment)',
-                        'subject_id' => $booking->id,
-                        'subject_type' => Booking::class,
-                        'user_id' => null,
-                        'properties' => json_encode([
-                            'booking_item_id' => $bookingItem->id,
-                            'receiver' => $customer->email_address,
-                            'attachment' => $fileName,
-                        ]),
-                        'host' => request()->ip(),
-                    ]);
+                    if ($shouldSendPaymentEmail) {
+                        AuditLog::create([
+                            'description' => 'Email sent (boarding pass payment)',
+                            'subject_id' => $booking->id,
+                            'subject_type' => Booking::class,
+                            'user_id' => null,
+                            'properties' => json_encode([
+                                'booking_item_id' => $bookingItem->id,
+                                'receiver' => $customer->email_address,
+                                'attachment' => $fileName,
+                            ]),
+                            'host' => request()->ip(),
+                        ]);
+                    }
                     File::create([
                         'team_id'      => $bookingItem->team_id,
                         'table_name'   => 'BookingItem',
@@ -626,7 +640,7 @@ class PaymentController extends Controller
                         ],
                     ];
 
-                    if (config('mail.auto_send')) {
+                    if ($shouldSendPaymentEmail) {
                         Mail::to($customer->email_address)->send(new BookingMail($messageData, $attachments));
 
                         Log::info('Payment confirmation email sent', [
@@ -731,14 +745,15 @@ class PaymentController extends Controller
                 ]);
             }
 
+            $shouldSendPaymentEmail = $this->shouldAutoSendPaymentEmail($team?->id);
             Email::create([
                 'sender'         => config('mail.from.address'),
                 'receiver'       => $recipient,
                 'subject'        => $subject,
                 'body'           => strip_tags($content), // or a summary
                 'attachment_path' => $voucherPdfPath ? ('gift_vouchers/' . $voucherCode . '.pdf') : null,
-                'sent'           => (bool) config('mail.auto_send'),
-                'sent_at'        => config('mail.auto_send') ? now() : null,
+                'sent'           => $shouldSendPaymentEmail,
+                'sent_at'        => $shouldSendPaymentEmail ? now() : null,
                 'user_id'        => null,
                 'auditable_type' => 'App\Models\GiftVoucher',
                 'auditable_id'   => $voucher->id,
@@ -753,7 +768,7 @@ class PaymentController extends Controller
                     'mime' => 'application/pdf',
                 ];
             }
-            if (config('mail.auto_send')) {
+            if ($shouldSendPaymentEmail) {
                 Mail::to($recipient)->send(new MessageGuestMail($subject, $content, $attachments));
             }
 
@@ -770,18 +785,20 @@ class PaymentController extends Controller
                 'host' => request()->ip(),
             ]);
 
-            AuditLog::create([
-                'description' => 'Email sent (gift voucher payment)',
-                'subject_id' => $voucher->id,
-                'subject_type' => GiftVoucher::class,
-                'user_id' => null,
-                'properties' => json_encode([
-                    'receiver' => $recipient,
-                    'subject' => $subject,
-                    'attachment' => $voucherPdfPath ? ('gift_vouchers/' . $voucherCode . '.pdf') : null,
-                ]),
-                'host' => request()->ip(),
-            ]);
+            if ($shouldSendPaymentEmail) {
+                AuditLog::create([
+                    'description' => 'Email sent (gift voucher payment)',
+                    'subject_id' => $voucher->id,
+                    'subject_type' => GiftVoucher::class,
+                    'user_id' => null,
+                    'properties' => json_encode([
+                        'receiver' => $recipient,
+                        'subject' => $subject,
+                        'attachment' => $voucherPdfPath ? ('gift_vouchers/' . $voucherCode . '.pdf') : null,
+                    ]),
+                    'host' => request()->ip(),
+                ]);
+            }
 
             return Inertia::render('SimulatedPayment', [
                 'booking' => $voucher,
@@ -1417,6 +1434,7 @@ class PaymentController extends Controller
 
             $invoiceFilename = 'invoices/' . $data['invoice']['number'] . '.pdf';
             Storage::disk('public')->put($invoiceFilename, $invoicePdf->output());
+            $shouldSendPaymentEmail = $this->shouldAutoSendPaymentEmail($invoice->team_id);
             $content = "
                             <p>Hello {$customer->full_name},</p>
                             <p>Your booking has been paid.</p>
@@ -1429,8 +1447,8 @@ class PaymentController extends Controller
                 'subject'        => 'Invoice ' . $data['invoice']['number'],
                 'body'           => strip_tags($content), // strip_tags($html)or a summary
                 'attachment_path' => $invoiceFilename,
-                'sent'           => (bool) config('mail.auto_send'),
-                'sent_at'        => config('mail.auto_send') ? now() : null,
+                'sent'           => $shouldSendPaymentEmail,
+                'sent_at'        => $shouldSendPaymentEmail ? now() : null,
                 'user_id'        => null,
                 'auditable_type' => 'App\Models\Invoice',
                 'auditable_id'   => $invoice->id,
@@ -1484,8 +1502,8 @@ class PaymentController extends Controller
                 'subject'        => 'Your Boarding Pass â€“ Invoice ',
                 'body'           => strip_tags($content), // or a summary
                 'attachment_path' => $fileName,
-                'sent'           => (bool) config('mail.auto_send'),
-                'sent_at'        => config('mail.auto_send') ? now() : null,
+                'sent'           => $shouldSendPaymentEmail,
+                'sent_at'        => $shouldSendPaymentEmail ? now() : null,
                 'user_id'        => null,
                 'auditable_type' => BookingItem::class,
                 'auditable_id'   => $bookingItem->id,
@@ -1527,7 +1545,7 @@ class PaymentController extends Controller
                 ],
             ];
 
-            if (config('mail.auto_send')) {
+            if ($shouldSendPaymentEmail) {
                 Mail::to($customer->email_address)->send(new BookingMail($messageData, $attachments));
 
                 Log::info('Payment confirmation email sent', [
@@ -1559,21 +1577,22 @@ class PaymentController extends Controller
                 <p>Your booking reference is {$voucher->reference}.</p>
                 <p>Please Contact us if you have any questions.</p>";
 
+        $shouldSendPaymentEmail = $this->shouldAutoSendPaymentEmail($voucher->team_id);
         Email::create([
             'sender'         => config('mail.from.address'),
             'receiver'       => $recipient,
             'subject'        => $subject,
             'body'           => strip_tags($content), // or a summary
             'attachment_path' => null,
-            'sent'           => (bool) config('mail.auto_send'),
-            'sent_at'        => config('mail.auto_send') ? now() : null,
+            'sent'           => $shouldSendPaymentEmail,
+            'sent_at'        => $shouldSendPaymentEmail ? now() : null,
             'user_id'        => null,
             'auditable_type' => 'App\Models\GiftVoucher',
             'auditable_id'   => $voucher->id,
             'team_id'        => $voucher->team_id,
         ]);
 
-        if (config('mail.auto_send')) {
+        if ($shouldSendPaymentEmail) {
             Mail::to($recipient)->send(new MessageGuestMail($subject, $content));
         }
     }

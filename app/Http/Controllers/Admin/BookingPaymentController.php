@@ -26,6 +26,7 @@ use App\Models\TypePayOption;
 use App\Models\User;
 use App\Models\AuditLog;
 use App\Services\RendererService;
+use App\Services\EmailDispatchService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Gate;
 use Illuminate\Http\Request;
@@ -761,6 +762,11 @@ class BookingPaymentController extends Controller
         $customer = Customer::find($booking->customer_id);
         if (!$customer || empty($customer->email_address)) {
             return response()->json(['message' => 'Booking customer email not found.'], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        $emailDispatch = app(EmailDispatchService::class);
+        if (!$emailDispatch->canSendManual($booking->team_id)) {
+            return response()->json(['message' => $emailDispatch->manualDisabledMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
         $payLink = URL::signedRoute(

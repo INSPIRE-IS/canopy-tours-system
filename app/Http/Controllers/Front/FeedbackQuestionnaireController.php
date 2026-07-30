@@ -32,6 +32,7 @@ use App\Models\TypeReferral;
 use App\Models\User;
 use App\Models\Season;
 use App\Services\QuestionnaireSeeder;
+use App\Services\EmailDispatchService;
 use App\Notifications\IndemnityFlaggedNotification;
 use Barryvdh\DomPDF\Facade\Pdf;
 use DB;
@@ -699,24 +700,29 @@ class FeedbackQuestionnaireController extends Controller
                         ],
                     ];
 
-                    Email::create([
-                        'sender'         => config('mail.from.address'),
-                        'receiver'       => $recipient,
-                        'subject'        => $subject,
-                        'body'           => strip_tags($content), // or a summary
-                        'attachment_path' => $filename,
-                        'sent'           => true,
-                        'sent_at'        => now(),
-                        'user_id'        => null,
-                        'auditable_type' => 'App\Models\CustomerManifest',
-                        'auditable_id'   => $customerManifest->id,
-                        'team_id'        => $service->team->id,
-                    ]);
+                    $shouldSendQuestionnaireEmail = app(EmailDispatchService::class)
+                        ->canSendAutomatic($service->team->id, EmailDispatchService::SETTING_AUTO_QUESTIONNAIRE);
 
-                    Mail::to($recipient)->send(new CheckInMail([
-                        'subject' => $subject,
-                        'content' => $content,
-                    ], $attachments));
+                    if ($shouldSendQuestionnaireEmail) {
+                        Email::create([
+                            'sender'         => config('mail.from.address'),
+                            'receiver'       => $recipient,
+                            'subject'        => $subject,
+                            'body'           => strip_tags($content), // or a summary
+                            'attachment_path' => $filename,
+                            'sent'           => true,
+                            'sent_at'        => now(),
+                            'user_id'        => null,
+                            'auditable_type' => 'App\Models\CustomerManifest',
+                            'auditable_id'   => $customerManifest->id,
+                            'team_id'        => $service->team->id,
+                        ]);
+
+                        Mail::to($recipient)->send(new CheckInMail([
+                            'subject' => $subject,
+                            'content' => $content,
+                        ], $attachments));
+                    }
                 }
                 Log::info('here 5');
                 return $booking;

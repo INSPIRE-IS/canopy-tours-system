@@ -14,6 +14,7 @@ use App\Models\InvoiceTemplate;
 use App\Models\Team;
 use App\Models\TypeInvoice;
 use App\Services\RendererService;
+use App\Services\EmailDispatchService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use App\Models\File;
 use Illuminate\Http\Request;
@@ -349,6 +350,11 @@ class InvoiceController extends Controller
         $booking = Booking::findOrFail($booking_id);
         $customer = Customer::findOrFail($booking->customer_id);
         $renderService = app(RendererService::class);
+        $emailDispatch = app(EmailDispatchService::class);
+
+        if (!$emailDispatch->canSendManual($booking->team_id)) {
+            return redirect()->back()->with('error', $emailDispatch->manualDisabledMessage());
+        }
 
         if (!$invoice) {
             return redirect()->back()->with('error', 'No invoice found for this booking.');

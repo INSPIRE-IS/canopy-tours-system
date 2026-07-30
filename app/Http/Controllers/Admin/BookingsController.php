@@ -73,6 +73,7 @@ use App\Models\TypeGroup;
 use App\Models\LookupItem;
 use App\Models\QuestionSite;
 use App\Services\PricingService;
+use App\Services\EmailDispatchService;
 use App\Services\RendererService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Spatie\Browsershot\Browsershot;
@@ -164,9 +165,9 @@ class BookingsController extends Controller
         }
     }
 
-    private function shouldSendBookingDocument(bool $autoSetting, bool $explicitRequest): bool
+    private function shouldSendBookingDocument(int $teamId, bool $autoSetting, bool $explicitRequest): bool
     {
-        return (config('mail.auto_send') && $autoSetting) || $explicitRequest;
+        return app(EmailDispatchService::class)->shouldSendBookingDocument($teamId, $autoSetting, $explicitRequest);
     }
 
     private function logAudit(
@@ -800,7 +801,8 @@ class BookingsController extends Controller
             ->with('service')
             ->get();
         $lookups = LookupItem::defaultsForTeam(auth()->user()->team_id);
-        $settings = LookupItem::settingsForTeam(auth()->user()->team_id);
+        $teamId = (int) auth()->user()->team_id;
+        $settings = LookupItem::settingsForTeam($teamId);
         $countries = Country::select('id', 'name', 'phonecode')
             ->whereNotNull('phonecode')
             ->orderBy('name')
@@ -896,12 +898,13 @@ class BookingsController extends Controller
             'send_invoice' => 'boolean',
             'send_quote' => 'boolean',
         ]);
-        $settings = LookupItem::settingsForTeam(auth()->user()->team_id);
+        $teamId = (int) auth()->user()->team_id;
+        $settings = LookupItem::settingsForTeam($teamId);
         $pickupEnabled = $settings['enable_pickup_dropoff'] ?? true;
-        $autoSendInvoiceSetting = $settings['auto_send_invoice_on_booking'] ?? true;
+        $autoSendInvoiceSetting = $settings['auto_send_invoice_on_booking'] ?? false;
         $autoSendQuoteSetting = $settings['auto_send_quote_on_booking'] ?? false;
-        $autoSendInvoice = $this->shouldSendBookingDocument($autoSendInvoiceSetting, (bool) ($validated['send_invoice'] ?? false));
-        $autoSendQuote = $this->shouldSendBookingDocument($autoSendQuoteSetting, (bool) ($validated['send_quote'] ?? false));
+        $autoSendInvoice = $this->shouldSendBookingDocument($teamId, $autoSendInvoiceSetting, (bool) ($validated['send_invoice'] ?? false));
+        $autoSendQuote = $this->shouldSendBookingDocument($teamId, $autoSendQuoteSetting, (bool) ($validated['send_quote'] ?? false));
         $validated['needs_pickup'] = $pickupEnabled ? ($validated['needs_pickup'] ?? false) : false;
         try {
             $activityItems = $this->normaliseActivityItems($request->input('activity_items', []));
@@ -2214,10 +2217,10 @@ class BookingsController extends Controller
         ]);
         $settings = LookupItem::settingsForTeam(auth()->user()->team_id);
         $pickupEnabled = $settings['enable_pickup_dropoff'] ?? true;
-        $autoSendInvoiceSetting = $settings['auto_send_invoice_on_booking'] ?? true;
+        $autoSendInvoiceSetting = $settings['auto_send_invoice_on_booking'] ?? false;
         $autoSendQuoteSetting = $settings['auto_send_quote_on_booking'] ?? false;
-        $autoSendInvoice = $this->shouldSendBookingDocument($autoSendInvoiceSetting, (bool) ($validated['send_invoice'] ?? false));
-        $autoSendQuote = $this->shouldSendBookingDocument($autoSendQuoteSetting, (bool) ($validated['send_quote'] ?? false));
+        $autoSendInvoice = $this->shouldSendBookingDocument($teamId, $autoSendInvoiceSetting, (bool) ($validated['send_invoice'] ?? false));
+        $autoSendQuote = $this->shouldSendBookingDocument($teamId, $autoSendQuoteSetting, (bool) ($validated['send_quote'] ?? false));
         $validated['needs_pickup'] = $pickupEnabled ? ($validated['needs_pickup'] ?? false) : false;
 
         try {
@@ -4485,6 +4488,10 @@ class BookingsController extends Controller
                 $content .= '<li><a href="' . e($link['url']) . '">' . e($link['label']) . '</a></li>';
             }
             $content .= '</ul>';
+        }
+        $emailDispatch = app(EmailDispatchService::class);
+        if (!$emailDispatch->canSendManual($booking->team_id)) {
+            return redirect()->back()->with('error', $emailDispatch->manualDisabledMessage());
         }
         // $subject = 'New Booking';
         // $content = '<p>Hello,</p><p>A new booking has been created for you.</p><p>Please login to your account to view the booking.</p>';

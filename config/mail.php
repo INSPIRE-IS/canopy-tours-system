@@ -13,9 +13,11 @@ return [
     |
     */
 
-    'auto_send' => env('AUTO_SEND', true),
-
     'default' => env('MAIL_MAILER', 'smtp'),
+
+    'audit_bcc' => env('MAIL_AUDIT_BCC'),
+
+    'audit_subject_prefix' => env('MAIL_AUDIT_SUBJECT_PREFIX'),
 
     /*
     |--------------------------------------------------------------------------

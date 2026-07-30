@@ -249,7 +249,7 @@ class SeedCoreData extends Command
                 'slug' => 'show_send_invoice_checkbox',
                 'rate' => null,
                 'multiplier' => null,
-                'value' => 0,
+                'value' => 1,
                 'effective_from' => '2020-01-01',
                 'is_default' => 1,
                 'is_active' => 1,
@@ -262,7 +262,7 @@ class SeedCoreData extends Command
                 'slug' => 'show_send_quote_checkbox',
                 'rate' => null,
                 'multiplier' => null,
-                'value' => 0,
+                'value' => 1,
                 'effective_from' => '2020-01-01',
                 'is_default' => 1,
                 'is_active' => 1,
@@ -275,7 +275,7 @@ class SeedCoreData extends Command
                 'slug' => 'show_booking_information',
                 'rate' => null,
                 'multiplier' => null,
-                'value' => 0,
+                'value' => 1,
                 'effective_from' => '2020-01-01',
                 'is_default' => 1,
                 'is_active' => 1,
@@ -286,6 +286,52 @@ class SeedCoreData extends Command
 
         foreach ($lookup_items as $lookup_item) {
             LookupItem::updateOrCreate(['id' => $lookup_item['id']], $lookup_item);
+        }
+
+        foreach ([
+            [
+                'name' => 'Enable Guest Email Sending',
+                'slug' => 'email_sending_enabled',
+                'info' => 'Master site switch for sending guest emails. If disabled, automatic and manual guest emails are blocked.',
+                'value' => 1,
+            ],
+            [
+                'name' => 'Enable Manual Email Sending',
+                'slug' => 'manual_email_sending_enabled',
+                'info' => 'Allow staff to deliberately send guest emails such as payment links, invoices, check-in links, and guest messages.',
+                'value' => 1,
+            ],
+            [
+                'name' => 'Auto Send Payment Confirmation',
+                'slug' => 'auto_send_payment_confirmation',
+                'info' => 'Automatically send confirmation emails after frontend PayFast or simulated payment flows complete.',
+                'value' => 0,
+            ],
+            [
+                'name' => 'Auto Send Questionnaire Confirmation',
+                'slug' => 'auto_send_questionnaire_confirmation',
+                'info' => 'Automatically send indemnity or feedback confirmation emails after guests complete questionnaire flows.',
+                'value' => 0,
+            ],
+        ] as $emailSetting) {
+            LookupItem::updateOrCreate(
+                [
+                    'slug' => $emailSetting['slug'],
+                    'lookup_id' => 4,
+                    'team_id' => null,
+                ],
+                [
+                    'name' => $emailSetting['name'],
+                    'info' => $emailSetting['info'],
+                    'rate' => null,
+                    'multiplier' => null,
+                    'value' => (int) ($emailSetting['value'] ?? 0),
+                    'effective_from' => '2020-01-01',
+                    'effective_to' => null,
+                    'is_default' => 1,
+                    'is_active' => 1,
+                ]
+            );
         }
 
         foreach ([
