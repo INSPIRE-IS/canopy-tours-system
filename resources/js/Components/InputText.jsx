@@ -1,4 +1,4 @@
-const InputText = ({ title, field, value, mode, type = "text", width = "w-full", height = "h-[42px]", handleChange, placeholder = "", errors, required = false }) => {
+const InputText = ({ title, field, value, mode, type = "text", width = "w-full", height = "h-[42px]", handleChange, placeholder = "", errors, required = false, ...props }) => {
     return (
         <div className="mb-3 w-full">
             <label
@@ -20,6 +20,7 @@ const InputText = ({ title, field, value, mode, type = "text", width = "w-full",
                 `}
                 disabled={mode === "view"}
                 required={required}
+                {...props}
             />
             {errors?.[field] && (
                 <p className="text-red-500 text-sm mt-2">

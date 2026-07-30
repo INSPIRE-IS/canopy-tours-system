@@ -46,7 +46,7 @@ class TeamController extends Controller
             ->paginate(10);
 
         $user = $request->user();
-        $canEditGateways = $user && Gate::allows('gateways_edit');
+        $canEditGateways = $user && (bool) ($user?->is_admin ?? false) && Gate::allows('gateways_edit');
         $isAdmin = (bool) ($user?->is_admin ?? false);
 
         if ($canEditGateways) {
@@ -115,7 +115,6 @@ class TeamController extends Controller
             'sortDirection' => $sortDirection,
         ]);
     }
-
 
     public function store(StoreTeamRequest $request)
     {
@@ -211,7 +210,7 @@ class TeamController extends Controller
         DB::transaction(function () use ($request, $team, $data) {
             $team->update($data);
 
-            if (Gate::allows('gateways_edit')) {
+            if ((bool) ($request->user()?->is_admin ?? false) && Gate::allows('gateways_edit')) {
                 $this->syncPayfastGatewayConfig($request, $team);
             }
         });

@@ -14,8 +14,8 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams, permissions = {}
     const [image, setImage] = useState(null);
     const [invoiceQuoteIcon, setInvoiceQuoteIcon] = useState(null);
 
-    const canEditGateways = !!permissions?.gateways_edit;
     const isAdminUser = !!user?.is_admin || user?.roles?.some((role) => role?.id === 1);
+    const canManagePayfast = isAdminUser && !!permissions?.gateways_edit;
     const canPublishSite = !!permissions?.teams_publish;
     const payfast = team?.payfast || null;
 
@@ -93,8 +93,8 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams, permissions = {}
                 payfast_is_enabled: payfast?.is_enabled ?? false,
                 payfast_is_sandbox: payfast?.is_sandbox ?? true,
                 payfast_merchant_id: payfast?.merchant_id ?? "",
-                payfast_merchant_key: isAdminUser ? (payfast?.merchant_key ?? "") : "",
-                payfast_passphrase: isAdminUser ? (payfast?.passphrase ?? "") : "",
+                payfast_merchant_key: "",
+                payfast_passphrase: "",
             });
         } else if (mode === "create") {
             reset(); // Clear form for create mode
@@ -174,18 +174,18 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams, permissions = {}
         formData.append('vat_no', data.vat_no);
         formData.append('team_id', data.team_id);
 
-        if (canEditGateways) {
+        if (canManagePayfast) {
             formData.append('payfast_is_enabled', data.payfast_is_enabled ? 1 : 0);
             formData.append('payfast_is_sandbox', data.payfast_is_sandbox ? 1 : 0);
             formData.append('payfast_merchant_id', data.payfast_merchant_id);
 
             const merchantKeyConfigured = !!payfast?.merchant_key_configured;
-            if (isAdminUser || replacePayfastMerchantKey || !merchantKeyConfigured) {
+            if (replacePayfastMerchantKey || (!merchantKeyConfigured && data.payfast_merchant_key)) {
                 formData.append('payfast_merchant_key', data.payfast_merchant_key);
             }
 
             const passphraseSet = !!payfast?.passphrase_set;
-            if (isAdminUser || replacePayfastPassphrase || (!passphraseSet && data.payfast_passphrase)) {
+            if (replacePayfastPassphrase || (!passphraseSet && data.payfast_passphrase)) {
                 // Passphrase can be intentionally blank (sandbox accounts often have no passphrase).
                 formData.append('payfast_passphrase', data.payfast_passphrase);
             }
@@ -492,7 +492,7 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams, permissions = {}
                         />
                     </div>
 
-                    {canEditGateways && (
+                    {canManagePayfast && (
                         <>
                             <label className="block font-semibold mb-1">PayFast Gateway</label>
                             <span className="border-bottom border-[1px] border-black flex flex-row w-full items-center gap-2 justify-start mb-4"></span>
@@ -536,13 +536,15 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams, permissions = {}
                             </div>
 
                             <div className="flex flex-row w-full items-center gap-2 justify-start mb-4">
-                                {!isAdminUser && payfast?.merchant_key_configured && !replacePayfastMerchantKey ? (
+                                {payfast?.merchant_key_configured && !replacePayfastMerchantKey ? (
                                     <div className="mb-3 w-full">
                                         <label className="text-[#161618] font-poppins text-[12px] font-normal leading-[130%]">
                                             Merchant Key
                                         </label>
                                         <div className="mt-1 flex items-center justify-between w-full h-[42px] px-3 bg-[#FBF9F7] border border-gray-300 rounded-[10px]">
-                                            <span className="text-sm text-gray-500">Configured</span>
+                                            <span className="text-sm text-gray-500 break-all">
+                                                {payfast?.merchant_key || 'Configured'}
+                                            </span>
                                             {mode !== "view" && (
                                                 <OutlineButton
                                                     title="Replace"
@@ -561,20 +563,23 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams, permissions = {}
                                         mode={mode}
                                         handleChange={handleChange}
                                         errors={errors}
-                                        type={isAdminUser ? "text" : "password"}
-                                        placeholder={!isAdminUser ? "Paste new key to replace" : ""}
+                                        type="password"
+                                        autoComplete="new-password"
+                                        placeholder="Paste new key to replace"
                                     />
                                 )}
                             </div>
 
                             <div className="flex flex-row w-full items-center gap-2 justify-start mb-4">
-                                {!isAdminUser && payfast?.passphrase_set && !replacePayfastPassphrase ? (
+                                {payfast?.passphrase_set && !replacePayfastPassphrase ? (
                                     <div className="mb-3 w-full">
                                         <label className="text-[#161618] font-poppins text-[12px] font-normal leading-[130%]">
                                             Passphrase (optional)
                                         </label>
                                         <div className="mt-1 flex items-center justify-between w-full h-[42px] px-3 bg-[#FBF9F7] border border-gray-300 rounded-[10px]">
-                                            <span className="text-sm text-gray-500">Configured</span>
+                                            <span className="text-sm text-gray-500 break-all">
+                                                {payfast?.passphrase || 'Configured'}
+                                            </span>
                                             {mode !== "view" && (
                                                 <OutlineButton
                                                     title="Replace"
@@ -593,7 +598,8 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams, permissions = {}
                                         mode={mode}
                                         handleChange={handleChange}
                                         errors={errors}
-                                        type={isAdminUser ? "text" : "password"}
+                                        type="password"
+                                        autoComplete="new-password"
                                         placeholder="Leave blank if your PayFast account does not use a passphrase"
                                     />
                                 )}
