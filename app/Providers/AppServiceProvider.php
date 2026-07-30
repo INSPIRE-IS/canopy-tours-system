@@ -31,10 +31,9 @@ class AppServiceProvider extends ServiceProvider
         });
 
         //if (app()->environment(['local', 'staging', 'development', 'production'])) {
-        if (app()->environment(['development'])) {
-            Log::info('Mail is set to sandbox');
-            Mail::alwaysTo('sandbox@inspireonline.co.za'); // O@BczDAVgrz2{89e
-        }
+        //     Log::info('Mail is set to sandbox');
+        //     Mail::alwaysTo('sandbox@inspireonline.co.za'); // O@BczDAVgrz2{89e
+        // }
 
         $auditBcc = config('mail.audit_bcc');
         $subjectPrefix = config('mail.audit_subject_prefix');
