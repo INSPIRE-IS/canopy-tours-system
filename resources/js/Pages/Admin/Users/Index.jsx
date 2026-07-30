@@ -56,7 +56,7 @@ export default function Index({ users, permissions, roles, teams, auth, searchTe
     const handleDelete = (user) => {
         if (confirm("Are you sure you want to delete this user?")) {
             //post(route("users.destroy", user), { _method: "DELETE",});
-            router.delete(route('users.destroy', user), { preserveScroll: true });
+            router.delete(route('admin.users.destroy', user), { preserveScroll: true });
         }
     };
 
