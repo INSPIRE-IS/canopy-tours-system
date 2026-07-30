@@ -12,13 +12,15 @@ export default function InputRichText({ title, field, value, mode, handleChange,
     window.tinymce.init({
       license_key: 'gpl',
       target: editorRef.current,
-      plugins: 'lists link code',
+      plugins: 'lists link code paste',
       toolbar:
         'undo redo | styles | bold italic | alignleft aligncenter alignright | bullist numlist outdent indent',
       menubar: false,
       branding: false,
       browser_spellcheck: true,
-      contextmenu: false,
+      contextmenu: 'link lists',
+      paste_as_text: true,
+      paste_data_images: false,
       readonly: mode === 'view',
       setup: (editor) => {
         editorInstance.current = editor;
@@ -61,6 +63,11 @@ export default function InputRichText({ title, field, value, mode, handleChange,
         {title}
       </label>
       <textarea ref={editorRef} id={field} className="hidden" />
+      {mode !== 'view' && (
+        <p className="mt-2 text-xs text-gray-500">
+          To paste content, click inside the editor and use Ctrl+V. Browsers block direct clipboard access from editor buttons for security.
+        </p>
+      )}
       {errors?.[field] && <p className="text-red-500 text-sm mt-2">{errors[field]}</p>}
     </div>
   );
