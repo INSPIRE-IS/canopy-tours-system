@@ -186,7 +186,12 @@ export default function ActivitySchedulePage({ activity, auth, team, activityId,
           <div className="absolute inset-0 bg-black/10 flex flex-col justify-center p-6 text-white">
             <h2 className="text-lg font-light">{activity?.service}</h2>
             <h1 className="text-3xl md:text-4xl font-bold">{activity?.season}</h1>
-            <p className="mt-2 max-w-md">{activity?.description}</p>
+            {activity?.description && (
+              <div
+                className="mt-2 max-w-md [&_p]:mb-2 [&_p:last-child]:mb-0"
+                dangerouslySetInnerHTML={{ __html: activity.description }}
+              />
+            )}
             <div className="mt-4 flex gap-2 items-center justify-start">
               {/* <WhiteButton
                 title="View Gallery"
