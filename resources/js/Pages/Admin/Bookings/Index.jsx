@@ -952,7 +952,7 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                                         showToast('Check-in is only available for today or future dates.', 'info');
                                         return;
                                     }
-                                    router.get(route('booking-questionnaire.index', { booking_date: targetDate }));
+                                    router.get(route('admin.checkins.kiosk', { date: targetDate }));
                                 }}
                                 disabled={checkinDisabled}
                                 className={`flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-[10px] border-[3px] bg-red-gradient-overlay border-[#C65468] text-white shadow-inset-white ${checkinDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}

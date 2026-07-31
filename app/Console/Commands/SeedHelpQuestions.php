@@ -897,6 +897,16 @@ class SeedHelpQuestions extends Command
             ],
             [
                 'category' => 'Check-in',
+                'question' => 'How can staff run check-in on a tablet?',
+                'description' => 'Use the staff check-in kiosk to open secure check-in forms without sharing admin access with guests.',
+                'where' => '<a href="/admin/checkins/kiosk">Admin > Check-in Kiosk</a> or the Check in button on Admin > Bookings',
+                'business_rules' => 'The kiosk is staff-login only. It lists bookings for the selected activity date and lets staff search by reference, guest, phone, email, or service. Start Check-in opens the same signed guest check-in form used by WhatsApp/email links, with a return-to-kiosk marker. After the guest submits, the tablet returns to the kiosk date list so staff can continue with the next guest.',
+                'examples' => 'On the day of the tour, Rose logs into the tablet, opens Check-in Kiosk, taps Check In Guest, hands over the tablet, then gets returned to the kiosk after submit. This avoids a public reference-only lookup.',
+                'related' => 'kiosk, tablet, indemnity, questionnaire, manifest, signed link, booking add',
+                'is_internal' => false,
+            ],
+            [
+                'category' => 'Check-in',
                 'question' => 'Why does a check-in link say "Link Expired" or "Activity start time is not set"?',
                 'description' => 'Signed links can expire, and some legacy bookings may not have a start time set.',
                 'where' => '<a href="/front/booking-questionnaire/signed">Front > Check-in (signed link)</a>',

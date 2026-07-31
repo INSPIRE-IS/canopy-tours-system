@@ -125,6 +125,7 @@ class SeedPermissionsData extends Command
             ['name' => 'wholesalers_access'],
             ['name' => 'sites_access'],
             ['name' => 'boarding_pass_templates_access'],
+            ['name' => 'checkins_kiosk'],
             // Extra granular capabilities that don't map 1:1 to CRUD actions.
             ['name' => 'teams_publish'], // allow publish/unpublish sites on the public frontend
             ['name' => 'inventories_schedule'], // allow access to the advanced inventory scheduler

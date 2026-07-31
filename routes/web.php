@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\AuditLogsController;
 use App\Http\Controllers\Admin\BookingPaymentController;
 use App\Http\Controllers\Admin\BookingsController;
 use App\Http\Controllers\Admin\BookingVouchersController;
+use App\Http\Controllers\Admin\CheckinKioskController;
 use App\Http\Controllers\Admin\CheckinsController;
 use App\Http\Controllers\Admin\CloseoutsController;
 use App\Http\Controllers\Admin\CustomerManifestController;
@@ -322,6 +323,7 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['auth', 'v
     Route::get('/invoices/download/{invoice}', [InvoiceController::class, 'download'])->name('invoices.download');
     Route::post('/questionnaires/answers/store', [QuestionnaireController::class, 'answerStore'])->name('questionnaires.answers.store');
     Route::resource('questionnaire', QuestionnaireController::class);
+    Route::get('/checkins/kiosk', [CheckinKioskController::class, 'index'])->name('checkins.kiosk');
     Route::get('/checkins/index/{booking_id}/{customer_id?}', [CheckinsController::class, 'index'])->name('checkins.index');
     Route::post('/checkins/store', [CheckinsController::class, 'store'])->name('checkins.store');
     //Route::resource('checkins', CheckinsController::class);

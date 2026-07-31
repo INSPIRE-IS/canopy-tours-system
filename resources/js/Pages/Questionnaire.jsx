@@ -36,6 +36,7 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
   console.log('activeSteps', activeSteps);
   const [currentSlug, setCurrentSlug] = useState(activeSteps[0]);
   const SIGNED_STORAGE_KEY = 'booking_questionnaire_signed';
+  const KIOSK_STORAGE_KEY = 'checkin_kiosk_url';
   const [signedParams, setSignedParams] = useState(null);
   const [linkExpiresAt, setLinkExpiresAt] = useState(null);
   const [linkTimeLeft, setLinkTimeLeft] = useState(null);
@@ -61,6 +62,7 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
 
   const { data, setData, post, put, errors, reset, processing, isDirty } = useForm({
     customer_manifests: [],
+    return_to: null,
   });
 
   useEffect(() => {
@@ -108,7 +110,14 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
       const adults = mapped?.filter(p => p.type === "adult");
       setAdults(adults);
       setData('customer_manifests', mapped);
-      // setSelected(1);
+      const params = new URLSearchParams(window.location.search);
+      const targetCustomerId = params.get('customer');
+      if (targetCustomerId) {
+        const targetIndex = mapped.findIndex((person) => String(person.customer_id) === String(targetCustomerId));
+        if (targetIndex >= 0) {
+          setSelected(targetIndex);
+        }
+      }
       console.log('--------------init data-------------', mapped);
     } else if (mode === "create") {
       reset(); // Clear form
@@ -142,6 +151,16 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
     const expires = params.get('expires');
     const bookingItemId = params.get('booking_item_id') ?? bookingItem?.id;
     const reference = params.get('reference') ?? booking?.reference;
+    const returnTo = params.get('return_to');
+
+    setData('return_to', returnTo || null);
+
+    if (returnTo === 'kiosk') {
+      const fallbackKioskUrl = route('admin.checkins.kiosk');
+      if (!localStorage.getItem(KIOSK_STORAGE_KEY)) {
+        localStorage.setItem(KIOSK_STORAGE_KEY, fallbackKioskUrl);
+      }
+    }
 
     const hasSignedParams = signature && expires && bookingItemId && reference;
     if (params.get('complete')) {
@@ -155,6 +174,7 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
         expires,
         booking_item_id: String(bookingItemId),
         reference: String(reference),
+        ...(returnTo ? { return_to: returnTo } : {}),
       };
       sessionStorage.setItem(SIGNED_STORAGE_KEY, JSON.stringify(payload));
       setSignedParams(payload);
@@ -217,6 +237,11 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
   const timeLeftLabel = formatTimeLeft(linkTimeLeft);
   const hasUnsavedChanges = isDirty && hasUserChanges;
 
+  const returnToKiosk = () => {
+    const kioskUrl = localStorage.getItem(KIOSK_STORAGE_KEY) || route('admin.checkins.kiosk');
+    window.location.href = kioskUrl;
+  };
+
   const openConfirm = (config) => {
     setConfirmConfig(config);
   };
@@ -234,7 +259,7 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
       message,
       confirmText: 'Close',
       cancelText: 'Stay',
-      onConfirm: () => router.get(route('front.welcome')),
+      onConfirm: () => data.return_to === 'kiosk' ? returnToKiosk() : router.get(route('front.welcome')),
     });
   };
 
@@ -1401,4 +1426,3 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
           )}  
           
           */}
-

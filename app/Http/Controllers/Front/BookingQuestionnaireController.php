@@ -1032,6 +1032,12 @@ class BookingQuestionnaireController extends Controller
                 : null;
 
             if ($bookingItem) {
+                if (($manifests['return_to'] ?? null) === 'kiosk') {
+                    return Inertia::location(route('admin.checkins.kiosk', [
+                        'date' => $bookingItem->booking_inventory?->getRawOriginal('date'),
+                    ]));
+                }
+
                 $expectedCount = (int) ($bookingItem->pax_adults ?? 0) + (int) ($bookingItem->pax_children ?? 0);
                 $completedCount = $bookingItem->customer_manifests()
                     ->where('is_indemnity', 1)
