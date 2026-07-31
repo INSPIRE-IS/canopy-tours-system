@@ -84,7 +84,8 @@ class ServiceCalendarBuilder
                 $dayOfWeek = $date->dayOfWeekIso;
                 $dateStr = $date->toDateString();
                 $overrideSlots = $overrideMap[$dateStr] ?? [];
-                $overrideMeta = $overrideSlots[$timeSlot->id] ?? null;
+                $hasSlotOverride = array_key_exists($timeSlot->id, $overrideSlots);
+                $overrideMeta = $hasSlotOverride ? ($overrideSlots[$timeSlot->id] ?? null) : null;
                 // time period in hours before a slot closes
                 $slotCloseTime = $lockoutHours ?? 0;
 
@@ -97,18 +98,7 @@ class ServiceCalendarBuilder
                 Log::info('cutoff' . $cutoff);
 
                 $slotCapacity = (int) ($service->capacity ?? 0);
-                if (!empty($overrideSlots)) {
-                    if (!array_key_exists($timeSlot->id, $overrideSlots)) {
-                        $row['days'][$label] = [
-                            'date' => $dateStr,
-                            'slots' => 0,
-                            'status' => 'unavailable',
-                            'note' => 'Date override active',
-                            'internal_only' => false,
-                            'is_date_override' => false,
-                        ];
-                        continue;
-                    }
+                if ($hasSlotOverride) {
                     $overrideCapacity = is_array($overrideMeta) ? ($overrideMeta['capacity_override'] ?? null) : null;
                     if ($overrideCapacity !== null) {
                         $slotCapacity = (int) $overrideCapacity;
