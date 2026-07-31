@@ -121,12 +121,12 @@ export default function Index({ users, permissions, roles, teams, auth, searchTe
                                                         Edit
                                                     </button>)}
 
-                                                {permissions.users_edit && (
+                                                {permissions.users_delete && (
                                                     <button onClick={() => handleDelete(user)}
                                                         className="flex items-center gap-1 text-red-600 hover:text-red-800">
                                                         Remove
                                                     </button>)}
-                                                {permissions.users_edit && (
+                                                {permissions.users_show && (
                                                     <button onClick={() => handleOpenModal("view", user)}
                                                         className="flex items-center gap-1 text-blue-600 hover:text-blue-800">
                                                         View
