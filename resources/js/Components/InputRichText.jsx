@@ -25,13 +25,37 @@ export default function InputRichText({ title, field, value, mode, handleChange,
       setup: (editor) => {
         editorInstance.current = editor;
 
+        const syncEditorValue = () => {
+          handleChange(field, editor.getContent());
+        };
+
         editor.on('init', () => {
           setIsReady(true);
           editor.setContent(value || ''); // initial load only
         });
 
-        editor.on('change keyup', () => {
-          handleChange(field, editor.getContent());
+        editor.on('keydown', (event) => {
+          if (event.key !== 'Delete' && event.key !== 'Backspace') {
+            return;
+          }
+
+          const selectedContent = editor.selection.getContent({ format: 'html' });
+          const selectionCollapsed =
+            typeof editor.selection.isCollapsed === 'function'
+              ? editor.selection.isCollapsed()
+              : !selectedContent;
+
+          if (selectionCollapsed && !selectedContent) {
+            return;
+          }
+
+          event.preventDefault();
+          editor.selection.setContent('');
+          syncEditorValue();
+        });
+
+        editor.on('change keyup input undo redo cut paste', () => {
+          syncEditorValue();
         });
       },
     });
