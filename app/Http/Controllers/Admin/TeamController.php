@@ -388,7 +388,8 @@ class TeamController extends Controller
 
     public function destroy(Team $team)
     {
-        abort_if(Gate::denies('team_delete'), Response::HTTP_FORBIDDEN, '403 Forbidden');
+        abort_if(! (bool) (request()->user()?->is_admin ?? false), Response::HTTP_FORBIDDEN, '403 Forbidden');
+        abort_if(Gate::denies('teams_delete'), Response::HTTP_FORBIDDEN, '403 Forbidden');
 
         $team->delete();
 

@@ -118,7 +118,7 @@ export default function Index({ permissions, teams, auth, searchTerm, sortColumn
                                                         Edit
                                                     </button>)}
 
-                                                {permissions.teams_delete && (
+                                                {props.auth.user?.is_admin && permissions.teams_delete && (
                                                     <button onClick={() => handleDelete(team)}
                                                         className="flex items-center gap-1 text-red-600 hover:text-red-800">
                                                         Remove

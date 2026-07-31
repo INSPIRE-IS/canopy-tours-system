@@ -171,7 +171,8 @@ class SeedPermissionsData extends Command
             [
                 'audit_logs_access',
                 'booking_questionnaires_access',
-                'teams_create'
+                'teams_create',
+                'teams_delete',
             ],
             ['users_', 'roles_', 'permissions_', 'permission_role']
         );
@@ -186,6 +187,7 @@ class SeedPermissionsData extends Command
                 'user_alerts_access',
                 'vouchers_access',
                 'teams_create',
+                'teams_delete',
                 'boarding_pass_templates_access'
             ],
             ['roles_', 'permissions_', 'permission_role']
@@ -201,6 +203,7 @@ class SeedPermissionsData extends Command
                 'user_alerts_access',
                 'vouchers_access',
                 'teams_create',
+                'teams_delete',
                 'teams_publish',
                 'inventories_schedule',
                 'boarding_pass_templates_access'
