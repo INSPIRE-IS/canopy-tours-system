@@ -174,42 +174,43 @@ class ActivityController extends Controller
             return $service->seasons
                 ->filter(fn($season) => $canViewInternalSeasons || !$season->internal_only)
                 ->map(function ($season) use ($service) {
-                //Log::info('season ' . $season->name);
-                $inventory = $season->inventory;
-                // if (!$inventory) {
-                //     //Log::info('inventory none ');
-                //     return null; // skip incomplete seasons
-                // }
-                //Log::info('inventory ' . $inventory->season_id);
-                //dd($inventory);
-                $fieldValues = $service->serviceFieldValues->mapWithKeys(function ($fv) {
-                    return [$fv->field->name => $fv->value];
-                });
-                // from services it already filters out the promos that are not active
-                $promos = $service->activePromotions;
-                $promo = null;
-                if ($promos->count() > 0) {
-                    $promo = $promos
-                        ->where('type', 'time_slot')
-                        ->first();
-                }
-                //dd($fieldValues);
-                return [
-                    'inventory_id' => optional($inventory)->id,
-                    'tag'        => $service->tag,
-                    'id'      => $service->id,
-                    'name'      => $service->name,
-                    'season_id'      => $season->id,
-                    'promo'      => $promo,
-                    'image'      => $service->file ? $service->file->path : null,
-                    'pillbox_conditions'      => $service->pillbox_conditions ?? null,
-                    'gift'       => filter_var($fieldValues['gift'] ?? false, FILTER_VALIDATE_BOOLEAN),
-                    'minPeople'  => (int) ($fieldValues['min_people'] ?? 1),
-                    'price'      => optional($season)->rake_rate_adult ?? null,
-                    'start_date' => optional($season)->start_date ?? null,
-                    'end_date'   => optional($season)->end_date ?? null,
-                    'capacity'   => optional($service)->capacity ?? null,
-                ];
+                    //Log::info('season ' . $season->name);
+                    $inventory = $season->inventory;
+                    // if (!$inventory) {
+                    //     //Log::info('inventory none ');
+                    //     return null; // skip incomplete seasons
+                    // }
+                    //Log::info('inventory ' . $inventory->season_id);
+                    //dd($inventory);
+                    $fieldValues = $service->serviceFieldValues->mapWithKeys(function ($fv) {
+                        return [$fv->field->name => $fv->value];
+                    });
+                    // from services it already filters out the promos that are not active
+                    $promos = $service->activePromotions;
+                    $promo = null;
+                    if ($promos->count() > 0) {
+                        $promo = $promos
+                            ->where('type', 'time_slot')
+                            ->first();
+                    }
+                    //dd($fieldValues);
+                    return [
+                        'inventory_id' => optional($inventory)->id,
+                        'tag'        => $service->tag,
+                        'id'      => $service->id,
+                        'name'      => $service->name,
+                        'season_id'      => $season->id,
+                        'season'      => $season->name,
+                        'promo'      => $promo,
+                        'image'      => $service->file ? $service->file->path : null,
+                        'pillbox_conditions'      => $service->pillbox_conditions ?? null,
+                        'gift'       => filter_var($fieldValues['gift'] ?? false, FILTER_VALIDATE_BOOLEAN),
+                        'minPeople'  => (int) ($fieldValues['min_people'] ?? 1),
+                        'price'      => optional($season)->rake_rate_adult ?? null,
+                        'start_date' => optional($season)->start_date ?? null,
+                        'end_date'   => optional($season)->end_date ?? null,
+                        'capacity'   => optional($service)->capacity ?? null,
+                    ];
                 })->filter(); // remove nulls
         });
         //dd($activities);

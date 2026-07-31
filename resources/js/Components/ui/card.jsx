@@ -32,7 +32,7 @@ const Card = ({ image, service, season, price, badge, promo, tag, gift, onBook, 
       <div className="p-4">
 
         <span className="text-xs font-semibold px-2 py-1 rounded-full bg-[#C8E6C9] text-black">{tag}</span>
-        <h3 className="text-lg font-bold mt-1">{service}</h3>
+        <h3 className="text-lg font-bold mt-1">{service} <span className="text-sm font-normal">{season}</span></h3>
         <p className="text-[#31B700] font-semibold mt-1">R{price}</p>
         {badge && <span className="text-xs text-gray-600 px-2 py-1 rounded-[10px] bg-[#EBEBEB] mt-2">{badge}</span>}
         <div className="flex flex-col w-full gap-2 mt-4">
