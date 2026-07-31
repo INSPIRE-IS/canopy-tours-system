@@ -2096,7 +2096,10 @@ class BookingsController extends Controller
             ->with('service')
             ->get();
         $lookups = LookupItem::defaultsForTeam(auth()->user()->team_id);
-        $settings = LookupItem::settingsForTeam(auth()->user()->team_id);
+        $teamId = (int) auth()->user()->team_id;
+        abort_if((int) $booking->team_id !== $teamId, 403);
+
+        $settings = LookupItem::settingsForTeam($teamId);
         $countries = Country::select('id', 'name', 'phonecode')
             ->whereNotNull('phonecode')
             ->orderBy('name')
@@ -2215,7 +2218,10 @@ class BookingsController extends Controller
             'send_invoice' => 'boolean',
             'send_quote' => 'boolean',
         ]);
-        $settings = LookupItem::settingsForTeam(auth()->user()->team_id);
+        $teamId = (int) auth()->user()->team_id;
+        abort_if((int) $booking->team_id !== $teamId, 403);
+
+        $settings = LookupItem::settingsForTeam($teamId);
         $pickupEnabled = $settings['enable_pickup_dropoff'] ?? true;
         $autoSendInvoiceSetting = $settings['auto_send_invoice_on_booking'] ?? false;
         $autoSendQuoteSetting = $settings['auto_send_quote_on_booking'] ?? false;
