@@ -281,11 +281,12 @@ class PaymentController extends Controller
         }
 
         $data = $this->buildPayfastData([
-            'm_payment_id' => (string) $booking->id,
+            'm_payment_id' => 'booking-' . $booking->id . '-' . now('Africa/Johannesburg')->format('YmdHis'),
             'amount' => $booking->grand_tot_due,
             'item_name' => 'Booking ' . ($booking->reference ?? $booking->id),
             'name_first' => $booking->lead_name ?? ($customer?->full_name ?? ''),
             'email_address' => $customer?->email_address,
+            'custom_int1' => $booking->id,
             'custom_str1' => 'booking',
             'custom_str2' => $booking->reference,
         ], $config);
@@ -834,6 +835,11 @@ class PaymentController extends Controller
                 // Blank means "this PayFast account has no passphrase" and must
                 // not fall back to PAYFAST_PASSPHRASE from .env.
                 $config['passphrase'] = $gatewayData['passphrase'] ?? '';
+                // DB gateway config must also own callback URLs. Otherwise an old
+                // local/staging PAYFAST_RETURN_URL can leak into a live team config.
+                $config['return_url'] = $gatewayData['return_url'] ?? null;
+                $config['cancel_url'] = $gatewayData['cancel_url'] ?? null;
+                $config['notify_url'] = $gatewayData['notify_url'] ?? null;
                 $config['is_sandbox'] = (bool) $gatewayConfig->is_sandbox;
                 $enabled = (bool) $gatewayConfig->is_enabled;
                 $source = $gatewayConfig->team_id ? 'team' : 'default';
@@ -1005,6 +1011,13 @@ class PaymentController extends Controller
             } else {
                 $parsed = $this->parsePayfastPaymentId((string) $paymentId);
             }
+        }
+
+        if (! $parsed && !empty($payload['custom_int1']) && ctype_digit((string) $payload['custom_int1'])) {
+            $parsed = [
+                'type' => ($payload['custom_str1'] ?? '') === 'voucher' ? 'voucher' : 'booking',
+                'id' => (int) $payload['custom_int1'],
+            ];
         }
 
         $booking = null;
@@ -1266,7 +1279,10 @@ class PaymentController extends Controller
         $id = $value;
 
         if (str_contains($value, ':')) {
-            [$type, $id] = explode(':', $value, 2);
+            [$type, $id] = explode(':', $value, 3);
+        } elseif (preg_match('/^(booking|voucher)-(\d+)(?:-|$)/', $value, $matches)) {
+            $type = $matches[1];
+            $id = $matches[2];
         }
 
         if (!in_array($type, ['booking', 'voucher'], true)) {
