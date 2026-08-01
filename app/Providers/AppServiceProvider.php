@@ -30,26 +30,27 @@ class AppServiceProvider extends ServiceProvider
             return (bool) ($user?->is_admin ?? false);
         });
 
-        //if (app()->environment(['local', 'staging', 'development', 'production'])) {
-        //     Log::info('Mail is set to sandbox');
-        //     Mail::alwaysTo('sandbox@inspireonline.co.za'); // O@BczDAVgrz2{89e
-        // }
+        $isSandboxMailEnvironment = app()->environment(['local', 'staging', 'development']);
 
-        $auditBcc = config('mail.audit_bcc');
-        $subjectPrefix = config('mail.audit_subject_prefix');
-        Log::info($auditBcc);
-        Log::info($subjectPrefix);
-        if ($auditBcc || $subjectPrefix) {
-            Event::listen(MessageSending::class, function (MessageSending $event) use ($auditBcc, $subjectPrefix) {
-                if ($auditBcc) {
-                    $event->message->addBcc($auditBcc);
-                }
+        if ($isSandboxMailEnvironment) {
+            Log::info('Mail is set to sandbox');
+            Mail::alwaysTo('sandbox@inspireonline.co.za');
 
+            $subjectPrefix = config('mail.audit_subject_prefix') ?: '[' . app()->environment() . ']';
+            Event::listen(MessageSending::class, function (MessageSending $event) use ($subjectPrefix) {
                 $subject = $event->message->getSubject() ?: '';
                 if ($subjectPrefix && !str_starts_with($subject, $subjectPrefix)) {
                     $event->message->subject(trim($subjectPrefix . ' ' . $subject));
                 }
             });
+        } else {
+            $auditBcc = config('mail.audit_bcc');
+
+            if ($auditBcc) {
+                Event::listen(MessageSending::class, function (MessageSending $event) use ($auditBcc) {
+                    $event->message->addBcc($auditBcc);
+                });
+            }
         }
 
         Inertia::share([
