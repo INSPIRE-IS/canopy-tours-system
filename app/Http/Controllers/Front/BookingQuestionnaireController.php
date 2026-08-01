@@ -41,6 +41,7 @@ use Inertia\Inertia;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Routing\Exceptions\InvalidSignatureException;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Validation\ValidationException;
 use Storage;
 
 class BookingQuestionnaireController extends Controller
@@ -659,6 +660,18 @@ class BookingQuestionnaireController extends Controller
             }
         }
 
+        if (!isset($validated)) {
+            throw ValidationException::withMessages([
+                'customer_manifests' => 'Please select a guest and complete the indemnity before submitting.',
+            ]);
+        }
+
+        if (!in_array($validated['is_agree'] ?? null, [true, 1, '1', 'true', 'on'], true)) {
+            throw ValidationException::withMessages([
+                'is_agree' => 'You must agree to the indemnity terms before submitting.',
+            ]);
+        }
+
         try {
             $booking = DB::transaction(function () use ($validated) {
                 $bookingItem = BookingItem::find($validated['booking_item_id']);
@@ -847,7 +860,7 @@ class BookingQuestionnaireController extends Controller
                         ]
                     );
                 }
-                if ($validated['medical_id'] == 1) {
+                if ((string) ($validated['medical_id'] ?? '') === '1') {
                     $alert = Alert::create([
                         'alert_text' => $this->checkInAlertText('Medical Condition', $customer, $booking),
                         'alert_link' => route('admin.bookings.add', $booking->id, false),
@@ -868,7 +881,7 @@ class BookingQuestionnaireController extends Controller
                         $user->alerts()->attach($alert->id); // ✅ attach by ID
                     }
                 }
-                if ($validated['is_fit'] == 2) {
+                if ((string) ($validated['is_fit'] ?? '') === '2') {
                     $alert = Alert::create([
                         'alert_text' => $this->checkInAlertText('Not Fit', $customer, $booking),
                         'alert_link' => route('admin.bookings.add', $booking->id, false),
@@ -889,7 +902,7 @@ class BookingQuestionnaireController extends Controller
                         $user->alerts()->attach($alert->id); // ✅ attach by ID
                     }
                 }
-                if ($validated['is_agree'] == 2) {
+                if ((string) ($validated['is_agree'] ?? '') === '2') {
                     $alert = Alert::create([
                         'alert_text' => $this->checkInAlertText('Terms Not Agreed', $customer, $booking),
                         'alert_link' => route('admin.bookings.add', $booking->id, false),
