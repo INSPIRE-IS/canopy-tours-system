@@ -5,7 +5,7 @@ const CustomCodeSelect = ({
   name,
   value = null,
   width = "w-full",
-  containerWidth = "w-[30%]",
+  containerWidth = "w-[40%]",
   height = "h-[48px]",
   onChange,
   showOption = true,

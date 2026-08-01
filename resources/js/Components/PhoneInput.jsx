@@ -1,12 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import CustomCodeSelect from '@/Components/CustomCodeSelect';
 import CustomInputText from '@/Components/CustomInputText';
+import SearchableCombobox from '@/Components/SearchableCombobox';
 
 const normalizeCountries = (countries) => (countries || [])
     .filter(c => c?.phonecode)
     .map(c => {
         const code = String(c.phonecode);
-        const label = c?.name ? `${c.name} (+${code})` : `+${code}`;
+        const label = c?.name ? `${code} - ${c.name}` : code;
         return {
             id: code,
             name: label,
@@ -145,15 +145,18 @@ export default function PhoneInput({
     return (
         <div className="w-full">
             <div className={`flex w-full gap-2 ${stacked ? 'flex-col' : 'flex-col sm:flex-row'}`}>
-                <CustomCodeSelect
+                <SearchableCombobox
                     label="Country Code"
                     name={`${name}_country`}
                     value={countryCode}
                     height="h-12"
-                    containerWidth={stacked ? 'w-full' : undefined}
+                    containerWidth={stacked ? 'w-full' : 'w-[40%]'}
                     onChange={(e) => setCountryCode(e.target.value)}
                     errors={{ [`${name}_country`]: error }}
                     options={phonecodeOptions}
+                    placeholder="Search code or country"
+                    inputMode="search"
+                    showOption={false}
                 />
                 <CustomInputText
                     title={label}
