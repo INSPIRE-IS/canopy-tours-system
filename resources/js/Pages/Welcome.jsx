@@ -21,6 +21,7 @@ export default function HomePage({ activities, auth, teams, team_id, team }) {
   const [selectedActivity, setSelectedActivity] = useState(null);
   const locationsRef = useRef();
   const servicesRef = useRef();
+  const activitiesRef = useRef();
 
 
   useEffect(() => {
@@ -164,7 +165,11 @@ export default function HomePage({ activities, auth, teams, team_id, team }) {
                   <h3 className="text-sm font-semibold text-gray-700 mb-2">Choose a Service</h3>
                   {activities?.map((activity) => {
                     return (
-                      <NavSelect name={activity.name} onChange={() => router.get(route('front.activity', { activity_id: activity.id }))} />
+                      <NavSelect
+                        key={`${activity.id}-${activity.season_id}`}
+                        name={`${activity.name} ${activity.season || ''}`.trim()}
+                        onChange={() => router.get(route('front.activity', { activity_id: activity.season_id }))}
+                      />
                     )
                   })}
                 </div>
@@ -209,7 +214,11 @@ export default function HomePage({ activities, auth, teams, team_id, team }) {
                 value={selectedService}
                 mode="create"
                 onChange={(e) => { setSelectedService(e.target.value); }}
-                options={activities}
+                options={activities?.map((activity) => ({
+                  ...activity,
+                  id: activity.season_id,
+                  name: `${activity.name} ${activity.season || ''}`.trim(),
+                }))}
               //options={services.map(service => ({ label: service.name, value: service.id }))}
               />
 
@@ -244,12 +253,19 @@ export default function HomePage({ activities, auth, teams, team_id, team }) {
               <div className='pt-3'>
                 <BlueButton
                   title="Find Activities"
-                  onClick={() => router.get(route('front.activity'), {
-                    activity_id: selectedService,
-                    adults: adults,
-                    children: children,
-                    start_date: date,
-                  })}
+                  onClick={() => {
+                    if (!selectedService) {
+                      activitiesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      return;
+                    }
+
+                    router.get(route('front.activity'), {
+                      activity_id: selectedService,
+                      adults: adults,
+                      children: children,
+                      start_date: date,
+                    });
+                  }}
                 />
               </div>
             </div>
@@ -257,7 +273,7 @@ export default function HomePage({ activities, auth, teams, team_id, team }) {
           </div>
         </div>
 
-        <div className="mt-10 grid md:grid-cols-3 sm:grid-cols-2 grid-cols-1 gap-6">
+        <div ref={activitiesRef} className="mt-10 grid md:grid-cols-3 sm:grid-cols-2 grid-cols-1 gap-6">
           {activities.length >= 1 ? (
             activities?.map((activity) => {
 
