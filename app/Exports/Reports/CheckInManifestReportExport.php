@@ -284,7 +284,7 @@ class CheckInManifestReportExport implements FromQuery, WithHeadings, WithMappin
                 $row[] = $this->yesNoAnswer($answers['is_fit'] ?? null);
             }
             if ($this->includePregnancy) {
-                $row[] = $this->yesNoAnswer($answers['pregnant'] ?? null);
+                $row[] = $this->yesNoAnswer($answers['pregnant'] ?? null, $manifest->is_indemnity ? 'No' : '');
             }
         }
 
@@ -325,12 +325,12 @@ class CheckInManifestReportExport implements FromQuery, WithHeadings, WithMappin
         return $this->answersByBookingItem[$bookingItemId][$customerId] ?? [];
     }
 
-    private function yesNoAnswer($value): string
+    private function yesNoAnswer($value, string $default = ''): string
     {
         return match ((string) $value) {
             '1', 'true', 'TRUE', 'on' => 'Yes',
             '2', '0', 'false', 'FALSE', 'off' => 'No',
-            default => $value === null || $value === '' ? '' : (string) $value,
+            default => $value === null || $value === '' ? $default : (string) $value,
         };
     }
 }
