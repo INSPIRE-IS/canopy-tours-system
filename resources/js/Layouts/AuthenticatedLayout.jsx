@@ -537,7 +537,7 @@ export default function AppLayout({ user, children }) {
                         )}
 
                         {/* Right-side icons */}
-                        <HeaderIcons unreadCount={auth?.unreadCount} unreadTopics={auth?.topics} user={user} />
+                        <HeaderIcons unreadCount={auth?.unreadCount} unreadTopics={auth?.topics} alertCount={auth?.alertCount} user={user} />
                         {/* <div className="flex items-center gap-4 relative">
                             <div className="relative">
                                 {icons.messages}

@@ -24,7 +24,7 @@ class BackfillAlertContext extends Command
         $window = max(1, (int) $this->option('window'));
 
         $query = Alert::query()
-            ->whereIn('type_alert_id', [5, 7, 8, 9])
+            ->whereIn('type_alert_id', [5, 7, 8, 9, 11])
             ->where(function ($query) {
                 $query->whereNull('booking_id')
                     ->orWhereNull('booking_item_id')
@@ -177,6 +177,7 @@ class BackfillAlertContext extends Command
             7 => $query->where('q.slug', 'is_fit')->where('qa.answer', '2'),
             8 => $query->where('q.slug', 'is_agree')->where('qa.answer', '2'),
             9 => $query->whereIn('q.slug', ['is_agree', 'signature', 'full_name', 'email_address']),
+            11 => $query->where('q.slug', 'pregnant')->where('qa.answer', '1'),
             default => null,
         };
     }
@@ -206,6 +207,7 @@ class BackfillAlertContext extends Command
             7 => 'Not fit',
             8 => 'Terms not agreed',
             9 => 'Check-in complete',
+            11 => 'Pregnancy',
             default => 'Unknown',
         };
     }

@@ -515,6 +515,7 @@ class SeedCoreData extends Command
             ['id' => 8, 'name' => 'Not Agree', 'slug' => 'not_agree'],
             ['id' => 9, 'name' => 'Check-in Completed', 'slug' => 'check_in_completed'],
             ['id' => 10, 'name' => 'feedback Completed', 'slug' => 'feedback_completed'],
+            ['id' => 11, 'name' => 'Pregnancy', 'slug' => 'pregnancy'],
         ];
         foreach ($type_alerts as $type_alert) {
             TypeAlert::updateOrCreate(['id' => $type_alert['id']], $type_alert);

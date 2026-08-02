@@ -8,9 +8,17 @@ use App\Http\Requests\StoreAlertRequest;
 use App\Http\Requests\UpdateAlertRequest;
 use App\Models\User;
 use App\Models\Alert;
+use App\Models\Continent;
+use App\Models\Country;
+use App\Models\Questionnaire;
 use App\Models\QuestionAnswer;
+use App\Models\QuestionSite;
+use App\Models\State;
+use App\Models\TypeGroup;
+use App\Models\TypeReferral;
 use Gate;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -103,26 +111,31 @@ class AlertsController extends Controller
 
         $answers = collect();
         if ($alert->booking_item_id && $alert->customer_id) {
+            $optionMaps = $this->answerOptionMaps($alert);
+
             $answers = QuestionAnswer::with('question:id,name,slug,type,options')
                 ->where('booking_item_id', $alert->booking_item_id)
                 ->where('customer_id', $alert->customer_id)
                 ->orderBy('id')
                 ->get()
-                ->map(function ($answer) {
+                ->map(function ($answer) use ($optionMaps) {
+                    $slug = $answer->question?->slug;
+                    $options = $slug ? ($optionMaps[$slug] ?? $answer->question?->options) : $answer->question?->options;
+
                     return [
                         'id' => $answer->id,
                         'answer' => $answer->answer,
                         'resolved_answer' => $this->resolveAnswer(
                             $answer->answer,
-                            $answer->question?->slug,
-                            $answer->question?->options
+                            $slug,
+                            $options
                         ),
                         'question' => [
                             'id' => $answer->question?->id,
                             'name' => $answer->question?->name,
                             'slug' => $answer->question?->slug,
                             'type' => $answer->question?->type,
-                            'options' => $answer->question?->options,
+                            'options' => $options,
                         ],
                     ];
                 });
@@ -195,11 +208,122 @@ class AlertsController extends Controller
             }
         }
 
-        $pivot->read = true;
-        $pivot->complete = true;
-        $pivot->save();
+        $assignedTeamUserIds = User::where('team_id', $alert->team_id)->pluck('id');
+
+        DB::table('alert_user')
+            ->where('alert_id', $alert->id)
+            ->whereIn('user_id', $assignedTeamUserIds)
+            ->update([
+                'read' => true,
+                'complete' => true,
+                'updated_at' => now(),
+            ]);
 
         return response()->json(['success' => true]);
+    }
+
+    private function answerOptionMaps(Alert $alert): array
+    {
+        $bookingItem = $alert->booking_item;
+        $monthNames = [
+            'January',
+            'February',
+            'March',
+            'April',
+            'May',
+            'June',
+            'July',
+            'August',
+            'September',
+            'October',
+            'November',
+            'December',
+        ];
+
+        $optionMaps = [
+            'type_group_id' => TypeGroup::select('id', 'name')
+                ->get()
+                ->map(fn($row) => ['id' => $row->id, 'name' => $row->name])
+                ->values()
+                ->all(),
+            'referral_id' => TypeReferral::select('id', 'name')
+                ->get()
+                ->map(fn($row) => ['id' => $row->id, 'name' => $row->name])
+                ->values()
+                ->all(),
+            'continent_id' => Continent::select('id', 'name')
+                ->get()
+                ->map(fn($row) => ['id' => $row->id, 'name' => $row->name])
+                ->values()
+                ->all(),
+            'country_id' => Country::select('id', 'name')
+                ->get()
+                ->map(fn($row) => ['id' => $row->id, 'name' => $row->name])
+                ->values()
+                ->all(),
+            'province_id' => State::select('id', 'name')
+                ->get()
+                ->map(fn($row) => ['id' => $row->id, 'name' => $row->name])
+                ->values()
+                ->all(),
+            'age_id' => Questionnaire::AGES,
+            'gender' => Questionnaire::GENDERS,
+            'medical_id' => [
+                ['id' => 1, 'name' => 'Yes'],
+                ['id' => 2, 'name' => 'No'],
+            ],
+            'is_fit' => [
+                ['id' => 1, 'name' => 'Yes'],
+                ['id' => 2, 'name' => 'No'],
+            ],
+            'is_agree' => [
+                ['id' => 1, 'name' => 'Yes'],
+                ['id' => 2, 'name' => 'No'],
+            ],
+            'marketing_opt_in' => [
+                ['id' => 1, 'name' => 'Yes'],
+                ['id' => 2, 'name' => 'No'],
+            ],
+            'pregnant' => [
+                ['id' => 1, 'name' => 'Yes'],
+                ['id' => 2, 'name' => 'No'],
+            ],
+            'birthday_month' => collect($monthNames)
+                ->map(fn($name, $index) => ['id' => $index + 1, 'name' => $name])
+                ->values()
+                ->all(),
+            'birthday_day' => collect(range(1, 31))
+                ->map(fn($day) => ['id' => $day, 'name' => (string) $day])
+                ->values()
+                ->all(),
+            'parent_id' => $bookingItem
+                ? $bookingItem->customers()
+                    ->select('customers.id', 'customers.full_name')
+                    ->get()
+                    ->map(fn($customer) => ['id' => $customer->id, 'name' => $customer->full_name])
+                    ->values()
+                    ->all()
+                : [],
+        ];
+
+        if ($bookingItem?->service_id && $bookingItem?->season_id) {
+            $customOptionMaps = QuestionSite::with('question:id,slug,is_custom')
+                ->where('service_id', $bookingItem->service_id)
+                ->where('season_id', $bookingItem->season_id)
+                ->get()
+                ->filter(fn($site) => $site->question?->is_custom)
+                ->mapWithKeys(function ($site) {
+                    $options = $site->custom_options ?? [];
+                    return [$site->question->slug => is_array($options) ? $options : []];
+                })
+                ->all();
+
+            if (!empty($customOptionMaps)) {
+                $optionMaps = array_merge($optionMaps, $customOptionMaps);
+            }
+        }
+
+        return $optionMaps;
     }
 
     private function resolveAnswer($value, ?string $slug, $options)
@@ -208,41 +332,58 @@ class AlertsController extends Controller
             return null;
         }
 
-        if (in_array($slug, ['medical_id', 'is_fit', 'is_agree', 'pregnant', 'marketing_opt_in'], true)) {
-            return match ((string) $value) {
-                '1' => 'Yes',
-                '2' => 'No',
-                default => $value,
-            };
-        }
-
-        if ($slug === 'birthday_month') {
-            $months = [
-                1 => 'January',
-                2 => 'February',
-                3 => 'March',
-                4 => 'April',
-                5 => 'May',
-                6 => 'June',
-                7 => 'July',
-                8 => 'August',
-                9 => 'September',
-                10 => 'October',
-                11 => 'November',
-                12 => 'December',
-            ];
-
-            return $months[(int) $value] ?? $value;
-        }
-
         $options = is_array($options) ? $options : [];
-        foreach ($options as $option) {
-            $optionId = $option['id'] ?? null;
-            if ($optionId !== null && (string) $optionId === (string) $value) {
-                return $option['name'] ?? $value;
+        $decodedValue = $value;
+        if (is_string($value)) {
+            $trimmed = trim($value);
+            if (
+                $trimmed !== '' &&
+                ((str_starts_with($trimmed, '[') && str_ends_with($trimmed, ']')) ||
+                    (str_starts_with($trimmed, '{') && str_ends_with($trimmed, '}')))
+            ) {
+                $decoded = json_decode($trimmed, true);
+                if (json_last_error() === JSON_ERROR_NONE) {
+                    $decodedValue = $decoded;
+                }
             }
         }
 
-        return $value;
+        $mapOption = function ($raw) use ($options) {
+            if (is_bool($raw)) {
+                return $raw ? 'Yes' : 'No';
+            }
+
+            if (empty($options)) {
+                return $raw;
+            }
+
+            foreach ($options as $option) {
+                $optionId = $option['id'] ?? null;
+                if ($optionId !== null && (string) $optionId === (string) $raw) {
+                    return $option['name'] ?? $raw;
+                }
+            }
+
+            return $raw;
+        };
+
+        if (is_array($decodedValue)) {
+            return collect($decodedValue)
+                ->map(fn($val) => $mapOption($val))
+                ->implode(', ');
+        }
+
+        if ($decodedValue === true || $decodedValue === false) {
+            return $decodedValue ? 'Yes' : 'No';
+        }
+
+        foreach ($options as $option) {
+            $optionId = $option['id'] ?? null;
+            if ($optionId !== null && (string) $optionId === (string) $decodedValue) {
+                return $option['name'] ?? $decodedValue;
+            }
+        }
+
+        return $decodedValue;
     }
 }

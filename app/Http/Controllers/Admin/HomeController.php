@@ -129,7 +129,9 @@ class HomeController extends Controller
             //'translation_key' => 'Alert',
             'data'           => \App\Models\Alert::with('users:id,name')
                 ->when($teamId, fn($query) => $query->where('team_id', $teamId))
-                ->whereHas('users', fn($query) => $query->where('alert_user.complete', false))
+                ->whereHas('users', fn($query) => $query
+                    ->where('users.id', $user?->id)
+                    ->where('alert_user.complete', false))
                 ->latest()
                 ->take(10)
                 ->get()

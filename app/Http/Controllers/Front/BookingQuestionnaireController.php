@@ -923,25 +923,26 @@ class BookingQuestionnaireController extends Controller
                         $user->alerts()->attach($alert->id); // ✅ attach by ID
                     }
                 }
-                // always show complete indemnity
-                $alert = Alert::create([
-                    'alert_text' => $this->checkInAlertText('Check-in Complete', $customer, $booking),
-                    'alert_link' => route('admin.bookings.add', $booking->id, false),
-                    'type_alert_id' => 9,
-                    'team_id' => $booking->team_id,
-                    'booking_id' => $booking->id,
-                    'booking_item_id' => $bookingItem->id,
-                    'customer_id' => $customer->id,
-                    'customer_manifest_id' => $customerManifest->id,
-                ]);
-                $users = User::where('team_id', $booking->team_id)
-                    ->whereHas('roles', function ($query) {
-                        $query->whereIn('name', ['Manager', 'Consultant']);
-                    })
-                    ->with('roles')
-                    ->get();
-                foreach ($users as $user) {
-                    $user->alerts()->attach($alert->id); // ✅ attach by ID
+                if ((string) ($validated['pregnant'] ?? '') === '1') {
+                    $alert = Alert::create([
+                        'alert_text' => $this->checkInAlertText('Pregnancy', $customer, $booking),
+                        'alert_link' => route('admin.bookings.add', $booking->id, false),
+                        'type_alert_id' => 11,
+                        'team_id' => $booking->team_id,
+                        'booking_id' => $booking->id,
+                        'booking_item_id' => $bookingItem->id,
+                        'customer_id' => $customer->id,
+                        'customer_manifest_id' => $customerManifest->id,
+                    ]);
+                    $users = User::where('team_id', $booking->team_id)
+                        ->whereHas('roles', function ($query) {
+                            $query->whereIn('name', ['Manager', 'Consultant']);
+                        })
+                        ->with('roles')
+                        ->get();
+                    foreach ($users as $user) {
+                        $user->alerts()->attach($alert->id); // attach by ID
+                    }
                 }
 
                 if (false) {

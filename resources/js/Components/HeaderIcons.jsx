@@ -1,14 +1,19 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 //import { motion, AnimatePresence } from "framer-motion";
 import { icons } from '@/icons';
 import AlertContextModal from '@/Components/AlertContextModal';
 
-export default function HeaderIcons({ unreadCount, unreadTopics, user }) {
+export default function HeaderIcons({ unreadCount, unreadTopics, alertCount: totalAlertCount = 0, user }) {
     const [viewMessages, setViewMessages] = useState(false);
     const [viewAlerts, setViewAlerts] = useState(false);
     const [activeAlertId, setActiveAlertId] = useState(null);
+    const [alerts, setAlerts] = useState(user?.alerts || []);
+    const [alertCount, setAlertCount] = useState(totalAlertCount || user?.alerts?.length || 0);
 
-    const alertCount = user?.alerts?.length || 0;
+    useEffect(() => {
+        setAlerts(user?.alerts || []);
+        setAlertCount(totalAlertCount || user?.alerts?.length || 0);
+    }, [totalAlertCount, user?.alerts]);
     const openAlert = (alert) => {
         if (alert?.booking_id || alert?.customer_id || alert?.customer_manifest_id) {
             setActiveAlertId(alert.id);
@@ -104,8 +109,13 @@ export default function HeaderIcons({ unreadCount, unreadTopics, user }) {
                             </div>
 
                             <div className="max-h-64 overflow-y-auto">
-                                {user?.alerts?.length > 0 ? (
-                                    user.alerts.map(alert => (
+                                {alertCount > alerts.length && (
+                                    <div className="px-4 py-2 text-xs text-gray-500">
+                                        Showing latest {alerts.length} of {alertCount} alerts
+                                    </div>
+                                )}
+                                {alerts.length > 0 ? (
+                                    alerts.map(alert => (
                                         <button
                                             key={alert.id}
                                             type="button"
@@ -127,6 +137,10 @@ export default function HeaderIcons({ unreadCount, unreadTopics, user }) {
                 alertId={activeAlertId}
                 isOpen={Boolean(activeAlertId)}
                 onClose={() => setActiveAlertId(null)}
+                onResolved={(resolvedAlertId) => {
+                    setAlerts((currentAlerts) => currentAlerts.filter((alert) => alert.id !== resolvedAlertId));
+                    setAlertCount((currentCount) => Math.max(currentCount - 1, 0));
+                }}
                 reloadOnly={['auth']}
             />
         </div>

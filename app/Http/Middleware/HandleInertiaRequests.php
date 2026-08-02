@@ -39,6 +39,7 @@ class HandleInertiaRequests extends Middleware
         $user = $request->user();
         $teams = Team::all();
         $unreadCount = 0;
+        $alertCount = 0;
         $topics = [];
 
         if ($user) {
@@ -57,6 +58,9 @@ class HandleInertiaRequests extends Middleware
                 ->all();
             $teams = Team::all();
             $unreadCount = $user->unread_topic_count;
+            $alertCount = $user->alerts()
+                ->wherePivot('complete', false)
+                ->count();
             $topics = $user->unreadTopics()->with('messages.sender')->get();
 
             //dd($teams);
@@ -91,6 +95,7 @@ class HandleInertiaRequests extends Middleware
                 'count' => $count ?? 0,
                 'bookingId' => $bookingId ?? null,
                 'unreadCount' => $unreadCount,
+                'alertCount' => $alertCount,
                 'topics' => $topics,
             ],
             'permissions' =>  $permissions ?? [],
