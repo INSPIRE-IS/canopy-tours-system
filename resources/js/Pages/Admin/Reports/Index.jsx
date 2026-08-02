@@ -93,6 +93,11 @@ export default function Index({ auth, services = [], paymentTypes = [] }) {
         include_nationality: false,
         include_referral: false,
         include_gender: false,
+        include_medical: false,
+        include_medical_detail: false,
+        include_fitness: false,
+        include_pregnancy: false,
+        include_duplicate_checkins: false,
         delivery: 'download',
     });
 
@@ -486,6 +491,36 @@ export default function Index({ auth, services = [], paymentTypes = [] }) {
                                     label="Gender"
                                     name="include_gender"
                                     checked={manifestFilters.include_gender}
+                                    onChange={(name, checked) => setManifestFilters(prev => ({ ...prev, [name]: checked }))}
+                                />
+                                <CustomCheckbox
+                                    label="Medical"
+                                    name="include_medical"
+                                    checked={manifestFilters.include_medical}
+                                    onChange={(name, checked) => setManifestFilters(prev => ({ ...prev, [name]: checked }))}
+                                />
+                                <CustomCheckbox
+                                    label="Medical Details"
+                                    name="include_medical_detail"
+                                    checked={manifestFilters.include_medical_detail}
+                                    onChange={(name, checked) => setManifestFilters(prev => ({ ...prev, [name]: checked }))}
+                                />
+                                <CustomCheckbox
+                                    label="Fit To Walk"
+                                    name="include_fitness"
+                                    checked={manifestFilters.include_fitness}
+                                    onChange={(name, checked) => setManifestFilters(prev => ({ ...prev, [name]: checked }))}
+                                />
+                                <CustomCheckbox
+                                    label="Pregnancy"
+                                    name="include_pregnancy"
+                                    checked={manifestFilters.include_pregnancy}
+                                    onChange={(name, checked) => setManifestFilters(prev => ({ ...prev, [name]: checked }))}
+                                />
+                                <CustomCheckbox
+                                    label="Show Duplicate Check-ins"
+                                    name="include_duplicate_checkins"
+                                    checked={manifestFilters.include_duplicate_checkins}
                                     onChange={(name, checked) => setManifestFilters(prev => ({ ...prev, [name]: checked }))}
                                 />
                             </div>

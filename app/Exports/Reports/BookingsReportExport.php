@@ -23,7 +23,7 @@ class BookingsReportExport implements FromQuery, WithHeadings, WithMapping, Shou
 
     public function query(): Builder
     {
-        $query = BookingItem::withTrashed()
+        $query = BookingItem::query()
             ->select('booking_items.*')
             ->addSelect([
                 'latest_booking_note' => BookingNote::select('note')
@@ -35,22 +35,20 @@ class BookingsReportExport implements FromQuery, WithHeadings, WithMapping, Shou
             ])
             ->with([
                 'booking' => function ($query) {
-                    $query->withTrashed()
-                        ->select('id', 'reference', 'lead_name', 'user_id', 'created_at', 'deleted_at');
+                    $query->select('id', 'reference', 'lead_name', 'user_id', 'created_at', 'deleted_at');
                 },
                 'booking.user:id,name',
                 'booking_detail' => function ($query) {
-                    $query->withTrashed()
-                        ->select('id', 'booking_item_id', 'is_web_booking', 'deleted_at');
+                    $query->select('id', 'booking_item_id', 'is_web_booking', 'deleted_at');
                 },
                 'booking_fee' => function ($query) {
-                    $query->withTrashed()
-                        ->select('id', 'booking_item_id', 'tot_amount', 'tot_paid', 'deleted_at');
+                    $query->select('id', 'booking_item_id', 'tot_amount', 'tot_paid', 'deleted_at');
                 },
                 'booking_inventory:id,booking_item_id,date',
                 'service:id,name',
             ])
-            ->where('team_id', $this->teamId);
+            ->where('team_id', $this->teamId)
+            ->whereHas('booking');
 
         if ($this->serviceId) {
             $query->where('service_id', $this->serviceId);

@@ -11,6 +11,7 @@ use App\Models\TypeGroup;
 use App\Models\TypeReferral;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Concerns\FromQuery;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithHeadings;
@@ -33,6 +34,11 @@ class CheckInManifestReportExport implements FromQuery, WithHeadings, WithMappin
         private readonly bool $includeNationality,
         private readonly bool $includeReferral,
         private readonly bool $includeGender,
+        private readonly bool $includeMedical,
+        private readonly bool $includeMedicalDetail,
+        private readonly bool $includeFitness,
+        private readonly bool $includePregnancy,
+        private readonly bool $includeDuplicateCheckins,
     ) {
         $this->typeGroupMap = TypeGroup::select('id', 'name')
             ->get()
@@ -59,6 +65,15 @@ class CheckInManifestReportExport implements FromQuery, WithHeadings, WithMappin
 
     public function query(): Builder
     {
+        Log::info('Check-in manifest report export started', [
+            'team_id' => $this->teamId,
+            'start_date' => $this->startDate,
+            'end_date' => $this->endDate,
+            'service_id' => $this->serviceId,
+            'include_duplicate_checkins' => $this->includeDuplicateCheckins,
+            'filter_marker' => 'active_booking_items_only_v2',
+        ]);
+
         $query = CustomerManifest::query()
             ->select('customer_manifests.*')
             ->addSelect([
@@ -78,6 +93,18 @@ class CheckInManifestReportExport implements FromQuery, WithHeadings, WithMappin
             ])
             ->where('team_id', $this->teamId);
 
+        // Operational manifest exports need active booking/date context; orphan/cancelled legacy rows produce blank report lines.
+        $query->whereIn('customer_manifests.booking_item_id', function ($activeItems) {
+            $activeItems->select('manifest_booking_items.id')
+                ->from('booking_items as manifest_booking_items')
+                ->join('bookings as manifest_bookings', 'manifest_bookings.id', '=', 'manifest_booking_items.booking_id')
+                ->join('booking_inventories as manifest_booking_inventories', 'manifest_booking_inventories.booking_item_id', '=', 'manifest_booking_items.id')
+                ->whereNull('manifest_booking_items.deleted_at')
+                ->whereNull('manifest_bookings.deleted_at')
+                ->whereNull('manifest_booking_inventories.deleted_at')
+                ->whereNotNull('manifest_booking_inventories.date');
+        });
+
         if ($this->serviceId) {
             $query->whereHas('booking_item', function (Builder $sub) {
                 $sub->where('service_id', $this->serviceId);
@@ -94,6 +121,35 @@ class CheckInManifestReportExport implements FromQuery, WithHeadings, WithMappin
                 }
             });
         }
+
+        if (!$this->includeDuplicateCheckins) {
+            $query->whereRaw(
+                "(customer_manifests.customer_id IS NULL OR customer_manifests.id = (
+                    SELECT latest_manifests.id
+                    FROM customer_manifests AS latest_manifests
+                    LEFT JOIN customers AS latest_customers ON latest_customers.id = latest_manifests.customer_id
+                    LEFT JOIN customers AS current_customers ON current_customers.id = customer_manifests.customer_id
+                    WHERE latest_manifests.booking_item_id = customer_manifests.booking_item_id
+                        AND latest_manifests.deleted_at IS NULL
+                        AND (
+                            latest_manifests.customer_id = customer_manifests.customer_id
+                            OR (
+                                current_customers.full_name IS NOT NULL
+                                AND TRIM(current_customers.full_name) != ''
+                                AND LOWER(TRIM(latest_customers.full_name)) = LOWER(TRIM(current_customers.full_name))
+                            )
+                        )
+                    ORDER BY latest_manifests.updated_at DESC, latest_manifests.id DESC
+                    LIMIT 1
+                ))"
+            );
+        }
+
+        Log::debug('Check-in manifest report query prepared', [
+            'sql' => $query->toSql(),
+            'bindings' => $query->getBindings(),
+            'filter_marker' => 'active_booking_items_only_v2',
+        ]);
 
         return $query;
     }
@@ -124,6 +180,22 @@ class CheckInManifestReportExport implements FromQuery, WithHeadings, WithMappin
         if ($this->includeGender) {
             $headings[] = 'Gender';
         }
+        if ($this->includeMedical) {
+            $headings[] = 'Medical Condition';
+        }
+        if ($this->includeMedicalDetail) {
+            $headings[] = 'Medical Details';
+        }
+        if ($this->includeFitness) {
+            $headings[] = 'Fit To Walk';
+        }
+        if ($this->includePregnancy) {
+            $headings[] = 'Pregnancy';
+        }
+        if ($this->includeDuplicateCheckins) {
+            $headings[] = 'Manifest Created At';
+            $headings[] = 'Manifest Updated At';
+        }
 
         return $headings;
     }
@@ -134,6 +206,20 @@ class CheckInManifestReportExport implements FromQuery, WithHeadings, WithMappin
         $booking = $bookingItem?->booking;
         $inventory = $bookingItem?->booking_inventory;
         $timeSlot = $inventory?->inventory_time_slot;
+
+        if (!$booking || !$bookingItem || !$inventory || !$inventory?->date) {
+            Log::warning('Check-in manifest report row missing booking context after filters', [
+                'manifest_id' => $manifest->id,
+                'manifest_booking_item_id' => $manifest->booking_item_id,
+                'customer_id' => $manifest->customer_id,
+                'customer_name' => $manifest->customer?->full_name,
+                'has_booking_item' => (bool) $bookingItem,
+                'has_booking' => (bool) $booking,
+                'has_inventory' => (bool) $inventory,
+                'inventory_date' => $inventory?->date,
+                'filter_marker' => 'active_booking_items_only_v2',
+            ]);
+        }
 
         $checkedIn = $manifest->is_indemnity ? 'Yes' : 'No';
         $arrived = $manifest->attendance_status === 'arrived' ? 'Yes' : 'No';
@@ -150,7 +236,16 @@ class CheckInManifestReportExport implements FromQuery, WithHeadings, WithMappin
             $manifest->latest_booking_note ?? '',
         ];
 
-        if ($this->includeGroupType || $this->includeNationality || $this->includeReferral || $this->includeGender) {
+        if (
+            $this->includeGroupType ||
+            $this->includeNationality ||
+            $this->includeReferral ||
+            $this->includeGender ||
+            $this->includeMedical ||
+            $this->includeMedicalDetail ||
+            $this->includeFitness ||
+            $this->includePregnancy
+        ) {
             $bookingItemId = $bookingItem?->id;
             $customerId = $manifest->customer_id;
             $answers = $this->getAnswersForCustomer($bookingItemId, $customerId);
@@ -179,6 +274,23 @@ class CheckInManifestReportExport implements FromQuery, WithHeadings, WithMappin
                     ? ($this->typeGenderMap[(string) $genderValue] ?? $genderValue)
                     : '';
             }
+            if ($this->includeMedical) {
+                $row[] = $this->yesNoAnswer($answers['medical_id'] ?? null);
+            }
+            if ($this->includeMedicalDetail) {
+                $row[] = $answers['medical_detail'] ?? '';
+            }
+            if ($this->includeFitness) {
+                $row[] = $this->yesNoAnswer($answers['is_fit'] ?? null);
+            }
+            if ($this->includePregnancy) {
+                $row[] = $this->yesNoAnswer($answers['pregnant'] ?? null);
+            }
+        }
+
+        if ($this->includeDuplicateCheckins) {
+            $row[] = $manifest->created_at?->format('Y-m-d H:i:s') ?? '';
+            $row[] = $manifest->updated_at?->format('Y-m-d H:i:s') ?? '';
         }
 
         return $row;
@@ -211,5 +323,14 @@ class CheckInManifestReportExport implements FromQuery, WithHeadings, WithMappin
         }
 
         return $this->answersByBookingItem[$bookingItemId][$customerId] ?? [];
+    }
+
+    private function yesNoAnswer($value): string
+    {
+        return match ((string) $value) {
+            '1', 'true', 'TRUE', 'on' => 'Yes',
+            '2', '0', 'false', 'FALSE', 'off' => 'No',
+            default => $value === null || $value === '' ? '' : (string) $value,
+        };
     }
 }

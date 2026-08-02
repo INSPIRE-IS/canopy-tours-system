@@ -114,6 +114,11 @@ class ReportsController extends Controller
             'include_nationality' => 'nullable|in:0,1,true,false',
             'include_referral' => 'nullable|in:0,1,true,false',
             'include_gender' => 'nullable|in:0,1,true,false',
+            'include_medical' => 'nullable|in:0,1,true,false',
+            'include_medical_detail' => 'nullable|in:0,1,true,false',
+            'include_fitness' => 'nullable|in:0,1,true,false',
+            'include_pregnancy' => 'nullable|in:0,1,true,false',
+            'include_duplicate_checkins' => 'nullable|in:0,1,true,false',
             'delivery' => 'nullable|in:download,email',
         ]);
 
@@ -131,6 +136,11 @@ class ReportsController extends Controller
         $includeNationality = filter_var($validated['include_nationality'] ?? false, FILTER_VALIDATE_BOOLEAN);
         $includeReferral = filter_var($validated['include_referral'] ?? false, FILTER_VALIDATE_BOOLEAN);
         $includeGender = filter_var($validated['include_gender'] ?? false, FILTER_VALIDATE_BOOLEAN);
+        $includeMedical = filter_var($validated['include_medical'] ?? false, FILTER_VALIDATE_BOOLEAN);
+        $includeMedicalDetail = filter_var($validated['include_medical_detail'] ?? false, FILTER_VALIDATE_BOOLEAN);
+        $includeFitness = filter_var($validated['include_fitness'] ?? false, FILTER_VALIDATE_BOOLEAN);
+        $includePregnancy = filter_var($validated['include_pregnancy'] ?? false, FILTER_VALIDATE_BOOLEAN);
+        $includeDuplicateCheckins = filter_var($validated['include_duplicate_checkins'] ?? false, FILTER_VALIDATE_BOOLEAN);
 
         if ($validated['report'] === 'bookings') {
             $export = new BookingsReportExport($teamId, $startDate, $endDate, $serviceId ? (int) $serviceId : null);
@@ -154,7 +164,12 @@ class ReportsController extends Controller
                 $includeGroupType,
                 $includeNationality,
                 $includeReferral,
-                $includeGender
+                $includeGender,
+                $includeMedical,
+                $includeMedicalDetail,
+                $includeFitness,
+                $includePregnancy,
+                $includeDuplicateCheckins
             );
             $label = 'Check-in Manifest';
         } elseif ($validated['report'] === 'marketing_opt_in') {

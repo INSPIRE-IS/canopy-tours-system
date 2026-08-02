@@ -1094,10 +1094,10 @@ class SeedHelpQuestions extends Command
             [
                 'category' => 'Reports',
                 'question' => 'How do the Check-in/Manifest optional fields work?',
-                'description' => 'Optional columns for group type, nationality, referral source, and gender.',
+                'description' => 'Optional columns for group type, nationality, referral source, gender, and safety declarations.',
                 'where' => '<a href="/admin/reports">Admin > Reports</a>',
-                'business_rules' => 'The optional columns pull from questionnaire answers by slug: `type_group_id` for Group Type, `country_id`/`nationality_id` for Nationality (fallback to customer nationality if missing), `referral_id` for Referral Captured, and `gender`/`gender_id` for Gender. If a value is missing, the column is left blank. Checked-in is based on indemnity completion; Arrived is based on attendance status.',
-                'examples' => 'If a guest never completed the questionnaire, Group Type and Referral Captured will be blank. If they completed check-in but were marked No Show, Checked-in = Yes and Arrived = No.',
+                'business_rules' => 'The optional columns pull from questionnaire answers by slug: `type_group_id` for Group Type, `country_id`/`nationality_id` for Nationality (fallback to customer nationality if missing), `referral_id` for Referral Captured, `gender`/`gender_id` for Gender, `medical_id` for Medical, `medical_detail` for Medical Details, `is_fit` for Fit To Walk, and `pregnant` for Pregnancy. If a value is missing, the column is left blank. Checked-in is based on indemnity completion; Arrived is based on attendance status. The report excludes orphan legacy manifest rows that no longer have booking/date context. By default the report shows the latest manifest/check-in row per booking item and customer, and also collapses likely duplicate guest rows with the same booking item and same guest name. Tick Show Duplicate Check-ins to export repeated/duplicate check-in rows as well; duplicate mode adds Manifest Created At and Manifest Updated At columns so the latest record is clear.',
+                'examples' => 'If a guest reports a medical condition, tick Medical and Medical Details on the Check-in/Manifest report to export the declaration by activity date. If a guest completed check-in twice to correct details, or was accidentally captured twice with the same name, the default report shows the latest row. Tick Show Duplicate Check-ins when auditing every submission.',
                 'is_internal' => true,
             ],
             [
@@ -1105,8 +1105,8 @@ class SeedHelpQuestions extends Command
                 'question' => 'How is Booking Status shown in reports?',
                 'description' => 'Status display for bookings in exports.',
                 'where' => '<a href="/admin/reports">Admin > Reports</a>',
-                'business_rules' => 'Booking Status is derived from soft deletes: Active when the booking/booking item is not deleted, Cancelled when soft-deleted. Reports include soft-deleted rows to surface cancellations.',
-                'examples' => 'If a booking is cancelled via admin tools, the export will show Booking Status = Cancelled.',
+                'business_rules' => 'Operational reports exclude cancelled bookings and soft-deleted booking items by default. Booking Status remains available for active rows, but cancelled rows should not appear in standard report exports. If cancellation reporting is needed later, build it as a separate explicit cancellation report/filter.',
+                'examples' => 'If a booking is cancelled via admin tools, it is excluded from standard Bookings, Payments, Check-in/Manifest, Booking Adjustment, Marketing Opt-In, and Franchise Fees exports.',
                 'is_internal' => true,
             ],
             [

@@ -31,7 +31,8 @@ class BookingAdjustmentReportExport implements FromQuery, WithHeadings, WithMapp
                 'service:id,name',
                 'season:id,rake_rate_adult,rake_rate_child,rake_rate_guide',
             ])
-            ->where('team_id', $this->teamId);
+            ->where('team_id', $this->teamId)
+            ->whereHas('booking');
 
         if ($this->serviceId) {
             $query->where('service_id', $this->serviceId);

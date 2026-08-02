@@ -27,20 +27,20 @@ class PaymentsReportExport implements FromQuery, WithHeadings, WithMapping, Shou
             ->select('booking_payments.*')
             ->with([
                 'booking' => function ($query) {
-                    $query->withTrashed()
-                        ->select('id', 'reference', 'lead_name', 'created_at', 'grand_tot_due', 'tot_paid', 'deleted_at');
+                    $query->select('id', 'reference', 'lead_name', 'created_at', 'grand_tot_due', 'tot_paid', 'deleted_at');
                 },
                 'booking.booking_items' => function ($query) {
-                    $query->withTrashed()->select('id', 'booking_id', 'service_id');
+                    $query->select('id', 'booking_id', 'service_id');
                 },
                 'booking.booking_items.service:id,name',
                 'booking.booking_items.booking_inventory:id,booking_item_id,date',
                 'booking.booking_items.booking_detail' => function ($query) {
-                    $query->withTrashed()->select('id', 'booking_item_id', 'is_web_booking', 'deleted_at');
+                    $query->select('id', 'booking_item_id', 'is_web_booking', 'deleted_at');
                 },
                 'type_payment:id,name',
             ])
-            ->where('team_id', $this->teamId);
+            ->where('team_id', $this->teamId)
+            ->whereHas('booking');
 
         if ($this->typePaymentId) {
             $query->where('type_payment_id', $this->typePaymentId);
