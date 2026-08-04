@@ -63,7 +63,7 @@ function ServiceCheckboxGroup({ services = [], selectedIds = [], onChange }) {
     );
 }
 
-export default function Index({ auth, services = [], paymentTypes = [], wholesalers = [] }) {
+export default function Index({ auth, services = [], paymentTypes = [], wholesalers = [], promotions = [] }) {
     const { showToast } = useToast();
     const today = new Date();
     const defaultEnd = formatDate(today);
@@ -120,6 +120,14 @@ export default function Index({ auth, services = [], paymentTypes = [], wholesal
         end_date: defaultEnd,
         service_id: '',
         wholesaler_id: '',
+        delivery: 'download',
+    });
+
+    const [promoFilters, setPromoFilters] = useState({
+        start_date: defaultStart,
+        end_date: defaultEnd,
+        service_id: '',
+        promotion_id: '',
         delivery: 'download',
     });
 
@@ -181,6 +189,10 @@ export default function Index({ auth, services = [], paymentTypes = [], wholesal
     };
 
     const inputClass = "mt-1 block w-full h-[48px] border-gray-300 shadow-sm input-text rounded-[10px] hover:border-black active:border-blue-600 focus:outline-none focus:ring-0 focus:border-black";
+    const promotionOptions = promotions.map((promotion) => ({
+        ...promotion,
+        name: promotion.promo_code ? `${promotion.name} (${promotion.promo_code})` : promotion.name,
+    }));
 
     return (
         <AuthenticatedLayout
@@ -245,6 +257,76 @@ export default function Index({ auth, services = [], paymentTypes = [], wholesal
                                     title="Export Bookings"
                                     width="w-[180px]"
                                     onClick={() => exportReport('bookings', bookingFilters)}
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="border border-secondary-100 rounded-lg shadow-sm p-5">
+                        <div className="flex items-center gap-2 mb-4">
+                            <img src="/assets/icons/task-square.svg" alt="reports" className="w-5 h-5" />
+                            <span className="font-semibold text-lg text-gray-800">Promo Code Usage</span>
+                        </div>
+                        <p className="text-sm text-gray-600 mb-4">
+                            Exports promo code bookings by activity date with pax, value, and discount impact.
+                        </p>
+                        <div className="grid gap-4">
+                            <div className="grid gap-4 md:grid-cols-2">
+                                <div>
+                                    <label className="text-[#161618] font-poppins text-[12px] font-normal leading-[130%]">
+                                        Activity Date From
+                                    </label>
+                                    <input
+                                        type="date"
+                                        className={inputClass}
+                                        value={promoFilters.start_date}
+                                        onChange={(e) => setPromoFilters(prev => ({ ...prev, start_date: e.target.value }))}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-[#161618] font-poppins text-[12px] font-normal leading-[130%]">
+                                        Activity Date To
+                                    </label>
+                                    <input
+                                        type="date"
+                                        className={inputClass}
+                                        value={promoFilters.end_date}
+                                        onChange={(e) => setPromoFilters(prev => ({ ...prev, end_date: e.target.value }))}
+                                    />
+                                </div>
+                            </div>
+                            <CustomSelect
+                                label="Promo Code"
+                                name="promo_code_usage_promotion_id"
+                                value={promoFilters.promotion_id}
+                                onChange={(e) => setPromoFilters(prev => ({ ...prev, promotion_id: e.target.value }))}
+                                options={promotionOptions}
+                                optionText="All promo codes"
+                            />
+                            <CustomSelect
+                                label="Service"
+                                name="promo_code_usage_service_id"
+                                value={promoFilters.service_id}
+                                onChange={(e) => setPromoFilters(prev => ({ ...prev, service_id: e.target.value }))}
+                                options={services}
+                                optionText="All services"
+                            />
+                            <CustomSelect
+                                label="Delivery"
+                                name="promo_code_usage_delivery"
+                                value={promoFilters.delivery}
+                                onChange={(e) => setPromoFilters(prev => ({ ...prev, delivery: e.target.value }))}
+                                options={[
+                                    { id: 'download', name: 'Download now' },
+                                    { id: 'email', name: 'Email when ready' },
+                                ]}
+                                showOption={false}
+                            />
+                            <div className="flex justify-end">
+                                <BlueButton
+                                    title="Export Promo Codes"
+                                    width="w-[200px]"
+                                    onClick={() => exportReport('promo_code_usage', promoFilters)}
                                 />
                             </div>
                         </div>
