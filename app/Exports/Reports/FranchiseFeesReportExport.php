@@ -79,7 +79,7 @@ class FranchiseFeesReportExport implements FromCollection, WithHeadings, ShouldA
         $rows->push($this->summaryRow("Royalty @ {$this->percentLabel($royaltyPercent)}", $this->money($turnoverExclVat * ($royaltyPercent / 100))));
         $rows->push($this->summaryRow("Marketing Account @ {$this->percentLabel($marketingPercent)}", $this->money($turnoverExclVat * ($marketingPercent / 100))));
         $rows->push($this->blankRow());
-        $rows->push($this->summaryRow('Report Notes', 'V1 buckets known 10/15/20/25%, student, configured trade-exchange wholesalers, prepaid voucher partner rates, complimentary, and full-rate rows; unmapped promos/discounts/non-trade wholesalers/custom rates are grouped under Other with notes.'));
+        $rows->push($this->summaryRow('Report Notes', 'V1 buckets known 10/15/20/25%, configured trade-exchange wholesalers, prepaid voucher partner rates, complimentary, and full-rate rows; unmapped promos/discounts/non-trade wholesalers/custom rates are grouped under Other with notes.'));
 
         return $rows;
     }
@@ -108,8 +108,6 @@ class FranchiseFeesReportExport implements FromCollection, WithHeadings, ShouldA
             '20% Income',
             '25% Pax',
             '25% Income',
-            'Student Rate Pax',
-            'Student Rate Income',
             'Other Pax',
             'Other Income',
             'TOTAL',
@@ -308,11 +306,6 @@ class FranchiseFeesReportExport implements FromCollection, WithHeadings, ShouldA
             return 'complimentary';
         }
 
-        $name = strtolower((string) ($discountItem->discount?->name ?? $this->discountNames[$discountItem->discount_id] ?? ''));
-        if (str_contains($name, 'student')) {
-            return 'student';
-        }
-
         return $this->percentBucket((float) ($discountItem->discount?->percent_off ?? 0));
     }
 
@@ -479,8 +472,6 @@ class FranchiseFeesReportExport implements FromCollection, WithHeadings, ShouldA
             'discount_20_income' => 0.0,
             'discount_25_pax' => 0,
             'discount_25_income' => 0.0,
-            'student_pax' => 0,
-            'student_income' => 0.0,
             'other_pax' => 0,
             'other_income' => 0.0,
             'comments' => [],
@@ -511,8 +502,6 @@ class FranchiseFeesReportExport implements FromCollection, WithHeadings, ShouldA
             $this->money($row['discount_20_income']),
             $row['discount_25_pax'] ?: '',
             $this->money($row['discount_25_income']),
-            $row['student_pax'] ?: '',
-            $this->money($row['student_income']),
             $row['other_pax'] ?: '',
             $this->money($row['other_income']),
             $this->money($row['total']),
