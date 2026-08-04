@@ -9,10 +9,12 @@ use App\Exports\Reports\CheckInManifestReportExport;
 use App\Exports\Reports\FranchiseFeesReportExport;
 use App\Exports\Reports\MarketingOptInReportExport;
 use App\Exports\Reports\PaymentsReportExport;
+use App\Exports\Reports\WholesalerUsageReportExport;
 use App\Jobs\SendReportReadyEmail;
 use App\Models\Service;
 use App\Models\TypePayment;
 use App\Models\BookingQuestionnaire;
+use App\Models\Wholesaler;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Storage;
@@ -92,23 +94,26 @@ class ReportsController extends Controller
 
         $services = Service::select('id', 'name')->orderBy('name')->get();
         $paymentTypes = TypePayment::select('id', 'name')->orderBy('name')->get();
+        $wholesalers = Wholesaler::select('id', 'name')->orderBy('name')->get();
 
         return Inertia::render('Admin/Reports/Index', [
             'title' => 'All',
             'services' => $services,
             'paymentTypes' => $paymentTypes,
+            'wholesalers' => $wholesalers,
         ]);
     }
 
     public function export(Request $request)
     {
         $validated = $request->validate([
-            'report' => 'required|in:bookings,payments,checkin_manifest,booking_adjustment,marketing_opt_in,franchise_fees',
+            'report' => 'required|in:bookings,payments,checkin_manifest,booking_adjustment,marketing_opt_in,franchise_fees,wholesaler_usage',
             'start_date' => 'nullable|date',
             'end_date' => 'nullable|date',
             'service_id' => 'nullable|exists:services,id',
             'service_ids' => 'nullable|array',
             'service_ids.*' => 'integer|exists:services,id',
+            'wholesaler_id' => 'nullable|exists:wholesalers,id',
             'type_payment_id' => 'nullable|exists:type_payments,id',
             'include_group_type' => 'nullable|in:0,1,true,false',
             'include_nationality' => 'nullable|in:0,1,true,false',
@@ -192,6 +197,16 @@ class ReportsController extends Controller
                 $franchiseServiceIds
             );
             $label = 'Franchise Fees';
+        } elseif ($validated['report'] === 'wholesaler_usage') {
+            $wholesalerId = $validated['wholesaler_id'] ?? null;
+            $export = new WholesalerUsageReportExport(
+                $teamId,
+                $startDate,
+                $endDate,
+                $serviceId ? (int) $serviceId : null,
+                $wholesalerId ? (int) $wholesalerId : null
+            );
+            $label = 'Wholesaler Usage';
         } else {
             $export = new BookingAdjustmentReportExport(
                 $teamId,

@@ -63,7 +63,7 @@ function ServiceCheckboxGroup({ services = [], selectedIds = [], onChange }) {
     );
 }
 
-export default function Index({ auth, services = [], paymentTypes = [] }) {
+export default function Index({ auth, services = [], paymentTypes = [], wholesalers = [] }) {
     const { showToast } = useToast();
     const today = new Date();
     const defaultEnd = formatDate(today);
@@ -112,6 +112,14 @@ export default function Index({ auth, services = [], paymentTypes = [] }) {
         start_date: defaultStart,
         end_date: defaultEnd,
         service_ids: [],
+        delivery: 'download',
+    });
+
+    const [wholesalerFilters, setWholesalerFilters] = useState({
+        start_date: defaultStart,
+        end_date: defaultEnd,
+        service_id: '',
+        wholesaler_id: '',
         delivery: 'download',
     });
 
@@ -248,7 +256,7 @@ export default function Index({ auth, services = [], paymentTypes = [] }) {
                             <span className="font-semibold text-lg text-gray-800">Franchise Fees</span>
                         </div>
                         <p className="text-sm text-gray-600 mb-4">
-                            Monthly activity-date worksheet grouping full rate, complimentary, trade exchange, discount bands, student, and other custom rates.
+                            Monthly activity-date worksheet grouping full rate, complimentary, trade exchange, voucher partner, discount bands, and other custom rates.
                         </p>
                         <div className="grid gap-4">
                             <div className="grid gap-4 md:grid-cols-2">
@@ -296,6 +304,76 @@ export default function Index({ auth, services = [], paymentTypes = [] }) {
                                     title="Export Franchise"
                                     width="w-[180px]"
                                     onClick={() => exportReport('franchise_fees', franchiseFilters)}
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="border border-secondary-100 rounded-lg shadow-sm p-5">
+                        <div className="flex items-center gap-2 mb-4">
+                            <img src="/assets/icons/task-square.svg" alt="reports" className="w-5 h-5" />
+                            <span className="font-semibold text-lg text-gray-800">Wholesaler Usage</span>
+                        </div>
+                        <p className="text-sm text-gray-600 mb-4">
+                            Exports wholesaler bookings by activity date with pax, paid amounts, and the adjustment from rack rate.
+                        </p>
+                        <div className="grid gap-4">
+                            <div className="grid gap-4 md:grid-cols-2">
+                                <div>
+                                    <label className="text-[#161618] font-poppins text-[12px] font-normal leading-[130%]">
+                                        Activity Date From
+                                    </label>
+                                    <input
+                                        type="date"
+                                        className={inputClass}
+                                        value={wholesalerFilters.start_date}
+                                        onChange={(e) => setWholesalerFilters(prev => ({ ...prev, start_date: e.target.value }))}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-[#161618] font-poppins text-[12px] font-normal leading-[130%]">
+                                        Activity Date To
+                                    </label>
+                                    <input
+                                        type="date"
+                                        className={inputClass}
+                                        value={wholesalerFilters.end_date}
+                                        onChange={(e) => setWholesalerFilters(prev => ({ ...prev, end_date: e.target.value }))}
+                                    />
+                                </div>
+                            </div>
+                            <CustomSelect
+                                label="Wholesaler"
+                                name="wholesaler_usage_wholesaler_id"
+                                value={wholesalerFilters.wholesaler_id}
+                                onChange={(e) => setWholesalerFilters(prev => ({ ...prev, wholesaler_id: e.target.value }))}
+                                options={wholesalers}
+                                optionText="All wholesalers"
+                            />
+                            <CustomSelect
+                                label="Service"
+                                name="wholesaler_usage_service_id"
+                                value={wholesalerFilters.service_id}
+                                onChange={(e) => setWholesalerFilters(prev => ({ ...prev, service_id: e.target.value }))}
+                                options={services}
+                                optionText="All services"
+                            />
+                            <CustomSelect
+                                label="Delivery"
+                                name="wholesaler_usage_delivery"
+                                value={wholesalerFilters.delivery}
+                                onChange={(e) => setWholesalerFilters(prev => ({ ...prev, delivery: e.target.value }))}
+                                options={[
+                                    { id: 'download', name: 'Download now' },
+                                    { id: 'email', name: 'Email when ready' },
+                                ]}
+                                showOption={false}
+                            />
+                            <div className="flex justify-end">
+                                <BlueButton
+                                    title="Export Wholesalers"
+                                    width="w-[190px]"
+                                    onClick={() => exportReport('wholesaler_usage', wholesalerFilters)}
                                 />
                             </div>
                         </div>
