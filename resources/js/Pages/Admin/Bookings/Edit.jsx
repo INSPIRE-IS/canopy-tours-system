@@ -166,8 +166,9 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
         redeem_voucher: '',
         redeem_discount: '',
         redeem_wholesaler_rate: '',
-            invoice_note: note_defaults?.invoice_note || '',
-            email_reminder: note_defaults?.email_reminder || '',
+        wholesaler_rate_id: '',
+        invoice_note: note_defaults?.invoice_note || '',
+        email_reminder: note_defaults?.email_reminder || '',
         booking_note: note_defaults?.booking_note || '',
         // booking details
         corporate_customer: false,
@@ -247,12 +248,25 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
             ).values()
         ).filter(Boolean)
         : (wholesalers || []);
+    const isRateValidForDate = (rate, date) => {
+        if (!rate) return false;
+        if (rate.is_active === false || rate.is_active === 0) return false;
+        if (!date) return true;
+        const from = rate.effective_from ? String(rate.effective_from).slice(0, 10) : null;
+        const to = rate.effective_to ? String(rate.effective_to).slice(0, 10) : null;
+        return (!from || from <= date) && (!to || to >= date);
+    };
+    const rateLabel = (rate) => {
+        const dateLabel = `${rate.effective_from ? String(rate.effective_from).slice(0, 10) : 'Any start'} - ${rate.effective_to ? String(rate.effective_to).slice(0, 10) : 'Any end'}`;
+        return `${rate.name || rate.season?.name || 'Wholesaler rate'} (${dateLabel})`;
+    };
     const selectedWholesalerRates = useMemo(() => (wholesaler_rates || []).filter(rate =>
         Number(rate.wholesaler_id) === Number(data.wholesaler_id)
         && Number(rate.season_id) === Number(selectedSeason?.id || data.season_id)
         && Number(rate.service_id) === Number(selectedService?.id || data.service_id)
-    ), [wholesaler_rates, data.wholesaler_id, data.season_id, data.service_id, selectedSeason?.id, selectedService?.id]);
-    const selectedWholesalerRate = selectedWholesalerRates[0] || null;
+        && (isRateValidForDate(rate, data.booking_date) || Number(rate.id) === Number(data.wholesaler_rate_id))
+    ), [wholesaler_rates, data.wholesaler_id, data.season_id, data.service_id, data.booking_date, data.wholesaler_rate_id, selectedSeason?.id, selectedService?.id]);
+    const selectedWholesalerRate = selectedWholesalerRates.find(rate => Number(rate.id) === Number(data.wholesaler_rate_id)) || selectedWholesalerRates[0] || null;
     const isPrepaidWholesalerVoucher = Boolean(data.is_wholesaler && (data.is_prepaid_wholesaler_voucher || (wholesalerApplied && selectedWholesalerRate?.is_prepaid_voucher)));
     const hasWholesalers = Array.isArray(serviceWholesalers) && serviceWholesalers.length > 0;
     const activePromoCode = promoCode || data.promoCode || null;
@@ -390,6 +404,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
         if (!hasWholesalers && data.is_wholesaler) {
             setData('is_wholesaler', false);
             setData('wholesaler_id', '');
+            setData('wholesaler_rate_id', '');
             setWholesalerApplied(false);
         }
 
@@ -476,6 +491,8 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
                 service_id: service_id,
                 season_id: season_id,
                 wholesaler_id: wholesaler_id,
+                wholesaler_rate_id: type === 'saler' ? (data.wholesaler_rate_id || null) : null,
+                allow_historical_wholesaler_rate: type === 'saler',
                 booking_date: booking_date,
                 promo_code: promo_code,
                 promotion_id: shouldUsePromotionId ? promotionId : null,
@@ -500,6 +517,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
                 rate_per_guide: applied_rates.guide ?? prev.rate_per_guide,
                 booking_total: total_price || 0,
                 is_prepaid_wholesaler_voucher: Boolean(res.data.applied_wholesaler_rate?.is_prepaid_voucher),
+                wholesaler_rate_id: res.data.applied_wholesaler_rate?.id || prev.wholesaler_rate_id,
             }));
             const responseGroups = Array.isArray(res.data.line_items) && res.data.line_items.length > 0
                 ? res.data.line_items
@@ -642,39 +660,39 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
     ]);
 
     useEffect(() => {
-        console.log('wholesaler_id', data.wholesaler_id);
-        console.log('selectedWholesaler, data.is_wholesaler 391', wholesaler_rates);
-        console.log('selectedWholesaler, data.is_wholesaler 391', data.wholesaler_id);
-        console.log('selectedWholesaler, data.is_wholesaler 391', data.is_wholesaler);
         if (isInitializing) {
             prevIsWholesalerRef.current = data.is_wholesaler;
             return;
         }
-        if (data.wholesaler_id && data.is_wholesaler && wholesalerApplied) {
-            //setPricingMode(PRICING_MODES.WHOLESALER);
-            //resetPricingState('wholesaler');
+        if (data.wholesaler_id && data.is_wholesaler) {
+            const wholesalerList = selectedWholesalerRates.map(rate => ({
+                id: rate.id,
+                name: rateLabel(rate),
+                price_adult: rate.price_adult,
+                price_child: rate.price_child,
+                price_guide: rate.price_guide,
+            }));
+            setWholesalerRateList(wholesalerList);
 
-            const wholesaler_rates_list = selectedWholesalerRates;
-            //console.log('wholesaler_rates_list', wholesaler_rates_list);
-            let wholesalerList = [];
-            wholesaler_rates_list.forEach(rate => {
-                //console.log('rate', rate);
-                const filtered = { id: rate.id, name: rate.season?.name, price_adult: rate.price_adult, price_child: rate.price_child, price_guide: rate.price_guide };
-                // console.log('filtered', filtered);
+            const nextRate = selectedWholesalerRate;
+            if (nextRate && String(data.wholesaler_rate_id || '') !== String(nextRate.id)) {
+                setData('wholesaler_rate_id', nextRate.id);
+                return;
+            }
+
+            if (wholesalerApplied && nextRate) {
                 setData(prev => ({
                     ...prev,
                     override_price: false,
                     override_rates: false,
-                    adult: rate.price_adult || 0,
-                    child: rate.price_child || 0,
-                    guide: rate.price_guide || 0,
-                    rate_per_adult: rate.price_adult || 0,
-                    rate_per_child: rate.price_child || 0,
-                    rate_per_guide: rate.price_guide || 0,
+                    adult: nextRate.price_adult || 0,
+                    child: nextRate.price_child || 0,
+                    guide: nextRate.price_guide || 0,
+                    rate_per_adult: nextRate.price_adult || 0,
+                    rate_per_child: nextRate.price_child || 0,
+                    rate_per_guide: nextRate.price_guide || 0,
                 }));
-                wholesalerList.push(filtered);
-            });
-            setWholesalerRateList(wholesalerList);
+            }
         }
         const wasWholesaler = prevIsWholesalerRef.current;
         if (!data.is_wholesaler) {
@@ -684,14 +702,14 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
                 setData(prev => ({
                     ...prev,
                     wholesaler_id: null,
+                    wholesaler_rate_id: null,
                 }));
                 resetPromoDiscountAndRates();
             }
         }
         prevIsWholesalerRef.current = data.is_wholesaler;
 
-    }, [data.wholesaler_id, data.is_wholesaler, wholesalerApplied, isInitializing, selectedWholesalerRates]);
-
+    }, [data.wholesaler_id, data.is_wholesaler, data.wholesaler_rate_id, data.booking_date, wholesalerApplied, isInitializing, selectedWholesalerRates, selectedWholesalerRate]);
     const handleDateChange = (newDate) => {
         // setActivityDate(newDate);
         if (!booking?.id) return;
@@ -1361,6 +1379,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
             booking_item_id: bookingItem?.id || null,
             is_wholesaler: isWholesaler,
             wholesaler_id: bookingItem?.wholesaler_id || '',
+            wholesaler_rate_id: bookingItem?.wholesaler_rate_id || '',
             service_id: bookingItem?.service_id || '',
             override_capacity: !!bookingDetail?.is_override_capacity,
             capacity: service?.capacity || 0,
@@ -2189,11 +2208,28 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
                             {data.is_wholesaler && (
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <CustomSelect
+                                        label="Wholesaler"
                                         name="wholesaler_id"
                                         value={data.wholesaler_id}
-                                        onChange={(e) => { handleChange(e.target.name, e.target.value) }}
+                                        onChange={(e) => {
+                                            setData('wholesaler_rate_id', '');
+                                            setWholesalerApplied(false);
+                                            handleChange(e.target.name, e.target.value);
+                                        }}
                                         errors={errors}
                                         options={serviceWholesalers}
+                                    />
+                                    <CustomSelect
+                                        label="Wholesaler Rate"
+                                        name="wholesaler_rate_id"
+                                        value={data.wholesaler_rate_id}
+                                        onChange={(e) => {
+                                            setWholesalerApplied(false);
+                                            setData('wholesaler_rate_id', e.target.value);
+                                        }}
+                                        errors={errors}
+                                        options={wholesalerRateList}
+                                        optionText={wholesalerRateList.length ? '-- Select rate --' : 'No valid rates for this date'}
                                     />
                                     <CustomCheckbox
                                         label="Add Consultant"
@@ -2557,8 +2593,8 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
                                                             <span>
                                                                 <span title={group.adjustment_label || undefined}>
                                                                     {group.adjustment_label ? "Promo" : (group.discount_id
-                                                                    ? discountList.find((d) => d.id === group.discount_id)?.name
-                                                                    : "Adult")} {group.count}
+                                                                        ? discountList.find((d) => d.id === group.discount_id)?.name
+                                                                        : "Adult")} {group.count}
                                                                 </span>
                                                             </span>
                                                         </label>
@@ -2654,8 +2690,8 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
                                                             <span>
                                                                 <span title={group.adjustment_label || undefined}>
                                                                     {group.adjustment_label ? "Promo" : (group.discount_id
-                                                                    ? discountList.find((d) => d.id === group.discount_id)?.name
-                                                                    : "Child")} {group.count}
+                                                                        ? discountList.find((d) => d.id === group.discount_id)?.name
+                                                                        : "Child")} {group.count}
                                                                 </span>
                                                             </span>
                                                         </label>
@@ -2751,8 +2787,8 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
                                                             <span>
                                                                 <span title={group.adjustment_label || undefined}>
                                                                     {group.adjustment_label ? "Promo" : (group.discount_id
-                                                                    ? discountList.find((d) => d.id === group.discount_id)?.name
-                                                                    : "Guide")} {group.count}
+                                                                        ? discountList.find((d) => d.id === group.discount_id)?.name
+                                                                        : "Guide")} {group.count}
                                                                 </span>
                                                             </span>
                                                         </label>
@@ -3056,9 +3092,6 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
                                 )}
                             </div>
 
-                            {data.bill_back && (<span className="text-booking-lbl-main w-full text-center font-normal my-7">
-                                Bill Back - The Wholesaler will be invoiced for R{(Number(data?.rack_value) || 0) * (Number(total) || 0)} after the service is delivered.
-                            </span>)}
 
                             <div className="flex items-center mt-2 space-x-4">
                                 <CustomCheckbox

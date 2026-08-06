@@ -73,10 +73,10 @@ class WholesalerUsageReportExport implements FromCollection, ShouldAutoSize, Sho
             'Service',
             'Season',
             'Wholesaler',
+            'Wholesaler Rate',
             'Wholesaler Rate ID',
             'Trade Exchange',
             'Prepaid Voucher Partner',
-            'Bill Back',
             'Pax Adults',
             'Pax Children',
             'Pax Guides',
@@ -106,10 +106,10 @@ class WholesalerUsageReportExport implements FromCollection, ShouldAutoSize, Sho
                 $item->service?->name ?? '',
                 $item->season?->name ?? '',
                 $item->wholesaler?->name ?? '',
+                $item->wholesaler_rate?->name ?? '',
                 $item->wholesaler_rate_id ?? '',
                 $this->yesNo((bool) ($item->wholesaler?->is_trade_exchange ?? false)),
                 $this->yesNo($this->isPrepaidVoucher($item)),
-                $this->yesNo((bool) ($item->wholesaler_rate?->bill_back ?? false)),
                 (int) ($item->pax_adults ?? 0),
                 (int) ($item->pax_children ?? 0),
                 (int) ($item->pax_guides ?? 0),
@@ -150,7 +150,7 @@ class WholesalerUsageReportExport implements FromCollection, ShouldAutoSize, Sho
                 'service:id,name',
                 'season:id,name,rake_rate_adult,rake_rate_child,rake_rate_guide',
                 'wholesaler:id,name,is_trade_exchange',
-                'wholesaler_rate:id,wholesaler_id,service_id,season_id,price_adult,price_child,price_guide,bill_back,is_prepaid_voucher',
+                'wholesaler_rate:id,name,wholesaler_id,service_id,season_id,price_adult,price_child,price_guide,is_prepaid_voucher,effective_from,effective_to,is_active',
             ])
             ->where('team_id', $this->teamId)
             ->whereHas('booking', fn (Builder $query) => $query->whereNull('deleted_at'))

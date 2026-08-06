@@ -146,21 +146,65 @@ class BookingsController extends Controller
             && $requestedPax <= $currentPax;
     }
 
-    private function assertWholesalerRateExists(?int $wholesalerId, int $seasonId, int $serviceId): void
+    private function assertWholesalerRateExists(?int $wholesalerId, int $seasonId, int $serviceId, ?string $activityDate = null, ?int $wholesalerRateId = null, bool $allowHistoricalExplicitRate = false): void
     {
         if (!$wholesalerId) {
             return;
         }
 
-        $exists = WholesalerRate::where('wholesaler_id', $wholesalerId)
+        $baseQuery = WholesalerRate::where('wholesaler_id', $wholesalerId)
             ->where('season_id', $seasonId)
             ->where('service_id', $serviceId)
-            ->where('team_id', auth()->user()->team_id)
-            ->exists();
+            ->where('team_id', auth()->user()->team_id);
 
-        if (!$exists) {
+        if ($wholesalerRateId) {
+            $explicitQuery = (clone $baseQuery)->whereKey($wholesalerRateId);
+            if (!$allowHistoricalExplicitRate) {
+                $activityDate = $activityDate ?: now()->toDateString();
+                $explicitQuery
+                    ->where('is_active', true)
+                    ->where(function ($query) use ($activityDate) {
+                        $query->whereNull('effective_from')
+                            ->orWhereDate('effective_from', '<=', $activityDate);
+                    })
+                    ->where(function ($query) use ($activityDate) {
+                        $query->whereNull('effective_to')
+                            ->orWhereDate('effective_to', '>=', $activityDate);
+                    });
+            }
+
+            $exists = $explicitQuery->exists();
+            if (!$exists) {
+                throw ValidationException::withMessages([
+                    'wholesaler_rate_id' => 'The selected wholesaler rate is not valid for this wholesaler, service, season, and date.',
+                ]);
+            }
+
+            return;
+        }
+
+        $activityDate = $activityDate ?: now()->toDateString();
+        $validCount = $baseQuery
+            ->where('is_active', true)
+            ->where(function ($query) use ($activityDate) {
+                $query->whereNull('effective_from')
+                    ->orWhereDate('effective_from', '<=', $activityDate);
+            })
+            ->where(function ($query) use ($activityDate) {
+                $query->whereNull('effective_to')
+                    ->orWhereDate('effective_to', '>=', $activityDate);
+            })
+            ->count();
+
+        if ($validCount < 1) {
             throw ValidationException::withMessages([
                 'wholesaler_id' => 'The selected wholesaler does not have rates for this season/date. Please choose another rate or recalculate from rack.',
+            ]);
+        }
+
+        if ($validCount > 1) {
+            throw ValidationException::withMessages([
+                'wholesaler_rate_id' => 'More than one wholesaler rate is valid for this date. Please choose the exact rate.',
             ]);
         }
     }
@@ -793,7 +837,7 @@ class BookingsController extends Controller
         $vouchers = Voucher::select('id', 'voucher_code as name', 'amount', 'note', 'expire_date', 'season_id', 'service_id')->with('season', 'service')->get();
         $discounts = Discount::select('id', 'name', 'applies_to', 'percent_off')->with('services')->get();
         //dd($discounts);
-        $wholesaler_rates = WholesalerRate::select('id', 'wholesaler_id', 'service_id', 'season_id', 'price_adult', 'price_child', 'price_guide', 'bill_back', 'is_prepaid_voucher')
+        $wholesaler_rates = WholesalerRate::select('id', 'name', 'wholesaler_id', 'service_id', 'season_id', 'price_adult', 'price_child', 'price_guide', 'bill_back', 'is_prepaid_voucher', 'effective_from', 'effective_to', 'is_active', 'note')
             ->where('team_id', auth()->user()->team_id)
             ->with('service', 'season', 'wholesaler')
             ->get();
@@ -890,6 +934,7 @@ class BookingsController extends Controller
 
             'is_wholesaler' => 'boolean', //   "is_wholesaler" => "true"
             'wholesaler_id' => 'integer|nullable', //   "wholesaler_id" => "1"
+            'wholesaler_rate_id' => 'integer|nullable|exists:wholesaler_rates,id',
             'discount_lines' => 'array|nullable',
             'invoice_discount_id' => 'nullable|exists:discounts,id',
             'promoCode' => 'nullable|string',
@@ -949,12 +994,14 @@ class BookingsController extends Controller
                     $validated['promoCode'] = null;
                     $validated['discount_lines'] = [];
                     $validated['wholesaler_id'] = null;
+                    $validated['wholesaler_rate_id'] = null;
                     $validated['is_wholesaler'] = false;
                 }
                 if (!empty($validated['invoice_discount_id'])) {
                     $validated['promoCode'] = null;
                     $validated['discount_lines'] = [];
                     $validated['wholesaler_id'] = null;
+                    $validated['wholesaler_rate_id'] = null;
                     $validated['is_wholesaler'] = false;
                 }
                 $inventory = Inventory::where('season_id', $season->id)->first();
@@ -987,13 +1034,17 @@ class BookingsController extends Controller
                 $this->assertWholesalerRateExists(
                     $validated['is_wholesaler'] ? ($validated['wholesaler_id'] ?? null) : null,
                     (int) $validated['season_id'],
-                    (int) $validated['service_id']
+                    (int) $validated['service_id'],
+                    $validated['booking_date'],
+                    $validated['is_wholesaler'] ? ($validated['wholesaler_rate_id'] ?? null) : null
                 );
                 $pricing = app(PricingService::class)->calculate([
                     'service_id' => $validated['service_id'],
+                    'team_id' => auth()->user()->team_id,
                     'season_id' => $validated['season_id'],
                     'booking_date' => $validated['booking_date'],
                     'wholesaler_id' => $validated['is_wholesaler'] ? ($validated['wholesaler_id'] ?? null) : null,
+                    'wholesaler_rate_id' => $validated['is_wholesaler'] ? ($validated['wholesaler_rate_id'] ?? null) : null,
                     'promo_code' => $validated['promoCode'] ?? null,
                     'invoice_discount_id' => $validated['invoice_discount_id'] ?? null,
                     'adults' => $adultsCount,
@@ -1671,19 +1722,29 @@ class BookingsController extends Controller
                 $promoCode = $activity['promoCode'] ?? null;
                 $discountLinesInput = $activity['discount_lines'] ?? [];
                 $wholesalerId = $isWholesaler ? ($activity['wholesaler_id'] ?? null) : null;
+                $wholesalerRateId = $isWholesaler ? ($activity['wholesaler_rate_id'] ?? null) : null;
                 if ($overrideRates || $invoiceDiscountId) {
                     $promoCode = null;
                     $discountLinesInput = [];
                     $wholesalerId = null;
+                    $wholesalerRateId = null;
                     $isWholesaler = false;
                 }
-                $this->assertWholesalerRateExists($wholesalerId ? (int) $wholesalerId : null, (int) $activity['season_id'], (int) $activity['service_id']);
+                $this->assertWholesalerRateExists(
+                    $wholesalerId ? (int) $wholesalerId : null,
+                    (int) $activity['season_id'],
+                    (int) $activity['service_id'],
+                    $activity['booking_date'],
+                    $wholesalerRateId ? (int) $wholesalerRateId : null
+                );
 
                 $pricing = app(PricingService::class)->calculate([
                     'service_id' => $activity['service_id'],
+                    'team_id' => $teamId,
                     'season_id' => $activity['season_id'],
                     'booking_date' => $activity['booking_date'],
                     'wholesaler_id' => $wholesalerId,
+                    'wholesaler_rate_id' => $wholesalerRateId,
                     'promo_code' => $promoCode,
                     'invoice_discount_id' => $invoiceDiscountId ?: null,
                     'adults' => (int) ($activity['adults'] ?? 0),
@@ -2088,7 +2149,7 @@ class BookingsController extends Controller
 
         $vouchers = Voucher::select('id', 'voucher_code as name', 'amount', 'note', 'expire_date', 'season_id', 'service_id')->with('season', 'service')->get();
         $discounts = Discount::select('id', 'name', 'applies_to', 'percent_off')->with('services')->get();
-        $wholesaler_rates = WholesalerRate::select('id', 'wholesaler_id', 'service_id', 'season_id', 'price_adult', 'price_child', 'price_guide', 'bill_back', 'is_prepaid_voucher')
+        $wholesaler_rates = WholesalerRate::select('id', 'name', 'wholesaler_id', 'service_id', 'season_id', 'price_adult', 'price_child', 'price_guide', 'bill_back', 'is_prepaid_voucher', 'effective_from', 'effective_to', 'is_active', 'note')
             ->where('team_id', auth()->user()->team_id)
             ->with('service', 'season', 'wholesaler')
             ->get();
@@ -2210,6 +2271,7 @@ class BookingsController extends Controller
 
             'is_wholesaler' => 'boolean',
             'wholesaler_id' => 'integer|nullable',
+            'wholesaler_rate_id' => 'integer|nullable|exists:wholesaler_rates,id',
             'discount_lines' => 'array|nullable',
             'invoice_discount_id' => 'nullable|exists:discounts,id',
             'promoCode' => 'nullable|string',
@@ -2261,12 +2323,14 @@ class BookingsController extends Controller
                     $validated['promoCode'] = null;
                     $validated['discount_lines'] = [];
                     $validated['wholesaler_id'] = null;
+                    $validated['wholesaler_rate_id'] = null;
                     $validated['is_wholesaler'] = false;
                 }
                 if (!empty($validated['invoice_discount_id'])) {
                     $validated['promoCode'] = null;
                     $validated['discount_lines'] = [];
                     $validated['wholesaler_id'] = null;
+                    $validated['wholesaler_rate_id'] = null;
                     $validated['is_wholesaler'] = false;
                 }
                 $inventory = Inventory::where('season_id', $season->id)->first();
@@ -2308,13 +2372,18 @@ class BookingsController extends Controller
                 $this->assertWholesalerRateExists(
                     $validated['is_wholesaler'] ? ($validated['wholesaler_id'] ?? null) : null,
                     (int) $validated['season_id'],
-                    (int) $validated['service_id']
+                    (int) $validated['service_id'],
+                    $validated['booking_date'],
+                    $validated['is_wholesaler'] ? ($validated['wholesaler_rate_id'] ?? null) : null,
+                    true
                 );
                 $pricing = app(PricingService::class)->calculate([
                     'service_id' => $validated['service_id'],
+                    'team_id' => auth()->user()->team_id,
                     'season_id' => $validated['season_id'],
                     'booking_date' => $validated['booking_date'],
                     'wholesaler_id' => $validated['is_wholesaler'] ? ($validated['wholesaler_id'] ?? null) : null,
+                    'wholesaler_rate_id' => $validated['is_wholesaler'] ? ($validated['wholesaler_rate_id'] ?? null) : null,
                     'promo_code' => $validated['promoCode'] ?? null,
                     'invoice_discount_id' => $validated['invoice_discount_id'] ?? null,
                     'adults' => $adultsCount,
@@ -3566,7 +3635,7 @@ class BookingsController extends Controller
 
         $vouchers = Voucher::select('id', 'voucher_code as name', 'amount', 'note', 'expire_date', 'season_id', 'service_id')->with('season', 'service')->get();
         $discounts = Discount::select('id', 'name', 'applies_to', 'percent_off')->with('services')->get();
-        $wholesaler_rates = WholesalerRate::select('id', 'wholesaler_id', 'service_id', 'season_id', 'price_adult', 'price_child', 'price_guide', 'bill_back', 'is_prepaid_voucher')
+        $wholesaler_rates = WholesalerRate::select('id', 'name', 'wholesaler_id', 'service_id', 'season_id', 'price_adult', 'price_child', 'price_guide', 'bill_back', 'is_prepaid_voucher', 'effective_from', 'effective_to', 'is_active', 'note')
             ->where('team_id', auth()->user()->team_id)
             ->with('season', 'wholesaler')
             ->get();
@@ -4918,6 +4987,8 @@ class BookingsController extends Controller
             'service_id'   => 'required|exists:services,id',
             'season_id'    => 'required|exists:seasons,id',
             'wholesaler_id' => 'nullable|exists:wholesalers,id',
+            'wholesaler_rate_id' => 'nullable|exists:wholesaler_rates,id',
+            'allow_historical_wholesaler_rate' => 'nullable|boolean',
             'promo_code'   => 'nullable|string',
             'promotion_id' => 'nullable|exists:promotions,id',
             'invoice_discount_id' => 'nullable|exists:discounts,id',
@@ -4932,12 +5003,41 @@ class BookingsController extends Controller
             $data['team_id'] = auth()->user()->team_id;
 
             if (!empty($data['wholesaler_id'])) {
-                $hasWholesalerRate = WholesalerRate::where('wholesaler_id', $data['wholesaler_id'])
+                $rateQuery = WholesalerRate::where('wholesaler_id', $data['wholesaler_id'])
                     ->where('season_id', $data['season_id'])
                     ->where('service_id', $data['service_id'])
-                    ->where('team_id', $data['team_id'])
-                    ->exists();
-                if (!$hasWholesalerRate) {
+                    ->where('team_id', $data['team_id']);
+
+                if (!empty($data['wholesaler_rate_id'])) {
+                    $activityDate = $data['booking_date'];
+                    $rateQuery->whereKey($data['wholesaler_rate_id']);
+
+                    if (empty($data['allow_historical_wholesaler_rate'])) {
+                        $rateQuery->where('is_active', true)
+                            ->where(function ($query) use ($activityDate) {
+                            $query->whereNull('effective_from')
+                                ->orWhereDate('effective_from', '<=', $activityDate);
+                            })
+                            ->where(function ($query) use ($activityDate) {
+                                $query->whereNull('effective_to')
+                                    ->orWhereDate('effective_to', '>=', $activityDate);
+                            });
+                    }
+                } else {
+                    $activityDate = $data['booking_date'];
+                    $rateQuery
+                        ->where('is_active', true)
+                        ->where(function ($query) use ($activityDate) {
+                            $query->whereNull('effective_from')
+                                ->orWhereDate('effective_from', '<=', $activityDate);
+                        })
+                        ->where(function ($query) use ($activityDate) {
+                            $query->whereNull('effective_to')
+                                ->orWhereDate('effective_to', '>=', $activityDate);
+                        });
+                }
+
+                if (!$rateQuery->exists()) {
                     return response()->json([
                         'message' => 'The selected wholesaler does not have rates for this season/date. Please choose another rate or recalculate from rack.',
                     ], 422);
@@ -4987,6 +5087,7 @@ class BookingsController extends Controller
             'service_id' => 'required|exists:services,id',
             'season_id' => 'required|exists:seasons,id',
             'wholesaler_id' => 'nullable|exists:wholesalers,id',
+            'wholesaler_rate_id' => 'nullable|exists:wholesaler_rates,id',
             'promo_code' => 'nullable|string',
             'booking_date' => 'required|date',
             // pax_groups: [{ type: "adult", count: 2, discount_id: null }, ...]

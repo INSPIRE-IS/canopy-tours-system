@@ -9,7 +9,6 @@ import Modal from './Modal';
 import HeaderWholesalers from '@/Components/HeaderWholesalers';
 
 export default function Index({ auth, rates, searchTerm, sortColumn, sortDirection, permissions, wholesalers, services }) {
-  console.log('auth on user ', auth);
   const [selected, setSelected] = useState(null);
   const [search, setSearch] = useState(searchTerm || '');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -79,13 +78,16 @@ export default function Index({ auth, rates, searchTerm, sortColumn, sortDirecti
                     <thead className="bg-gray-50 text-left text-gray-500">
                       <tr className='flex justify-between items-center'>
                         <th className="w-[80px] p-3">ID</th>
-                        <th className="w-[180px] p-3">Wholesaler</th>
+                        <th className="w-[150px] p-3">Wholesaler</th>
+                        <th className="w-[100px] p-3">Rate</th>
                         <th className="w-[140px] p-3">Service</th>
                         <th className="w-[140px] p-3">Season</th>
-                        <th className="w-[100px] p-3">Adult</th>
-                        <th className="w-[100px] p-3">Child</th>
-                        <th className="w-[100px] p-3">Guide</th>
-                        <th className="w-[120px] p-3">Voucher</th>
+                        <th className="w-[150px] p-3">Valid Dates</th>
+                        <th className="w-[70px] p-3">Adult</th>
+                        <th className="w-[70px] p-3">Child</th>
+                        <th className="w-[70px] p-3">Guide</th>
+                        <th className="w-[100px] p-3">Active</th>
+                        <th className="w-[100px] p-3">Voucher</th>
                         <th className="w-[185px] p-3"></th>
                       </tr>
                     </thead>
@@ -93,13 +95,18 @@ export default function Index({ auth, rates, searchTerm, sortColumn, sortDirecti
                       {rates?.data.map((item) => (
                         <tr key={item.id} className="flex justify-between items-center hover:bg-gray-50">
                           <td className="w-[80px] p-3">{item.id}</td>
-                          <td className="w-[180px] p-3">{item.wholesaler?.name}</td>
+                          <td className="w-[150px] p-3">{item.wholesaler?.name}</td>
+                          <td className="w-[100px] p-3">{item.name || 'Default rate'}</td>
                           <td className="w-[140px] p-3">{item.service?.name}</td>
                           <td className="w-[140px] p-3">{item.season?.name ?? item.season?.id}</td>
-                          <td className="w-[100px] p-3">{item.price_adult}</td>
-                          <td className="w-[100px] p-3">{item.price_child}</td>
-                          <td className="w-[100px] p-3">{item.price_guide}</td>
-                          <td className="w-[120px] p-3">{item.is_prepaid_voucher ? 'Yes' : 'No'}</td>
+                          <td className="w-[150px] p-3">
+                            {(item.effective_from || 'Any start')} - {(item.effective_to || 'Any end')}
+                          </td>
+                          <td className="w-[70px] p-3">{item.price_adult}</td>
+                          <td className="w-[70px] p-3">{item.price_child}</td>
+                          <td className="w-[70px] p-3">{item.price_guide}</td>
+                          <td className="w-[100px] p-3">{item.is_active ? 'Yes' : 'Archived'}</td>
+                          <td className="w-[100px] p-3">{item.is_prepaid_voucher ? 'Yes' : 'No'}</td>
                           <td className="w-[185px] p-3 flex gap-2">
                             {permissions?.wholesaler_rates_edit && (
                               <button onClick={() => handleOpenModal("edit", item)} className="text-green-600 hover:text-green-800">Edit</button>

@@ -29,6 +29,7 @@ class WholesalerRateController extends Controller
                 });
             })
             ->orderBy($sort, $direction)
+            ->orderBy('effective_from')
             ->paginate(10)
             ->withQueryString();
         // dd($rates);
@@ -52,6 +53,7 @@ class WholesalerRateController extends Controller
         $teamId = auth()->user()->team_id;
 
         $data = $request->validate([
+            'name' => ['nullable', 'string', 'max:120'],
             'wholesaler_id' => ['required', Rule::exists('wholesalers', 'id')->where('team_id', $teamId)],
             'service_id' => ['required', Rule::exists('services', 'id')->where('team_id', $teamId)],
             'season_id' => [
@@ -65,11 +67,17 @@ class WholesalerRateController extends Controller
             'price_guide' => ['nullable', 'numeric', 'min:0'],
             'bill_back' => ['nullable', 'boolean'],
             'is_prepaid_voucher' => ['nullable', 'boolean'],
+            'effective_from' => ['nullable', 'date'],
+            'effective_to' => ['nullable', 'date', 'after_or_equal:effective_from'],
+            'is_active' => ['nullable', 'boolean'],
+            'note' => ['nullable', 'string'],
         ]);
         $data['team_id'] = $teamId;
-        $data['bill_back'] = (bool) ($data['bill_back'] ?? false);
-        $data['is_prepaid_voucher'] = (bool) ($data['is_prepaid_voucher'] ?? false);
-        $this->assertUniqueRate($data);
+        $data['name'] = trim($data['name'] ?? '') ?: 'Default rate';
+        $data['bill_back'] = $request->boolean('bill_back');
+        $data['is_prepaid_voucher'] = $request->boolean('is_prepaid_voucher');
+        $data['is_active'] = $request->boolean('is_active', true);
+        $this->assertNoOverlappingActiveRate($data);
 
         WholesalerRate::create($data);
         return redirect()->back()->with('message', 'Wholesaler rate created.');
@@ -81,6 +89,7 @@ class WholesalerRateController extends Controller
         abort_if((int) $wholesalerRate->team_id !== (int) $teamId, 403);
 
         $data = $request->validate([
+            'name' => ['nullable', 'string', 'max:120'],
             'wholesaler_id' => ['required', Rule::exists('wholesalers', 'id')->where('team_id', $teamId)],
             'service_id' => ['required', Rule::exists('services', 'id')->where('team_id', $teamId)],
             'season_id' => [
@@ -94,11 +103,17 @@ class WholesalerRateController extends Controller
             'price_guide' => ['nullable', 'numeric', 'min:0'],
             'bill_back' => ['nullable', 'boolean'],
             'is_prepaid_voucher' => ['nullable', 'boolean'],
+            'effective_from' => ['nullable', 'date'],
+            'effective_to' => ['nullable', 'date', 'after_or_equal:effective_from'],
+            'is_active' => ['nullable', 'boolean'],
+            'note' => ['nullable', 'string'],
         ]);
         $data['team_id'] = $teamId;
-        $data['bill_back'] = (bool) ($data['bill_back'] ?? false);
-        $data['is_prepaid_voucher'] = (bool) ($data['is_prepaid_voucher'] ?? false);
-        $this->assertUniqueRate($data, $wholesalerRate->id);
+        $data['name'] = trim($data['name'] ?? '') ?: 'Default rate';
+        $data['bill_back'] = $request->boolean('bill_back');
+        $data['is_prepaid_voucher'] = $request->boolean('is_prepaid_voucher');
+        $data['is_active'] = $request->boolean('is_active', true);
+        $this->assertNoOverlappingActiveRate($data, $wholesalerRate->id);
 
         $wholesalerRate->update($data);
         return redirect()->back()->with('message', 'Wholesaler rate updated.');
@@ -112,21 +127,46 @@ class WholesalerRateController extends Controller
         return redirect()->back()->with('message', 'Wholesaler rate removed.');
     }
 
-    private function assertUniqueRate(array $data, ?int $ignoreId = null): void
+    private function assertNoOverlappingActiveRate(array $data, ?int $ignoreId = null): void
     {
-        $exists = WholesalerRate::withTrashed()
+        if (empty($data['is_active'])) {
+            return;
+        }
+
+        $newFrom = $data['effective_from'] ?? null;
+        $newTo = $data['effective_to'] ?? null;
+
+        $overlap = WholesalerRate::query()
             ->where('wholesaler_id', $data['wholesaler_id'])
             ->where('service_id', $data['service_id'])
             ->where('season_id', $data['season_id'])
+            ->where('team_id', $data['team_id'])
+            ->where('is_active', true)
             ->when($ignoreId, fn ($query) => $query->where('id', '!=', $ignoreId))
+            ->where(function ($query) use ($newTo) {
+                $query->whereNull('effective_from');
+                if ($newTo) {
+                    $query->orWhereDate('effective_from', '<=', $newTo);
+                } else {
+                    $query->orWhereNotNull('effective_from');
+                }
+            })
+            ->where(function ($query) use ($newFrom) {
+                $query->whereNull('effective_to');
+                if ($newFrom) {
+                    $query->orWhereDate('effective_to', '>=', $newFrom);
+                } else {
+                    $query->orWhereNotNull('effective_to');
+                }
+            })
             ->exists();
 
-        if (!$exists) {
+        if (!$overlap) {
             return;
         }
 
         throw ValidationException::withMessages([
-            'season_id' => 'This wholesaler, service, and season combination is already saved. Please choose different options or close this form and edit the existing record.',
+            'effective_from' => 'This active wholesaler rate overlaps another active rate for the same wholesaler, service, and season. Archive the old rate or adjust the dates first.',
         ]);
     }
 }

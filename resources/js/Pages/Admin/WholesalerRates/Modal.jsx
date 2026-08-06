@@ -8,7 +8,9 @@ import CustomCheckbox from "@/Components/CustomCheckbox";
 
 const Modal = ({ isOpen, onClose, mode, item = null, permissions, wholesalers, services, auth }) => {
   const [seasons, setSeasons] = useState([]);
+  const dateOnly = (value) => value ? String(value).slice(0, 10) : "";
   const { data, setData, post, put, errors, reset, processing } = useForm({
+    name: "",
     wholesaler_id: "",
     service_id: "",
     season_id: "",
@@ -17,6 +19,10 @@ const Modal = ({ isOpen, onClose, mode, item = null, permissions, wholesalers, s
     price_guide: "",
     bill_back: false,
     is_prepaid_voucher: false,
+    effective_from: "",
+    effective_to: "",
+    is_active: true,
+    note: "",
     team_id: auth?.user?.team_id,
     created_by_id: auth?.user?.id,
     updated_by_id: auth?.user?.id,
@@ -25,6 +31,7 @@ const Modal = ({ isOpen, onClose, mode, item = null, permissions, wholesalers, s
   useEffect(() => {
     if (item && mode !== "create") {
       setData({
+        name: item?.name || "",
         wholesaler_id: item?.wholesaler_id || "",
         service_id: item?.service_id || "",
         season_id: item?.season_id || "",
@@ -33,6 +40,10 @@ const Modal = ({ isOpen, onClose, mode, item = null, permissions, wholesalers, s
         price_guide: item?.price_guide || "",
         bill_back: item?.bill_back || false,
         is_prepaid_voucher: item?.is_prepaid_voucher || false,
+        effective_from: dateOnly(item?.effective_from),
+        effective_to: dateOnly(item?.effective_to),
+        is_active: item?.is_active ?? true,
+        note: item?.note || "",
         team_id: auth?.user?.team_id,
         created_by_id: item.created_by_id || auth?.user?.id,
         updated_by_id: item.updated_by_id || auth?.user?.id,
@@ -43,25 +54,17 @@ const Modal = ({ isOpen, onClose, mode, item = null, permissions, wholesalers, s
   }, [mode, item?.id, isOpen]);
 
   useEffect(() => {
-    if (data && data?.service_id) {
-      const selectedService = services.find(s => {
-        console.log('service', s);
-        console.log('service_id ', data.service_id);
-        const selected = s.id === parseInt(data.service_id);
-        console.log(selected);
-
-        return selected;
-      });
-      console.log(selectedService);
-      const seasons = selectedService ? setSeasons(selectedService.seasons) : [];
-      console.log('seasons', selectedService?.seasons);
+    if (!data?.service_id) {
+      setSeasons([]);
+      return;
     }
-  }, [data]);
+
+    const selectedService = services.find(s => s.id === parseInt(data.service_id));
+    setSeasons(selectedService?.seasons || []);
+  }, [data.service_id, services]);
 
   //const handleChange = (target, value) => setData(target, value);
   const handleChange = (target, value) => {
-    console.log('target ', target);
-    console.log('value ', value);
     setData(target, value);
     //setData("voucher_code", e.target.value);
   };
@@ -69,7 +72,6 @@ const Modal = ({ isOpen, onClose, mode, item = null, permissions, wholesalers, s
   const handleSubmit = (e) => {
     e.preventDefault();
     if (mode === "create") {
-      console.log('data ', data);
       post(route('admin.wholesaler-rates.store'), { onSuccess: () => onClose() });
     } else if (mode === "edit") {
       put(route('admin.wholesaler-rates.update', item.id), { onSuccess: () => onClose() });
@@ -120,14 +122,23 @@ const Modal = ({ isOpen, onClose, mode, item = null, permissions, wholesalers, s
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 w-full items-center gap-2 justify-between mb-4">
+              <InputText title="Rate Name" field="name" value={data?.name ?? ""} mode={mode} handleChange={handleChange} errors={errors} placeholder="e.g. 2026 operator rate" />
+              <InputText title="Effective From" field="effective_from" value={data?.effective_from ?? ""} type="date" mode={mode} handleChange={handleChange} errors={errors} />
+              <InputText title="Effective To" field="effective_to" value={data?.effective_to ?? ""} type="date" mode={mode} handleChange={handleChange} errors={errors} />
               <InputText title="Adult Price" field="price_adult" value={data?.price_adult ?? ""} mode={mode} handleChange={handleChange} errors={errors} />
               <InputText title="Child Price" field="price_child" value={data?.price_child ?? ""} mode={mode} handleChange={handleChange} errors={errors} />
               <InputText title="Guide Price" field="price_guide" value={data?.price_guide ?? ""} mode={mode} handleChange={handleChange} errors={errors} />
-              <CustomCheckbox label="Bill Back" name="bill_back" side="right" checked={data?.bill_back ?? false} mode={mode} onChange={handleChange} errors={errors} />
+              <CustomCheckbox label="Active" name="is_active" side="right" checked={data?.is_active ?? true} mode={mode} onChange={handleChange} errors={errors} disabled={mode === "view"} />
               <div>
-                <CustomCheckbox label="Prepaid Voucher Partner" name="is_prepaid_voucher" side="right" checked={data?.is_prepaid_voucher ?? false} mode={mode} onChange={handleChange} errors={errors} />
+                <CustomCheckbox label="Prepaid Voucher Partner" name="is_prepaid_voucher" side="right" checked={data?.is_prepaid_voucher ?? false} mode={mode} onChange={handleChange} errors={errors} disabled={mode === "view"} />
                 <p className="mt-1 text-xs text-gray-500">
-                  Use when guests have already paid through an external voucher or partner platform. The booking keeps this rate for reporting, but the customer balance is marked paid.
+                  Use only for prepaid partner/voucher rates where the customer does not pay the site directly. Reporting keeps this rate; the customer-facing balance is marked paid.
+                </p>
+              </div>
+              <div className="md:col-span-2">
+                <InputText title="Notes" field="note" value={data?.note ?? ""} mode={mode} handleChange={handleChange} errors={errors} placeholder="Optional internal note" />
+                <p className="mt-1 text-xs text-gray-500">
+                  Date ranges protect old bookings. Existing bookings keep the saved rate snapshot and rate id.
                 </p>
               </div>
             </div>

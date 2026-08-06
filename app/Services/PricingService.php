@@ -47,11 +47,7 @@ class PricingService
             $data['invoice_discount_id'] = null;
         } else {
             if (!empty($data['wholesaler_id'])) {
-                $wr = WholesalerRate::where('wholesaler_id', $data['wholesaler_id'])
-                    ->where('season_id', $season->id)
-                    ->where('service_id', $data['service_id'])
-                    ->when(!empty($data['team_id']), fn ($query) => $query->where('team_id', $data['team_id']))
-                    ->first();
+                $wr = $this->resolveWholesalerRate($data, $season->id);
                 if ($wr) {
                     $rates['adult'] = $wr->price_adult ?? $rates['adult'];
                     $rates['child'] = $wr->price_child ?? $rates['child'];
@@ -61,11 +57,15 @@ class PricingService
                         'wholesaler_id' => $wr->wholesaler_id,
                         'service_id' => $wr->service_id,
                         'season_id' => $wr->season_id,
+                        'name' => $wr->name,
                         'price_adult' => (float) $wr->price_adult,
                         'price_child' => (float) $wr->price_child,
                         'price_guide' => (float) $wr->price_guide,
                         'bill_back' => (bool) $wr->bill_back,
                         'is_prepaid_voucher' => (bool) $wr->is_prepaid_voucher,
+                        'effective_from' => $wr->effective_from?->toDateString(),
+                        'effective_to' => $wr->effective_to?->toDateString(),
+                        'is_active' => (bool) $wr->is_active,
                     ];
                 }
             }
@@ -530,5 +530,34 @@ class PricingService
         }
 
         return $withDiscounts;
+    }
+
+    private function resolveWholesalerRate(array $data, int $seasonId): ?WholesalerRate
+    {
+        $baseQuery = WholesalerRate::where('wholesaler_id', $data['wholesaler_id'])
+            ->where('season_id', $seasonId)
+            ->where('service_id', $data['service_id'])
+            ->when(!empty($data['team_id']), fn ($query) => $query->where('team_id', $data['team_id']));
+
+        if (!empty($data['wholesaler_rate_id'])) {
+            return (clone $baseQuery)->whereKey($data['wholesaler_rate_id'])->first();
+        }
+
+        $activityDate = $data['booking_date'] ?? now()->toDateString();
+
+        return $baseQuery
+            ->where('is_active', true)
+            ->where(function ($query) use ($activityDate) {
+                $query->whereNull('effective_from')
+                    ->orWhereDate('effective_from', '<=', $activityDate);
+            })
+            ->where(function ($query) use ($activityDate) {
+                $query->whereNull('effective_to')
+                    ->orWhereDate('effective_to', '>=', $activityDate);
+            })
+            ->orderByRaw('effective_from IS NULL')
+            ->orderByDesc('effective_from')
+            ->orderByDesc('id')
+            ->first();
     }
 }
