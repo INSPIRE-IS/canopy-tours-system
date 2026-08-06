@@ -956,22 +956,40 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
         setShowPromo(false);
         setShowWholesaler(false);
         setWholesalerApplied(false);
+
+        const adultCount = parseInt(data.adults || 0);
+        const childCount = parseInt(data.children || 0);
+        const guideCount = parseInt(data.guides || 0);
+        const baseRates = {
+            adult: Number(data.base_per_adult || 0),
+            child: Number(data.base_per_child || 0),
+            guide: Number(data.base_per_guide || 0),
+        };
+        const bookingTotal = (
+            (adultCount * baseRates.adult) +
+            (childCount * baseRates.child) +
+            (guideCount * baseRates.guide)
+        ).toFixed(2);
+
         setData(prev => ({
             ...prev,
             promoCode: null,
             discount_lines: [],
             invoice_discount_id: null,
+            override_rates: true,
+            override_price: false,
             is_wholesaler: false,
             wholesaler_id: '',
+            wholesaler_rate_id: '',
+            is_prepaid_wholesaler_voucher: false,
+            rate_per_adult: baseRates.adult,
+            rate_per_child: baseRates.child,
+            rate_per_guide: baseRates.guide,
+            adult: baseRates.adult,
+            child: baseRates.child,
+            guide: baseRates.guide,
+            booking_total: bookingTotal || 0,
         }));
-        const adultCount = parseInt(data.adults || 0);
-        const childCount = parseInt(data.children || 0);
-        const guideCount = parseInt(data.guides || 0);
-        const baseRates = {
-            adult: Number(data.rate_per_adult || 0),
-            child: Number(data.rate_per_child || 0),
-            guide: Number(data.rate_per_guide || 0),
-        };
         setPaxGroups(buildBasePaxGroups(adultCount, childCount, guideCount, baseRates));
     };
 
@@ -1102,7 +1120,6 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
                 setData('override_rates', false);
                 return;
             }
-            setData('override_rates', nextValue);
             if (nextValue) {
                 clearPricingForOverride();
             } else {
