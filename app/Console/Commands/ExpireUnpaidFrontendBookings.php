@@ -56,10 +56,12 @@ class ExpireUnpaidFrontendBookings extends Command
             ->get();
 
         $rows = [];
+        $candidateCount = 0;
         $expiredCandidateCount = 0;
         $expiredCount = 0;
 
         foreach ($bookings as $booking) {
+            $candidateCount++;
             $latestSubmitAt = GatewayLog::where('booking_id', $booking->id)
                 ->where('event', 'submit')
                 ->max('created_at');
@@ -70,7 +72,11 @@ class ExpireUnpaidFrontendBookings extends Command
             $expiresAt = $holdFrom->copy()->addHours($hours);
             $expired = $expiresAt->lte($now);
 
-            $rows[] = [
+            if (! $expired) {
+                continue;
+            }
+
+            $row = [
                 'booking_id' => $booking->id,
                 'reference' => $booking->reference,
                 'team_id' => $booking->team_id,
@@ -88,19 +94,19 @@ class ExpireUnpaidFrontendBookings extends Command
                 'activities' => $this->formatActivities($booking),
             ];
 
+            $rows[] = $row;
+            $expiredCandidateCount++;
+
             if ($expired && $force) {
                 $this->expireBooking($booking, $hours, $holdFrom, $expiresAt);
                 $expiredCount++;
-            }
-            if ($expired) {
-                $expiredCandidateCount++;
             }
         }
 
         $reportPath = count($rows) > 0 ? $this->writeCsv($rows) : null;
 
-        $this->info(($force ? 'Expired' : 'Would expire') . " " . ($force ? $expiredCount : $expiredCandidateCount) . " booking(s). Candidate rows: " . count($rows));
-        $this->info($reportPath ? "CSV report: storage/app/{$reportPath}" : 'No CSV report written because no candidate rows were found.');
+        $this->info(($force ? 'Expired' : 'Would expire') . " " . ($force ? $expiredCount : $expiredCandidateCount) . " booking(s). Active provisional bookings checked: {$candidateCount}");
+        $this->info($reportPath ? "CSV report: storage/app/{$reportPath}" : 'No CSV report written because no bookings were expired or eligible to expire.');
 
         return self::SUCCESS;
     }
