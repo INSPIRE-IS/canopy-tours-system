@@ -206,6 +206,10 @@ export default function ReviewPayment({ auth, booking, lookups, payfastStatus, c
             <div>
               <h2 className="font-semibold mb-2">Payment Method</h2>
               <p>Pay Online (PayFast)</p>
+              <p className="mt-2 text-sm text-gray-600">
+                Your online booking is held for 3 hours while payment is completed.
+                Unpaid holds are cancelled automatically after that window.
+              </p>
             </div>
           ) : (
             <div className="rounded-lg border border-green-200 bg-green-50 p-4 text-sm text-green-800">
