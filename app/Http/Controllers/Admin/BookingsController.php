@@ -1716,6 +1716,11 @@ class BookingsController extends Controller
                         'override_rates' => 'Override rates are not allowed for one of the selected seasons.',
                     ]);
                 }
+                if ($overrideRates && trim((string) ($activity['override_reason'] ?? '')) === '') {
+                    throw ValidationException::withMessages([
+                        "activity_items.{$index}.override_reason" => 'Override reason is required when overriding rates.',
+                    ]);
+                }
 
                 $isWholesaler = !empty($activity['is_wholesaler']);
                 $invoiceDiscountId = (int) ($activity['invoice_discount_id'] ?? 0);
@@ -5406,4 +5411,3 @@ class BookingsController extends Controller
         throw new \RuntimeException('No default invoice template found.');
     }
 }
-

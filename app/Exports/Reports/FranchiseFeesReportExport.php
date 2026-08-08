@@ -3,7 +3,6 @@
 namespace App\Exports\Reports;
 
 use App\Models\BookingItem;
-use App\Models\BookingNote;
 use App\Models\Discount;
 use App\Models\LookupItem;
 use App\Models\Wholesaler;
@@ -18,7 +17,6 @@ use Maatwebsite\Excel\Concerns\WithHeadings;
 
 class FranchiseFeesReportExport implements FromCollection, WithHeadings, ShouldAutoSize, ShouldQueue
 {
-    private array $bookingNotesByItem = [];
     private array $discountNames = [];
     private array $wholesalerNames = [];
     private array $tradeExchangeWholesalers = [];
@@ -79,7 +77,7 @@ class FranchiseFeesReportExport implements FromCollection, WithHeadings, ShouldA
         $rows->push($this->summaryRow("Royalty @ {$this->percentLabel($royaltyPercent)}", $this->money($turnoverExclVat * ($royaltyPercent / 100))));
         $rows->push($this->summaryRow("Marketing Account @ {$this->percentLabel($marketingPercent)}", $this->money($turnoverExclVat * ($marketingPercent / 100))));
         $rows->push($this->blankRow());
-        $rows->push($this->summaryRow('Report Notes', 'V1 buckets known 10/15/20/25%, configured trade-exchange wholesalers, prepaid voucher partner rates, complimentary, and full-rate rows; unmapped promos/discounts/non-trade wholesalers/custom rates are grouped under Other with notes.'));
+        $rows->push($this->summaryRow('Report Notes', 'V1 buckets known 10/15/20/25%, configured trade-exchange wholesalers, prepaid voucher partner rates, complimentary, and full-rate rows; unmapped promos/discounts/non-trade wholesalers/custom rates are grouped under Other with structured pricing comments only.'));
 
         return $rows;
     }
@@ -126,6 +124,7 @@ class FranchiseFeesReportExport implements FromCollection, WithHeadings, ShouldA
                 'booking_fee:id,booking_item_id,tot_amount',
                 'booking_inventory:id,booking_item_id,date,inventory_override_id',
                 'booking_inventory.inventory_override:id,note',
+                'price_lines:id,booking_item_id,source_type,label,meta',
                 'promotion:id,name,promo_code,type,value',
                 'wholesaler_rate:id,wholesaler_id,service_id,season_id,is_prepaid_voucher',
                 'service:id,name',
@@ -154,18 +153,6 @@ class FranchiseFeesReportExport implements FromCollection, WithHeadings, ShouldA
 
     private function loadSupportingData(Collection $items): void
     {
-        $bookingItemIds = $items->pluck('id')->all();
-        $this->bookingNotesByItem = empty($bookingItemIds)
-            ? []
-            : BookingNote::query()
-                ->whereIn('booking_item_id', $bookingItemIds)
-                ->whereIn('type', ['booking_note', 'invoice_note'])
-                ->orderBy('created_at')
-                ->get()
-                ->groupBy('booking_item_id')
-                ->map(fn(Collection $notes) => $notes->pluck('note')->filter()->unique()->values()->all())
-                ->toArray();
-
         $this->discountNames = Discount::select('id', 'name')->where('team_id', $this->teamId)->pluck('name', 'id')->toArray();
         $wholesalers = Wholesaler::select('id', 'name', 'is_trade_exchange')
             ->where('team_id', $this->teamId)
@@ -387,16 +374,27 @@ class FranchiseFeesReportExport implements FromCollection, WithHeadings, ShouldA
     private function otherComment(BookingItem $item): string
     {
         $comments = [];
+
+        $overrideReasons = $item->price_lines
+            ? $item->price_lines
+                ->where('source_type', 'override')
+                ->pluck('meta')
+                ->map(fn($meta) => is_array($meta) ? trim((string) ($meta['override_reason'] ?? '')) : '')
+                ->filter()
+                ->values()
+                ->all()
+            : [];
+
+        foreach ($overrideReasons as $reason) {
+            $comments[] = $reason;
+        }
+
         $overrideNote = trim((string) ($item->booking_inventory?->inventory_override?->note ?? ''));
         if ($overrideNote !== '') {
             $comments[] = $overrideNote;
         }
 
-        foreach ($this->bookingNotesByItem[$item->id] ?? [] as $note) {
-            $comments[] = $note;
-        }
-
-        return implode(', ', array_values(array_unique(array_filter($comments)))) ?: 'Custom rate';
+        return implode(', ', array_values(array_unique(array_filter($comments)))) ?: 'Custom rate - no report reason captured';
     }
 
     private function rateMatchesRack(BookingItem $item, string $type, float $rate): bool
