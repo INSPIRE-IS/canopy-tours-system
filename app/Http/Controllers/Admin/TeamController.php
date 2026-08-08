@@ -31,6 +31,27 @@ class TeamController extends Controller
         return (bool) ($user?->can('teams_publish') ?? false);
     }
 
+    private function canManageSiteAdminSettings(?User $user): bool
+    {
+        return (bool) ($user?->is_admin ?? false) || (bool) ($user?->roles?->contains('id', 1) ?? false);
+    }
+
+    private function normalizeSiteAdminSettings(array $data, Request $request): array
+    {
+        if (!$this->canManageSiteAdminSettings($request->user())) {
+            unset($data['frontend_unpaid_booking_hold_hours']);
+
+            return $data;
+        }
+
+        $hours = $data['frontend_unpaid_booking_hold_hours'] ?? null;
+        $data['frontend_unpaid_booking_hold_hours'] = $hours === null || $hours === ''
+            ? null
+            : max(1, min(24, (int) $hours));
+
+        return $data;
+    }
+
     public function index(Request $request)
     {
         //abort_if(Gate::denies('team_access'), Response::HTTP_FORBIDDEN, '403 Forbidden');
@@ -122,6 +143,7 @@ class TeamController extends Controller
         //dd($request->all());
         // TODO: add logic to save image and logo
         $data = $request->all();
+        $data = $this->normalizeSiteAdminSettings($data, $request);
 
         $data['owner_id'] = auth()->user()->id;
 
@@ -200,6 +222,7 @@ class TeamController extends Controller
         //     $team->getDirty()
         // );
         $data = $request->all();
+        $data = $this->normalizeSiteAdminSettings($data, $request);
         $data['owner_id'] = auth()->id();
         //dd($data);
 

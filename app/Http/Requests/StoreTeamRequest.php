@@ -44,6 +44,7 @@ class StoreTeamRequest extends FormRequest
             'bank_branch_name' => ['nullable', 'string', 'max:255'],
             'branch_code' => ['nullable', 'string'],
             'is_published' => ['sometimes', 'boolean'],
+            'frontend_unpaid_booking_hold_hours' => ['nullable', 'integer', 'min:1', 'max:24'],
             'team_id' => ['nullable', 'exists:teams,id'],
             'logo' => ['nullable', 'image', 'max:2048'],
             'image' => ['nullable', 'image', 'max:4096'],

@@ -22,7 +22,7 @@ use Illuminate\Support\Facades\Storage;
 class ExpireUnpaidFrontendBookings extends Command
 {
     protected $signature = 'bookings:expire-unpaid-front
-        {--hours=3 : Hold window in hours from latest PayFast submit, or booking creation if no submit exists}
+        {--hours= : Override hold window in hours. By default each team uses its admin site setting, falling back to 3 hours}
         {--team= : Optional team id}
         {--force : Actually expire bookings. Without this option the command is a dry run}';
 
@@ -30,7 +30,8 @@ class ExpireUnpaidFrontendBookings extends Command
 
     public function handle(): int
     {
-        $hours = max(1, (int) $this->option('hours'));
+        $hoursOverride = $this->option('hours') !== null && $this->option('hours') !== '';
+        $hoursOverrideValue = $hoursOverride ? max(1, (int) $this->option('hours')) : null;
         $teamId = $this->option('team') !== null ? (int) $this->option('team') : null;
         $force = (bool) $this->option('force');
         $now = now('Africa/Johannesburg');
@@ -42,6 +43,7 @@ class ExpireUnpaidFrontendBookings extends Command
                 'booking_items.service:id,name',
                 'booking_items.booking_inventory:id,booking_item_id,date,inventory_time_slot_id,pax',
                 'booking_items.booking_inventory.inventory_time_slot:id,start_time',
+                'team:id,frontend_unpaid_booking_hold_hours',
             ])
             ->whereNotNull('session_id')
             ->whereNull('user_id')
@@ -62,6 +64,7 @@ class ExpireUnpaidFrontendBookings extends Command
 
         foreach ($bookings as $booking) {
             $candidateCount++;
+            $hours = $hoursOverrideValue ?? $this->holdHoursForBooking($booking);
             $latestSubmitAt = GatewayLog::where('booking_id', $booking->id)
                 ->where('event', 'submit')
                 ->max('created_at');
@@ -86,6 +89,7 @@ class ExpireUnpaidFrontendBookings extends Command
                 'created_at' => optional($booking->created_at)->format('Y-m-d H:i:s'),
                 'latest_payfast_submit_at' => $latestSubmitAt ? Carbon::parse($latestSubmitAt)->format('Y-m-d H:i:s') : '',
                 'hold_from' => $holdFrom->format('Y-m-d H:i:s'),
+                'hold_hours' => $hours,
                 'expires_at' => $expiresAt->format('Y-m-d H:i:s'),
                 'expired' => $expired ? 'yes' : 'no',
                 'action' => $expired ? ($force ? 'expired' : 'would_expire') : 'kept',
@@ -167,6 +171,13 @@ class ExpireUnpaidFrontendBookings extends Command
         });
     }
 
+    private function holdHoursForBooking(Booking $booking): int
+    {
+        $hours = $booking->team?->frontend_unpaid_booking_hold_hours;
+
+        return max(1, (int) ($hours ?: 3));
+    }
+
     private function formatActivities(Booking $booking): string
     {
         return $booking->booking_items
@@ -201,6 +212,7 @@ class ExpireUnpaidFrontendBookings extends Command
             'created_at',
             'latest_payfast_submit_at',
             'hold_from',
+            'hold_hours',
             'expires_at',
             'expired',
             'action',

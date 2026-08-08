@@ -45,6 +45,7 @@ class Team extends Model
         'is_published',
         'invoice_note',
         'vat_no',
+        'frontend_unpaid_booking_hold_hours',
         'created_at',
         'updated_at',
         'deleted_at',
@@ -54,6 +55,7 @@ class Team extends Model
 
     protected $casts = [
         'is_published' => 'boolean',
+        'frontend_unpaid_booking_hold_hours' => 'integer',
     ];
 
     protected function serializeDate(DateTimeInterface $date)
