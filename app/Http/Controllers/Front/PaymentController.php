@@ -52,6 +52,13 @@ class PaymentController extends Controller
         );
     }
 
+    private function unpaidBookingHoldHours(?int $teamId): int
+    {
+        $hours = Team::whereKey($teamId)->value('frontend_unpaid_booking_hold_hours');
+
+        return max(1, (int) ($hours ?: 3));
+    }
+
     private function vatBreakdownForTeam(?int $teamId, float $totalDue): array
     {
         // VAT lookup has had multiple historical shapes:
@@ -107,6 +114,7 @@ class PaymentController extends Controller
         return Inertia::render('BookingPayment', [
             'booking' => $booking->load($this->paymentBookingRelations()),
             'lookups' => $lookups,
+            'unpaidBookingHoldHours' => $this->unpaidBookingHoldHours($teamId),
             'canRemoveItems' => true,
             'payfastUrl' => route('front.payment.payfast.booking', ['booking' => $booking->id]),
         ]);
@@ -124,6 +132,7 @@ class PaymentController extends Controller
             'booking' => $booking->load($this->paymentBookingRelations()),
             'lookups' => $lookups,
             'payfastStatus' => $payfastStatus,
+            'unpaidBookingHoldHours' => $this->unpaidBookingHoldHours($teamId),
             'canRemoveItems' => false,
             'payfastUrl' => $isPayable
                 ? URL::signedRoute('front.payment.payfast.booking.signed', ['booking' => $booking->id])

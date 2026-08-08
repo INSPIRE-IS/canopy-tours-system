@@ -46,6 +46,7 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams, permissions = {}
         bank_branch_name: "",
         branch_code: "",
         is_published: true,
+        frontend_unpaid_booking_hold_hours: "",
         invoice_note: "",
         vat_no: "",
         team_id: team?.team_id,
@@ -85,6 +86,7 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams, permissions = {}
                 bank_branch_name: team.bank_branch_name || "",
                 branch_code: team.branch_code || "",
                 is_published: team.is_published ?? true,
+                frontend_unpaid_booking_hold_hours: team.frontend_unpaid_booking_hold_hours ?? "",
                 invoice_note: team.invoice_note || "",
                 vat_no: team.vat_no || "",
                 team_id: team.team_id,
@@ -169,6 +171,9 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams, permissions = {}
         formData.append('branch_code', data.branch_code);
         if (canPublishSite) {
             formData.append('is_published', data.is_published ? 1 : 0);
+        }
+        if (isAdminUser) {
+            formData.append('frontend_unpaid_booking_hold_hours', data.frontend_unpaid_booking_hold_hours || '');
         }
         formData.append('invoice_note', data.invoice_note);
         formData.append('vat_no', data.vat_no);
@@ -302,6 +307,31 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams, permissions = {}
                                 If disabled, this site will be hidden from the front team dropdown direct and access will return 404.
                             </div>
                         </div>
+                    )}
+
+                    {isAdminUser && (
+                        <>
+                            <label className="block font-semibold mb-1">Admin Booking Setup</label>
+                            <span className="border-bottom border-[1px] border-black flex flex-row w-full items-center gap-2 justify-start mb-4"></span>
+                            <div className="flex flex-row w-full items-start gap-2 justify-start mb-4">
+                                <InputText
+                                    title="Unpaid Online Booking Hold Hours"
+                                    field="frontend_unpaid_booking_hold_hours"
+                                    value={data.frontend_unpaid_booking_hold_hours}
+                                    mode={mode}
+                                    type="number"
+                                    min="1"
+                                    max="24"
+                                    step="1"
+                                    placeholder="3"
+                                    handleChange={handleChange}
+                                    errors={errors}
+                                />
+                                <div className="text-xs text-gray-500 pt-6 w-full">
+                                    Public online bookings are held for this many hours while payment is completed. Leave blank to use the default of 3 hours. Changes should go through the system administrator.
+                                </div>
+                            </div>
+                        </>
                     )}
 
                     <div className="flex flex-row w-full items-center gap-2 justify-start mb-4">
