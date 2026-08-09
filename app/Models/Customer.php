@@ -42,6 +42,11 @@ class Customer extends Model
         return $this->belongsTo(Customer::class, 'parent_id');
     }
 
+    public function nationality()
+    {
+        return $this->belongsTo(Country::class, 'nationality_id');
+    }
+
     public function booking()
     {
         return $this->belongsToMany(Booking::class);

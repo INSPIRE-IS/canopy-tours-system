@@ -20,8 +20,11 @@ const parseAnswerValue = (value) => {
 };
 
 const resolveOptionLabel = (value, options = []) => {
-    const match = options.find((opt) => String(opt.id) === String(value));
-    return match ? match.name : String(value);
+    const match = options.find((opt) => {
+        const optionId = opt?.id ?? opt?.value ?? opt?.slug;
+        return optionId !== undefined && optionId !== null && String(optionId) === String(value);
+    });
+    return match ? (match.name ?? match.label ?? match.title ?? String(value)) : String(value);
 };
 
 const formatAnswer = (rawAnswer, question) => {

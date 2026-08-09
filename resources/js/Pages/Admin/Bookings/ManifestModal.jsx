@@ -39,6 +39,23 @@ const ManifestModal = ({ isOpen, onClose, mode, customer, customers, tot_adults,
         booking_discount_item_id: '',
     });
 
+    const ageGroupOptions = [
+        { id: 1, name: "5-17" },
+        { id: 2, name: "18-30" },
+        { id: 3, name: "31-50" },
+        { id: 4, name: "51-103" },
+    ];
+
+    const resolveAgeGroup = (value) => {
+        if (value === null || value === undefined || value === "") {
+            return "-";
+        }
+
+        const match = ageGroupOptions.find((option) => String(option.id) === String(value));
+
+        return match?.name ?? String(value);
+    };
+
     useEffect(() => {
         if (mode === "edit") {
             // Map API data into form shape
@@ -193,16 +210,10 @@ const ManifestModal = ({ isOpen, onClose, mode, customer, customers, tot_adults,
                                 errors={errors}
                             />
                             <span className="flex flex-row items-center justify-start gap-2">
-                                <span className="text-[#161618] font-poppins text-[12px] font-normal  leading-[130%]">Age</span>
-                                <InputText
-                                    field="age"
-                                    type="number"
-                                    value={data?.age}
-                                    width="w-100px"
-                                    mode={mode}
-                                    handleChange={handleChange}
-                                    errors={errors}
-                                />
+                                <span className="text-[#161618] font-poppins text-[12px] font-normal  leading-[130%]">Age group</span>
+                                <span className="min-w-[100px] rounded-[10px] border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-700">
+                                    {resolveAgeGroup(data?.age)}
+                                </span>
                             </span>
                             <span className=" flex flex-row items-center justify-start gap-2">
                                 <span className="text-[#161618] font-poppins text-[12px] font-normal  leading-[130%]">Position</span>

@@ -358,9 +358,9 @@ class AlertsController extends Controller
             }
 
             foreach ($options as $option) {
-                $optionId = $option['id'] ?? null;
+                $optionId = $option['id'] ?? $option['value'] ?? $option['slug'] ?? null;
                 if ($optionId !== null && (string) $optionId === (string) $raw) {
-                    return $option['name'] ?? $raw;
+                    return $option['name'] ?? $option['label'] ?? $option['title'] ?? $raw;
                 }
             }
 
@@ -378,9 +378,9 @@ class AlertsController extends Controller
         }
 
         foreach ($options as $option) {
-            $optionId = $option['id'] ?? null;
+            $optionId = $option['id'] ?? $option['value'] ?? $option['slug'] ?? null;
             if ($optionId !== null && (string) $optionId === (string) $decodedValue) {
-                return $option['name'] ?? $decodedValue;
+                return $option['name'] ?? $option['label'] ?? $option['title'] ?? $decodedValue;
             }
         }
 
