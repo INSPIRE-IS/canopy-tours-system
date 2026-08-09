@@ -588,7 +588,7 @@ class BookingsController extends Controller
                 }
                 $query->with('files', 'booking_discounts.booking_discount_items.discount');
             },
-            'customers',
+            'customers.nationality:id,name,nationality',
             'customer_manifests',
             'booking_detail',
             'booking_fee',
@@ -3839,7 +3839,7 @@ class BookingsController extends Controller
             'season',
             'booking',
             'inventory',
-            'customers',
+            'customers.nationality:id,name,nationality',
             'customer_manifests.customer.booking_questionnaire',
             'booking_infos',
             'customers.booking_questionnaire',
@@ -3987,9 +3987,9 @@ class BookingsController extends Controller
 
                 $mapOption = function ($raw) use ($options) {
                     foreach ($options as $option) {
-                        $optionId = $option['id'] ?? null;
+                        $optionId = $option['id'] ?? $option['value'] ?? $option['slug'] ?? null;
                         if ($optionId !== null && (string) $optionId === (string) $raw) {
-                            return $option['name'] ?? $raw;
+                            return $option['name'] ?? $option['label'] ?? $option['title'] ?? $raw;
                         }
                     }
                     return $raw;
