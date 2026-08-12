@@ -211,8 +211,16 @@ class FranchiseFeesReportExport implements FromCollection, WithHeadings, ShouldA
         $row['pax'] += $pax;
         $row['total'] += $total;
 
-        if ($this->isPrepaidVoucherPartner($item)) {
-            $this->addBucket($row, 'voucher_partner', $pax, $total, $this->wholesalerNames[$item->wholesaler_id] ?? 'Prepaid voucher partner');
+        if (!empty($item->wholesaler_id)) {
+            $wholesalerName = $this->wholesalerNames[$item->wholesaler_id] ?? 'Wholesaler rate';
+            if (in_array((int) $item->wholesaler_id, $this->tradeExchangeWholesalers, true)) {
+                $this->addBucket($row, 'trade_exchange', $pax, $total, $wholesalerName);
+                return;
+            }
+
+            $bucket = $this->isPrepaidVoucherPartner($item) ? 'voucher_partner' : 'other';
+
+            $this->addBucket($row, $bucket, $pax, $total, $wholesalerName);
             return;
         }
 
@@ -229,16 +237,6 @@ class FranchiseFeesReportExport implements FromCollection, WithHeadings, ShouldA
 
         if ($discountItems->isNotEmpty()) {
             $this->applyDiscountBooking($row, $item, $discountItems);
-            return;
-        }
-
-        if (!empty($item->wholesaler_id)) {
-            $wholesalerName = $this->wholesalerNames[$item->wholesaler_id] ?? 'Wholesaler rate';
-            $bucket = in_array((int) $item->wholesaler_id, $this->tradeExchangeWholesalers, true)
-                ? 'trade_exchange'
-                : 'other';
-
-            $this->addBucket($row, $bucket, $pax, $total, $wholesalerName);
             return;
         }
 
