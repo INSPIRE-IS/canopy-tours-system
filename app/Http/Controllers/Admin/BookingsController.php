@@ -644,8 +644,12 @@ class BookingsController extends Controller
 
         $formatted = $booking_items->map(function ($booking_item) use ($vatMultiplier, $linkedActivitiesByBookingId) {
             try {
-                $price = $booking_item?->booking_fee->tot_amount;
-                $paid = $booking_item?->booking_fee->tot_paid;
+                if (!$booking_item?->booking || !$booking_item?->booking_inventory || !$booking_item?->service) {
+                    return null;
+                }
+
+                $price = $booking_item?->booking_fee?->tot_amount ?? 0;
+                $paid = $booking_item?->booking_fee?->tot_paid ?? 0;
                 $due = $price - $paid;
                 $service = $booking_item->service ?? Service::find($booking_item->service_id);
                 $timeSlot = $booking_item->booking_inventory?->inventory_time_slot
@@ -738,9 +742,9 @@ class BookingsController extends Controller
                     'lead_email' => $leadEmail,
                     'lead_phone' => $leadPhone,
                     'lead_id' => $leadCustomer?->id ?? $booking_item->booking->customer_id,
-                    'bookingPax' => $booking_item->booking_inventory->pax, // $booking->customers->count(),
+                    'bookingPax' => $booking_item->booking_inventory?->pax ?? 0, // $booking->customers->count(),
                     'maxPax' => $maxPax, // date override capacity when present, otherwise service capacity
-                    'service' => $booking_item->service->name,
+                    'service' => $booking_item->service?->name ?? '',
                     'time_start' => $start_time?->format('H:i:s'),
                     'time_end' => $end_time?->format('H:i:s'),
                     'price' => round($price ?? 0, 2),
@@ -750,8 +754,8 @@ class BookingsController extends Controller
                     'customers' => $customersList,
                     'dueStatus' => $due > 0 ? true : false,
                     'due_date' => $booking_item->booking->due_date,
-                    'booking_date' => $booking_item->booking_inventory->date,
-                    'inventory_time_slot_id' => $booking_item->booking_inventory->inventory_time_slot_id,
+                    'booking_date' => $booking_item->booking_inventory?->date,
+                    'inventory_time_slot_id' => $booking_item->booking_inventory?->inventory_time_slot_id,
                     'service_id' => $booking_item->service_id,
                     'season_id' => $booking_item->season_id,
                     'booking_note' => $latestBookingNote,
@@ -767,7 +771,7 @@ class BookingsController extends Controller
                 ]);
                 return null;
             }
-        });
+        })->filter()->values();
 
         $lookups = LookupItem::defaultsForTeam(auth()->user()->team_id);
         $today = now()->toDateString();

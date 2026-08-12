@@ -63,7 +63,7 @@ class WholesalerRateController extends Controller
                     ->where('service_id', $request->input('service_id')),
             ],
             'price_adult' => ['required', 'numeric', 'min:0'],
-            'price_child' => ['nullable', 'numeric', 'min:0'],
+            'price_child' => ['required', 'numeric', 'min:0'],
             'price_guide' => ['nullable', 'numeric', 'min:0'],
             'bill_back' => ['nullable', 'boolean'],
             'is_prepaid_voucher' => ['nullable', 'boolean'],
@@ -77,6 +77,7 @@ class WholesalerRateController extends Controller
         $data['bill_back'] = $request->boolean('bill_back');
         $data['is_prepaid_voucher'] = $request->boolean('is_prepaid_voucher');
         $data['is_active'] = $request->boolean('is_active', true);
+        $data['price_guide'] = $data['price_guide'] ?? 0;
         $this->assertNoOverlappingActiveRate($data);
 
         WholesalerRate::create($data);
@@ -99,7 +100,7 @@ class WholesalerRateController extends Controller
                     ->where('service_id', $request->input('service_id')),
             ],
             'price_adult' => ['required', 'numeric', 'min:0'],
-            'price_child' => ['nullable', 'numeric', 'min:0'],
+            'price_child' => ['required', 'numeric', 'min:0'],
             'price_guide' => ['nullable', 'numeric', 'min:0'],
             'bill_back' => ['nullable', 'boolean'],
             'is_prepaid_voucher' => ['nullable', 'boolean'],
@@ -113,6 +114,7 @@ class WholesalerRateController extends Controller
         $data['bill_back'] = $request->boolean('bill_back');
         $data['is_prepaid_voucher'] = $request->boolean('is_prepaid_voucher');
         $data['is_active'] = $request->boolean('is_active', true);
+        $data['price_guide'] = $data['price_guide'] ?? 0;
         $this->assertNoOverlappingActiveRate($data, $wholesalerRate->id);
 
         $wholesalerRate->update($data);
