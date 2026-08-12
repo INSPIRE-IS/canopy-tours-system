@@ -39,6 +39,10 @@ export default function Index({ auth, rates, searchTerm, sortColumn, sortDirecti
       router.delete(route('admin.wholesaler-rates.destroy', item), { preserveScroll: true });
     }
   };
+
+  const dateOnly = (value, fallback) => value ? String(value).slice(0, 10) : fallback;
+  const money = (value) => Number(value || 0).toFixed(2);
+
   function toggleDropdown(tab, routeName) {
     setIsOpenTab(prev => (prev === tab ? '' : tab));
     router.get(route(routeName), {}, {
@@ -73,41 +77,50 @@ export default function Index({ auth, rates, searchTerm, sortColumn, sortDirecti
                   </span>
                 </div>
 
-                <div className="flex justify-between items-center px-4 pb-[9px] ">
-                  <table className="min-w-full divide-y divide-gray-200 text-sm">
+                <div className="px-4 pb-[9px] overflow-x-auto">
+                  <table className="min-w-[980px] w-full divide-y divide-gray-200 text-sm">
                     <thead className="bg-gray-50 text-left text-gray-500">
-                      <tr className='flex justify-between items-center'>
-                        <th className="w-[80px] p-3">ID</th>
-                        <th className="w-[150px] p-3">Wholesaler</th>
-                        <th className="w-[100px] p-3">Rate</th>
-                        <th className="w-[140px] p-3">Service</th>
-                        <th className="w-[140px] p-3">Season</th>
-                        <th className="w-[150px] p-3">Valid Dates</th>
-                        <th className="w-[70px] p-3">Adult</th>
-                        <th className="w-[70px] p-3">Child</th>
-                        <th className="w-[70px] p-3">Guide</th>
-                        <th className="w-[100px] p-3">Active</th>
-                        <th className="w-[100px] p-3">Voucher</th>
-                        <th className="w-[185px] p-3"></th>
+                      <tr>
+                        <th className="p-3">Wholesaler</th>
+                        <th className="p-3">Rate</th>
+                        <th className="p-3">Service / Season</th>
+                        <th className="p-3">Valid Dates</th>
+                        <th className="p-3">Prices</th>
+                        <th className="p-3 text-right">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                       {rates?.data.map((item) => (
-                        <tr key={item.id} className="flex justify-between items-center hover:bg-gray-50">
-                          <td className="w-[80px] p-3">{item.id}</td>
-                          <td className="w-[150px] p-3">{item.wholesaler?.name}</td>
-                          <td className="w-[100px] p-3">{item.name || 'Default rate'}</td>
-                          <td className="w-[140px] p-3">{item.service?.name}</td>
-                          <td className="w-[140px] p-3">{item.season?.name ?? item.season?.id}</td>
-                          <td className="w-[150px] p-3">
-                            {(item.effective_from || 'Any start')} - {(item.effective_to || 'Any end')}
+                        <tr key={item.id} className="hover:bg-gray-50 align-top">
+                          <td className="p-3 font-medium text-gray-900">{item.wholesaler?.name}</td>
+                          <td className="p-3">
+                            <div className="font-medium text-gray-900">{item.name || 'Default rate'}</div>
+                            <div className="mt-1 flex flex-wrap gap-1">
+                              <span className={`rounded-full px-2 py-0.5 text-xs ${item.is_active ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+                                {item.is_active ? 'Active' : 'Archived'}
+                              </span>
+                              {item.is_prepaid_voucher && (
+                                <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs text-blue-700">
+                                  External paid
+                                </span>
+                              )}
+                            </div>
+                            <div className="mt-1 text-xs text-gray-400">#{item.id}</div>
                           </td>
-                          <td className="w-[70px] p-3">{item.price_adult}</td>
-                          <td className="w-[70px] p-3">{item.price_child}</td>
-                          <td className="w-[70px] p-3">{item.price_guide}</td>
-                          <td className="w-[100px] p-3">{item.is_active ? 'Yes' : 'Archived'}</td>
-                          <td className="w-[100px] p-3">{item.is_prepaid_voucher ? 'Yes' : 'No'}</td>
-                          <td className="w-[185px] p-3 flex gap-2">
+                          <td className="p-3">
+                            <div>{item.service?.name}</div>
+                            <div className="text-xs text-gray-500">{item.season?.name ?? item.season?.id}</div>
+                          </td>
+                          <td className="p-3 whitespace-nowrap">
+                            {dateOnly(item.effective_from, 'Any start')} - {dateOnly(item.effective_to, 'Any end')}
+                          </td>
+                          <td className="p-3">
+                            <div>Adult: R{money(item.price_adult)}</div>
+                            <div>Child: R{money(item.price_child)}</div>
+                            <div className="text-xs text-gray-500">Guide: R{money(item.price_guide)}</div>
+                          </td>
+                          <td className="p-3">
+                            <div className="flex justify-end gap-2">
                             {permissions?.wholesaler_rates_edit && (
                               <button onClick={() => handleOpenModal("edit", item)} className="text-green-600 hover:text-green-800">Edit</button>
                             )}
@@ -117,6 +130,7 @@ export default function Index({ auth, rates, searchTerm, sortColumn, sortDirecti
                             {permissions?.wholesaler_rates_show && (
                               <button onClick={() => handleOpenModal("view", item)} className="text-blue-600 hover:text-blue-800">View</button>
                             )}
+                            </div>
                           </td>
                         </tr>
                       ))}

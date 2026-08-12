@@ -210,10 +210,13 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
         const target = parseISO(dateStr);
         if (!isValid(target)) return [];
         return (Array.isArray(bookings) ? bookings : []).filter((booking) => {
+            if (!booking) {
+                return false;
+            }
             if (selectedServiceId !== '0' && Number(booking.service_id) !== Number(selectedServiceId)) {
                 return false;
             }
-            const bookingDate = normalizeBookingDate(booking.booking_date);
+            const bookingDate = normalizeBookingDate(booking.booking_date ?? booking.booking_inventory?.date);
             return bookingDate && isSameDay(bookingDate, target);
         });
     };
