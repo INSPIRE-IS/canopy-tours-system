@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Head, router } from '@inertiajs/react';
 import Card from '@/Components/ui/card';
 import CustomSelect from '@/Components/CustomSelect';
@@ -22,6 +22,12 @@ export default function HomePage({ activities, auth, teams, team_id, team }) {
   const locationsRef = useRef();
   const servicesRef = useRef();
   const activitiesRef = useRef();
+
+  const serviceOptions = useMemo(() => (activities || []).map((activity) => ({
+    ...activity,
+    id: activity.season_id,
+    name: `${activity.name} ${activity.season || ''}`.trim(),
+  })), [activities]);
 
 
   useEffect(() => {
@@ -65,6 +71,18 @@ export default function HomePage({ activities, auth, teams, team_id, team }) {
     setShowLocationModal(true);
   }, [team_id, teams]);
 
+
+  useEffect(() => {
+    if (serviceOptions.length === 0) {
+      setSelectedService(null);
+      return;
+    }
+
+    const hasSelectedService = serviceOptions.some((option) => String(option.id) === String(selectedService || ''));
+    if (!hasSelectedService) {
+      setSelectedService(String(serviceOptions[0].id));
+    }
+  }, [serviceOptions, selectedService]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -207,19 +225,13 @@ export default function HomePage({ activities, auth, teams, team_id, team }) {
           <div className="rounded-[20px] bg-white shadow h-[400px] ">
             <div className='space-y-[12px]  p-6 mt-3'>
               <span className="text-welcome-card-header ">I'm looking for</span>
-              {/* <Select options={[{ value: 'all', label: 'Show me everything you can do!' }]} /> */}
               <CustomSelect
                 name="service"
-                optionText='Show me everything you can do!'
+                showOption={false}
                 value={selectedService}
                 mode="create"
                 onChange={(e) => { setSelectedService(e.target.value); }}
-                options={activities?.map((activity) => ({
-                  ...activity,
-                  id: activity.season_id,
-                  name: `${activity.name} ${activity.season || ''}`.trim(),
-                }))}
-              //options={services.map(service => ({ label: service.name, value: service.id }))}
+                options={serviceOptions}
               />
 
               <div className="grid grid-cols-2 pt-1 gap-4">

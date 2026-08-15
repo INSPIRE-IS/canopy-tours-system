@@ -524,16 +524,16 @@ class SeedCoreData extends Command
 
         $service_fields = [
             //['id' => 1, 'name' => 'header_pillbox_text','slug' => 'header_pillbox_text', 'type_category' => 1, 'order' => 1, 'type_data_id' => 1, 'type_input_id' => 1, 'required' => 1],
-            ['id' => 1, 'name' => 'Description', 'slug' => 'description', 'type_category' => 1, 'order' => 1, 'type_data_id' => 2, 'type_input_id' => 2, 'required' => 1],
-            ['id' => 2, 'name' => 'Condition Text', 'slug' => 'condition_text', 'type_category' => 1, 'order' => 2, 'type_data_id' => 2, 'type_input_id' => 2, 'required' => 1],
-            ['id' => 3, 'name' => 'Activity Description', 'slug' => 'activity_description', 'type_category' => 1, 'order' => 3, 'type_data_id' => 2, 'type_input_id' => 2, 'required' => 1],
-            ['id' => 4, 'name' => 'Arrangements', 'slug' => 'arrangements', 'type_category' => 1, 'order' => 4, 'type_data_id' => 2, 'type_input_id' => 2, 'required' => 1],
-            ['id' => 5, 'name' => 'Requirements', 'slug' => 'requirements', 'type_category' => 1, 'order' => 5, 'type_data_id' => 2, 'type_input_id' => 2, 'required' => 1],
-            ['id' => 6, 'name' => 'Inclusions', 'slug' => 'inclusions', 'type_category' => 1, 'order' => 6, 'type_data_id' => 2, 'type_input_id' => 2, 'required' => 1],
-            ['id' => 7, 'name' => 'Exclusions', 'slug' => 'exclusions', 'type_category' => 1, 'order' => 7, 'type_data_id' => 2, 'type_input_id' => 2, 'required' => 1],
-            ['id' => 8, 'name' => 'Notes', 'slug' => 'notes', 'type_category' => 1, 'order' => 8, 'type_data_id' => 2, 'type_input_id' => 2, 'required' => 1],
-            ['id' => 9, 'name' => 'lat-lon start', 'slug' => 'lat_lon_start', 'type_category' => 3, 'order' => 9, 'type_data_id' => 1, 'type_input_id' => 1, 'required' => 1],
-            ['id' => 10, 'name' => 'lat-long end', 'slug' => 'lat_long_end', 'type_category' => 3, 'order' => 10, 'type_data_id' => 1, 'type_input_id' => 1, 'required' => 1],
+            ['id' => 1, 'name' => 'Description', 'slug' => 'description', 'type_category' => 1, 'order' => 1, 'type_data_id' => 2, 'type_input_id' => 2, 'required' => 0],
+            ['id' => 2, 'name' => 'Condition Text', 'slug' => 'condition_text', 'type_category' => 1, 'order' => 2, 'type_data_id' => 2, 'type_input_id' => 2, 'required' => 0],
+            ['id' => 3, 'name' => 'Activity Description', 'slug' => 'activity_description', 'type_category' => 1, 'order' => 3, 'type_data_id' => 2, 'type_input_id' => 2, 'required' => 0],
+            ['id' => 4, 'name' => 'Arrangements', 'slug' => 'arrangements', 'type_category' => 1, 'order' => 4, 'type_data_id' => 2, 'type_input_id' => 2, 'required' => 0],
+            ['id' => 5, 'name' => 'Requirements', 'slug' => 'requirements', 'type_category' => 1, 'order' => 5, 'type_data_id' => 2, 'type_input_id' => 2, 'required' => 0],
+            ['id' => 6, 'name' => 'Inclusions', 'slug' => 'inclusions', 'type_category' => 1, 'order' => 6, 'type_data_id' => 2, 'type_input_id' => 2, 'required' => 0],
+            ['id' => 7, 'name' => 'Exclusions', 'slug' => 'exclusions', 'type_category' => 1, 'order' => 7, 'type_data_id' => 2, 'type_input_id' => 2, 'required' => 0],
+            ['id' => 8, 'name' => 'Notes', 'slug' => 'notes', 'type_category' => 1, 'order' => 8, 'type_data_id' => 2, 'type_input_id' => 2, 'required' => 0],
+            ['id' => 9, 'name' => 'lat-lon start', 'slug' => 'lat_lon_start', 'type_category' => 3, 'order' => 9, 'type_data_id' => 1, 'type_input_id' => 1, 'required' => 0],
+            ['id' => 10, 'name' => 'lat-long end', 'slug' => 'lat_long_end', 'type_category' => 3, 'order' => 10, 'type_data_id' => 1, 'type_input_id' => 1, 'required' => 0],
             //['id' => 12, 'name' => 'pillbox_condition_text','slug' => 'pillbox_condition_text', 'type_category' => 1, 'order' => 8, 'type_data_id' => 1, 'type_input_id' => 1, 'required' => 1],
 
         ];

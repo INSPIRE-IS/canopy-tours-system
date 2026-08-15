@@ -61,10 +61,11 @@ class ServicesController extends Controller
             $serviceFieldRules = [];
 
             $fields = ServiceField::all();
+            $fieldsById = $fields->keyBy('id');
             foreach ($fields as $field) {
                 $rules = [];
 
-                if ($field->required) {
+                if ($field->required && !$this->isOptionalFrontendContentField($field)) {
                     $rules[] = 'required';
                 } else {
                     $rules[] = 'nullable';
@@ -125,10 +126,11 @@ class ServicesController extends Controller
             // $service = Service::create($request->all());
 
             foreach ($request->input('fields', []) as $fieldId => $value) {
+                $field = $fieldsById->get((int) $fieldId);
                 ServiceFieldValue::create([
                     'service_id' => $service->id,
                     'field_id' => $fieldId,
-                    'value' => $value,
+                    'value' => $this->normalizeServiceFieldValue($value, $field),
                     'team_id' => auth()->user()->team_id,
                 ]);
             }
@@ -157,10 +159,11 @@ class ServicesController extends Controller
         $serviceFieldRules = [];
 
         $fields = ServiceField::all();
+        $fieldsById = $fields->keyBy('id');
         foreach ($fields as $field) {
             $rules = [];
 
-            if ($field->required) {
+            if ($field->required && !$this->isOptionalFrontendContentField($field)) {
                 $rules[] = 'required';
             } else {
                 $rules[] = 'nullable';
@@ -225,13 +228,14 @@ class ServicesController extends Controller
         $service->update($data);
 
         foreach ($request->input('fields', []) as $fieldId => $value) {
+            $field = $fieldsById->get((int) $fieldId);
             ServiceFieldValue::updateOrCreate(
                 [
                     'service_id' => $service->id,
                     'field_id' => $fieldId,
                 ],
                 [
-                    'value' => $value,
+                    'value' => $this->normalizeServiceFieldValue($value, $field),
                     'team_id' => auth()->user()->team_id,
                 ]
             );
@@ -281,5 +285,36 @@ class ServicesController extends Controller
         $service->delete();
 
         return back();
+    }
+
+    private function isOptionalFrontendContentField(ServiceField $field): bool
+    {
+        return in_array($field->slug, [
+            'description',
+            'condition_text',
+            'activity_description',
+            'arrangements',
+            'requirements',
+            'inclusions',
+            'exclusions',
+            'notes',
+            'lat_lon_start',
+            'lat_long_end',
+        ], true);
+    }
+
+    private function normalizeServiceFieldValue(mixed $value, ?ServiceField $field): mixed
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        if (!$field || !$this->isOptionalFrontendContentField($field) || !is_string($value)) {
+            return $value;
+        }
+
+        $plainText = trim(preg_replace('/\s+/u', ' ', str_replace("\xc2\xa0", ' ', html_entity_decode(strip_tags($value)))));
+
+        return in_array($plainText, ['', '.'], true) ? null : $value;
     }
 }
