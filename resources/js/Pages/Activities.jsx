@@ -572,6 +572,12 @@ export default function ActivitySchedulePage({ activity, auth, team, activityId,
         />
 
         <InfoCard
+          title="Conditions"
+          color="gray"
+          content={activity?.condition_text}
+        />
+
+        <InfoCard
           title="Arrangements"
           color="gray"
           content={activity?.arrangements}
