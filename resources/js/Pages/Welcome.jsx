@@ -8,7 +8,7 @@ import CustomInputText from '@/Components/CustomInputText';
 import BlueButton from '@/Components/BlueButton';
 import RichTextDisplay from '@/Components/RichTextDisplay';
 
-export default function HomePage({ activities, auth, teams, team_id, team }) {
+export default function HomePage({ activities, auth, teams, team_id, team, canShowLogin = false }) {
   const [date, setDate] = useState(new Date());
   const [teamId, setTeamId] = useState(team_id);
   const [selectedService, setSelectedService] = useState(null);
@@ -196,7 +196,7 @@ export default function HomePage({ activities, auth, teams, team_id, team }) {
             {/* <Link href="/vouchers" className="hover:text-blue-600">Gift Vouchers</Link> route('front.payment.booking', ['booking' => $booking->id]) */}
             {auth?.bookingId && <Link href={route('front.payment.booking', { booking: auth?.bookingId })} className="hover:text-blue-600">Cart {auth?.count > 0 ? '(' + auth?.count + ')' : ''}</Link>}
             {/* <Link href="/questionnaire" className="hover:text-blue-600">Questionnaire</Link> */}
-            <Link href="/login" className="hover:text-blue-600">Login</Link>
+            {canShowLogin && <Link href="/login" className="hover:text-blue-600">Login</Link>}
           </nav>
         </div>
       </div>

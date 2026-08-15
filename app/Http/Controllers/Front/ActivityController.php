@@ -222,6 +222,7 @@ class ActivityController extends Controller
 
         return Inertia::render('Welcome', [
             'canLogin' => Route::has('login'),
+            'canShowLogin' => Route::has('login') && app()->environment(['local', 'development']),
             'canRegister' => Route::has('register'),
             'laravelVersion' => Application::VERSION,
             'phpVersion' => PHP_VERSION,
