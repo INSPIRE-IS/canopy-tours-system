@@ -9,6 +9,16 @@ import RichTextDisplay from '../RichTextDisplay';
 // };: InfoCardProps
 
 export default function InfoCard({ title, content, color = 'gray' }) {
+  const plainText = String(content ?? '')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (!plainText || plainText === '.') {
+    return null;
+  }
+
   const borderColor = {
     green: 'border-green-500 text-green-700',
     blue: 'border-blue-500 text-blue-700',

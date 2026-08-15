@@ -268,7 +268,7 @@ class ActivityController extends Controller
         }
 
         $fieldValues = $season->service->serviceFieldValues->mapWithKeys(function ($fv) {
-            return [$fv->field->name => $fv->value];
+            return [$fv->field->name => $this->frontActivityContent($fv->value)];
         });
         //dd($fieldValues);
         $activity = [
@@ -1732,7 +1732,7 @@ class ActivityController extends Controller
         }
 
         $fieldValues = $season->seasonFieldValues->mapWithKeys(function ($fv) {
-            return [$fv->field->name => $fv->value];
+            return [$fv->field->name => $this->frontActivityContent($fv->value)];
         });
         //dd($fieldValues);
         $activity = [
@@ -1909,5 +1909,20 @@ class ActivityController extends Controller
                 ->values(),
             'availableTimes' => [], //$availableTimes,
         ]);
+    }
+
+    private function frontActivityContent(mixed $value): mixed
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        if (!is_string($value)) {
+            return $value;
+        }
+
+        $plainText = trim(preg_replace('/\s+/u', ' ', str_replace("\xc2\xa0", ' ', html_entity_decode(strip_tags($value)))));
+
+        return in_array($plainText, ['', '.'], true) ? null : $value;
     }
 }

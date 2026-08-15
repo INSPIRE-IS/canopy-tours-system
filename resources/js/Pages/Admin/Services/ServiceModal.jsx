@@ -123,6 +123,19 @@ const ServiceModal = ({ isOpen, onClose, mode, service, serviceFields, auth, tea
             });
         }
     };
+    const isOptionalFrontendContentField = (field) => [
+        'description',
+        'condition_text',
+        'activity_description',
+        'arrangements',
+        'requirements',
+        'inclusions',
+        'exclusions',
+        'notes',
+        'lat_lon_start',
+        'lat_long_end',
+    ].includes(field?.slug);
+
     // const handleSubmit = (e) => {
     //     e.preventDefault();
     //     if (mode === "create") {
@@ -137,6 +150,7 @@ const ServiceModal = ({ isOpen, onClose, mode, service, serviceFields, auth, tea
     // };
     const renderField = (field) => {
         const value = data.fields?.[field.id] || "";
+        const isRequired = Boolean(field.required && !isOptionalFrontendContentField(field));
 
         switch (field.type_input_id) {
             case 1: // text input
@@ -147,7 +161,7 @@ const ServiceModal = ({ isOpen, onClose, mode, service, serviceFields, auth, tea
                         onChange={(e) =>
                             setData("fields", { ...data.fields, [field.id]: e.target.value })
                         }
-                        required={field.required}
+                        required={isRequired}
                         className={`mt-1 block w-full ${errors.slug ? "border-red-500" : "border-gray-300"} shadow-sm input-text rounded-xl
                 hover:border-black  active:border-blue-600 
                 focus:outline-none focus:ring-0 focus:border-black
@@ -161,7 +175,7 @@ const ServiceModal = ({ isOpen, onClose, mode, service, serviceFields, auth, tea
                         onChange={(e) =>
                             setData("fields", { ...data.fields, [field.id]: e.target.value })
                         }
-                        required={field.required}
+                        required={isRequired}
                         rows={3}
                         className={`w-full pl-[19px] pt-[11px] pb-[12px] bg-[#FBF9F7] border rounded-2xl focus:outline-none focus:ring-2 resize-none`}
                     />
@@ -174,7 +188,7 @@ const ServiceModal = ({ isOpen, onClose, mode, service, serviceFields, auth, tea
                         onChange={(e) =>
                             setData("fields", { ...data.fields, [field.id]: e.target.value })
                         }
-                        required={field.required}
+                        required={isRequired}
                         className={`mt-1 block w-full ${errors.name ? "border-red-500" : "border-gray-300"} shadow-sm input-text rounded-xl
                 hover:border-black  active:border-blue-600 
                 focus:outline-none focus:ring-0 focus:border-black
@@ -189,7 +203,7 @@ const ServiceModal = ({ isOpen, onClose, mode, service, serviceFields, auth, tea
                         onChange={(e) =>
                             setData("fields", { ...data.fields, [field.id]: e.target.value })
                         }
-                        required={field.required}
+                        required={isRequired}
                         className={`mt-1 block w-full ${errors.name ? "border-red-500" : "border-gray-300"} shadow-sm input-text rounded-xl
                 hover:border-black  active:border-blue-600 
                 focus:outline-none focus:ring-0 focus:border-black
@@ -204,7 +218,7 @@ const ServiceModal = ({ isOpen, onClose, mode, service, serviceFields, auth, tea
                         onChange={(e) =>
                             setData("fields", { ...data.fields, [field.id]: e.target.value })
                         }
-                        required={field.required}
+                        required={isRequired}
                         className={`mt-1 block w-full ${errors.name ? "border-red-500" : "border-gray-300"} shadow-sm input-text rounded-xl
                 hover:border-black  active:border-blue-600 
                 focus:outline-none focus:ring-0 focus:border-black
@@ -219,7 +233,7 @@ const ServiceModal = ({ isOpen, onClose, mode, service, serviceFields, auth, tea
                         onChange={(e) =>
                             setData("fields", { ...data.fields, [field.id]: e.target.value })
                         }
-                        required={field.required}
+                        required={isRequired}
                         className={`mt-1 block w-full ${errors.name ? "border-red-500" : "border-gray-300"} shadow-sm input-text rounded-xl
                 hover:border-black  active:border-blue-600 
                 focus:outline-none focus:ring-0 focus:border-black
@@ -245,7 +259,7 @@ const ServiceModal = ({ isOpen, onClose, mode, service, serviceFields, auth, tea
                         onChange={(e) =>
                             setData("fields", { ...data.fields, [field.id]: e.target.value })
                         }
-                        required={field.required}
+                        required={isRequired}
                         className={`mt-1 block w-full ${errors ? "border-red-500" : "border-gray-300"} shadow-sm input-text rounded-xl
                     hover:border-black  active:border-blue-600 
                     focus:outline-none focus:ring-0 focus:border-black
