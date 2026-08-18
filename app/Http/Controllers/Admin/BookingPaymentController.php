@@ -117,6 +117,43 @@ class BookingPaymentController extends Controller
                     'capturer' => $payment->updated_by?->name ?? '',
                 ];
             });
+        if ($paymentRows->isEmpty()) {
+            $prepaidAllocations = $booking->booking_items
+                ->filter(fn ($item) => (bool) ($item->booking_fee?->is_prepaid_wholesaler_voucher ?? false)
+                    && (float) ($item->booking_fee?->tot_paid ?? 0) > 0)
+                ->map(function ($item) use ($booking) {
+                    return [
+                        'id' => 'prepaid-wholesaler-' . $item->id,
+                        'created_at' => optional($item->booking_fee?->updated_at ?? $booking->updated_at)->format('Y-m-d H:i'),
+                        'payment_date' => $booking->getRawOriginal('due_date'),
+                        'settled_due_on' => $booking->getRawOriginal('due_date'),
+                        'status' => 'allocated',
+                        'message' => 'Prepaid voucher partner allocation. Customer-facing balance marked paid; no payment row was captured.',
+                        'reference' => $booking->reference,
+                        'amount' => round((float) ($item->booking_fee?->tot_paid ?? 0), 2),
+                        'method' => 'Prepaid voucher partner',
+                        'capturer' => '',
+                    ];
+                })
+                ->values();
+
+            if ($prepaidAllocations->isNotEmpty()) {
+                $paymentHistory = $prepaidAllocations;
+            } elseif ((float) ($booking->tot_paid ?? 0) > 0) {
+                $paymentHistory = collect([[
+                    'id' => 'paid-balance-' . $booking->id,
+                    'created_at' => optional($booking->updated_at)->format('Y-m-d H:i'),
+                    'payment_date' => $booking->getRawOriginal('due_date'),
+                    'settled_due_on' => $booking->getRawOriginal('due_date'),
+                    'status' => 'allocated',
+                    'message' => 'Booking is marked paid, but no payment transaction row exists.',
+                    'reference' => $booking->reference,
+                    'amount' => round((float) ($booking->tot_paid ?? 0), 2),
+                    'method' => 'System allocation',
+                    'capturer' => '',
+                ]]);
+            }
+        }
         logger()->info($booking);
         $lookups = LookupItem::defaultsForTeam(auth()->user()->team_id);
         return Inertia::render('Admin/Bookings/Payment', [
