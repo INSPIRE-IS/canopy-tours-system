@@ -279,6 +279,7 @@ class PromoCodeUsageReportExport implements FromCollection, ShouldAutoSize, Shou
             'graduated' => 'graduated',
             'varied_child' => 'child rule',
             'volume_discount' => 'volume',
+            'pax_exact_discount' => 'exact pax',
             'time_slot' => 'time slot',
             default => '',
         };

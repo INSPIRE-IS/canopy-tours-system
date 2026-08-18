@@ -6,6 +6,7 @@ import OutlineButton from "@/Components/OutlineButton";
 import BlueButton from "@/Components/BlueButton";
 import CustomCheckbox from "@/Components/CustomCheckbox";
 import GraduatedTable from "@/Components/GraduatedTable";
+import ExactPaxDiscountEditor from "@/Components/ExactPaxDiscountEditor";
 import VolumeDiscountEditor from "@/Components/VolumeDiscountEditor";
 import { icons } from "@/icons";
 
@@ -121,6 +122,15 @@ const Modal = ({ isOpen, onClose, mode, item = null, services }) => {
   }, [data.season_id, seasons]);
 
   const handleChange = (target, value) => setData(target, value);
+  const typeOptions = [
+    { id: 'percent', name: 'Percent' },
+    { id: 'fixed_value', name: 'Fixed Value' },
+    { id: 'varied_child', name: 'Varied Child (by adults)' },
+    { id: 'volume_discount', name: 'Volume Discount' },
+    { id: 'pax_exact_discount', name: 'Exact Pax Discount' },
+    { id: 'time_slot', name: 'Time Slot' },
+    ...(data.type === 'graduated' ? [{ id: 'graduated', name: 'Graduated (legacy)' }] : []),
+  ];
 
   const now = new Date();
   const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
@@ -202,9 +212,9 @@ const Modal = ({ isOpen, onClose, mode, item = null, services }) => {
                     <div>Logic: Fixed amount off booking total, or per person when "Apply to" is set to Per person.</div>
                   </div>
                   <div>
-                    <div className="font-semibold text-gray-700">Graduated</div>
+                    <div className="font-semibold text-gray-700">Graduated (legacy)</div>
                     <div>Fields: Lookup table (pax count → total).</div>
-                    <div>Logic: Sets booking total to lookup value for matched pax. Generally the larger the group the more discount.</div>
+                    <div>Logic: Sets booking total to lookup value for matched pax. Kept for old promos; use Exact Pax Discount for new exact-pax promos.</div>
                   </div>
                   <div>
                     <div className="font-semibold text-gray-700">Varied Child</div>
@@ -215,6 +225,11 @@ const Modal = ({ isOpen, onClose, mode, item = null, services }) => {
                     <div className="font-semibold text-gray-700">Volume Discount</div>
                     <div>Fields: Tiers (pax range, type, value).</div>
                     <div>Logic: Best tier applies; percent or fixed value off booking total.</div>
+                  </div>
+                  <div>
+                    <div className="font-semibold text-gray-700">Exact Pax Discount</div>
+                    <div>Fields: Pax rows with % or R values.</div>
+                    <div>Logic: Applies only when the booking pax exactly matches a configured row.</div>
                   </div>
                   <div>
                     <div className="font-semibold text-gray-700">Time Slot</div>
@@ -258,15 +273,8 @@ const Modal = ({ isOpen, onClose, mode, item = null, services }) => {
                 label="Type"
                 name="type"
                 value={data.type}
-                mode={mode} // 'percent', 'fixed_value', 'graduated', 'varied_child', 'volume_discount'
-                options={[
-                  { id: 'percent', name: 'Percent' },
-                  { id: 'fixed_value', name: 'Fixed Value' },
-                  { id: 'graduated', name: 'Graduated (per pax)' },
-                  { id: 'varied_child', name: 'Varied Child (by adults)' },
-                  { id: 'volume_discount', name: 'Volume Discount' },
-                  { id: 'time_slot', name: 'Time Slot' },
-                ]}
+                mode={mode}
+                options={typeOptions}
                 onChange={(e) => handleChange(e.target.name, e.target.value)}
                 errors={errors}
               />
@@ -423,6 +431,19 @@ const Modal = ({ isOpen, onClose, mode, item = null, services }) => {
                   onChange={(tiers) => setData('params', { ...data.params, tiers })}
                 />
                 <p className="text-xs text-gray-500 -mt-2">Fixed value tiers apply to booking total.</p>
+              </>
+            )}
+
+            {data.type === 'pax_exact_discount' && (
+              <>
+                <ExactPaxDiscountEditor
+                  capacity={services.find(s => s.id == data.service_id)?.capacity || 0}
+                  rules={data.params?.rules || {}}
+                  onChange={(rules) => setData('params', { ...data.params, rules })}
+                />
+                <p className="text-xs text-gray-500 -mt-2">
+                  Percent rules reduce matching pax rates. Rand rules subtract once from the booking total.
+                </p>
               </>
             )}
 

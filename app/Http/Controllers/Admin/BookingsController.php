@@ -845,7 +845,7 @@ class BookingsController extends Controller
             ->where('team_id', auth()->user()->team_id)
             ->with('service', 'season', 'wholesaler')
             ->get();
-        $promos = Promotion::select('id', 'name', 'promo_code', 'type', 'value', 'service_id', 'booking_start_date', 'booking_end_date', 'activity_start_date', 'activity_end_date')
+        $promos = Promotion::select('id', 'name', 'promo_code', 'type', 'value', 'params', 'service_id', 'booking_start_date', 'booking_end_date', 'activity_start_date', 'activity_end_date')
             ->with('service')
             ->get();
         $lookups = LookupItem::defaultsForTeam(auth()->user()->team_id);
@@ -1604,6 +1604,10 @@ class BookingsController extends Controller
             // return redirect()->route('admin.booking_payments.edit', ['booking' => $booking->id]);
         } catch (ValidationException $e) {
             return back()->withErrors($e->errors())->withInput();
+        } catch (\InvalidArgumentException $e) {
+            return back()->withErrors([
+                'promoCode' => $e->getMessage(),
+            ])->withInput();
         } catch (\Throwable $e) {
             Log::error('Booking failed and rolled back', [
                 'message' => $e->getMessage(),
@@ -2162,7 +2166,7 @@ class BookingsController extends Controller
             ->where('team_id', auth()->user()->team_id)
             ->with('service', 'season', 'wholesaler')
             ->get();
-        $promos = Promotion::select('id', 'name', 'promo_code', 'type', 'value', 'service_id', 'booking_start_date', 'booking_end_date', 'activity_start_date', 'activity_end_date')
+        $promos = Promotion::select('id', 'name', 'promo_code', 'type', 'value', 'params', 'service_id', 'booking_start_date', 'booking_end_date', 'activity_start_date', 'activity_end_date')
             ->with('service')
             ->get();
         $lookups = LookupItem::defaultsForTeam(auth()->user()->team_id);
@@ -3027,6 +3031,10 @@ class BookingsController extends Controller
                 ->with('success', "Booking {$booking->reference} updated successfully.");
         } catch (ValidationException $e) {
             return back()->withErrors($e->errors())->withInput();
+        } catch (\InvalidArgumentException $e) {
+            return back()->withErrors([
+                'promoCode' => $e->getMessage(),
+            ])->withInput();
         } catch (\Throwable $e) {
             Log::error('Booking update failed and rolled back', [
                 'message' => $e->getMessage(),
@@ -3648,7 +3656,7 @@ class BookingsController extends Controller
             ->where('team_id', auth()->user()->team_id)
             ->with('season', 'wholesaler')
             ->get();
-        $promos = Promotion::select('id', 'name', 'promo_code', 'type', 'value', 'service_id', 'booking_start_date', 'booking_end_date', 'activity_start_date', 'activity_end_date')
+        $promos = Promotion::select('id', 'name', 'promo_code', 'type', 'value', 'params', 'service_id', 'booking_start_date', 'booking_end_date', 'activity_start_date', 'activity_end_date')
             ->where('booking_start_date', '<=', $today)
             ->where('booking_end_date', '>=', $today)
             ->where('internal_use_only', false)

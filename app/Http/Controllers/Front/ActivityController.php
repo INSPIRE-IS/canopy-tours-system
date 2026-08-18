@@ -517,6 +517,11 @@ class ActivityController extends Controller
                     $children > 0 ? ['type' => 'child', 'count' => $children, 'discount_id' => null] : null,
                 ])),
             ]);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage(),
+            ], 422);
         } catch (\Throwable $e) {
             return response()->json(['status' => false, 'promo' => $e->getMessage()]);
         }

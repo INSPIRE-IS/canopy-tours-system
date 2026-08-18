@@ -49,7 +49,7 @@ class PromotionController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'promo_code' => ['required', 'string', 'max:50', 'unique:promotions,promo_code'],
-            'type' => ['required', Rule::in(['percent', 'fixed_value', 'graduated', 'varied_child', 'volume_discount', 'time_slot'])],
+            'type' => ['required', Rule::in(['percent', 'fixed_value', 'graduated', 'varied_child', 'volume_discount', 'pax_exact_discount', 'time_slot'])],
             'value' => ['nullable', 'numeric', 'min:0'],
             'params' => ['nullable'],
             'service_id' => ['required', 'exists:services,id'],
@@ -98,6 +98,15 @@ class PromotionController extends Controller
             throw ValidationException::withMessages([
                 'params' => ['Volume discounts require tiers.'],
             ]);
+        }
+        if ($data['type'] === 'volume_discount') {
+            $params['tiers'] = $this->validateVolumeDiscountTiers($params['tiers'] ?? null);
+            $data['params'] = $params;
+        }
+
+        if ($data['type'] === 'pax_exact_discount') {
+            $params['rules'] = $this->validateExactPaxDiscountRules($params['rules'] ?? null);
+            $data['params'] = $params;
         }
 
         if ($data['type'] === 'varied_child') {
@@ -202,7 +211,7 @@ class PromotionController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'promo_code' => ['required', 'string', 'max:50', 'unique:promotions,promo_code,' . $promotion->id],
-            'type' => ['required', Rule::in(['percent', 'fixed_value', 'graduated', 'varied_child', 'volume_discount', 'time_slot'])],
+            'type' => ['required', Rule::in(['percent', 'fixed_value', 'graduated', 'varied_child', 'volume_discount', 'pax_exact_discount', 'time_slot'])],
             'value' => ['nullable', 'numeric', 'min:0'],
             'params' => ['nullable'],
             'service_id' => ['required', 'exists:services,id'],
@@ -251,6 +260,15 @@ class PromotionController extends Controller
             throw ValidationException::withMessages([
                 'params' => ['Volume discounts require tiers.'],
             ]);
+        }
+        if ($data['type'] === 'volume_discount') {
+            $params['tiers'] = $this->validateVolumeDiscountTiers($params['tiers'] ?? null);
+            $data['params'] = $params;
+        }
+
+        if ($data['type'] === 'pax_exact_discount') {
+            $params['rules'] = $this->validateExactPaxDiscountRules($params['rules'] ?? null);
+            $data['params'] = $params;
         }
 
         if ($data['type'] === 'varied_child') {
@@ -411,5 +429,111 @@ class PromotionController extends Controller
             ->values();
         //dd($promotions);
         return response()->json($promotions);
+    }
+
+    private function validateExactPaxDiscountRules($rawRules): array
+    {
+        if (is_string($rawRules)) {
+            $decodedRules = json_decode($rawRules, true);
+            $rawRules = is_array($decodedRules) ? $decodedRules : [];
+        }
+
+        if (is_object($rawRules)) {
+            $rawRules = (array) $rawRules;
+        }
+
+        if (!is_array($rawRules) || empty($rawRules)) {
+            throw ValidationException::withMessages([
+                'params' => ['Exact pax discounts require at least one pax rule.'],
+            ]);
+        }
+
+        $rules = [];
+        foreach ($rawRules as $pax => $rule) {
+            if (!is_array($rule) || !ctype_digit((string) $pax) || (int) $pax < 1) {
+                throw ValidationException::withMessages([
+                    'params' => ['Exact pax discount rules must use a valid pax number.'],
+                ]);
+            }
+
+            $type = (string) ($rule['type'] ?? 'percent');
+            $value = $rule['value'] ?? null;
+            if (!in_array($type, ['percent', 'fixed_value'], true)) {
+                throw ValidationException::withMessages([
+                    'params' => ['Exact pax discount rule type must be % or R.'],
+                ]);
+            }
+
+            if ($value === null || $value === '' || !is_numeric($value) || (float) $value < 0) {
+                throw ValidationException::withMessages([
+                    'params' => ['Exact pax discount rules require a numeric value.'],
+                ]);
+            }
+
+            if ($type === 'percent' && (float) $value > 100) {
+                throw ValidationException::withMessages([
+                    'params' => ['Exact pax discount percent cannot exceed 100.'],
+                ]);
+            }
+
+            $rules[(string) (int) $pax] = [
+                'type' => $type,
+                'value' => (float) $value,
+            ];
+        }
+
+        ksort($rules, SORT_NUMERIC);
+
+        return $rules;
+    }
+
+    private function validateVolumeDiscountTiers($rawTiers): array
+    {
+        if (!is_array($rawTiers) || empty($rawTiers)) {
+            throw ValidationException::withMessages([
+                'params' => ['Volume discounts require at least one tier.'],
+            ]);
+        }
+
+        $tiers = [];
+        foreach ($rawTiers as $tier) {
+            $pax = $tier['pax'] ?? null;
+            $type = (string) ($tier['type'] ?? 'percent');
+            $value = $tier['value'] ?? null;
+
+            if ($pax === null || $pax === '' || !is_numeric($pax) || (int) $pax < 1) {
+                throw ValidationException::withMessages([
+                    'params' => ['Volume discount tiers require a valid pax number.'],
+                ]);
+            }
+
+            if (!in_array($type, ['percent', 'fixed_value'], true)) {
+                throw ValidationException::withMessages([
+                    'params' => ['Volume discount tier type must be % or R.'],
+                ]);
+            }
+
+            if ($value === null || $value === '' || !is_numeric($value) || (float) $value < 0) {
+                throw ValidationException::withMessages([
+                    'params' => ['Volume discount tiers require a numeric value.'],
+                ]);
+            }
+
+            if ($type === 'percent' && (float) $value > 100) {
+                throw ValidationException::withMessages([
+                    'params' => ['Volume discount percent cannot exceed 100.'],
+                ]);
+            }
+
+            $tiers[] = [
+                'pax' => (int) $pax,
+                'type' => $type,
+                'value' => (float) $value,
+            ];
+        }
+
+        usort($tiers, fn ($a, $b) => $a['pax'] <=> $b['pax']);
+
+        return $tiers;
     }
 }

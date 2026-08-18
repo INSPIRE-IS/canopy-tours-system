@@ -1755,9 +1755,9 @@ class SeedCoreData extends Command
                 'internal_use_only' => 0,
                 'team_id' => 7,
             ],
-            [
+            [ // Legacy sample only. New exact-pax promos should use pax_exact_discount.
                 'id' => 3, // {"lookup":{"1":"300","2":"300","3":"300","4":"250","5":"250","6":"200","7":"200","8":"200"}}
-                'name' => 'Graduated',
+                'name' => 'Graduated (Legacy)',
                 'promo_code' => 'GRADUATED',
                 'type' => 'graduated',
                 'value' => 0,
@@ -1778,7 +1778,7 @@ class SeedCoreData extends Command
                 'booking_end_date' => '2025-12-31',
                 'activity_start_date' => '2025-10-01',
                 'activity_end_date' => '2025-12-31',
-                'internal_use_only' => 0,
+                'internal_use_only' => 1,
                 'team_id' => 7,
             ],
             [ // {"min_adults":"5","child_discount_percent":"10"} 

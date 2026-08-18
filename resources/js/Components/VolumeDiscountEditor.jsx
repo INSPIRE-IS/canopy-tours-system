@@ -19,10 +19,14 @@ const VolumeDiscountEditor = ({ capacity, tiers = [], onChange }) => {
   return (
     <div className="border rounded-lg p-4 mt-2">
       <h4 className="font-semibold mb-2">Volume Discounts</h4>
+      <p className="text-xs text-gray-500 mb-3">
+        Add threshold tiers. The highest tier where booking pax is equal to or above the tier pax will apply.
+      </p>
       {tiers.map((tier, index) => (
         <div key={index} className="flex gap-2 items-center mb-2">
           <input
             type="number"
+            min="1"
             className="w-20 border rounded p-1"
             placeholder="Pax"
             max={capacity}
@@ -39,6 +43,8 @@ const VolumeDiscountEditor = ({ capacity, tiers = [], onChange }) => {
           </select>
           <input
             type="number"
+            min="0"
+            step="0.01"
             className="w-24 border rounded p-1"
             placeholder="Value"
             value={tier.value}
