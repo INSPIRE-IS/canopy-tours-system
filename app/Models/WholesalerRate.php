@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Traits\Auditable;
 use App\Traits\MultiTenantModelTrait;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -9,7 +10,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class WholesalerRate extends Model
 {
-    use HasFactory, SoftDeletes, MultiTenantModelTrait;
+    use HasFactory, SoftDeletes, MultiTenantModelTrait, Auditable;
     public $table = 'wholesaler_rates';
 
     protected $attributes = [

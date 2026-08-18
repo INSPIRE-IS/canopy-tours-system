@@ -239,35 +239,84 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
 
     const serviceWholesalers = selectedService
         ? Array.from(
-            new Map(
-                (wholesaler_rates || [])
+            new Map([
+                ...(wholesalers || []).map(w => [w.id, w]),
+                ...(booking_items?.wholesaler ? [[booking_items.wholesaler.id, booking_items.wholesaler]] : []),
+                ...(wholesaler_rates || [])
                     .filter(r => Number(r.service_id) === Number(selectedService.id))
                     .map(r => {
-                        const w = r.wholesaler || wholesalers.find(x => x.id === r.wholesaler_id);
+                        const w = r.wholesaler || wholesalers.find(x => Number(x.id) === Number(r.wholesaler_id));
                         return [w?.id, w];
-                    })
-            ).values()
-        ).filter(Boolean)
+                    }),
+            ])
+        ).map(([, wholesaler]) => wholesaler).filter(Boolean)
         : (wholesalers || []);
+    const normalizeDateString = (value) => {
+        if (!value) return null;
+        return String(value).split(' ')[0].slice(0, 10).replaceAll('/', '-');
+    };
     const isRateValidForDate = (rate, date) => {
         if (!rate) return false;
         if (rate.is_active === false || rate.is_active === 0) return false;
-        if (!date) return true;
+        const activityDate = normalizeDateString(date);
+        if (!activityDate) return true;
         const from = rate.effective_from ? String(rate.effective_from).slice(0, 10) : null;
         const to = rate.effective_to ? String(rate.effective_to).slice(0, 10) : null;
-        return (!from || from <= date) && (!to || to >= date);
+        return (!from || from <= activityDate) && (!to || to >= activityDate);
     };
     const rateLabel = (rate) => {
         const dateLabel = `${rate.effective_from ? String(rate.effective_from).slice(0, 10) : 'Any start'} - ${rate.effective_to ? String(rate.effective_to).slice(0, 10) : 'Any end'}`;
         return `${rate.name || rate.season?.name || 'Wholesaler rate'} (${dateLabel})`;
     };
+    const rateServiceId = Number(data.service_id || selectedService?.id);
+    const rateSeasonId = Number(data.season_id || selectedSeason?.id);
     const selectedWholesalerRates = useMemo(() => (wholesaler_rates || []).filter(rate =>
         Number(rate.wholesaler_id) === Number(data.wholesaler_id)
-        && Number(rate.season_id) === Number(selectedSeason?.id || data.season_id)
-        && Number(rate.service_id) === Number(selectedService?.id || data.service_id)
+        && Number(rate.season_id) === rateSeasonId
+        && Number(rate.service_id) === rateServiceId
         && (isRateValidForDate(rate, data.booking_date) || Number(rate.id) === Number(data.wholesaler_rate_id))
-    ), [wholesaler_rates, data.wholesaler_id, data.season_id, data.service_id, data.booking_date, data.wholesaler_rate_id, selectedSeason?.id, selectedService?.id]);
+    ), [wholesaler_rates, data.wholesaler_id, data.booking_date, data.wholesaler_rate_id, rateSeasonId, rateServiceId]);
     const selectedWholesalerRate = selectedWholesalerRates.find(rate => Number(rate.id) === Number(data.wholesaler_rate_id)) || selectedWholesalerRates[0] || null;
+    const savedWholesalerRate = data.wholesaler_rate_id
+        ? ((wholesaler_rates || []).find(rate => Number(rate.id) === Number(data.wholesaler_rate_id)) || booking_items?.wholesaler_rate || null)
+        : null;
+    const hasSavedWholesalerRateOption = selectedWholesalerRates.some(rate => Number(rate.id) === Number(savedWholesalerRate?.id));
+    const invalidSavedWholesalerRateOptions = savedWholesalerRate && !hasSavedWholesalerRateOption
+        ? [{
+            id: savedWholesalerRate.id,
+            name: `Saved rate #${savedWholesalerRate.id} is not valid for this booking season (${rateLabel(savedWholesalerRate)})`,
+            price_adult: savedWholesalerRate.price_adult,
+            price_child: savedWholesalerRate.price_child,
+            price_guide: savedWholesalerRate.price_guide,
+        }]
+        : [];
+    const wholesalerRateOptions = [...invalidSavedWholesalerRateOptions, ...selectedWholesalerRates.map(rate => ({
+        id: rate.id,
+        name: rateLabel(rate),
+        price_adult: rate.price_adult,
+        price_child: rate.price_child,
+        price_guide: rate.price_guide,
+    }))];
+    const resolveWholesalerRateForSelection = () => {
+        if (!data.wholesaler_id) return null;
+
+        const serviceId = Number(data.service_id || selectedService?.id);
+        const seasonId = Number(data.season_id || selectedSeason?.id);
+        const matchesSelection = (rate) =>
+            Number(rate.wholesaler_id) === Number(data.wholesaler_id)
+            && Number(rate.service_id) === serviceId
+            && Number(rate.season_id) === seasonId;
+
+        const selectedRate = (wholesaler_rates || []).find(rate =>
+            matchesSelection(rate) && Number(rate.id) === Number(data.wholesaler_rate_id)
+        );
+
+        if (selectedRate) return selectedRate;
+
+        return (wholesaler_rates || []).find(rate =>
+            matchesSelection(rate) && isRateValidForDate(rate, data.booking_date)
+        ) || null;
+    };
     const isPrepaidWholesalerVoucher = Boolean(data.is_wholesaler && (data.is_prepaid_wholesaler_voucher || (wholesalerApplied && selectedWholesalerRate?.is_prepaid_voucher)));
     const hasWholesalers = Array.isArray(serviceWholesalers) && serviceWholesalers.length > 0;
     const activePromoCode = data.promoCode || promoCode || null;
@@ -470,7 +519,11 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
 
         const service_id = selectedService ? selectedService?.id : (alert('Please select a service'));
         const season_id = selectedSeason ? selectedSeason?.id : (alert('Please select a season'));
-        const wholesaler_id = data.wholesaler_id || null;
+        const wholesaler_id = type === 'saler' ? (data.wholesaler_id || null) : null;
+        const resolvedWholesalerRate = type === 'saler' ? resolveWholesalerRateForSelection() : null;
+        const wholesaler_rate_id = type === 'saler'
+            ? (resolvedWholesalerRate?.id || null)
+            : null;
         const booking_date = data.booking_date ? data.booking_date : (alert('Please select a date'));
         const currentPromoCode = typeof promoCodeOverride === 'string'
             ? promoCodeOverride.trim()
@@ -485,6 +538,14 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
         if ((Number(data.adults || 0) + Number(data.children || 0)) < 1) return;
 
         if (type === 'saler') {
+            if (!wholesaler_id) {
+                showToast('Please select a wholesaler before applying the wholesaler rate.', 'error');
+                return null;
+            }
+            if (!wholesaler_rate_id) {
+                showToast('The selected wholesaler does not have rates for this season/date. Please choose another rate or recalculate from rack.', 'error');
+                return null;
+            }
             setWholesalerApplied(true);
         }
         if (type === 'promo') {
@@ -500,7 +561,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
                 service_id: service_id,
                 season_id: season_id,
                 wholesaler_id: wholesaler_id,
-                wholesaler_rate_id: type === 'saler' ? (data.wholesaler_rate_id || null) : null,
+                wholesaler_rate_id: wholesaler_rate_id,
                 allow_historical_wholesaler_rate: type === 'saler',
                 booking_date: booking_date,
                 promo_code: promo_code,
@@ -1005,6 +1066,48 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
             const servicePromos = promos.filter(promo => promo.service_id === selectedService.id);
             setPromoList(servicePromos);
         }
+    };
+
+    const resetPricingForWholesalerChange = (nextWholesalerId) => {
+        setPromoCode(null);
+        setDiscountId(null);
+        setDiscountAdultPax('');
+        setDiscountChildPax('');
+        setPromoModalOpen(false);
+        hasPersistedPriceLinesRef.current = false;
+        setPricing(null);
+        setWholesalerApplied(false);
+
+        const adultCount = parseInt(data.adults || 0);
+        const childCount = parseInt(data.children || 0);
+        const guideCount = parseInt(data.guides || 0);
+        const baseRates = {
+            adult: data.base_per_adult || 0,
+            child: data.base_per_child || 0,
+            guide: data.base_per_guide || 0,
+        };
+        const booking_total = (
+            (adultCount * baseRates.adult) +
+            (childCount * baseRates.child) +
+            (guideCount * baseRates.guide)
+        ).toFixed(2);
+
+        setData(prev => ({
+            ...prev,
+            wholesaler_id: nextWholesalerId,
+            wholesaler_rate_id: '',
+            promoCode: null,
+            discount_lines: [],
+            invoice_discount_id: null,
+            override_rates: false,
+            override_price: false,
+            rate_per_adult: baseRates.adult,
+            rate_per_child: baseRates.child,
+            rate_per_guide: baseRates.guide,
+            booking_total: booking_total || 0,
+            is_prepaid_wholesaler_voucher: false,
+        }));
+        setPaxGroups(buildBasePaxGroups(adultCount, childCount, guideCount, baseRates));
     };
 
     const clearPricingForOverride = () => {
@@ -1704,7 +1807,14 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
             //const selectedDate = new Date(value);
             const selectedDate = parseDate(data.booking_date);
             // console.log('selectedDate', selectedDate);
-            const season = seasons.find(s => {
+            const dateFallsInSeason = (season) => {
+                if (!season) return false;
+                const start = new Date(season.start_date);
+                const end = new Date(season.end_date);
+                return selectedDate >= start && selectedDate <= end;
+            };
+            const currentSeason = seasons.find(s => Number(s.id) === Number(data.season_id));
+            const season = dateFallsInSeason(currentSeason) ? currentSeason : seasons.find(s => {
                 const start = new Date(s.start_date);
                 // console.log('start', start);
                 const end = new Date(s.end_date);
@@ -1886,6 +1996,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
             ...data,
             booking_item_id: booking_items?.id || data.booking_item_id,
             promoCode: currentPromoCode,
+            wholesaler_rate_id: data.is_wholesaler ? (resolveWholesalerRateForSelection()?.id || null) : null,
             booking_total: serverCalculatedTotal ?? data.booking_total,
             invoice_discount_id: invoiceDiscountIdToSend,
             discount_lines: discountLinesPayload,
@@ -2296,9 +2407,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
                                         name="wholesaler_id"
                                         value={data.wholesaler_id}
                                         onChange={(e) => {
-                                            setData('wholesaler_rate_id', '');
-                                            setWholesalerApplied(false);
-                                            handleChange(e.target.name, e.target.value);
+                                            resetPricingForWholesalerChange(e.target.value);
                                         }}
                                         errors={errors}
                                         options={serviceWholesalers}
@@ -2306,14 +2415,14 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
                                     <CustomSelect
                                         label="Wholesaler Rate"
                                         name="wholesaler_rate_id"
-                                        value={data.wholesaler_rate_id}
+                                        value={data.wholesaler_rate_id || selectedWholesalerRate?.id || ''}
                                         onChange={(e) => {
                                             setWholesalerApplied(false);
                                             setData('wholesaler_rate_id', e.target.value);
                                         }}
                                         errors={errors}
-                                        options={wholesalerRateList}
-                                        optionText={wholesalerRateList.length ? '-- Select rate --' : 'No valid rates for this date'}
+                                        options={wholesalerRateOptions}
+                                        optionText={wholesalerRateOptions.length ? '-- Select rate --' : 'No valid rates for this date'}
                                     />
                                     <CustomCheckbox
                                         label="Add Consultant"
@@ -2597,11 +2706,11 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
                                     {showWholesaler && data.is_wholesaler && (
                                         <div className="flex flex-col items-center space-y-2">
                                             <span className="text-[#161618] font-poppins text-[12px] font-normal leading-[130%]">
-                                                Wholesaler Discount
+                                                Wholesaler Rate
                                             </span>
                                             <div className="flex items-center gap-2 mt-3">
                                                 <BlueButton
-                                                    title="Apply"
+                                                    title="Apply Rate"
                                                     disabled={processing || !data.wholesaler_id}
                                                     onClick={() => handleCalculate('saler')}
                                                 />

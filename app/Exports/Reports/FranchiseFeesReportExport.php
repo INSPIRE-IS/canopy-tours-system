@@ -13,15 +13,20 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
+use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithHeadings;
+use Maatwebsite\Excel\Events\AfterSheet;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
 
-class FranchiseFeesReportExport implements FromCollection, WithHeadings, ShouldAutoSize, ShouldQueue
+class FranchiseFeesReportExport implements FromCollection, WithHeadings, ShouldAutoSize, ShouldQueue, WithEvents
 {
     private array $discountNames = [];
     private array $wholesalerNames = [];
     private array $tradeExchangeWholesalers = [];
     private array $prepaidVoucherRateIds = [];
     private array $prepaidVoucherRateKeys = [];
+    private ?int $reportNotesRow = null;
 
     public function __construct(
         private readonly int $teamId,
@@ -77,9 +82,30 @@ class FranchiseFeesReportExport implements FromCollection, WithHeadings, ShouldA
         $rows->push($this->summaryRow("Royalty @ {$this->percentLabel($royaltyPercent)}", $this->money($turnoverExclVat * ($royaltyPercent / 100))));
         $rows->push($this->summaryRow("Marketing Account @ {$this->percentLabel($marketingPercent)}", $this->money($turnoverExclVat * ($marketingPercent / 100))));
         $rows->push($this->blankRow());
+        $this->reportNotesRow = $rows->count() + 2;
         $rows->push($this->summaryRow('Report Notes', 'V1 buckets known 10/15/20/25%, configured trade-exchange wholesalers, prepaid voucher partner rates, complimentary, and full-rate rows; unmapped promos/discounts/non-trade wholesalers/custom rates are grouped under Other with structured pricing comments only.'));
 
         return $rows;
+    }
+
+    public function registerEvents(): array
+    {
+        return [
+            AfterSheet::class => function (AfterSheet $event) {
+                if (!$this->reportNotesRow) {
+                    return;
+                }
+
+                $lastColumn = Coordinate::stringFromColumnIndex(count($this->headings()));
+                $noteRange = "D{$this->reportNotesRow}:{$lastColumn}{$this->reportNotesRow}";
+                $event->sheet->mergeCells($noteRange);
+                $event->sheet->getDelegate()->getColumnDimension('D')->setWidth(14);
+                $event->sheet->getDelegate()->getRowDimension($this->reportNotesRow)->setRowHeight(48);
+                $event->sheet->getStyle($noteRange)->getAlignment()
+                    ->setWrapText(true)
+                    ->setVertical(Alignment::VERTICAL_TOP);
+            },
+        ];
     }
 
     public function headings(): array

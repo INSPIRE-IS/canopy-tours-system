@@ -2073,6 +2073,8 @@ class BookingsController extends Controller
             'season',
             'inventory',
             'promotion',
+            'wholesaler' => fn ($query) => $query->withTrashed()->select('id', 'name', 'team_id', 'deleted_at'),
+            'wholesaler_rate' => fn ($query) => $query->withTrashed()->select('id', 'name', 'wholesaler_id', 'service_id', 'season_id', 'price_adult', 'price_child', 'price_guide', 'bill_back', 'is_prepaid_voucher', 'effective_from', 'effective_to', 'is_active', 'deleted_at', 'team_id'),
             'customers', // :id,name,email,contact_number
             'customer_manifests.customer.booking_questionnaire', // :id,position,notes,is_indemnity,customer_id,booking_id\
             'booking_infos', // :id,booking_id,type_location_id,location,time,created_at,updated_at,deleted_at
@@ -2115,7 +2117,18 @@ class BookingsController extends Controller
         $currentServiceId = $booking_items?->service_id;
         $currentSeasonId = $booking_items?->season_id;
         $status_bookings = TypeBooking::select('name', 'id')->get();
-        $wholesalers = Wholesaler::select('id', 'name')->where('team_id', auth()->user()->team_id)->get();
+        $currentWholesalerId = $booking_items?->wholesaler_id;
+        $currentWholesalerRateId = $booking_items?->wholesaler_rate_id;
+        $wholesalers = Wholesaler::withTrashed()
+            ->select('id', 'name', 'team_id', 'deleted_at')
+            ->where('team_id', auth()->user()->team_id)
+            ->where(function ($query) use ($currentWholesalerId) {
+                $query->whereNull('deleted_at');
+                if ($currentWholesalerId) {
+                    $query->orWhere('id', $currentWholesalerId);
+                }
+            })
+            ->get();
         //$services = Service::select('id', 'name')->get();
         $services = Service::select('id', 'name', 'allow_internal_capacity_override', 'duration', 'capacity')
             ->where(function ($query) use ($today, $currentServiceId) {
@@ -2162,8 +2175,15 @@ class BookingsController extends Controller
 
         $vouchers = Voucher::select('id', 'voucher_code as name', 'amount', 'note', 'expire_date', 'season_id', 'service_id')->with('season', 'service')->get();
         $discounts = Discount::select('id', 'name', 'applies_to', 'percent_off')->with('services')->get();
-        $wholesaler_rates = WholesalerRate::select('id', 'name', 'wholesaler_id', 'service_id', 'season_id', 'price_adult', 'price_child', 'price_guide', 'bill_back', 'is_prepaid_voucher', 'effective_from', 'effective_to', 'is_active', 'note')
+        $wholesaler_rates = WholesalerRate::withTrashed()
+            ->select('id', 'name', 'wholesaler_id', 'service_id', 'season_id', 'price_adult', 'price_child', 'price_guide', 'bill_back', 'is_prepaid_voucher', 'effective_from', 'effective_to', 'is_active', 'note', 'deleted_at', 'team_id')
             ->where('team_id', auth()->user()->team_id)
+            ->where(function ($query) use ($currentWholesalerRateId) {
+                $query->whereNull('deleted_at');
+                if ($currentWholesalerRateId) {
+                    $query->orWhere('id', $currentWholesalerRateId);
+                }
+            })
             ->with('service', 'season', 'wholesaler')
             ->get();
         $promos = Promotion::select('id', 'name', 'promo_code', 'type', 'value', 'params', 'service_id', 'booking_start_date', 'booking_end_date', 'activity_start_date', 'activity_end_date')
@@ -2619,8 +2639,10 @@ class BookingsController extends Controller
                 if ($bookingItem->booking_fee) {
                     if ($prepaidWholesalerVoucher) {
                         $bookingFeeData['tot_paid'] = $amount;
-                    } elseif ($bookingItem->booking_fee->is_prepaid_wholesaler_voucher) {
-                        $bookingFeeData['tot_paid'] = 0;
+                    } else {
+                        // Editing price/rate must not reverse payment state. Refund/payment correction is a deliberate payment flow.
+                        $existingPaid = round((float) ($bookingItem->booking_fee->tot_paid ?? 0), 2);
+                        $bookingFeeData['tot_paid'] = min($existingPaid, $amount);
                     }
                     $bookingItem->booking_fee->update($bookingFeeData);
                 } else {
