@@ -130,6 +130,11 @@ export default function Dashboard({ auth, booking, payment_history = [], booking
     const requiresShortPaymentNote = isAdjustedPayment;
     const requiresAdditionalPaymentNote = hasAdditionalPayment;
     const leadEmail = booking?.customer?.email_address || booking?.lead_email || '';
+    const paymentStatusClass = (status) => {
+        if (status === 'refund') return 'bg-red-100 text-red-700';
+        if (status === 'allocated') return 'bg-blue-100 text-blue-700';
+        return 'bg-green-100 text-green-700';
+    };
     const goToBookingEdit = (bookingItemId = null) => {
         const params = bookingItemId
             ? { booking: booking.id, booking_item_id: bookingItemId, return_to_payment: 1 }
@@ -587,7 +592,7 @@ export default function Dashboard({ auth, booking, payment_history = [], booking
                                                         <td className="booking-data-table-td">{payment.payment_date || '-'}</td>
                                                         <td className="booking-data-table-td">{payment.settled_due_on || '-'}</td>
                                                         <td className="booking-data-table-td">
-                                                            <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${payment.status === 'refund' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                                                            <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${paymentStatusClass(payment.status)}`}>
                                                                 {payment.status || 'Success'}
                                                             </span>
                                                         </td>
