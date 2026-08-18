@@ -564,11 +564,11 @@ class SeedHelpQuestions extends Command
                 'question' => 'What promotion types are available?',
                 'description' => 'Promotions can change pricing by percent, fixed value, tiers, or time slots.',
                 'where' => '<a href="/admin/promotions">Admin > Promotions</a>',
-                'business_rules' => 'Types include percent, fixed value, graduated, varied child, volume discount, and time-slot promos. Fixed value supports Apply To modes for booking total, one adult, one child, each adult, each child, and each adult + child. Graduated promos override total price based on pax count. Time-slot promos apply only to selected days/time slots.',
+                'business_rules' => 'Types include percent, fixed value, varied child, volume discount, exact pax discount, and time-slot promos. Graduated promos are legacy/admin-maintained only and are kept for existing records. Fixed value supports Apply To modes for booking total, one adult, one child, each adult, each child, and each adult + child. Exact pax promos apply only to configured pax counts using % or R logic. Time-slot promos apply only to selected days/time slots.',
                 'examples' => '
                  
 
-<strong>* Percent Fields</strong>: <strong>Value </strong>(%). <strong>Logic</strong>: Percent off booking total. A &ldquo;10% off&rdquo; promo reduces each pax rate by 10%. Fixed Value <strong>Fields</strong>: Value (R). <strong>Logic</strong>: Fixed amount off booking total. <strong>* Graduated Fields</strong>: Lookup table (pax count &rarr; total). A &ldquo;Graduated&rdquo; promo can set the total to R1500 for 4 pax regardless of base price.&nbsp;<strong>Logic</strong>: Sets booking total to lookup value for matched pax. Generally the larger the group the more discount. <strong>* Varied Child Fields:</strong> Min adults + Child discount %, or tiers. <strong>Logic</strong>: Child-only discount when min adults/tier matched. <strong>* Volume Discount Fields:</strong> Tiers (pax range, type, value). <strong>Logic</strong>: Best tier applies; percent or fixed value off booking total. <strong>* Time Slot Fields:</strong> Season, Days, optional Time Slots, <strong>Value </strong>(%). <strong>Logic</strong>: Percent off booking total for selected days; no slots = all slots. -- <em>Day/time filters: if no days are selected, the promo applies to all days. If days are selected and no time slots are checked, it applies to every slot for those days.</em></p>',
+<strong>* Percent Fields</strong>: <strong>Value </strong>(%). <strong>Logic</strong>: Percent off booking total. A &ldquo;10% off&rdquo; promo reduces each pax rate by 10%. Fixed Value <strong>Fields</strong>: Value (R). <strong>Logic</strong>: Fixed amount off booking total. <strong>* Exact Pax Discount Fields:</strong> Pax rows with % or R values. <strong>Logic</strong>: Applies only when the booking pax exactly matches a configured row. <strong>* Varied Child Fields:</strong> Min adults + Child discount %, or tiers. <strong>Logic</strong>: Child-only discount when min adults/tier matched. <strong>* Volume Discount Fields:</strong> Tiers (pax threshold, type, value). <strong>Logic</strong>: Best tier applies; percent or fixed value off booking total. <strong>* Time Slot Fields:</strong> Season, Days, optional Time Slots, <strong>Value </strong>(%). <strong>Logic</strong>: Percent off booking total for selected days; no slots = all slots. <strong>* Graduated</strong>: legacy exact-pax final-total pricing kept for existing records only. -- <em>Day/time filters: if no days are selected, the promo applies to all days. If days are selected and no time slots are checked, it applies to every slot for those days.</em></p>',
                 'is_internal' => true,
             ],
             [
@@ -613,11 +613,11 @@ class SeedHelpQuestions extends Command
             ],
             [
                 'category' => 'Promotions',
-                'question' => 'Graduated promotion (how does it apply)?',
-                'description' => 'Graduated promos override the booking total to a specific value based on pax count.',
-                'where' => '<a href="/admin/promotions">Admin > Promotions</a> (Type: Graduated)',
-                'business_rules' => 'The lookup table maps pax count (adults + children) to a target booking total. If there is a match, pricing is forced to that total (line totals are adjusted slightly to match exactly).',
-                'examples' => 'Example 1: Lookup: 4 pax => R1500; booking has 3 adults + 1 child => total becomes R1500. Example 2: Lookup: 2 pax => R800; booking has 2 adults => total becomes R800.',
+                'question' => 'Graduated promotion (legacy - how does it apply)?',
+                'description' => 'Graduated promos are legacy exact-pax promos that override the booking total.',
+                'where' => '<a href="/admin/promotions">Admin > Promotions</a> (Type: Graduated - legacy, visible only when editing existing graduated promos)',
+                'business_rules' => 'The lookup table maps pax count (adults + children) to a target booking total. If there is a match, pricing is forced to that total (line totals are adjusted slightly to match exactly). Use Exact Pax Discount for new exact-pax promos because it supports % and R discount rules.',
+                'examples' => 'Example 1: Lookup: 4 pax => R1500; booking has 3 adults + 1 child => total becomes R1500. Example 2: Lookup: 2 pax => R800; booking has 2 adults => total becomes R800. If no lookup exists for the current pax, the promo is rejected instead of applying rack pricing silently.',
                 'related' => 'promotions, graduated, pricing, pax lookup',
                 'is_internal' => true,
             ],
@@ -637,8 +637,18 @@ class SeedHelpQuestions extends Command
                 'description' => 'Volume promos apply the best matching tier based on pax count.',
                 'where' => '<a href="/admin/promotions">Admin > Promotions</a> (Type: Volume Discount)',
                 'business_rules' => 'The highest tier where paxCount >= tier.pax is applied. Percent tiers reduce rates by %; fixed value tiers subtract a fixed Rand amount from the booking total (distributed proportionally across rates).',
-                'examples' => 'Example 1: Tier 4+ pax = 10%; booking pax 4 => 10% off applies. Example 2: Tier 6+ pax = R300; booking pax 6 => subtract R300 total.',
+                'examples' => 'Example 1: Tier 4+ pax = 10%; booking pax 4 => 10% off applies. Example 2: Tier 6+ pax = R300; booking pax 6 => subtract R300 total. If the booking pax is below the first tier, the promo is rejected instead of applying rack pricing silently.',
                 'related' => 'promotions, volume_discount, tiers, pricing',
+                'is_internal' => true,
+            ],
+            [
+                'category' => 'Promotions',
+                'question' => 'Exact pax discount promotion (how does it apply)?',
+                'description' => 'Exact pax promos apply only to the pax counts configured on the promo.',
+                'where' => '<a href="/admin/promotions">Admin > Promotions</a> (Type: Exact Pax Discount)',
+                'business_rules' => 'Exact pax uses adults + children only. Each configured pax row can use % off or a fixed Rand amount off the booking total. If the booking pax does not exactly match a configured row, the promo is rejected and staff must recalculate or choose another promo.',
+                'examples' => 'Example 1: 1 pax = 10%, 2 pax = 10%; a 2-pax booking gets 10% off. Example 2: the same promo on a 5-pax booking is rejected because no 5-pax rule exists.',
+                'related' => 'promotions, pax_exact_discount, exact pax, volume_discount, pricing',
                 'is_internal' => true,
             ],
             [
@@ -656,8 +666,8 @@ class SeedHelpQuestions extends Command
                 'question' => 'How do promotion types affect totals?',
                 'description' => 'Each promo type calculates pricing differently.',
                 'where' => '<a href="/admin/promotions">Admin > Promotions</a>',
-                'business_rules' => 'Percent and fixed-value adjust rates; graduated overrides total by pax count; varied-child discounts child rates when adult minimum is met; volume tiers apply based on pax thresholds; time-slot promos apply only to selected days/time slots.',
-                'examples' => 'Varied-child: 2 adults + 1 child with min_adults=2 gives child discount only if at least 2 adults are present. Volume: 1-3 pax = 5%, 4-6 pax = 10%.',
+                'business_rules' => 'Percent and fixed-value adjust rates; exact pax discount applies % or R rules only to exact pax matches; varied-child discounts child rates when adult minimum is met; volume tiers apply based on pax thresholds; time-slot promos apply only to selected days/time slots. Graduated is legacy exact-pax final-total pricing and should not be used for new promos.',
+                'examples' => 'Varied-child: 2 adults + 1 child with min_adults=2 gives child discount only if at least 2 adults are present. Volume: 4+ pax = 10%. Exact pax: only 1 pax and 2 pax configured means 5 pax receives no promo.',
                 'is_internal' => true,
             ],
             [

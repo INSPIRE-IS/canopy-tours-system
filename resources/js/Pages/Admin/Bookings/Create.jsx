@@ -797,6 +797,32 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
         const mode = params?.fixed_value_mode;
         const adults = Number(data.adults || 0);
         const children = Number(data.children || 0);
+        const totalPax = adults + children;
+
+        if (promo?.type === 'graduated') {
+            const lookup = params?.lookup || {};
+            if (!(String(totalPax) in lookup)) {
+                showToast(`This graduated promo has no price for ${totalPax} pax.`, 'error');
+                return false;
+            }
+        }
+
+        if (promo?.type === 'volume_discount') {
+            const tiers = Array.isArray(params?.tiers) ? params.tiers : [];
+            const hasTier = tiers.some((tier) => Number(tier?.pax || 0) > 0 && totalPax >= Number(tier.pax));
+            if (!hasTier) {
+                showToast(`This volume discount has no tier for ${totalPax} pax.`, 'error');
+                return false;
+            }
+        }
+
+        if (promo?.type === 'pax_exact_discount') {
+            const rules = params?.rules || {};
+            if (!(String(totalPax) in rules)) {
+                showToast(`This exact pax promo has no rule for ${totalPax} pax.`, 'error');
+                return false;
+            }
+        }
 
         if (promo?.type === 'fixed_value') {
             if (['one_adult', 'each_adult'].includes(mode) && adults < 1) {

@@ -573,7 +573,7 @@ class BookingItem extends Model
                         $best = null;
                         if (!empty($params['tiers']) && is_array($params['tiers'])) {
                             $best = collect($params['tiers'])
-                                ->filter(fn($t) => isset($t['pax']) && $totalPax >= (int)$t['pax'])
+                                ->filter(fn($t) => isset($t['pax']) && is_numeric($t['pax']) && (int)$t['pax'] > 0 && $totalPax >= (int)$t['pax'])
                                 ->sortByDesc('pax')
                                 ->first();
                         }
@@ -590,6 +590,31 @@ class BookingItem extends Model
                             }
                         }
                         logger()->info('volume_discount promo applied ' . var_export($rates, true));
+                        break;
+
+                    case 'pax_exact_discount':
+                        $rules = $params['rules'] ?? [];
+                        if (is_string($rules)) {
+                            $decodedRules = json_decode($rules, true);
+                            $rules = is_array($decodedRules) ? $decodedRules : [];
+                        } elseif (is_object($rules)) {
+                            $rules = (array) $rules;
+                        }
+
+                        $rule = is_array($rules) ? ($rules[(string) $totalPax] ?? $rules[$totalPax] ?? null) : null;
+                        if (is_array($rule)) {
+                            $type = (string) ($rule['type'] ?? 'percent');
+                            $value = (float) ($rule['value'] ?? 0);
+                            if ($type === 'percent') {
+                                foreach ($rates as $k => $v) {
+                                    $rates[$k] = round($v - ($v * ($value / 100)), 2);
+                                }
+                            } elseif ($type === 'fixed_value') {
+                                $targetTotal = max(0, $baseTotal - $value);
+                                $applyBookingTotal($targetTotal);
+                            }
+                        }
+                        logger()->info('pax_exact_discount promo applied ' . var_export($rates, true));
                         break;
 
                     case 'time_slot':

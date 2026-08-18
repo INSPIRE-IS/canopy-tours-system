@@ -291,6 +291,8 @@ class PricingService
                             if ($paxRate !== null) {
                                 $applyBookingTotal($paxRate);
                                 $forcedTotal = (float) $paxRate;
+                            } else {
+                                throw new \InvalidArgumentException("This graduated promo is not valid for {$totalPax} pax.");
                             }
                             break;
                         case 'varied_child':
@@ -315,7 +317,7 @@ class PricingService
                             $best = null;
                             if (!empty($params['tiers']) && is_array($params['tiers'])) {
                                 $best = collect($params['tiers'])
-                                    ->filter(fn($tier) => isset($tier['pax']) && $totalPax >= (int) $tier['pax'])
+                                    ->filter(fn($tier) => isset($tier['pax']) && is_numeric($tier['pax']) && (int) $tier['pax'] > 0 && $totalPax >= (int) $tier['pax'])
                                     ->sortByDesc('pax')
                                     ->first();
                             }
@@ -329,6 +331,36 @@ class PricingService
                                     $targetTotal = max(0, $baseTotal - (float) ($best['value'] ?? 0));
                                     $applyBookingTotal($targetTotal);
                                 }
+                            } else {
+                                throw new \InvalidArgumentException("This volume discount is not valid for {$totalPax} pax.");
+                            }
+                            break;
+                        case 'pax_exact_discount':
+                            $rules = $params['rules'] ?? [];
+                            if (is_string($rules)) {
+                                $decodedRules = json_decode($rules, true);
+                                $rules = is_array($decodedRules) ? $decodedRules : [];
+                            } elseif (is_object($rules)) {
+                                $rules = (array) $rules;
+                            }
+
+                            $rule = is_array($rules) ? ($rules[(string) $totalPax] ?? $rules[$totalPax] ?? null) : null;
+                            if (!is_array($rule)) {
+                                throw new \InvalidArgumentException("This exact pax promo is not valid for {$totalPax} pax.");
+                            }
+
+                            $ruleType = (string) ($rule['type'] ?? 'percent');
+                            $ruleValue = (float) ($rule['value'] ?? 0);
+
+                            if ($ruleType === 'percent') {
+                                foreach ($rates as $key => $value) {
+                                    $rates[$key] = round($value - ($value * ($ruleValue / 100)), 2);
+                                }
+                            } elseif ($ruleType === 'fixed_value') {
+                                $targetTotal = max(0, $baseTotal - $ruleValue);
+                                $applyBookingTotal($targetTotal);
+                            } else {
+                                throw new \InvalidArgumentException('Exact pax promo rule type is invalid.');
                             }
                             break;
                     }
