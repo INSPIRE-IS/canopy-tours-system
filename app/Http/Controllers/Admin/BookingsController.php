@@ -5064,7 +5064,7 @@ class BookingsController extends Controller
             $pricing = app(PricingService::class)->calculate($data);
             if ((!empty($data['promo_code']) || !empty($data['promotion_id'])) && empty($pricing['applied_promotion'])) {
                 return response()->json([
-                    'message' => 'The selected promo is not valid for this service/date. Please choose another promo or recalculate from rack.',
+                    'message' => 'No promo was found for that code, service, and date period. Please use the info icon to confirm available promotions and correct promo names.',
                 ], 422);
             }
 

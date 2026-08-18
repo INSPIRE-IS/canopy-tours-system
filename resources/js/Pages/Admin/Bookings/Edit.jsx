@@ -28,6 +28,7 @@ const PRICING_MODES = {
     WHOLESALER: 'WHOLESALER',
     OVERRIDE: 'OVERRIDE',
 };
+const PROMO_NOT_AVAILABLE_MESSAGE = "No promo was found for that code, service, and date period. Please use the info icon to confirm available promotions and correct promo names.";
 
 export default function Dashboard({ auth, wholesalers = [], services = [], booking, booking_items, schedule, start_date, view_mode, days, type_affiliates, vouchers, discounts, wholesaler_rates, promos, lookups, countries = [], settings = {}, note_defaults = {} }) {
     //seasons = [],, adults, children, guides
@@ -269,7 +270,8 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
     const selectedWholesalerRate = selectedWholesalerRates.find(rate => Number(rate.id) === Number(data.wholesaler_rate_id)) || selectedWholesalerRates[0] || null;
     const isPrepaidWholesalerVoucher = Boolean(data.is_wholesaler && (data.is_prepaid_wholesaler_voucher || (wholesalerApplied && selectedWholesalerRate?.is_prepaid_voucher)));
     const hasWholesalers = Array.isArray(serviceWholesalers) && serviceWholesalers.length > 0;
-    const activePromoCode = promoCode || data.promoCode || null;
+    const activePromoCode = data.promoCode || promoCode || null;
+    const hasUnappliedPromoCode = String(promoCode || '').trim() !== String(data.promoCode || '').trim();
     const hasPromo = !!activePromoCode;
     const hasDiscountSelection = !!discountId;
     const hasInvoiceDiscount = !!pricing?.applied_discounts?.some(d => d.applied_to === 'invoice');
@@ -463,18 +465,21 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
     }, [data.is_wholesaler, isInitializing]);
 
     // used by wholesaler and promo
-    const handleCalculate = async (type, paxGroupsOverride = null, invoiceDiscountId = null) => {
+    const handleCalculate = async (type, paxGroupsOverride = null, invoiceDiscountId = null, promoCodeOverride = null) => {
         console.log('==============handleCalculate 303:========== ');
 
         const service_id = selectedService ? selectedService?.id : (alert('Please select a service'));
         const season_id = selectedSeason ? selectedSeason?.id : (alert('Please select a season'));
         const wholesaler_id = data.wholesaler_id || null;
         const booking_date = data.booking_date ? data.booking_date : (alert('Please select a date'));
-        const currentPromoCode = promoCode || data.promoCode || null;
+        const currentPromoCode = typeof promoCodeOverride === 'string'
+            ? promoCodeOverride.trim()
+            : (typeof (data.promoCode || promoCode) === 'string' ? (data.promoCode || promoCode).trim() : (data.promoCode || promoCode || null));
         const promo_code = type === 'promo' ? currentPromoCode : null;
         const pax_groups = paxGroupsOverride || paxGroups || (alert('Please select a pax group'));
         const shouldUsePromotionId = type === 'promo'
             && promotionId
+            && !promoCodeOverride
             && (!currentPromoCode || currentPromoCode === initialPromoCodeRef.current);
         if (!selectedService || !selectedSeason || !data.booking_date || !data.start_time) return;
         if ((Number(data.adults || 0) + Number(data.children || 0)) < 1) return;
@@ -483,6 +488,10 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
             setWholesalerApplied(true);
         }
         if (type === 'promo') {
+            if (!promo_code) {
+                showToast(PROMO_NOT_AVAILABLE_MESSAGE, 'error');
+                return null;
+            }
             //setPricingMode(PRICING_MODES.PROMO);
             //resetPricingState('promo');
         }
@@ -547,7 +556,8 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
             return res.data;
         } catch (err) {
             console.error(err.response?.data || err);
-            showToast(err.response?.data?.message || 'Pricing recalculation failed. Please try again.', 'error');
+            const serverMessage = err.response?.data?.message;
+            showToast(serverMessage || (type === 'promo' ? PROMO_NOT_AVAILABLE_MESSAGE : 'Pricing recalculation failed. Please try again.'), 'error');
             return null;
         }
     };
@@ -575,8 +585,8 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
             return;
         }
 
-        if (activePromoCode || promotionId) {
-            const promoKey = activePromoCode || promotionId;
+        if ((data.promoCode || promotionId) && !hasUnappliedPromoCode) {
+            const promoKey = data.promoCode || promotionId;
             const key = `promo|${promoKey}|${data.adults}|${data.children}|${data.guides}|${data.booking_date}|${data.start_time}`;
             if (lastPricingKeyRef.current !== key) {
                 lastPricingKeyRef.current = key;
@@ -656,6 +666,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
         selectedService,
         selectedSeason,
         hasInvoiceDiscount,
+        hasUnappliedPromoCode,
         pricing,
     ]);
 
@@ -808,7 +819,36 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
         setPromoModalOpen(false);
     }
 
-    function handlePromoModalSelect(promo) {
+    async function handleApplyPromo(selectedPromoCode = null) {
+        const promoCodeToApply = (selectedPromoCode || promoCode || '').trim();
+        if (!promoCodeToApply) {
+            showToast(PROMO_NOT_AVAILABLE_MESSAGE, 'error');
+            return false;
+        }
+
+        const promoGroups = buildBasePaxGroups(
+            Number(data.adults || 0),
+            Number(data.children || 0),
+            Number(data.guides || 0),
+            {
+                adult: Number(data.base_per_adult || data.rate_per_adult || 0),
+                child: Number(data.base_per_child || data.rate_per_child || 0),
+                guide: Number(data.base_per_guide || data.rate_per_guide || 0),
+            }
+        );
+        const result = await handleCalculate('promo', promoGroups, null, promoCodeToApply);
+        if (!result?.applied_promotion) {
+            return false;
+        }
+
+        const appliedCode = result.applied_promotion.promo_code || promoCodeToApply;
+        setPromoCode(appliedCode);
+        setPromotionId(result.applied_promotion.id || null);
+        setData('promoCode', appliedCode);
+        return true;
+    }
+
+    async function handlePromoModalSelect(promo) {
         const selectedPromoCode = promo?.promo_code || promo;
         const params = typeof promo?.params === 'string'
             ? (() => {
@@ -860,11 +900,8 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
             }
         }
 
-        setPromoCode(selectedPromoCode);
-        setPromotionId(promo?.id || null);
-        setData("promoCode", selectedPromoCode);
         handlePromoModalClose();
-        return true;
+        return handleApplyPromo(selectedPromoCode);
     }
 
     const calculateTotal = (count, rate) => {
@@ -1797,6 +1834,10 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
             showToast('Please add at least 1 adult or 1 child.', 'info');
             return;
         }
+        if (hasUnappliedPromoCode) {
+            showToast('Please click Apply to validate the promo code before saving the booking.', 'error');
+            return;
+        }
 
         // Avoid "Pricing mismatch" by ensuring server-calculated totals are current for promo/wholesaler/invoice-discount flows.
         let serverCalculatedTotal = null;
@@ -1806,7 +1847,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
             const invoiceDiscountId = pricing?.applied_discounts?.find(d => d.applied_to === 'invoice')?.id ?? null;
             invoiceDiscountIdToSend = invoiceDiscountId || invoiceDiscountIdToSend;
             const hasLineDiscounts = paxGroups.some(g => g.discount_id);
-            const currentPromoCode = promoCode || data.promoCode || null;
+            const currentPromoCode = data.promoCode || null;
             const shouldRecalc = Boolean(data.is_wholesaler || currentPromoCode || promotionId || invoiceDiscountIdToSend || hasLineDiscounts || pricing?.applied_promotion);
             if (shouldRecalc) {
                 const calcType = (currentPromoCode || promotionId) ? 'promo' : data.is_wholesaler ? 'saler' : (invoiceDiscountIdToSend || hasLineDiscounts) ? 'discount' : 'base';
@@ -1840,7 +1881,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
         }
 
         const discountLinesPayload = buildDiscountLinesPayload(recalculatedGroupsForSubmit || paxGroups);
-        const currentPromoCode = promoCode || data.promoCode || null;
+        const currentPromoCode = data.promoCode || null;
         const submitPayload = {
             ...data,
             booking_item_id: booking_items?.id || data.booking_item_id,
@@ -2529,7 +2570,6 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
                                                 onChange={(e) => {
                                                     const nextPromoCode = e.target.value;
                                                     setPromoCode(nextPromoCode);
-                                                    setData('promoCode', nextPromoCode);
                                                     if (nextPromoCode !== initialPromoCodeRef.current) {
                                                         setPromotionId(null);
                                                     }
@@ -2540,11 +2580,11 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
                                                 spellCheck={false}
                                             />
                                             <div className="flex items-center gap-2 mt-3">
-                                                {!pricing?.applied_promotion && (
+                                                {(!pricing?.applied_promotion || String(promoCode || '').trim() !== String(data.promoCode || '').trim()) && (
                                                     <BlueButton
                                                         title="Apply"
                                                         disabled={processing}
-                                                        onClick={() => handleCalculate('promo')}
+                                                        onClick={() => handleApplyPromo()}
                                                     />
                                                 )}
                                                 <div onClick={() => setPromoModalOpen(true)} className="flex items-center justify-center w-[36px] h-[32px] gap-2 bg-[#2D99FE] rounded-full p-2">

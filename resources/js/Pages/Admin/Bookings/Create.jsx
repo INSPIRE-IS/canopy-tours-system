@@ -28,6 +28,7 @@ const PRICING_MODES = {
     WHOLESALER: 'WHOLESALER',
     OVERRIDE: 'OVERRIDE',
 };
+const PROMO_NOT_AVAILABLE_MESSAGE = "No promo was found for that code, service, and date period. Please use the info icon to confirm available promotions and correct promo names.";
 
 export default function Dashboard({ auth, wholesalers = [], services = [], schedule, start_date, view_mode, days, type_affiliates, vouchers, discounts, wholesaler_rates, promos, lookups, countries = [], settings = {} }) {
     //seasons = [],, adults, children, guides
@@ -297,7 +298,8 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
     const selectedWholesalerRate = selectedWholesalerRates.find(rate => Number(rate.id) === Number(data.wholesaler_rate_id)) || selectedWholesalerRates[0] || null;
     const isPrepaidWholesalerVoucher = Boolean(data.is_wholesaler && (data.is_prepaid_wholesaler_voucher || (wholesalerApplied && selectedWholesalerRate?.is_prepaid_voucher)));
     const hasWholesalers = Array.isArray(serviceWholesalers) && serviceWholesalers.length > 0;
-    const hasPromo = !!promoCode;
+    const hasUnappliedPromoCode = String(promoCode || '').trim() !== String(data.promoCode || '').trim();
+    const hasPromo = !!data.promoCode || !!pricing?.applied_promotion;
     const hasDiscountSelection = !!discountId;
     const hasInvoiceDiscount = !!pricing?.applied_discounts?.some(d => d.applied_to === 'invoice');
     const invoiceDiscountFromPricing = pricing?.applied_discounts?.find(d => d.applied_to === 'invoice')?.id ?? null;
@@ -475,14 +477,17 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
     }, [data.is_wholesaler]);
 
     // used by wholesaler and promo
-    const handleCalculate = async (type, paxGroupsOverride = null, invoiceDiscountId = null) => {
+    const handleCalculate = async (type, paxGroupsOverride = null, invoiceDiscountId = null, promoCodeOverride = null) => {
         console.log('==============handleCalculate 303:========== ');
 
         const service_id = selectedService ? selectedService?.id : (alert('Please select a service'));
         const season_id = selectedSeason ? selectedSeason?.id : (alert('Please select a season'));
         const wholesaler_id = type === 'saler' ? (data.wholesaler_id || null) : null;
         const booking_date = data.booking_date ? data.booking_date : (alert('Please select a date'));
-        const promo_code = type === 'promo' ? (promoCode || null) : null;
+        const currentPromoCode = typeof promoCodeOverride === 'string'
+            ? promoCodeOverride.trim()
+            : (typeof (data.promoCode || promoCode) === 'string' ? (data.promoCode || promoCode).trim() : (data.promoCode || promoCode));
+        const promo_code = type === 'promo' ? (currentPromoCode || null) : null;
         const pax_groups = paxGroupsOverride || paxGroups || (alert('Please select a pax group'));
         if (!selectedService || !selectedSeason || !data.booking_date || !data.start_time) return;
         if ((Number(data.adults || 0) + Number(data.children || 0)) < 1) return;
@@ -495,6 +500,10 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
             setWholesalerApplied(true);
         }
         if (type === 'promo') {
+            if (!promo_code) {
+                showToast(PROMO_NOT_AVAILABLE_MESSAGE, 'error');
+                return null;
+            }
             //setPricingMode(PRICING_MODES.PROMO);
             //resetPricingState('promo');
         }
@@ -557,7 +566,8 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
             return res.data;
         } catch (err) {
             console.error(err.response?.data || err);
-            showToast(err.response?.data?.message || 'Pricing recalculation failed. Please try again.', 'error');
+            const serverMessage = err.response?.data?.message;
+            showToast(serverMessage || (type === 'promo' ? PROMO_NOT_AVAILABLE_MESSAGE : 'Pricing recalculation failed. Please try again.'), 'error');
             return null;
         }
     };
@@ -566,8 +576,8 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
         if (!selectedService || !selectedSeason || !data.booking_date || !data.start_time) return;
         if ((Number(data.adults || 0) + Number(data.children || 0)) < 1) return;
 
-        if (promoCode) {
-            const key = `promo|${promoCode}|${data.adults}|${data.children}|${data.guides}|${data.booking_date}|${data.start_time}`;
+        if (data.promoCode && !hasUnappliedPromoCode) {
+            const key = `promo|${data.promoCode}|${data.adults}|${data.children}|${data.guides}|${data.booking_date}|${data.start_time}`;
             if (lastPricingKeyRef.current !== key) {
                 lastPricingKeyRef.current = key;
                 const promoGroups = buildBasePaxGroups(
@@ -619,7 +629,6 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
             }
         }
     }, [
-        promoCode,
         paxGroups,
         data.adults,
         data.children,
@@ -629,6 +638,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
         selectedService,
         selectedSeason,
         hasInvoiceDiscount,
+        hasUnappliedPromoCode,
         pricing,
     ]);
 
@@ -787,7 +797,35 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
         setPromoModalOpen(false);
     }
 
-    function handlePromoModalSelect(promo) {
+    async function handleApplyPromo(selectedPromoCode = null) {
+        const promoCodeToApply = (selectedPromoCode || promoCode || '').trim();
+        if (!promoCodeToApply) {
+            showToast(PROMO_NOT_AVAILABLE_MESSAGE, 'error');
+            return false;
+        }
+
+        const promoGroups = buildBasePaxGroups(
+            Number(data.adults || 0),
+            Number(data.children || 0),
+            Number(data.guides || 0),
+            {
+                adult: Number(data.base_per_adult || data.rate_per_adult || 0),
+                child: Number(data.base_per_child || data.rate_per_child || 0),
+                guide: Number(data.base_per_guide || data.rate_per_guide || 0),
+            }
+        );
+        const result = await handleCalculate('promo', promoGroups, null, promoCodeToApply);
+        if (!result?.applied_promotion) {
+            return false;
+        }
+
+        const appliedCode = result.applied_promotion.promo_code || promoCodeToApply;
+        setPromoCode(appliedCode);
+        setData('promoCode', appliedCode);
+        return true;
+    }
+
+    async function handlePromoModalSelect(promo) {
         const selectedPromoCode = promo?.promo_code || promo;
         const params = typeof promo?.params === 'string'
             ? (() => {
@@ -839,10 +877,8 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
             }
         }
 
-        setPromoCode(selectedPromoCode);
-        setData("promoCode", selectedPromoCode);
         handlePromoModalClose();
-        return true;
+        return handleApplyPromo(selectedPromoCode);
     }
 
     const calculateTotal = (count, rate) => {
@@ -1564,7 +1600,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
         is_wholesaler: Boolean(data.is_wholesaler),
         wholesaler_id: data.wholesaler_id || null,
         wholesaler_rate_id: data.wholesaler_rate_id || null,
-        promoCode: promoCode || data.promoCode || null,
+        promoCode: data.promoCode || null,
         invoice_discount_id: data.invoice_discount_id || null,
         discount_lines: buildDiscountLinesPayload(paxGroups),
         pax_groups: paxGroups,
@@ -1609,6 +1645,10 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
         }
         if ((Number(data.adults || 0) + Number(data.children || 0)) < 1) {
             showToast('Please add at least 1 adult or 1 child for this activity.', 'info');
+            return;
+        }
+        if (hasUnappliedPromoCode) {
+            showToast('Please click Apply to validate the promo code before adding or saving this activity.', 'error');
             return;
         }
 
@@ -1711,6 +1751,10 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
             showToast('Please complete or clear the current activity before submitting the booking.', 'info');
             return;
         }
+        if (hasUnappliedPromoCode) {
+            showToast('Please click Apply to validate the promo code before saving the booking.', 'error');
+            return;
+        }
         // Avoid "Pricing mismatch" by ensuring server-calculated totals are current for promo/wholesaler/invoice-discount flows.
         let serverCalculatedTotal = null;
         let invoiceDiscountIdToSend = data.invoice_discount_id || null;
@@ -1722,9 +1766,9 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
             const invoiceDiscountId = pricing?.applied_discounts?.find(d => d.applied_to === 'invoice')?.id ?? null;
             invoiceDiscountIdToSend = invoiceDiscountId || invoiceDiscountIdToSend;
             const hasLineDiscounts = paxGroups.some(g => g.discount_id);
-            const shouldRecalc = !hasSavedActivities && Boolean(data.is_wholesaler || promoCode || invoiceDiscountIdToSend || hasLineDiscounts || pricing?.applied_promotion);
+            const shouldRecalc = !hasSavedActivities && Boolean(data.is_wholesaler || data.promoCode || invoiceDiscountIdToSend || hasLineDiscounts || pricing?.applied_promotion);
             if (shouldRecalc) {
-                const calcType = promoCode ? 'promo' : data.is_wholesaler ? 'saler' : (invoiceDiscountIdToSend || hasLineDiscounts) ? 'discount' : 'base';
+                const calcType = data.promoCode ? 'promo' : data.is_wholesaler ? 'saler' : (invoiceDiscountIdToSend || hasLineDiscounts) ? 'discount' : 'base';
                 const result = await handleCalculate(calcType, paxGroups, invoiceDiscountIdToSend);
                 serverCalculatedTotal = Number(result?.total_price ?? 0) || null;
             }
@@ -2469,11 +2513,11 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                                 spellCheck={false}
                                             />
                                             <div className="flex items-center gap-2 mt-3">
-                                                {!pricing?.applied_promotion && (
+                                                {(!pricing?.applied_promotion || String(promoCode || '').trim() !== String(data.promoCode || '').trim()) && (
                                                     <BlueButton
                                                         title="Apply"
                                                         disabled={processing}
-                                                        onClick={() => handleCalculate('promo')}
+                                                        onClick={() => handleApplyPromo()}
                                                     />
                                                 )}
                                                 <div onClick={() => setPromoModalOpen(true)} className="flex items-center justify-center w-[36px] h-[32px] gap-2 bg-[#2D99FE] rounded-full p-2">
