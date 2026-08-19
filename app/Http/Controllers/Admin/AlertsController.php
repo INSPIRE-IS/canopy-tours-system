@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\MassDestroyUserAlertRequest;
 use App\Http\Requests\StoreAlertRequest;
 use App\Http\Requests\UpdateAlertRequest;
+use App\Models\AuditLog;
 use App\Models\User;
 use App\Models\Alert;
 use App\Models\Continent;
@@ -210,7 +211,7 @@ class AlertsController extends Controller
 
         $assignedTeamUserIds = User::where('team_id', $alert->team_id)->pluck('id');
 
-        DB::table('alert_user')
+        $affected = DB::table('alert_user')
             ->where('alert_id', $alert->id)
             ->whereIn('user_id', $assignedTeamUserIds)
             ->update([
@@ -218,6 +219,25 @@ class AlertsController extends Controller
                 'complete' => true,
                 'updated_at' => now(),
             ]);
+
+        AuditLog::create([
+            'description' => 'Alert acknowledged',
+            'subject_id' => $alert->id,
+            'subject_type' => Alert::class,
+            'user_id' => $user->id,
+            'properties' => [
+                'alert_id' => $alert->id,
+                'team_id' => $alert->team_id,
+                'booking_id' => $alert->booking_id,
+                'booking_item_id' => $alert->booking_item_id,
+                'customer_id' => $alert->customer_id,
+                'customer_manifest_id' => $alert->customer_manifest_id,
+                'acknowledged_by_user_id' => $user->id,
+                'team_user_pivots_completed' => $affected,
+                'note_appended' => (bool) (($validated['add_note'] ?? false) && trim((string) ($validated['note'] ?? '')) !== ''),
+            ],
+            'host' => $request->ip(),
+        ]);
 
         return response()->json(['success' => true]);
     }
