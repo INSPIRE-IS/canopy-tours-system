@@ -569,6 +569,7 @@ class PricingService
         $baseQuery = WholesalerRate::where('wholesaler_id', $data['wholesaler_id'])
             ->where('season_id', $seasonId)
             ->where('service_id', $data['service_id'])
+            ->whereHas('wholesaler')
             ->when(!empty($data['team_id']), fn ($query) => $query->where('team_id', $data['team_id']));
 
         if (!empty($data['wholesaler_rate_id'])) {

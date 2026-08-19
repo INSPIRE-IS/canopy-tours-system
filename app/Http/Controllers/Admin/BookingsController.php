@@ -155,7 +155,8 @@ class BookingsController extends Controller
         $baseQuery = WholesalerRate::where('wholesaler_id', $wholesalerId)
             ->where('season_id', $seasonId)
             ->where('service_id', $serviceId)
-            ->where('team_id', auth()->user()->team_id);
+            ->where('team_id', auth()->user()->team_id)
+            ->whereHas('wholesaler');
 
         if ($wholesalerRateId) {
             $explicitQuery = (clone $baseQuery)->whereKey($wholesalerRateId);
@@ -843,7 +844,12 @@ class BookingsController extends Controller
         //dd($discounts);
         $wholesaler_rates = WholesalerRate::select('id', 'name', 'wholesaler_id', 'service_id', 'season_id', 'price_adult', 'price_child', 'price_guide', 'bill_back', 'is_prepaid_voucher', 'effective_from', 'effective_to', 'is_active', 'note')
             ->where('team_id', auth()->user()->team_id)
-            ->with('service', 'season', 'wholesaler')
+            ->whereHas('wholesaler')
+            ->with([
+                'service',
+                'season',
+                'wholesaler' => fn ($query) => $query->withTrashed()->select('id', 'name', 'team_id', 'deleted_at'),
+            ])
             ->get();
         $promos = Promotion::select('id', 'name', 'promo_code', 'type', 'value', 'params', 'service_id', 'booking_start_date', 'booking_end_date', 'activity_start_date', 'activity_end_date')
             ->with('service')
@@ -2184,7 +2190,17 @@ class BookingsController extends Controller
                     $query->orWhere('id', $currentWholesalerRateId);
                 }
             })
-            ->with('service', 'season', 'wholesaler')
+            ->where(function ($query) use ($currentWholesalerRateId) {
+                $query->whereHas('wholesaler');
+                if ($currentWholesalerRateId) {
+                    $query->orWhere('id', $currentWholesalerRateId);
+                }
+            })
+            ->with([
+                'service',
+                'season',
+                'wholesaler' => fn ($query) => $query->withTrashed()->select('id', 'name', 'team_id', 'deleted_at'),
+            ])
             ->get();
         $promos = Promotion::select('id', 'name', 'promo_code', 'type', 'value', 'params', 'service_id', 'booking_start_date', 'booking_end_date', 'activity_start_date', 'activity_end_date')
             ->with('service')
@@ -2639,6 +2655,13 @@ class BookingsController extends Controller
                 if ($bookingItem->booking_fee) {
                     if ($prepaidWholesalerVoucher) {
                         $bookingFeeData['tot_paid'] = $amount;
+                    } elseif (
+                        (bool) ($bookingItem->booking_fee->is_prepaid_wholesaler_voucher ?? false)
+                        && !BookingPayment::where('booking_id', $booking->id)->exists()
+                    ) {
+                        // A prepaid voucher allocation is synthetic, not a received payment row.
+                        // If the booking is corrected away from that rate, clear the synthetic paid value.
+                        $bookingFeeData['tot_paid'] = 0;
                     } else {
                         // Editing price/rate must not reverse payment state. Refund/payment correction is a deliberate payment flow.
                         $existingPaid = round((float) ($bookingItem->booking_fee->tot_paid ?? 0), 2);
@@ -3676,6 +3699,7 @@ class BookingsController extends Controller
         $discounts = Discount::select('id', 'name', 'applies_to', 'percent_off')->with('services')->get();
         $wholesaler_rates = WholesalerRate::select('id', 'name', 'wholesaler_id', 'service_id', 'season_id', 'price_adult', 'price_child', 'price_guide', 'bill_back', 'is_prepaid_voucher', 'effective_from', 'effective_to', 'is_active', 'note')
             ->where('team_id', auth()->user()->team_id)
+            ->whereHas('wholesaler')
             ->with('season', 'wholesaler')
             ->get();
         $promos = Promotion::select('id', 'name', 'promo_code', 'type', 'value', 'params', 'service_id', 'booking_start_date', 'booking_end_date', 'activity_start_date', 'activity_end_date')
@@ -5045,7 +5069,8 @@ class BookingsController extends Controller
                 $rateQuery = WholesalerRate::where('wholesaler_id', $data['wholesaler_id'])
                     ->where('season_id', $data['season_id'])
                     ->where('service_id', $data['service_id'])
-                    ->where('team_id', $data['team_id']);
+                    ->where('team_id', $data['team_id'])
+                    ->whereHas('wholesaler');
 
                 if (!empty($data['wholesaler_rate_id'])) {
                     $activityDate = $data['booking_date'];
@@ -5149,6 +5174,7 @@ class BookingsController extends Controller
         if (!empty($data['wholesaler_id'])) {
             $wr = WholesalerRate::where('wholesaler_id', $data['wholesaler_id'])
                 ->where('season_id', $season->id)
+                ->whereHas('wholesaler')
                 ->first();
             if ($wr) {
                 $rates['adult'] = $wr->price_adult ?? $rates['adult'];

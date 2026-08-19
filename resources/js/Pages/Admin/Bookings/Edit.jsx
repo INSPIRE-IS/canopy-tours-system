@@ -249,7 +249,10 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
                         return [w?.id, w];
                     }),
             ])
-        ).map(([, wholesaler]) => wholesaler).filter(Boolean)
+        ).map(([, wholesaler]) => wholesaler).filter(Boolean).map((wholesaler) => ({
+            ...wholesaler,
+            name: wholesaler?.deleted_at ? `${wholesaler.name} (removed)` : wholesaler.name,
+        }))
         : (wholesalers || []);
     const normalizeDateString = (value) => {
         if (!value) return null;
@@ -266,7 +269,8 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
     };
     const rateLabel = (rate) => {
         const dateLabel = `${rate.effective_from ? String(rate.effective_from).slice(0, 10) : 'Any start'} - ${rate.effective_to ? String(rate.effective_to).slice(0, 10) : 'Any end'}`;
-        return `${rate.name || rate.season?.name || 'Wholesaler rate'} (${dateLabel})`;
+        const deletedLabel = rate.deleted_at || rate.wholesaler?.deleted_at ? 'Removed - ' : '';
+        return `${deletedLabel}${rate.name || rate.season?.name || 'Wholesaler rate'} (${dateLabel})`;
     };
     const rateServiceId = Number(data.service_id || selectedService?.id);
     const rateSeasonId = Number(data.season_id || selectedSeason?.id);
@@ -288,6 +292,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
             price_adult: savedWholesalerRate.price_adult,
             price_child: savedWholesalerRate.price_child,
             price_guide: savedWholesalerRate.price_guide,
+            is_prepaid_voucher: savedWholesalerRate.is_prepaid_voucher,
         }]
         : [];
     const wholesalerRateOptions = [...invalidSavedWholesalerRateOptions, ...selectedWholesalerRates.map(rate => ({
@@ -296,6 +301,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
         price_adult: rate.price_adult,
         price_child: rate.price_child,
         price_guide: rate.price_guide,
+        is_prepaid_voucher: rate.is_prepaid_voucher,
     }))];
     const resolveWholesalerRateForSelection = () => {
         if (!data.wholesaler_id) return null;
@@ -317,7 +323,12 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
             matchesSelection(rate) && isRateValidForDate(rate, data.booking_date)
         ) || null;
     };
-    const isPrepaidWholesalerVoucher = Boolean(data.is_wholesaler && (data.is_prepaid_wholesaler_voucher || (wholesalerApplied && selectedWholesalerRate?.is_prepaid_voucher)));
+    const prepaidRateForSelection = data.wholesaler_rate_id ? savedWholesalerRate : selectedWholesalerRate;
+    const isPrepaidWholesalerVoucher = Boolean(data.is_wholesaler && (
+        prepaidRateForSelection
+            ? prepaidRateForSelection.is_prepaid_voucher
+            : data.is_prepaid_wholesaler_voucher
+    ));
     const hasWholesalers = Array.isArray(serviceWholesalers) && serviceWholesalers.length > 0;
     const activePromoCode = data.promoCode || promoCode || null;
     const hasUnappliedPromoCode = String(promoCode || '').trim() !== String(data.promoCode || '').trim();
@@ -2144,7 +2155,12 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
             return sum + (g.count * effectiveRate);
         }, 0);
     const total = Number(data.booking_total || 0);
-    const payableTotalForPayment = isPrepaidWholesalerVoucher ? 0 : total;
+    const hasRealPaymentRows = Array.isArray(booking?.booking_payments) && booking.booking_payments.length > 0;
+    const wasPrepaidWholesalerVoucher = Boolean(booking_items?.booking_fee?.is_prepaid_wholesaler_voucher);
+    const shouldClearSyntheticPaid = wasPrepaidWholesalerVoucher && !isPrepaidWholesalerVoucher && !hasRealPaymentRows;
+    const paidForSelectedItem = shouldClearSyntheticPaid ? 0 : Number(booking_items?.booking_fee?.tot_paid ?? 0);
+    const outstandingForSelectedItem = Math.max(total - paidForSelectedItem, 0);
+    const payableTotalForPayment = isPrepaidWholesalerVoucher ? 0 : outstandingForSelectedItem;
     const graduatedPromo = pricing?.applied_promotion?.type === 'graduated';
     const promoTotal = Number(pricing?.total_price ?? data.booking_total ?? 0);
     const promoAdjustmentTarget = graduatedPromo
@@ -2417,8 +2433,13 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
                                         name="wholesaler_rate_id"
                                         value={data.wholesaler_rate_id || selectedWholesalerRate?.id || ''}
                                         onChange={(e) => {
+                                            const nextRate = (wholesaler_rates || []).find(rate => Number(rate.id) === Number(e.target.value));
                                             setWholesalerApplied(false);
-                                            setData('wholesaler_rate_id', e.target.value);
+                                            setData(prev => ({
+                                                ...prev,
+                                                wholesaler_rate_id: e.target.value,
+                                                is_prepaid_wholesaler_voucher: Boolean(nextRate?.is_prepaid_voucher),
+                                            }));
                                         }}
                                         errors={errors}
                                         options={wholesalerRateOptions}
@@ -3265,6 +3286,14 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
                                         <span className="text-booking-lbl-main-sub text-[#AFAFAF]">R {((Number(data?.deposit_due) || 0) * (Number(payableTotalForPayment) || 0)).toFixed(2)}</span>
                                     </div>
                                 </div>
+                                {paidForSelectedItem > 0 && (
+                                    <div className="flex items-center space-x-[37px]">
+                                        <span className="text-booking-lbl-main w-[160px] font-normal text-right">Already Paid</span>
+                                        <div className="flex items-center justify-between w-[417px] h-[43px] bg-[#DBECFD4D] pl-[17px] py-[12.5px] rounded-[6px]">
+                                            <span className="text-booking-lbl-main-sub text-[#4D81E7]">R {paidForSelectedItem.toFixed(2)}</span>
+                                        </div>
+                                    </div>
+                                )}
                                 <div className="flex items-center space-x-[37px]">
                                     <span className="text-booking-lbl-main w-[160px] text-right">Total Due Today</span>
                                     <div className="flex items-center justify-between w-[417px] h-[43px] bg-[#DBECFD4D] pl-[17px] py-[12.5px] rounded-[6px]">

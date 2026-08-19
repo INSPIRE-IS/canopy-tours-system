@@ -40,6 +40,17 @@ class Wholesaler extends Model
         'team_id',
     ];
 
+    protected static function booted(): void
+    {
+        static::deleting(function (Wholesaler $wholesaler) {
+            if ($wholesaler->isForceDeleting()) {
+                return;
+            }
+
+            $wholesaler->rates()->delete();
+        });
+    }
+
     protected function serializeDate(DateTimeInterface $date)
     {
         return $date->format('Y-m-d H:i:s');
@@ -58,6 +69,11 @@ class Wholesaler extends Model
     public function seasons()
     {
         return $this->hasMany(Season::class, 'service_id');
+    }
+
+    public function rates()
+    {
+        return $this->hasMany(WholesalerRate::class, 'wholesaler_id');
     }
 
     public function team()
