@@ -23,6 +23,7 @@ class WholesalerRateController extends Controller
 
         $rates = WholesalerRate::with(['season', 'wholesaler.team', 'service'])
             ->where('team_id', $teamId)
+            ->whereHas('wholesaler')
             ->when($search, function ($q) use ($search) {
                 $q->whereHas('wholesaler', function ($qq) use ($search) {
                     $qq->where('name', 'like', '%' . $search . '%');
@@ -54,7 +55,7 @@ class WholesalerRateController extends Controller
 
         $data = $request->validate([
             'name' => ['nullable', 'string', 'max:120'],
-            'wholesaler_id' => ['required', Rule::exists('wholesalers', 'id')->where('team_id', $teamId)],
+            'wholesaler_id' => ['required', Rule::exists('wholesalers', 'id')->where('team_id', $teamId)->whereNull('deleted_at')],
             'service_id' => ['required', Rule::exists('services', 'id')->where('team_id', $teamId)],
             'season_id' => [
                 'required',
@@ -91,7 +92,7 @@ class WholesalerRateController extends Controller
 
         $data = $request->validate([
             'name' => ['nullable', 'string', 'max:120'],
-            'wholesaler_id' => ['required', Rule::exists('wholesalers', 'id')->where('team_id', $teamId)],
+            'wholesaler_id' => ['required', Rule::exists('wholesalers', 'id')->where('team_id', $teamId)->whereNull('deleted_at')],
             'service_id' => ['required', Rule::exists('services', 'id')->where('team_id', $teamId)],
             'season_id' => [
                 'required',
