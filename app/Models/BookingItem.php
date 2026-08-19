@@ -420,6 +420,7 @@ class BookingItem extends Model
         if (!empty($wholesaler_id)) {
             $wr = WholesalerRate::where('wholesaler_id', $wholesaler_id)
                 ->where('season_id', $season->id)
+                ->whereHas('wholesaler')
                 ->first();
             if ($wr) {
                 $rates['adult'] = $wr->price_adult ?? $rates['adult'];
