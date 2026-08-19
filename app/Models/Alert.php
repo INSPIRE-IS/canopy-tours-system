@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Traits\Auditable;
 use App\Traits\MultiTenantModelTrait;
 use DateTimeInterface;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -11,7 +12,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Alert extends Model
 {
 
-    use SoftDeletes, MultiTenantModelTrait, HasFactory;
+    use SoftDeletes, MultiTenantModelTrait, HasFactory, Auditable;
 
     public $table = 'alerts';
 
