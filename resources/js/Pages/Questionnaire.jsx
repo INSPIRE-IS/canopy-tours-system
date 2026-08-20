@@ -60,24 +60,32 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
   const dayOptions = Array.from({ length: 31 }, (_, i) => ({ id: i + 1, name: String(i + 1) }));
   const [isComplete, setIsComplete] = useState(false);
 
-  const { data, setData, post, put, errors, reset, processing, isDirty } = useForm({
+  const { data, setData, post, put, errors, reset, processing, isDirty, transform } = useForm({
     customer_manifests: [],
     return_to: null,
   });
+
+  const markSelectedManifest = (manifests, selectedIndex) => (
+    (manifests || []).map((manifest, index) => ({
+      ...manifest,
+      index: index === selectedIndex ? 1 : 0,
+    }))
+  );
 
   useEffect(() => {
     if (mode === "edit" && bookings?.customers?.length) {
       if (old?.customer_manifests?.length) {
         const restored = old.customer_manifests;
-        setData('customer_manifests', restored);
-        const restoredAdults = restored
+        const selectedIndex = restored.findIndex(p => p.index == 1);
+        const normalized = selectedIndex >= 0 ? markSelectedManifest(restored, selectedIndex) : restored;
+        setData('customer_manifests', normalized);
+        const restoredAdults = normalized
           .filter(p => p.type === "adult" && p.full_name != "")
           .map((p, i) => ({
             id: typeof p.customer_id == 'number' ? p.customer_id : i + 1,
             name: p.full_name || "Unnamed Adult"
           }));
         setAdults(restoredAdults);
-        const selectedIndex = restored.findIndex(p => p.index == 1);
         if (selectedIndex >= 0) {
           setSelected(selectedIndex);
         }
@@ -109,15 +117,16 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
       console.log("mapped", mapped);
       const adults = mapped?.filter(p => p.type === "adult");
       setAdults(adults);
-      setData('customer_manifests', mapped);
       const params = new URLSearchParams(window.location.search);
       const targetCustomerId = params.get('customer');
+      let selectedIndex = -1;
       if (targetCustomerId) {
-        const targetIndex = mapped.findIndex((person) => String(person.customer_id) === String(targetCustomerId));
-        if (targetIndex >= 0) {
-          setSelected(targetIndex);
+        selectedIndex = mapped.findIndex((person) => String(person.customer_id) === String(targetCustomerId));
+        if (selectedIndex >= 0) {
+          setSelected(selectedIndex);
         }
       }
+      setData('customer_manifests', selectedIndex >= 0 ? markSelectedManifest(mapped, selectedIndex) : mapped);
       console.log('--------------init data-------------', mapped);
     } else if (mode === "create") {
       reset(); // Clear form
@@ -299,12 +308,20 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
           onConfirm: () => {
             setPrevNext(1);
             setSelected(null);
+            setData((current) => ({
+              ...current,
+              customer_manifests: markSelectedManifest(current.customer_manifests, null),
+            }));
           },
         });
         return;
       }
       setPrevNext(1);
       setSelected(null);
+      setData((current) => ({
+        ...current,
+        customer_manifests: markSelectedManifest(current.customer_manifests, null),
+      }));
     }
     else if (number == 3) {
       setPrevNext(number);
@@ -330,9 +347,10 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
       }
       setSelected(index);
       setPrevNext(number);
-      const updated = [...data.customer_manifests];
-      updated[index]['index'] = 1;
-      setData("customer_manifests", updated);
+      setData((current) => ({
+        ...current,
+        customer_manifests: markSelectedManifest(current.customer_manifests, index),
+      }));
     }
   };
   const isEnabled = (slug) => {
@@ -371,6 +389,7 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
 
   const lunchOptions = getQuestionOptions('lunch_option');
   const hasLunch = isEnabled('lunch_option') && lunchOptions.length > 0;
+  const confirmationLabel = (value) => resolveOptionLabel(typeConfirmation, value) || '-';
 
   const questionStepsBase = [1, 2, 3, 6, 7, 8, 9, 10, 11, 12, 13, 14];
   let questionSteps = isEnabled('age_id')
@@ -461,19 +480,36 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
   };
 
   const handlePersonChange = (index, field, value) => {
-    const updated = [...data.customer_manifests];
-    updated[index][field] = value;
     setHasUserChanges(true);
-    setData("customer_manifests", updated);
-    console.log('-------handle Person Change--------', updated);
+    setData((current) => {
+      const updated = (current.customer_manifests || []).map((person, idx) => (
+        idx === index ? { ...person, [field]: value } : person
+      ));
+      console.log('-------handle Person Change--------', updated);
+      return { ...current, customer_manifests: updated };
+    });
   };
 
   const handleIndemnityChange = (field, value) => {
     if (selected != null) {
-      const updated = [...data.customer_manifests];
-      updated[selected][field] = value;
       setHasUserChanges(true);
-      setData("customer_manifests", updated);
+      setData((current) => {
+        const updated = (current.customer_manifests || []).map((person, index) => {
+          if (index !== selected) return person;
+
+          const nextPerson = { ...person, [field]: value, index: 1 };
+          if (field === 'medical_id' && String(value) !== '1') {
+            nextPerson.medical_detail = '';
+          }
+          if (field === 'gender' && String(value) !== '2') {
+            nextPerson.pregnant = '';
+          }
+
+          return nextPerson;
+        });
+        console.log('-------handle Indemnity Change--------', updated);
+        return { ...current, customer_manifests: markSelectedManifest(updated, selected) };
+      });
 
       if (field == "continent_id") {
         setSelectedContinent(value);
@@ -484,9 +520,6 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
       if (field == "province_id") {
         setSelectedState(value);
       }
-
-
-      console.log('-------handle Indemnity Change--------', updated);
     }
   };
 
@@ -495,7 +528,18 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
     e.preventDefault();
     console.log('booking', booking);
     console.log('handle Submit', data.customer_manifests);
-    post(route('booking-questionnaire.store'));
+    transform((payload) => {
+      const selectedManifest = payload.customer_manifests?.[selected] ?? null;
+      return {
+        ...payload,
+        selected_customer_id: selectedManifest?.customer_id ?? null,
+        selected_booking_item_id: selectedManifest?.booking_item_id ?? null,
+        customer_manifests: markSelectedManifest(payload.customer_manifests, selected),
+      };
+    });
+    post(route('booking-questionnaire.store'), {
+      onFinish: () => transform((payload) => payload),
+    });
     //put(route('admin.checkins.store',{booking}));
   };
 
@@ -1174,9 +1218,9 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
                   <span className='flex flex-col items-center gap-2'><span className='text-booking-subheading capitalize'>continent</span> {continents?.find(c => c.id == data.customer_manifests[selected]?.continent_id)?.name}</span>
                   <span className='flex flex-col items-center gap-2'><span className='text-booking-subheading capitalize'>country</span> {countries?.find(c => c.id == data.customer_manifests[selected]?.country_id)?.name}</span>
                   <span className='flex flex-col items-center gap-2'><span className='text-booking-subheading capitalize'>province</span> {states?.find(s => s.id == data.customer_manifests[selected]?.province_id)?.name}</span>
-                  <span className='flex flex-col items-center gap-2'><span className='text-booking-subheading capitalize'>any medical condition</span> {data.customer_manifests[selected]?.medical_id ? "yes" : "no"}</span>
-                  <span className='flex flex-col items-center gap-2'><span className='text-booking-subheading capitalize'>medical condition detail</span> {data.customer_manifests[selected]?.medical_detail}</span>
-                  <span className='flex flex-col items-center gap-2'><span className='text-booking-subheading capitalize'>fit to walk</span> {data.customer_manifests[selected]?.is_fit ? "yes" : "no"}</span>
+                  <span className='flex flex-col items-center gap-2'><span className='text-booking-subheading capitalize'>any medical condition</span> {confirmationLabel(data.customer_manifests[selected]?.medical_id)}</span>
+                  <span className='flex flex-col items-center gap-2'><span className='text-booking-subheading capitalize'>medical condition detail</span> {data.customer_manifests[selected]?.medical_detail || '-'}</span>
+                  <span className='flex flex-col items-center gap-2'><span className='text-booking-subheading capitalize'>fit to walk</span> {confirmationLabel(data.customer_manifests[selected]?.is_fit)}</span>
                   <span className='flex flex-col items-center gap-2'><span className='text-booking-subheading capitalize'>agree to terms</span> {data.customer_manifests[selected]?.is_agree ? "yes" : "no"}</span>
                   <span className='flex flex-col items-center gap-2'><span className='text-booking-subheading capitalize'>email_address</span> {data.customer_manifests[selected]?.email_address}</span>
                   <span className='flex flex-col items-center gap-2'>
