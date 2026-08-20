@@ -19,6 +19,7 @@ class Service extends Model
     protected $casts = [
         'allow_internal_capacity_override' => 'boolean',
         'is_online_bookable' => 'boolean',
+        'show_on_admin_bookings' => 'boolean',
     ];
 
     protected $dates = [
@@ -35,6 +36,7 @@ class Service extends Model
         'capacity',
         'allow_internal_capacity_override',
         'is_online_bookable',
+        'show_on_admin_bookings',
         'created_by_id',
         'updated_by_id',
         'created_at',

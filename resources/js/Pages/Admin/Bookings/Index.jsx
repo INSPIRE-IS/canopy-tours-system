@@ -72,6 +72,10 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
     const [selectedServiceId, setSelectedServiceId] = useState(() => {
         return sessionStorage.getItem('bookings.selectedServiceId') || '0';
     });
+    const boardServices = useMemo(
+        () => (Array.isArray(services) ? services : []).filter((service) => service?.show_on_admin_bookings !== false),
+        [services]
+    );
     const [showEmptySlots, setShowEmptySlots] = useState(() => {
         return sessionStorage.getItem('bookings.showEmptySlots') === 'true';
     });
@@ -478,6 +482,8 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                     return {
                         ...slot,
                         maxPax: range.capacity_override ?? service.capacity ?? 0,
+                        internal_only: Boolean(range.internal_only),
+                        is_date_override: true,
                     };
                 })
                 .filter(Boolean);
@@ -497,6 +503,10 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
         }
 
         const uniqueSlots = Array.from(new Map(slots.map((slot) => [Number(slot.id), slot])).values());
+        if (overrideRanges.length > 0) {
+            return uniqueSlots;
+        }
+
         return uniqueSlots.filter((slot) => !isSlotClosedOut(service.id, season.id, dateStr, slot.id));
     };
 
@@ -755,7 +765,10 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
 
         if (!isSearchActive && viewMode === VIEW_MODES.DAY && showEmptySlots) {
             const day = selectedDate || today;
-            services?.forEach((service) => {
+            const servicesForEmptySlots = boardServices.filter((service) => (
+                selectedServiceId === '0' || Number(service.id) === Number(selectedServiceId)
+            ));
+            servicesForEmptySlots.forEach((service) => {
                 const activeSeason = service?.seasons?.find((season) => isDateWithinSeason(day, season));
                 if (!activeSeason) return;
                 const slots = getAvailableSlotsForDate(service, activeSeason, day);
@@ -816,7 +829,18 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
 
     useEffect(() => {
         setSlotRows(buildSlotRows());
-    }, [filteredBookings, services, closeouts, viewMode, selectedDate, showEmptySlots, showCancelledBookings]);
+    }, [filteredBookings, boardServices, closeouts, viewMode, selectedDate, showEmptySlots, showCancelledBookings]);
+
+    useEffect(() => {
+        if (selectedServiceId === '0') {
+            return;
+        }
+
+        const hasSelectedService = boardServices.some((service) => Number(service.id) === Number(selectedServiceId));
+        if (!hasSelectedService) {
+            setSelectedServiceId('0');
+        }
+    }, [boardServices, selectedServiceId]);
 
     useEffect(() => {
         sessionStorage.setItem('bookings.selectedDate', selectedDate || '');
