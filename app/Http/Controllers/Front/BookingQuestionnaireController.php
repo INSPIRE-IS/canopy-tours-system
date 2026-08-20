@@ -626,38 +626,30 @@ class BookingQuestionnaireController extends Controller
 
         $manifests = $request->all();
         // dd($manifests['customer_manifests']);
-        foreach ($manifests['customer_manifests'] as $manifest) {
-            if (isset($manifest['index']) && $manifest['index'] == 1) {
-                $validated = $manifest;
-                // $manifest->validate([
-                //     'booking_id' => 'required|integer', //   "booking_id" => 4
-                //     "booking_item_id" => 'required|integer',
-                //     "customer_id"  => 'required|integer',
-                //     'lead_guide_id' => 'nullable|integer', //   "lead_guide_id" => "6"
-                //     'safety_guide_id' => 'nullable|integer', //   "safety_guide_id" => "6"
-                //     'type_group_id' => 'nullable|integer', //  "type_group_id" => "4"
-                //     'full_name' => 'string', //     "first_name" => "Customer9"
-                //     'age' => 'nullable|integer', //    "date_of_birth" => null
-                //     'referral_id' => 'nullable|integer', //    "date_of_birth" => null
-                //     'continent_id' => 'nullable|integer', //   "continent_id" => "5"
-                //     'country_id' => 'nullable|integer', //   "country_id" => "44"
-                //     'province_id' => 'nullable|integer', //   "province_id" => "714"
-                //     'medical_id' => 'nullable|string', //   "medical_id" => "Commodi facere qui t"
-                //     'medical_detail' => 'nullable|string', //    "medical_detail" => "Commodi facere qui t"
-                //     'is_fit' => 'nullable|integer', //   "is_fit" => "2"
-                //     'is_agree' => 'nullable|integer', //   "is_agree" => "2"
-                //     'email_address' => 'nullable|email', //     "email_address" => "kylamyf@mailinator.com"
-                //     'signature' => 'nullable|string', //    "medical_detail" => "Commodi facere qui t"
-                //     'is_minor' => 'nullable|integer', //   "is_minor" => "2"
-                //     'children' => 'nullable|array',
-                //     'gender_id' => 'nullable|integer', //   "gender_id" => "Sint aliqua Ipsa s"
-                //     'child_name' => 'nullable|string', //   "child_name" => "Plato Bryan"
-                //     'child_age' => 'nullable|integer', //   "child_age" => "Enim do do perspicia"
-                //     'helmet_size' => 'nullable|string', //   "helmet_size" => "Quidem quisquam ulla"
-                //     'recieve_invite' => 'nullable|integer', //    "recieve_invite" => "2"
-                //     'pully_number' => 'nullable|string', //   "pully_number" => "320"
-                // ]);
+        $manifestRows = collect($manifests['customer_manifests'] ?? []);
+        $selectedCustomerId = $manifests['selected_customer_id'] ?? null;
+        $selectedBookingItemId = $manifests['selected_booking_item_id'] ?? null;
+
+        if ($selectedCustomerId && $selectedBookingItemId) {
+            $validated = $manifestRows->first(function ($manifest) use ($selectedCustomerId, $selectedBookingItemId) {
+                return (string) ($manifest['customer_id'] ?? '') === (string) $selectedCustomerId
+                    && (string) ($manifest['booking_item_id'] ?? '') === (string) $selectedBookingItemId;
+            });
+        }
+
+        if (!isset($validated)) {
+            $selectedRows = $manifestRows
+                ->filter(fn($manifest) => isset($manifest['index']) && (int) $manifest['index'] === 1)
+                ->values();
+
+            if ($selectedRows->count() > 1) {
+                Log::warning('Booking questionnaire submitted with multiple selected manifests.', [
+                    'booking_item_ids' => $selectedRows->pluck('booking_item_id')->all(),
+                    'customer_ids' => $selectedRows->pluck('customer_id')->all(),
+                ]);
             }
+
+            $validated = $selectedRows->last();
         }
 
         if (!isset($validated)) {
@@ -759,6 +751,24 @@ class BookingQuestionnaireController extends Controller
                     return $question->is_disabled ? true : (bool) $site->enabled;
                 })
                 ->values();
+
+                $enabledSlugs = $questions->pluck('slug');
+                $isBlank = fn($value) => $value === null || $value === '';
+                $requiredErrors = [];
+
+                if ($enabledSlugs->contains('medical_id') && $isBlank($validated['medical_id'] ?? null)) {
+                    $requiredErrors['medical_id'] = 'Please answer the medical condition question.';
+                }
+                if (($validated['medical_id'] ?? null) == 1 && empty(trim((string) ($validated['medical_detail'] ?? '')))) {
+                    $requiredErrors['medical_detail'] = 'Please provide medical condition details.';
+                }
+                if ($enabledSlugs->contains('is_fit') && $isBlank($validated['is_fit'] ?? null)) {
+                    $requiredErrors['is_fit'] = 'Please answer the fitness question.';
+                }
+
+                if (!empty($requiredErrors)) {
+                    throw ValidationException::withMessages($requiredErrors);
+                }
 
                 foreach ($validated as $key => $value) {
 
@@ -1084,6 +1094,8 @@ class BookingQuestionnaireController extends Controller
             }
 
             return redirect()->route('booking-questionnaire.index');
+        } catch (ValidationException $e) {
+            throw $e;
         } catch (\Throwable $e) {
             // Log the full error for debugging
             Log::error('Booking Questionnaire failed and rolled back', [
