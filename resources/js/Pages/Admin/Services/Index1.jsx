@@ -113,9 +113,12 @@ export default function Index({ permissions, services, serviceFields, auth, sear
                                                 <tr key={service.id} className="flex justify-between items-center hover:bg-gray-50">
                                                     <td className="w-[10%] p-3">{service.id}</td>
                                                     <td className="w-[50%] p-3">{service.name}</td>
-                                                    <td className="w-[20%] p-3">
+                                                    <td className="w-[20%] p-3 flex flex-col gap-1">
                                                         <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${service.is_online_bookable ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}`}>
                                                             {service.is_online_bookable ? 'Bookable online' : 'Staff only'}
+                                                        </span>
+                                                        <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${service.show_on_admin_bookings ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-700'}`}>
+                                                            {service.show_on_admin_bookings ? 'Booking board' : 'Hidden from board'}
                                                         </span>
                                                     </td>
                                                     <td className="w-[20%] p-3 flex  gap-2">

@@ -113,6 +113,10 @@ class ServicesController extends Controller
                     'nullable',
                     'boolean',
                 ],
+                'show_on_admin_bookings' => [
+                    'nullable',
+                    'boolean',
+                ],
                 'file' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120', // adjust as needed
                 'fields' => 'array',
             ], $serviceFieldRules));
@@ -121,6 +125,7 @@ class ServicesController extends Controller
             $data['allow_internal_capacity_override'] =
                 $request->boolean('allow_internal_capacity_override');
             $data['is_online_bookable'] = $request->boolean('is_online_bookable', true);
+            $data['show_on_admin_bookings'] = $request->boolean('show_on_admin_bookings', true);
             Log::info($data);
             $service = Service::create($data);
             // $service = Service::create($request->all());
@@ -210,6 +215,10 @@ class ServicesController extends Controller
                 'nullable',
                 'boolean',
             ],
+            'show_on_admin_bookings' => [
+                'nullable',
+                'boolean',
+            ],
             'file' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
             'fields' => 'array',
         ], $serviceFieldRules));
@@ -219,6 +228,9 @@ class ServicesController extends Controller
         $data['is_online_bookable'] = $request->has('is_online_bookable')
             ? $request->boolean('is_online_bookable')
             : (bool) $service->is_online_bookable;
+        $data['show_on_admin_bookings'] = $request->has('show_on_admin_bookings')
+            ? $request->boolean('show_on_admin_bookings')
+            : (bool) ($service->show_on_admin_bookings ?? true);
 
         // $season->update([
         //     'season_id' => $request->season_id,
