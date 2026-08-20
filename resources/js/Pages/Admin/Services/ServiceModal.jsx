@@ -31,6 +31,7 @@ const ServiceModal = ({ isOpen, onClose, mode, service, serviceFields, auth, tea
         capacity: "",
         allow_internal_capacity_override: 0,
         is_online_bookable: 1,
+        show_on_admin_bookings: 1,
         file: null,
         // pillbox_text: "",
         // arrangements: "",
@@ -60,6 +61,7 @@ const ServiceModal = ({ isOpen, onClose, mode, service, serviceFields, auth, tea
                 capacity: service.capacity || "",
                 allow_internal_capacity_override: service.allow_internal_capacity_override || 0,
                 is_online_bookable: service.is_online_bookable ?? 1,
+                show_on_admin_bookings: service.show_on_admin_bookings ?? 1,
                 // pillbox_text: service.pillbox_text || "",
                 // arrangements: service.arrangements || "",
                 // inclusions_exclusions: service.inclusions_exclusions || "",
@@ -364,6 +366,15 @@ const ServiceModal = ({ isOpen, onClose, mode, service, serviceFields, auth, tea
                         helper="Show this service on the public booking website. Turn off for staff-only products such as team builds."
                         name="is_online_bookable"
                         checked={data.is_online_bookable}
+                        mode={mode}
+                        onChange={handleChange}
+                        errors={errors}
+                    />
+                    <CustomCheckbox
+                        label="Show on Admin Bookings"
+                        helper="Show this service on the admin bookings board and service filter. Turn off for products that should not clutter daily booking operations."
+                        name="show_on_admin_bookings"
+                        checked={data.show_on_admin_bookings}
                         mode={mode}
                         onChange={handleChange}
                         errors={errors}

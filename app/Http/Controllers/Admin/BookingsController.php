@@ -565,7 +565,11 @@ class BookingsController extends Controller
     {
 
         abort_if(Gate::denies('bookings_access'), Response::HTTP_FORBIDDEN, '403 Forbidden');
+        $teamId = auth()->user()->team_id;
         $includeCancelled = $request->boolean('include_cancelled');
+        $visibleServiceIds = Service::where('team_id', $teamId)
+            ->where('show_on_admin_bookings', true)
+            ->pluck('id');
         //$bookings = Booking::all();
         // dd(auth()->user()->team_id);
 
@@ -574,7 +578,7 @@ class BookingsController extends Controller
         $bookingsQuery = Booking::with([
             'booking_payments',
         ])
-            ->where('team_id', auth()->user()->team_id);
+            ->where('team_id', $teamId);
 
         if ($includeCancelled) {
             $bookingsQuery->withTrashed();
@@ -607,7 +611,8 @@ class BookingsController extends Controller
         ];
 
         $bookingItemsQuery = BookingItem::with($bookingItemRelations)
-            ->where('team_id', auth()->user()->team_id);
+            ->where('team_id', $teamId)
+            ->whereIn('service_id', $visibleServiceIds);
 
         if ($includeCancelled) {
             $bookingItemsQuery->withTrashed();
@@ -620,9 +625,12 @@ class BookingsController extends Controller
             'seasons.inventory.inventory_type_days',
             'seasons.inventory.inventory_time_slots',
             'seasons.inventory.inventory_slot_ranges',
-        ])->get();
+        ])
+            ->whereIn('id', $visibleServiceIds)
+            ->orderBy('name')
+            ->get();
 
-        $vatLookup = LookupItem::findDefaultForTeam('vat_rate', auth()->user()->team_id);
+        $vatLookup = LookupItem::findDefaultForTeam('vat_rate', $teamId);
         $vatMultiplier = $vatLookup?->multiplier ?? 1.15;
 
         $linkedActivitiesByBookingId = $booking_items
@@ -774,18 +782,21 @@ class BookingsController extends Controller
             }
         })->filter()->values();
 
-        $lookups = LookupItem::defaultsForTeam(auth()->user()->team_id);
+        $lookups = LookupItem::defaultsForTeam($teamId);
         $today = now()->toDateString();
-        $activities = Service::whereHas('seasons', function ($query) use ($today) {
+        $activities = Service::whereIn('id', $visibleServiceIds)
+            ->whereHas('seasons', function ($query) use ($today) {
             $query->whereDate('end_date', '>=', $today);
         })
             ->with(['seasons' => function ($query) use ($today) {
                 $query->whereDate('end_date', '>=', $today);
             }])
+            ->orderBy('name')
             ->get();
         //dd($formatted);
 
         $closeouts = Closeout::with('closeout_day_time_slots')
+            ->whereIn('service_id', $visibleServiceIds)
             ->get(['id', 'service_id', 'season_id', 'start_date', 'end_date']);
 
         return Inertia::render('Admin/Bookings/Index', [
