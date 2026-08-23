@@ -476,11 +476,11 @@ export default function ActivitySchedulePage({ activity, auth, team, activityId,
                                         )}
 
                                         {cell?.status === 'blocked_day' && (
-                                          <div className="text-xs text-black">Day Closed</div>
+                                          <div className="text-xs text-black">Not Available</div>
                                         )}
 
                                         {cell?.status === 'blocked_slot' && (
-                                          <div className="text-xs text-black">Slot Closed</div>
+                                          <div className="text-xs text-black">Not Available</div>
                                         )}
                                         {cell?.status === 'unavailable' && (
                                           <div className="text-xs text-black">Not Available</div>
