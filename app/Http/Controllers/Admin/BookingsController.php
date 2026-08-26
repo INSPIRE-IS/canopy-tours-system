@@ -567,6 +567,8 @@ class BookingsController extends Controller
         abort_if(Gate::denies('bookings_access'), Response::HTTP_FORBIDDEN, '403 Forbidden');
         $teamId = auth()->user()->team_id;
         $includeCancelled = $request->boolean('include_cancelled');
+        // Board visibility controls generated empty slots/filter options only.
+        // Existing bookings must remain visible even when their service is hidden from empty-slot operations.
         $visibleServiceIds = Service::where('team_id', $teamId)
             ->where('show_on_admin_bookings', true)
             ->pluck('id');
@@ -611,8 +613,7 @@ class BookingsController extends Controller
         ];
 
         $bookingItemsQuery = BookingItem::with($bookingItemRelations)
-            ->where('team_id', $teamId)
-            ->whereIn('service_id', $visibleServiceIds);
+            ->where('team_id', $teamId);
 
         if ($includeCancelled) {
             $bookingItemsQuery->withTrashed();
