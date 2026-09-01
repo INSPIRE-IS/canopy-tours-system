@@ -151,6 +151,15 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
 
     const totalDue = Math.max(0, Number(booking?.grand_tot_due || 0) - Number(booking?.tot_paid || 0));
     const totalPaid = Number(booking?.tot_paid || 0);
+    const [savedLeadMobile, setSavedLeadMobile] = useState(data.lead_mobile || '');
+    const [leadMobileInput, setLeadMobileInput] = useState(data.lead_mobile || '');
+    const leadMobileChanged = String(leadMobileInput ?? '') !== String(savedLeadMobile ?? '');
+
+    useEffect(() => {
+        const currentLeadMobile = data.lead_mobile || '';
+        setSavedLeadMobile(currentLeadMobile);
+        setLeadMobileInput(currentLeadMobile);
+    }, [booking?.id, bookingItem?.id, data.lead_mobile]);
 
     console.log('data', data);
     const handleOpenModal = (mode, user = null) => {
@@ -345,6 +354,31 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
         put(route('admin.bookings.update', { booking }));
     };
 
+    const handleLeadMobileSave = (e) => {
+        e.preventDefault();
+        if (!booking?.id || !leadMobileChanged) {
+            return;
+        }
+
+        router.put(
+            route('admin.bookings.lead-contact.update', { booking: booking.id }),
+            {
+                booking_item_id: bookingItem?.id,
+                lead_mobile: leadMobileInput,
+            },
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    setSavedLeadMobile(leadMobileInput);
+                    showToast('Lead mobile updated.', 'success');
+                },
+                onError: () => {
+                    showToast('Unable to update lead mobile.', 'error');
+                },
+            }
+        );
+    };
+
     return (
         <AuthenticatedLayout
             user={auth.user}
@@ -388,7 +422,7 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                                     booking_item_id: bookingItem?.id,
                                     reference: booking?.reference,
                                     lead_name: data.lead_person,
-                                    lead_phone: data.lead_mobile,
+                                    lead_phone: leadMobileInput,
                                     lead_email: data.lead_email,
                                     lead_id: booking?.lead_id || booking?.customer_id,
                                     customer_id: booking?.customer_id,
@@ -425,7 +459,7 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                                     booking_item_id: bookingItem?.id,
                                     reference: booking?.reference,
                                     lead_name: data.lead_person,
-                                    lead_phone: data.lead_mobile,
+                                    lead_phone: leadMobileInput,
                                     lead_email: data.lead_email,
                                     lead_id: booking?.lead_id || booking?.customer_id,
                                     customer_id: booking?.customer_id,
@@ -544,8 +578,19 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                                     <div className="flex flex-col justify-between items-center ">
                                         <span className='flex items-center justify-between w-full px-6 py-4 border-b border-gray-300'>
                                             <span className="text-booking-card-heading block text-start">Customer Information </span>
-                                            <span onClick={() => setToggleCustomer(!toggleCustomer)}>
-                                                {toggleCustomer ? icons.cheveron_down : icons.cheveron_up}
+                                            <span className="flex items-center gap-3">
+                                                {leadMobileChanged && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleLeadMobileSave}
+                                                        className="flex h-[34px] items-center rounded-[10px] border border-[#3863C6] bg-[#3863C6] px-4 text-xs font-semibold text-white hover:bg-[#3157b0]"
+                                                    >
+                                                        Save Mobile
+                                                    </button>
+                                                )}
+                                                <span onClick={() => setToggleCustomer(!toggleCustomer)}>
+                                                    {toggleCustomer ? icons.cheveron_down : icons.cheveron_up}
+                                                </span>
                                             </span>
                                         </span>
                                         {toggleCustomer && (
@@ -575,11 +620,10 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                                                     <CustomInputText
                                                         title="Lead Mobile"
                                                         name="lead_mobile"
-                                                        value={data.lead_mobile}
+                                                        value={leadMobileInput}
                                                         height="h-[52px]"
                                                         type="text"
-                                                        mode="view"
-                                                        onChange={(e) => setData('lead_mobile', e.target.value)}
+                                                        onChange={(e) => setLeadMobileInput(e.target.value)}
                                                         errors={errors}
                                                     />
                                                 </div>

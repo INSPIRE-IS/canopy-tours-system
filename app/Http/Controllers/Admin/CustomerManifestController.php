@@ -314,6 +314,7 @@ class CustomerManifestController extends Controller
             'type' => 'nullable|in:adult,child',
             'full_name' => 'nullable|string|required_without:customer_id',
             'email_address' => 'nullable|email',
+            'contact_number' => 'nullable|string',
             'attendance_status' => 'required|in:' . implode(',', CustomerManifest::ATTENDANCE_STATUSES),
             'notes' => 'nullable|string',
             'lunch_option' => 'nullable|string',
@@ -332,6 +333,7 @@ class CustomerManifestController extends Controller
             $customerPayload = [
                 'full_name' => $fullName !== '' ? $fullName : null,
                 'email_address' => $emailAddress,
+                'contact_number' => $validated['contact_number'] ?? null,
             ];
 
             if ($paxType === 'child') {
@@ -356,6 +358,9 @@ class CustomerManifestController extends Controller
             }
             if ($request->has('email_address')) {
                 $customerUpdates['email_address'] = $validated['email_address'] ?: null;
+            }
+            if ($request->has('contact_number')) {
+                $customerUpdates['contact_number'] = $validated['contact_number'] ?: null;
             }
             if (!empty($customerUpdates)) {
                 $customer->update($customerUpdates);
