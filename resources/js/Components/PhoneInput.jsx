@@ -84,15 +84,13 @@ export default function PhoneInput({
         if (!phonecodeOptions.length) return;
         if (initializedRef.current && value === lastEmittedRef.current) return;
         const parsed = splitPhoneNumber(value, phonecodeOptions, resolvedDefault);
-        if (initializedRef.current && parsed.code === countryCode && parsed.local === localNumber) {
-            return;
-        }
         syncingRef.current = true;
         dbg('sync from value', { value, parsed, resolvedDefault });
         setCountryCode(parsed.code || resolvedDefault);
         setLocalNumber(parsed.local || '');
         initializedRef.current = true;
-    }, [phonecodeOptions.length, value, resolvedDefault, countryCode, localNumber]);
+        lastEmittedRef.current = value ?? '';
+    }, [phonecodeOptions.length, value, resolvedDefault]);
 
     useEffect(() => {
         if (!initializedRef.current) return;
@@ -104,7 +102,14 @@ export default function PhoneInput({
         // Allow users to type a local leading "0" (common in SA) without the input wiping itself.
         // Only strip leading zeros once at least one non-zero digit is present.
         const local = raw.length > 1 ? raw.replace(/^0+/, '') : raw;
-        if (!local || local === '0') {
+        if (!local) {
+            if (value !== '') {
+                lastEmittedRef.current = '';
+                onChange?.('');
+            }
+            return;
+        }
+        if (local === '0') {
             dbg('emit skipped', { countryCode, localNumber, raw, local, reason: 'empty_or_single_zero' });
             return;
         }
