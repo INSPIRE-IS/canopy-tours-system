@@ -75,7 +75,7 @@ export default function CheckInAnswersModal({ isOpen, onClose, manifest, answers
     const customer = manifest?.customer ?? manifest ?? {};
     const rawFullName = (customer?.full_name || customer?.name || '').trim();
     const rawEmail = (customer?.email_address || manifest?.email_address || '').trim();
-    const phone = customer?.contact_number || '';
+    const rawPhone = (customer?.contact_number || manifest?.contact_number || '').trim();
     const resolvedAnswers = Array.isArray(answers) ? answers : [];
 
     const splitFullName = (value) => {
@@ -122,6 +122,7 @@ export default function CheckInAnswersModal({ isOpen, onClose, manifest, answers
     const [firstName, setFirstName] = useState(initialName.first);
     const [lastName, setLastName] = useState(initialName.last);
     const [emailAddress, setEmailAddress] = useState(rawEmail);
+    const [phoneNumber, setPhoneNumber] = useState(rawPhone);
     const [notes, setNotes] = useState(manifest?.notes ?? '');
     const [lunchOption, setLunchOption] = useState(resolveLunchValue(lunchAnswer?.answer));
     const [attendanceStatus, setAttendanceStatus] = useState(manifest?.attendance_status ?? 'no_show');
@@ -134,6 +135,7 @@ export default function CheckInAnswersModal({ isOpen, onClose, manifest, answers
         setFirstName(nameParts.first);
         setLastName(nameParts.last);
         setEmailAddress(rawEmail);
+        setPhoneNumber(rawPhone);
         setNotes(manifest?.notes ?? '');
         setLunchOption(resolveLunchValue(lunchAnswer?.answer));
         setAttendanceStatus(manifest?.attendance_status ?? 'no_show');
@@ -163,6 +165,7 @@ export default function CheckInAnswersModal({ isOpen, onClose, manifest, answers
                 type: paxType,
                 full_name: combinedFullName,
                 email_address: emailAddress?.trim() ? emailAddress.trim() : null,
+                contact_number: phoneNumber?.trim() ? phoneNumber.trim() : null,
                 attendance_status: attendanceStatus,
                 notes,
                 lunch_option: lunchOption,
@@ -224,7 +227,7 @@ export default function CheckInAnswersModal({ isOpen, onClose, manifest, answers
                     <div>
                         <h2 className="text-lg font-semibold text-gray-900">Checkin Detail</h2>
                         <p className="text-sm text-gray-500">
-                            {(combinedFullName || rawFullName || 'Guest')}{(emailAddress?.trim() || rawEmail) ? ` | ${emailAddress?.trim() || rawEmail}` : ''}{phone ? ` | ${phone}` : ''}
+                            {(combinedFullName || rawFullName || 'Guest')}{(emailAddress?.trim() || rawEmail) ? ` | ${emailAddress?.trim() || rawEmail}` : ''}{phoneNumber?.trim() ? ` | ${phoneNumber.trim()}` : ''}
                         </p>
                     </div>
                     <button
@@ -318,12 +321,23 @@ export default function CheckInAnswersModal({ isOpen, onClose, manifest, answers
                                 />
                             </label>
 
-                            <label className="flex flex-col gap-2 text-sm text-gray-700 md:col-span-2">
+                            <label className="flex flex-col gap-2 text-sm text-gray-700">
                                 Email
                                 <input
                                     type="email"
                                     value={emailAddress}
                                     onChange={(event) => setEmailAddress(event.target.value)}
+                                    disabled={!canEdit || isSaving}
+                                    className="h-10 rounded-md border border-gray-300 bg-white px-3 text-sm focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-200"
+                                />
+                            </label>
+
+                            <label className="flex flex-col gap-2 text-sm text-gray-700">
+                                Phone
+                                <input
+                                    type="tel"
+                                    value={phoneNumber}
+                                    onChange={(event) => setPhoneNumber(event.target.value)}
                                     disabled={!canEdit || isSaving}
                                     className="h-10 rounded-md border border-gray-300 bg-white px-3 text-sm focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-200"
                                 />
