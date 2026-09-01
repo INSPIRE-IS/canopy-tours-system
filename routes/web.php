@@ -294,6 +294,7 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['auth', 'v
     Route::post('/bookings/send-email', [BookingsController::class, 'sendEmail'])->name('bookings.send-email');
     Route::get('/bookings/{booking}/guest-links', [BookingsController::class, 'guestLinks'])->name('bookings.guest-links');
     Route::get('bookings/add/{booking}', [BookingsController::class, 'add'])->name('bookings.add');
+    Route::put('bookings/{booking}/lead-contact', [BookingsController::class, 'updateLeadContact'])->name('bookings.lead-contact.update');
     Route::post('bookings/notes', [BookingsController::class, 'addNote'])->name('bookings.notes.store');
     Route::post('bookings/log-checkin', [BookingsController::class, 'logCheckinAction'])->name('bookings.log-checkin');
     Route::post('bookings/cancel-slot', [BookingsController::class, 'cancelSlot'])->name('bookings.cancel-slot');

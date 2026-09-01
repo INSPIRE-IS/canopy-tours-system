@@ -3875,6 +3875,44 @@ class BookingsController extends Controller
     }
 
 
+    public function updateLeadContact(Request $request, Booking $booking)
+    {
+        abort_if(Gate::denies('bookings_access'), Response::HTTP_FORBIDDEN, '403 Forbidden');
+
+        $teamId = (int) auth()->user()->team_id;
+        abort_if((int) $booking->team_id !== $teamId, Response::HTTP_FORBIDDEN, '403 Forbidden');
+
+        $validated = $request->validate([
+            'booking_item_id' => 'nullable|integer|exists:booking_items,id',
+            'lead_mobile' => 'required|string|max:50',
+        ]);
+
+        $bookingItemQuery = BookingItem::with('customers')
+            ->where('booking_id', $booking->id)
+            ->where('team_id', $teamId);
+
+        if (!empty($validated['booking_item_id'])) {
+            $bookingItemQuery->where('id', $validated['booking_item_id']);
+        }
+
+        $bookingItem = $bookingItemQuery->orderBy('id')->first();
+        $leadCustomer = $bookingItem?->customers?->firstWhere('pivot.is_lead', 1)
+            ?? ($booking->customer_id ? Customer::find($booking->customer_id) : null);
+
+        if (!$leadCustomer) {
+            throw ValidationException::withMessages([
+                'lead_mobile' => 'No lead customer is linked to this booking.',
+            ]);
+        }
+
+        $leadCustomer->update([
+            'contact_number' => $validated['lead_mobile'],
+        ]);
+
+        return back()->with('success', 'Lead mobile updated.');
+    }
+
+
     public function add(Request $request, Booking $booking)
     {
         //abort_if(Gate::denies('booking_edit'), Response::HTTP_FORBIDDEN, '403 Forbidden');
