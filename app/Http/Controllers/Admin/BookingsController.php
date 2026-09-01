@@ -302,7 +302,7 @@ class BookingsController extends Controller
 
         $booking->update(array_merge([
             'grand_tot_due' => round($total, 2),
-            'tot_paid' => min(round($total, 2), $paid),
+            'tot_paid' => $paid,
             'status_payment_id' => $total > 0 && $paid >= round($total, 2) ? 2 : 1,
         ], $extra));
     }
@@ -2086,7 +2086,7 @@ class BookingsController extends Controller
         ]);
 
         $requestedBookingItemId = $request->integer('booking_item_id');
-        $bookingItemsQuery = BookingItem::with([
+        $bookingItemsQuery = BookingItem::withTrashed()->with([
             'service',
             'season',
             'inventory',
@@ -2094,15 +2094,16 @@ class BookingsController extends Controller
             'wholesaler' => fn ($query) => $query->withTrashed()->select('id', 'name', 'team_id', 'deleted_at'),
             'wholesaler_rate' => fn ($query) => $query->withTrashed()->select('id', 'name', 'wholesaler_id', 'service_id', 'season_id', 'price_adult', 'price_child', 'price_guide', 'bill_back', 'is_prepaid_voucher', 'effective_from', 'effective_to', 'is_active', 'deleted_at', 'team_id'),
             'customers', // :id,name,email,contact_number
+            'customer_manifests' => fn ($query) => $query->withTrashed(),
             'customer_manifests.customer.booking_questionnaire', // :id,position,notes,is_indemnity,customer_id,booking_id\
-            'booking_infos', // :id,booking_id,type_location_id,location,time,created_at,updated_at,deleted_at
+            'booking_infos' => fn ($query) => $query->withTrashed(), // :id,booking_id,type_location_id,location,time,created_at,updated_at,deleted_at
             'customers.booking_questionnaire', // :id,booking_id,customer_id,guide_id,safety_guide_id,type_group_id,fullname,email,signature,birth_date,type_referral,country_id,province_id,is_medical,medical_detail,is_fit,is_agree
-            'booking_detail', //:id,booking_id ,start_time,end_time
-            'booking_fee', //:id,booking_id,tot_amount
-            'booking_inventory', // :id,booking_id,inventory_id
-            'booking_inventory.inventory_time_slot',
-            'booking_inventory.inventory_override',
-            'booking_staff', // :id,booking_id,user_id
+            'booking_detail' => fn ($query) => $query->withTrashed(), //:id,booking_id ,start_time,end_time
+            'booking_fee' => fn ($query) => $query->withTrashed(), //:id,booking_id,tot_amount
+            'booking_inventory' => fn ($query) => $query->withTrashed(), // :id,booking_id,inventory_id
+            'booking_inventory.inventory_time_slot' => fn ($query) => $query->withTrashed(),
+            'booking_inventory.inventory_override' => fn ($query) => $query->withTrashed(),
+            'booking_staff' => fn ($query) => $query->withTrashed(), // :id,booking_id,user_id
             'booking_staff.user', // :id,name,email,contact_number
         ])->where('booking_id', $booking->id);
 
@@ -2677,7 +2678,7 @@ class BookingsController extends Controller
                     } else {
                         // Editing price/rate must not reverse payment state. Refund/payment correction is a deliberate payment flow.
                         $existingPaid = round((float) ($bookingItem->booking_fee->tot_paid ?? 0), 2);
-                        $bookingFeeData['tot_paid'] = min($existingPaid, $amount);
+                        $bookingFeeData['tot_paid'] = $existingPaid;
                     }
                     $bookingItem->booking_fee->update($bookingFeeData);
                 } else {
@@ -3942,21 +3943,22 @@ class BookingsController extends Controller
         ]);
 
         $requestedBookingItemId = $request->integer('booking_item_id');
-        $bookingItemQuery = BookingItem::with([
+        $bookingItemQuery = BookingItem::withTrashed()->with([
             'service',
             'season',
-            'booking',
+            'booking' => fn ($query) => $query->withTrashed(),
             'inventory',
             'customers.nationality:id,name,nationality',
+            'customer_manifests' => fn ($query) => $query->withTrashed(),
             'customer_manifests.customer.booking_questionnaire',
-            'booking_infos',
+            'booking_infos' => fn ($query) => $query->withTrashed(),
             'customers.booking_questionnaire',
-            'booking_detail',
-            'booking_fee',
-            'price_lines',
-            'booking_inventory',
-            'booking_inventory.inventory_time_slot',
-            'booking_staff',
+            'booking_detail' => fn ($query) => $query->withTrashed(),
+            'booking_fee' => fn ($query) => $query->withTrashed(),
+            'price_lines' => fn ($query) => $query->withTrashed(),
+            'booking_inventory' => fn ($query) => $query->withTrashed(),
+            'booking_inventory.inventory_time_slot' => fn ($query) => $query->withTrashed(),
+            'booking_staff' => fn ($query) => $query->withTrashed(),
             'booking_staff.user',
         ])
             ->where('booking_id', $booking->id);

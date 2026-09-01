@@ -292,22 +292,22 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['auth', 'v
     Route::get('/booking/activity/calendar', [BookingsController::class, 'calendar'])->name('booking.activity.calendar');
     Route::post('/bookings/calculate-price', [BookingsController::class, 'calculate'])->name('booking.calculate');
     Route::post('/bookings/send-email', [BookingsController::class, 'sendEmail'])->name('bookings.send-email');
-    Route::get('/bookings/{booking}/guest-links', [BookingsController::class, 'guestLinks'])->name('bookings.guest-links');
-    Route::get('bookings/add/{booking}', [BookingsController::class, 'add'])->name('bookings.add');
-    Route::put('bookings/{booking}/lead-contact', [BookingsController::class, 'updateLeadContact'])->name('bookings.lead-contact.update');
+    Route::get('/bookings/{booking}/guest-links', [BookingsController::class, 'guestLinks'])->withTrashed()->name('bookings.guest-links');
+    Route::get('bookings/add/{booking}', [BookingsController::class, 'add'])->withTrashed()->name('bookings.add');
+    Route::put('bookings/{booking}/lead-contact', [BookingsController::class, 'updateLeadContact'])->withTrashed()->name('bookings.lead-contact.update');
     Route::post('bookings/notes', [BookingsController::class, 'addNote'])->name('bookings.notes.store');
     Route::post('bookings/log-checkin', [BookingsController::class, 'logCheckinAction'])->name('bookings.log-checkin');
     Route::post('bookings/cancel-slot', [BookingsController::class, 'cancelSlot'])->name('bookings.cancel-slot');
     Route::post('bookings/update-timeslot', [BookingsController::class, 'updateTimeslot'])->name('bookings.update-timeslot');
     Route::post('bookings/{booking}/reinstate', [BookingsController::class, 'reinstate'])->name('bookings.reinstate');
     // Route::get('bookings/cancel-booking/{booking}', [BookingsController::class, 'cancelBooking'])->name('bookings.cancel-booking');
-    Route::resource('bookings', BookingsController::class);
+    Route::resource('bookings', BookingsController::class)->withTrashed(['show', 'edit']);
 
     Route::post('customer-manifests/add', [CustomerManifestController::class, 'add'])->name('customer-manifests.add');
     Route::put('customer-manifests/edit-single/{booking_item_id}', [CustomerManifestController::class, 'editSingle'])->name('customer-manifests.edit-single');
     Route::put('customer-manifests/edit/{booking_item_id}', [CustomerManifestController::class, 'edit'])->name('customer-manifests.edit');
     Route::put('customer-manifests/status', [CustomerManifestController::class, 'updateStatus'])->name('customer-manifests.status');
-    Route::get('booking-payments/create/{booking}', [BookingPaymentController::class, 'create'])->name('booking-payments.create');
+    Route::get('booking-payments/create/{booking}', [BookingPaymentController::class, 'create'])->withTrashed()->name('booking-payments.create');
     Route::post('booking-payments/simulated/{booking}', [BookingPaymentController::class, 'simulate'])->name('booking-payments.simulated');
     Route::post('booking-payments/paylink/{booking}', [BookingPaymentController::class, 'sendPayLink'])->name('booking-payments.paylink');
     Route::post('booking-payments/refund/{booking}', [BookingPaymentController::class, 'refund'])->name('booking-payments.refund');

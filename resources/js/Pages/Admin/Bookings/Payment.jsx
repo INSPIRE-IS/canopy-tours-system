@@ -10,6 +10,7 @@ import CustomTextarea from '@/Components/CustomTextarea';
 import Modal from '@/Components/Modal';
 import OutlineButton from '@/Components/OutlineButton';
 import { useToast } from "@/Context/ToastContext";
+import CancelledBookingBanner from '@/Components/CancelledBookingBanner';
 // import { useRoute } from 'ziggy-js';
 // import { Ziggy } from '@/ziggy'; // the generated file
 
@@ -44,6 +45,7 @@ export default function Dashboard({ auth, booking, payment_history = [], booking
     const vatMultiplier = Number(vatLookup.multiplier || (1 + vatRate));
     const paymentHistory = Array.isArray(payment_history) ? payment_history : [];
     const bookingItems = Array.isArray(booking?.booking_items) ? booking.booking_items : [];
+    const isCancelledBooking = Boolean(booking?.deleted_at);
     const formatMoney = (value) => `R${Number(value || 0).toFixed(2)}`;
     const formatDate = (value) => {
         if (!value) return '-';
@@ -65,7 +67,9 @@ export default function Dashboard({ auth, booking, payment_history = [], booking
             vat_amount: vatAmount.toFixed(2),
         };
     };
-    const outstandingAmount = Math.max(0, Number(booking.grand_tot_due) - Number(booking.tot_paid || 0));
+    const balanceAmount = Number(booking.grand_tot_due || 0) - Number(booking.tot_paid || 0);
+    const outstandingAmount = Math.max(0, balanceAmount);
+    const creditAmount = Math.max(0, -balanceAmount);
     const { data, setData, post, put, processing, errors, isDirty } = useForm({
         booking_id: booking.id,
         redeemer_name: booking.lead_name,
@@ -144,6 +148,10 @@ export default function Dashboard({ auth, booking, payment_history = [], booking
     };
 
     const handleEditBookingPrice = () => {
+        if (isCancelledBooking) {
+            showToast('This booking is cancelled. Reinstate it before changing prices or promos.', 'error');
+            return;
+        }
         if (bookingItems.length <= 1) {
             goToBookingEdit(bookingItems[0]?.id);
             return;
@@ -259,6 +267,10 @@ export default function Dashboard({ auth, booking, payment_history = [], booking
             showToast('Please add an additional amount note.', 'error');
             return;
         }
+        if (isCancelledBooking) {
+            showToast('This booking is cancelled. Reinstate it before recording a new payment.', 'error');
+            return;
+        }
         if (mode === "create") {
             post(route("admin.booking-payments.store"), {
                 onSuccess: () => console.log('success'),
@@ -270,6 +282,10 @@ export default function Dashboard({ auth, booking, payment_history = [], booking
         }
     };
     const handleSendPayLink = async () => {
+        if (isCancelledBooking) {
+            showToast('This booking is cancelled. Reinstate it before sending a PayLink.', 'error');
+            return;
+        }
         setPayLinkSending(true);
         try {
             await axios.post(route('admin.booking-payments.paylink', booking.id));
@@ -283,6 +299,10 @@ export default function Dashboard({ auth, booking, payment_history = [], booking
         }
     };
     const openRefundModal = () => {
+        if (isCancelledBooking) {
+            showToast('This booking is cancelled. Reinstate it before recording a refund.', 'error');
+            return;
+        }
         setRefundData({
             refund_type: bookingRefundableAmount > 0 ? 'booking' : 'additional',
             refund_amount: '',
@@ -293,6 +313,10 @@ export default function Dashboard({ auth, booking, payment_history = [], booking
 
     const handleRefundSubmit = async (e) => {
         e.preventDefault();
+        if (isCancelledBooking) {
+            showToast('This booking is cancelled. Reinstate it before recording a refund.', 'error');
+            return;
+        }
         const selectedAvailable = refundData.refund_type === 'booking' ? bookingRefundableAmount : additionalRefundableAmount;
         const refundAmount = Number(refundData.refund_amount || 0);
 
@@ -331,6 +355,9 @@ export default function Dashboard({ auth, booking, payment_history = [], booking
             <Head title="Dashboard" />
 
             <div className="bg-white p-6 ">
+                {isCancelledBooking && (
+                    <CancelledBookingBanner message="Payment history is available for review only. Reinstate the booking before recording payments, refunds, PayLinks, or price changes." />
+                )}
                 {/* top */}
                 <div className="flex justify-between items-center mb-6">
                     <span>
@@ -408,7 +435,7 @@ export default function Dashboard({ auth, booking, payment_history = [], booking
                                 <OutlineButton
                                     title="Send PayLink"
                                     onClick={() => setShowPayLinkModal(true)}
-                                    props={{ type: 'button', disabled: isFullyPaid }}
+                                    props={{ type: 'button', disabled: isCancelledBooking || isFullyPaid }}
                                 />
                                 {isFullyPaid && (
                                     <span className="text-sm text-red-500">Booking already paid.</span>
@@ -435,9 +462,9 @@ export default function Dashboard({ auth, booking, payment_history = [], booking
                                         </div>
                                     </div>
                                     <div className="flex items-center justify-between gap-5">
-                                        <span className="text-booking-lbl-main w-[180px] font-normal text-right">Outstanding To Pay</span>
+                                        <span className="text-booking-lbl-main w-[180px] font-normal text-right">{creditAmount > 0 ? 'Credit On Booking' : 'Outstanding To Pay'}</span>
                                         <div className="flex items-center justify-between flex-1 min-w-[180px] h-[43px] bg-[#DBECFD4D] pl-[17px] pr-[17px] py-[12.5px] rounded-[6px]">
-                                            <span className="text-booking-lbl-main-sub text-[#FF0000]">R {amountDue.toFixed(2)}</span>
+                                            <span className={`text-booking-lbl-main-sub ${creditAmount > 0 ? 'text-[#4D81E7]' : 'text-[#FF0000]'}`}>R {(creditAmount > 0 ? creditAmount : amountDue).toFixed(2)}</span>
                                         </div>
                                     </div>
                                     <div className="flex items-center justify-between gap-5">
@@ -463,7 +490,7 @@ export default function Dashboard({ auth, booking, payment_history = [], booking
                                         errors={errors}
                                     />
                                     <p className="text-xs text-gray-500 -mt-2">
-                                        New amount being paid toward the outstanding booking balance. Outstanding to pay: R{amountDue.toFixed(2)}.
+                                        New amount being paid toward the outstanding booking balance. Outstanding to pay: R{amountDue.toFixed(2)}{creditAmount > 0 ? `; credit on booking: R${creditAmount.toFixed(2)}.` : '.'}
                                     </p>
                                 </div>
                                 <div>
@@ -542,23 +569,26 @@ export default function Dashboard({ auth, booking, payment_history = [], booking
                                     title="Edit Booking Price / Promo"
                                     onClick={handleEditBookingPrice}
                                     width="w-[220px]"
-                                    props={{ type: 'button' }}
+                                    props={{ type: 'button', disabled: isCancelledBooking }}
                                 />
                                 <BlueButton
                                     title="Add Payment Now"
                                     width="w-[169px]"
                                     onClick={handleSubmit}
-                                    disabled={processing || (isFullyPaid && !hasAdditionalPayment)}
+                                    disabled={processing || isCancelledBooking || (isFullyPaid && !hasAdditionalPayment)}
                                     type="submit"
                                 />
                                 <OutlineButton
                                     title="Refund Payment"
                                     onClick={openRefundModal}
                                     width="w-[169px]"
-                                    props={{ type: 'button', disabled: bookingRefundableAmount <= 0 && additionalRefundableAmount <= 0 }}
+                                    props={{ type: 'button', disabled: isCancelledBooking || (bookingRefundableAmount <= 0 && additionalRefundableAmount <= 0) }}
                                 />
                                 {isFullyPaid && !hasAdditionalPayment && (
                                     <span className="text-sm text-red-500">Booking already paid. Add an additional amount to record extras.</span>
+                                )}
+                                {isCancelledBooking && (
+                                    <span className="text-sm text-amber-600">This booking is cancelled. Payment history is available for review only.</span>
                                 )}
                             </div>
 
@@ -747,7 +777,7 @@ export default function Dashboard({ auth, booking, payment_history = [], booking
                         <BlueButton
                             title={payLinkSending ? 'Sending...' : 'Send'}
                             onClick={handleSendPayLink}
-                            disabled={payLinkSending || isFullyPaid || !leadEmail}
+                            disabled={payLinkSending || isCancelledBooking || isFullyPaid || !leadEmail}
                             props={{ type: 'button' }}
                             width="w-[140px]"
                         />

@@ -73,10 +73,12 @@ class BookingPaymentController extends Controller
         $updated_bies = User::select('name', 'id')->get();
 
         $booking->load([
+            'booking_items' => fn ($query) => $query->withTrashed(),
             'booking_items.service',
             'booking_items.season',
-            'booking_items.booking_fee',
-            'booking_items.booking_inventory.inventory_time_slot',
+            'booking_items.booking_fee' => fn ($query) => $query->withTrashed(),
+            'booking_items.booking_inventory' => fn ($query) => $query->withTrashed(),
+            'booking_items.booking_inventory.inventory_time_slot' => fn ($query) => $query->withTrashed(),
             'customer',
         ]);
         $latestPayment = BookingPayment::where('booking_id', $booking->id)
@@ -203,7 +205,12 @@ class BookingPaymentController extends Controller
 
         try {
             $booking = DB::transaction(function () use ($service, $validated) {
-                $booking = Booking::with('booking_items.booking_fees')->findOrFail($validated['booking_id']);
+                $booking = Booking::withTrashed()->with('booking_items.booking_fees')->findOrFail($validated['booking_id']);
+                if ($booking->trashed()) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'booking_id' => 'This booking is cancelled. Reinstate it before recording a new payment.',
+                    ]);
+                }
                 $vatLookup = LookupItem::findOrFail($validated['lookup_item_id']);
                 $vatRate = (float) ($vatLookup->rate ?? 0);
                 $vatMultiplier = (float) ($vatLookup->multiplier ?: (1 + $vatRate));
@@ -911,5 +918,3 @@ class BookingPaymentController extends Controller
         return back();
     }
 }
-
-
