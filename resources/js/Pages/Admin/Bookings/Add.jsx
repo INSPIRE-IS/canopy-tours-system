@@ -18,6 +18,7 @@ import { useToast } from '@/Context/ToastContext';
 import ManifestsModal from './ManifestsModal';
 import CheckInOptionsModal from '@/Components/CheckInOptionsModal';
 import CheckInAnswersModal from '@/Components/CheckInAnswersModal';
+import CancelledBookingBanner from '@/Components/CancelledBookingBanner';
 // import { useRoute } from 'ziggy-js';
 // import { Ziggy } from '@/ziggy'; // the generated file
 
@@ -102,6 +103,7 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
     const headerBookingDate = bookingItem?.booking_inventory?.date || '—';
     const headerSlotTime = bookingItem?.booking_inventory?.inventory_time_slot?.start_time || '';
     const headerDateTime = headerSlotTime ? `${headerBookingDate} ${String(headerSlotTime).slice(0, 5)}` : headerBookingDate;
+    const isCancelledBooking = Boolean(booking?.deleted_at || bookingItem?.deleted_at);
     useEffect(() => {
         if (flash?.success) {
             showToast(flash.success, "success");
@@ -149,8 +151,10 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
     }
     );
 
-    const totalDue = Math.max(0, Number(booking?.grand_tot_due || 0) - Number(booking?.tot_paid || 0));
     const totalPaid = Number(booking?.tot_paid || 0);
+    const totalBalance = Number(booking?.grand_tot_due || 0) - totalPaid;
+    const totalDue = Math.max(0, totalBalance);
+    const totalCredit = Math.max(0, -totalBalance);
     const [savedLeadMobile, setSavedLeadMobile] = useState(data.lead_mobile || '');
     const [leadMobileInput, setLeadMobileInput] = useState(data.lead_mobile || '');
     const leadMobileChanged = String(leadMobileInput ?? '') !== String(savedLeadMobile ?? '');
@@ -349,6 +353,10 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
 
     const handleSubmit = (e) => {
         e.preventDefault();
+        if (isCancelledBooking) {
+            showToast('This booking is cancelled. Reinstate it before saving changes.', 'error');
+            return;
+        }
         console.log('booking', booking);
         console.log('data', data);
         put(route('admin.bookings.update', { booking }));
@@ -357,6 +365,10 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
     const handleLeadMobileSave = (e) => {
         e.preventDefault();
         if (!booking?.id || !leadMobileChanged) {
+            return;
+        }
+        if (isCancelledBooking) {
+            showToast('This booking is cancelled. Reinstate it before updating the lead mobile.', 'error');
             return;
         }
 
@@ -399,6 +411,9 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                                 </div>
                         </header> */}
             <div className="bg-white p-6 ">
+                {isCancelledBooking && (
+                    <CancelledBookingBanner message="Check-in, guest messaging, payment changes, and booking edits are disabled while this booking is cancelled." />
+                )}
                 {/* top */}
                 <div className="flex justify-between items-center mb-6">
                     <span>
@@ -431,7 +446,8 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                                     time: bookingItem?.booking_inventory?.inventory_time_slot?.start_time,
                                 });
                             }}
-                            className="flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-red-gradient-overlay border-[#C65468] text-white shadow-inset-white cursor-pointer"
+                            disabled={isCancelledBooking}
+                            className={`flex items-center w-auto h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-red-gradient-overlay border-[#C65468] text-white shadow-inset-white ${isCancelledBooking ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                         >
                             <img src="/assets/icons/plus.svg" alt="bookings" className="w-5 h-5" />
                             <span className="text-btn-outline-gray">Check in</span>
@@ -452,6 +468,7 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                             width="w-[158.8px]"
                             height="h-[31px]"
                             className="mt-4"
+                            disabled={isCancelledBooking}
                             onClick={() => {
                                 logCheckInAction('open_checkin_options');
                                 setCheckInTarget({
@@ -487,6 +504,7 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                             width="w-[158.8px]"
                             height="h-[31px]"
                             className="mt-4"
+                            disabled={isCancelledBooking}
                             onClick={() => router.get(route('admin.invoices.resend-invoice', { booking_id: booking?.id }))}
                         />
                         <WhiteButton
@@ -579,7 +597,7 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                                         <span className='flex items-center justify-between w-full px-6 py-4 border-b border-gray-300'>
                                             <span className="text-booking-card-heading block text-start">Customer Information </span>
                                             <span className="flex items-center gap-3">
-                                                {leadMobileChanged && (
+                                                {leadMobileChanged && !isCancelledBooking && (
                                                     <button
                                                         type="button"
                                                         onClick={handleLeadMobileSave}
@@ -705,7 +723,7 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                                                         manifest?.attendance_status ??
                                                         manifestCustomer?.attendance_status ??
                                                         'no_show';
-                                                    const canUpdateAttendance = Boolean(customerId && bookingItemId);
+                                                    const canUpdateAttendance = !isCancelledBooking && Boolean(customerId && bookingItemId);
                                                     console.log('manifest', manifest);
                                                     return (
                                                         <div key={i} className="flex flex-col px-6 py-6 gap-2 border-b border-gray-100">
@@ -1119,9 +1137,9 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                                         <div className="flex flex-col w-full px-6 py-6 gap-2">
 
                                             <div className="flex items-center just space-x-4">
-                                                <label className="text-booking-lbl-main basis-[20%]">Overdue</label>
-                                                <div className="flex items-center justify-between w-[417px] h-[43px] bg-[#FCE4DF4D] pl-[7px] pr-[7px] py-[7px] rounded-[6px]">
-                                                    <span className="text-booking-lbl-main-sub-error inline-flex items-center gap-2">{icons.red_dot} R {totalDue.toFixed(2)}</span>
+                                                <label className="text-booking-lbl-main basis-[20%]">{totalCredit > 0 ? 'Credit' : 'Overdue'}</label>
+                                                <div className={`flex items-center justify-between w-[417px] h-[43px] ${totalCredit > 0 ? 'bg-[#DBECFD4D]' : 'bg-[#FCE4DF4D]'} pl-[7px] pr-[7px] py-[7px] rounded-[6px]`}>
+                                                    <span className={`${totalCredit > 0 ? 'text-booking-lbl-main-sub text-[#4D81E7]' : 'text-booking-lbl-main-sub-error'} inline-flex items-center gap-2`}>{totalCredit > 0 ? null : icons.red_dot} R {(totalCredit > 0 ? totalCredit : totalDue).toFixed(2)}</span>
                                                     <div className='flex items-center gap-2'>
 
                                                         <WhiteButton
@@ -1316,7 +1334,7 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                         customer={customerToolsTarget.customer}
                         position={customerToolsTarget.position}
                         onClose={() => setCustomerToolsTarget(null)}
-                        allowedTools={['customer_invoice', 'resend_invoice', 'message_guest', 'booking_notes']}
+                        allowedTools={isCancelledBooking ? ['booking_notes'] : ['customer_invoice', 'resend_invoice', 'message_guest', 'booking_notes']}
                         CustomerToolClick={(tool, _index, bookingPayload, customerPayload) => {
                             setCustomerToolsTarget(null);
                             CustomerToolClick(tool, bookingPayload, customerPayload);

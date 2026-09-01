@@ -20,6 +20,7 @@ import OutlineButton from '@/Components/OutlineButton';
 import PromoModal from './PromoModal';
 import { useToast } from '@/Context/ToastContext';
 import PhoneInput from '@/Components/PhoneInput';
+import CancelledBookingBanner from '@/Components/CancelledBookingBanner';
 
 const PRICING_MODES = {
     STANDARD: 'STANDARD',
@@ -1951,6 +1952,10 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!booking?.id) return;
+        if (isCancelledBooking) {
+            showToast('This booking is cancelled. Reinstate it before saving changes.', 'error');
+            return;
+        }
         if ((Number(data.adults || 0) + Number(data.children || 0)) < 1) {
             showToast('Please add at least 1 adult or 1 child.', 'info');
             return;
@@ -2155,11 +2160,13 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
             return sum + (g.count * effectiveRate);
         }, 0);
     const total = Number(data.booking_total || 0);
+    const isCancelledBooking = Boolean(booking?.deleted_at || booking_items?.deleted_at);
     const hasRealPaymentRows = Array.isArray(booking?.booking_payments) && booking.booking_payments.length > 0;
     const wasPrepaidWholesalerVoucher = Boolean(booking_items?.booking_fee?.is_prepaid_wholesaler_voucher);
     const shouldClearSyntheticPaid = wasPrepaidWholesalerVoucher && !isPrepaidWholesalerVoucher && !hasRealPaymentRows;
     const paidForSelectedItem = shouldClearSyntheticPaid ? 0 : Number(booking_items?.booking_fee?.tot_paid ?? 0);
     const outstandingForSelectedItem = Math.max(total - paidForSelectedItem, 0);
+    const creditForSelectedItem = Math.max(paidForSelectedItem - total, 0);
     const payableTotalForPayment = isPrepaidWholesalerVoucher ? 0 : outstandingForSelectedItem;
     const graduatedPromo = pricing?.applied_promotion?.type === 'graduated';
     const promoTotal = Number(pricing?.total_price ?? data.booking_total ?? 0);
@@ -2193,6 +2200,9 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
             <div className="bg-secondary-100 border border-secondary-200">
                 <div className="space-y-6 max-w-full overflow-hidden mx-auto p-6 bg-white shadow rounded">
                     <h1 className="text-booking-heading">Edit Booking</h1>
+                    {isCancelledBooking && (
+                        <CancelledBookingBanner message="This screen is review-only while cancelled. Reinstate the booking before changing dates, pax, rates, or guest details." />
+                    )}
                     {page.props.error && <div className="text-red-600">{page.props.error}</div>}
                     {errors?.booking_total && (
                         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -3294,6 +3304,14 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
                                         </div>
                                     </div>
                                 )}
+                                {creditForSelectedItem > 0 && (
+                                    <div className="flex items-center space-x-[37px]">
+                                        <span className="text-booking-lbl-main w-[160px] font-normal text-right">Credit On Booking</span>
+                                        <div className="flex items-center justify-between w-[417px] h-[43px] bg-[#DBECFD4D] pl-[17px] py-[12.5px] rounded-[6px]">
+                                            <span className="text-booking-lbl-main-sub text-[#4D81E7]">R {creditForSelectedItem.toFixed(2)}</span>
+                                        </div>
+                                    </div>
+                                )}
                                 <div className="flex items-center space-x-[37px]">
                                     <span className="text-booking-lbl-main w-[160px] text-right">Total Due Today</span>
                                     <div className="flex items-center justify-between w-[417px] h-[43px] bg-[#DBECFD4D] pl-[17px] py-[12.5px] rounded-[6px]">
@@ -3306,7 +3324,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
                                         <span className="text-booking-lbl-main-sub text-[#4D81E7]">R {((Number(data?.rack_value) || 0) * (Number(total) || 0)).toFixed(2)}</span>
                                     </div>
                                 </div>
-                                {payableTotalForPayment === 0 && total > 0 && (
+                                {isPrepaidWholesalerVoucher && payableTotalForPayment === 0 && total > 0 && (
                                     <div className="w-[417px] rounded-[6px] bg-[#DBECFD4D] px-4 py-3 text-sm text-gray-600">
                                         External prepaid voucher: booking value is kept for reporting; customer balance is marked paid.
                                     </div>
@@ -3321,6 +3339,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
                                     checked={data.pay_later}
                                     onChange={handleChange}
                                     errors={errors}
+                                    disabled={isCancelledBooking}
                                 />
                                 {(settings?.show_send_invoice_checkbox ?? false) && (
                                     <CustomCheckbox
@@ -3329,6 +3348,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
                                         checked={data.send_invoice}
                                         onChange={handleChange}
                                         errors={errors}
+                                        disabled={isCancelledBooking}
                                     />
                                 )}
                                 {(settings?.show_send_quote_checkbox ?? false) && (
@@ -3338,6 +3358,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
                                         checked={data.send_quote}
                                         onChange={handleChange}
                                         errors={errors}
+                                        disabled={isCancelledBooking}
                                     />
                                 )}
                                 <BlueButton
@@ -3345,7 +3366,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
                                     width={"w-[169px]"}
                                     type="button"
                                     onClick={(e) => handleSubmit(e)}
-                                    disabled={processing}
+                                    disabled={processing || isCancelledBooking}
                                 />
                             </div>
 

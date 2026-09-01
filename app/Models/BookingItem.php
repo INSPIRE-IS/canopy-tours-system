@@ -179,7 +179,10 @@ class BookingItem extends Model
     {
 
         $paxList = collect();
-        $teamId = $this->team_id ?? $this->booking?->team_id;
+        $booking = $this->relationLoaded('booking')
+            ? $this->getRelation('booking')
+            : $this->booking()->withTrashed()->first();
+        $teamId = $this->team_id ?? $booking?->team_id;
         $vatLookup = LookupItem::findDefaultForTeam('vat_rate', $teamId);
         $vatMultiplier = $vatLookup?->multiplier ?? 1.15;
         // ensure totals are ints
@@ -198,8 +201,8 @@ class BookingItem extends Model
 
         // Gather discount items for this booking (flatten BookingDiscount -> BookingDiscountItems)
         $discountItems = collect();
-        if ($this->booking && method_exists($this->booking, 'booking_discounts')) {
-            $discountItems = $this->booking->booking_discounts
+        if ($booking && method_exists($booking, 'booking_discounts')) {
+            $discountItems = $booking->booking_discounts
                 ->filter(fn($bd) => empty($bd->booking_item_id) || (int) $bd->booking_item_id === (int) $this->id)
                 ->flatMap(fn($bd) => $bd->booking_discount_items ?? collect())
                 ->filter()
@@ -270,7 +273,7 @@ class BookingItem extends Model
             }
             //$paid  = $customer->pivot->paid ?? 0;
             $paxList->push([
-                'reference' => $this->booking->reference ?? null,
+                'reference' => $booking?->reference,
                 'booking_item_id'  => $this->id,
                 'type'              => $type,
                 'customer_id'       => $customer->id,
@@ -286,7 +289,7 @@ class BookingItem extends Model
                 'price'     => $price,
                 'paid'      => $paid,
                 'due'       => $price - $paid,
-                'files' => $this->booking->files,
+                'files' => $booking?->files ?? collect(),
                 'booking_discount_item_id'  => $discount->discount->id ?? null,
                 'discount_id'  => $discount->discount->id ?? null,
                 'discount'  => $customerDiscount->discount->name ?? null,
@@ -330,7 +333,7 @@ class BookingItem extends Model
 
                 logger()->info('**********pax type****new*********** ', [$type]);
                 $paxList->push([
-                    'reference' => $this->booking->reference ?? null,
+                    'reference' => $booking?->reference,
                     'booking_item_id'  => $this->id,
                     'type'      => $type,
                     'customer_id' => null,

@@ -1,4 +1,4 @@
-﻿import BookingToolsModal from '@/Components/BookingToolsModal';
+import BookingToolsModal from '@/Components/BookingToolsModal';
 import BookingRateBreakdown from '@/Components/BookingRateBreakdown';
 import CustomerToolsModal from '@/Components/CustomerToolsModal';
 import GuestEmailModal from '@/Components/GuestEmailModal';
@@ -411,6 +411,17 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
     const formatTimeValue = (timeStr) => {
         if (!timeStr) return null;
         return timeStr.slice(0, 5);
+    };
+
+    const money = (value) => `R${Math.abs(Number(value || 0)).toFixed(2)}`;
+    const balanceBadgeClass = (value) => {
+        if (Number(value || 0) > 0) return 'bg-red-100 text-red-600';
+        return 'bg-blue-100 text-blue-600';
+    };
+    const balanceAmount = (value) => {
+        const amount = Number(value || 0);
+        if (amount < 0) return `Credit ${money(amount)}`;
+        return money(amount);
     };
 
     const timeToMinutes = (timeStr) => {
@@ -1272,9 +1283,8 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                                                     <td className="w-[132px] p-3">R{Number(row.totalPrice || 0).toFixed(2)}</td>
                                                     <td className="w-[111px] p-3">R{Number(row.totalPaid || 0).toFixed(2)}</td>
                                                     <td className="w-[107px] p-3">
-                                                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium 
-                                                        ${row.totalDue > 0 ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`}>
-                                                            - {Number(row.totalDue || 0) === 0 ? 'R0.00' : `R${Number(row.totalDue || 0).toFixed(2)}`}
+                                                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${balanceBadgeClass(row.totalDue)}`}>
+                                                            {balanceAmount(row.totalDue)}
                                                         </span>
                                                     </td>
                                                     <td className="w-[185px] p-3 flex gap-2">
@@ -1316,19 +1326,15 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                                                                 <React.Fragment key={`${row.key}-${index}`}>
                                                                     <tr className={booking.is_cancelled ? 'bg-amber-50' : 'bg-gray-50'}>
                                                                         <td className="w-[164px] p-3">
-                                                                            {booking.is_cancelled ? (
-                                                                                <span className="text-gray-700">{booking.reference}</span>
-                                                                            ) : (
-                                                                                <Link
-                                                                                    href={route('admin.bookings.add', {
-                                                                                        booking: booking.id,
-                                                                                        booking_item_id: booking.booking_item_id,
-                                                                                    })}
-                                                                                    className="text-blue-600 hover:underline"
-                                                                                >
-                                                                                    {booking.reference}
-                                                                                </Link>
-                                                                            )}
+                                                                            <Link
+                                                                                href={route('admin.bookings.add', {
+                                                                                    booking: booking.id,
+                                                                                    booking_item_id: booking.booking_item_id,
+                                                                                })}
+                                                                                className="text-blue-600 hover:underline"
+                                                                            >
+                                                                                {booking.reference}
+                                                                            </Link>
                                                                             {booking.is_cancelled && (
                                                                                 <span className="ml-2 inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
                                                                                     Cancelled
@@ -1343,31 +1349,21 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                                                                         <td className="w-[132px] p-3">R{Number(booking.price || 0).toFixed(2)}</td>
                                                                         <td className="w-[111px] p-3">R{Number(booking.paid || 0).toFixed(2)}</td>
                                                                         <td className="w-[107px] p-3">
-                                                                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${booking.due > 0 ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`}>
-                                                                                - {Number(booking.due || 0) === 0 ? 'R0.00' : `R${Number(booking.due || 0).toFixed(2)}`}
+                                                                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${balanceBadgeClass(booking.due)}`}>
+                                                                                {balanceAmount(booking.due)}
                                                                             </span>
                                                                         </td>
                                                                         <td className="w-[185px] p-3">
                                                                             <div className="flex flex-col lg:flex-row lg:items-center gap-2">
-                                                                                {booking.is_cancelled ? (
-                                                                                    <button
-                                                                                        type="button"
-                                                                                        className="btn-tool opacity-50 cursor-not-allowed"
-                                                                                        disabled
-                                                                                    >
-                                                                                        {icons.eye} View
-                                                                                    </button>
-                                                                                ) : (
-                                                                                    <a
-                                                                                        href={route('admin.bookings.add', {
-                                                                                            booking: booking.id,
-                                                                                            booking_item_id: booking.booking_item_id,
-                                                                                        })}
-                                                                                        className="btn-tool"
-                                                                                    >
-                                                                                        {icons.eye} View
-                                                                                    </a>
-                                                                                )}
+                                                                                <a
+                                                                                    href={route('admin.bookings.add', {
+                                                                                        booking: booking.id,
+                                                                                        booking_item_id: booking.booking_item_id,
+                                                                                    })}
+                                                                                    className="btn-tool"
+                                                                                >
+                                                                                    {icons.eye} View
+                                                                                </a>
                                                                                 <div
                                                                                     className="relative"
                                                                                     onClick={() =>
@@ -1442,7 +1438,7 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                                                                 <td className="w-[268px] p-3"></td>
                                                                 <td className="w-[132px] p-3 font-semibold">R{Number(row.totalPrice || 0).toFixed(2)}</td>
                                                                 <td className="w-[111px] p-3 font-semibold">R{Number(row.totalPaid || 0).toFixed(2)}</td>
-                                                                <td className="w-[107px] p-3 font-semibold">R{Number(row.totalDue || 0).toFixed(2)}</td>
+                                                                <td className="w-[107px] p-3 font-semibold">{balanceAmount(row.totalDue)}</td>
                                                                 <td className="w-[185px] p-3"></td>
                                                             </tr>
                                                         </>
@@ -1470,7 +1466,7 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                                         <td className="w-[111px] p-3 font-semibold">R{Number(overallTotals.paid || 0).toFixed(2)}</td>
                                         <td className="w-[107px] p-3 font-semibold">
                                             <span className={`${overallTotals.due > 0 ? 'text-red-600' : 'text-gray-800'}`}>
-                                                R{Number(overallTotals.due || 0).toFixed(2)}
+                                                {balanceAmount(overallTotals.due)}
                                             </span>
                                         </td>
                                         <td className="w-[185px] p-3"></td>
