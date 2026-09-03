@@ -57,17 +57,19 @@ class FranchiseFeesReportExport implements FromCollection, WithHeadings, ShouldA
         ksort($rowsByDate);
 
         $runningTotal = 0.0;
-        $totalPax = 0;
-        $totalInclVat = 0.0;
+        $columnTotals = $this->emptyDay('Column Totals');
         $rows = collect();
 
         foreach ($rowsByDate as $row) {
             $runningTotal += $row['total'];
-            $totalPax += $row['pax'];
-            $totalInclVat += $row['total'];
+            $this->addColumnTotals($columnTotals, $row);
             $rows->push($this->formatRow($row, $runningTotal));
         }
 
+        $totalPax = $columnTotals['pax'];
+        $totalInclVat = $columnTotals['total'];
+
+        $rows->push($this->formatTotalsRow($columnTotals, $runningTotal));
         $rows->push($this->blankRow());
         $rows->push($this->summaryRow('Total Pax', (string) $totalPax));
         $rows->push($this->summaryRow('Total incl VAT', $this->money($totalInclVat)));
@@ -119,7 +121,6 @@ class FranchiseFeesReportExport implements FromCollection, WithHeadings, ShouldA
             'Full Rate Pax',
             'Full Rate Income',
             'Complimentary Pax',
-            'Complimentary Income',
             'Trade Exchange Pax',
             'Trade Exchange Income',
             'Voucher Partner Pax',
@@ -511,7 +512,6 @@ class FranchiseFeesReportExport implements FromCollection, WithHeadings, ShouldA
             $row['full_pax'] ?: '',
             $this->money($row['full_income']),
             $row['complimentary_pax'] ?: '',
-            $this->money($row['complimentary_income']),
             $row['trade_exchange_pax'] ?: '',
             $this->money($row['trade_exchange_income']),
             $row['voucher_partner_pax'] ?: '',
@@ -529,6 +529,64 @@ class FranchiseFeesReportExport implements FromCollection, WithHeadings, ShouldA
             $this->money($row['total']),
             implode(', ', array_values(array_unique(array_filter($row['comments'])))),
         ];
+    }
+
+    private function formatTotalsRow(array $row, float $runningTotal): array
+    {
+        return [
+            'Column Totals',
+            $row['pax'] ?: '',
+            $row['pax'] > 0 ? $this->money($row['total'] / $row['pax']) : '',
+            $this->money($row['total']),
+            $this->money($runningTotal),
+            $row['full_pax'] ?: '',
+            $this->money($row['full_income']),
+            $row['complimentary_pax'] ?: '',
+            $row['trade_exchange_pax'] ?: '',
+            $this->money($row['trade_exchange_income']),
+            $row['voucher_partner_pax'] ?: '',
+            $this->money($row['voucher_partner_income']),
+            $row['discount_10_pax'] ?: '',
+            $this->money($row['discount_10_income']),
+            $row['discount_15_pax'] ?: '',
+            $this->money($row['discount_15_income']),
+            $row['discount_20_pax'] ?: '',
+            $this->money($row['discount_20_income']),
+            $row['discount_25_pax'] ?: '',
+            $this->money($row['discount_25_income']),
+            $row['other_pax'] ?: '',
+            $this->money($row['other_income']),
+            $this->money($row['total']),
+            '',
+        ];
+    }
+
+    private function addColumnTotals(array &$totals, array $row): void
+    {
+        foreach ([
+            'pax',
+            'total',
+            'full_pax',
+            'full_income',
+            'complimentary_pax',
+            'complimentary_income',
+            'trade_exchange_pax',
+            'trade_exchange_income',
+            'voucher_partner_pax',
+            'voucher_partner_income',
+            'discount_10_pax',
+            'discount_10_income',
+            'discount_15_pax',
+            'discount_15_income',
+            'discount_20_pax',
+            'discount_20_income',
+            'discount_25_pax',
+            'discount_25_income',
+            'other_pax',
+            'other_income',
+        ] as $key) {
+            $totals[$key] += $row[$key];
+        }
     }
 
     private function summaryRow(string $label, string $value): array
