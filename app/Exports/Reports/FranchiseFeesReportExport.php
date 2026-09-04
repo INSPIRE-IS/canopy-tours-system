@@ -377,7 +377,7 @@ class FranchiseFeesReportExport implements FromCollection, WithHeadings, ShouldA
         $row[$bucket . '_income'] += round($income, 2);
 
         if ($comment) {
-            $row['comments'][] = $comment;
+            $row['comments'][$bucket][] = $comment;
         }
     }
 
@@ -527,7 +527,45 @@ class FranchiseFeesReportExport implements FromCollection, WithHeadings, ShouldA
             $row['other_pax'] ?: '',
             $this->money($row['other_income']),
             $this->money($row['total']),
-            implode(', ', array_values(array_unique(array_filter($row['comments'])))),
+            $this->formatComments($row['comments']),
+        ];
+    }
+
+    private function formatComments(array $comments): string
+    {
+        $groups = [];
+
+        foreach ($this->commentLabels() as $bucket => $label) {
+            $values = $comments[$bucket] ?? [];
+            if (!is_array($values)) {
+                $values = [$values];
+            }
+
+            $values = array_values(array_unique(array_filter(array_map(
+                fn($value) => trim((string) $value),
+                $values
+            ))));
+
+            if (!empty($values)) {
+                $groups[] = $label . ': ' . implode(', ', $values);
+            }
+        }
+
+        return implode('; ', $groups);
+    }
+
+    private function commentLabels(): array
+    {
+        return [
+            'full' => 'Full Rate',
+            'complimentary' => 'Complimentary',
+            'trade_exchange' => 'Trade Exchange',
+            'voucher_partner' => 'Voucher Partner',
+            'discount_10' => '10%',
+            'discount_15' => '15%',
+            'discount_20' => '20%',
+            'discount_25' => '25%',
+            'other' => 'Other',
         ];
     }
 
