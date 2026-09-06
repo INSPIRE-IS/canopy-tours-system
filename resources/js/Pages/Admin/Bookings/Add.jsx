@@ -724,6 +724,7 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                                                         manifestCustomer?.attendance_status ??
                                                         'no_show';
                                                     const canUpdateAttendance = !isCancelledBooking && Boolean(customerId && bookingItemId);
+                                                    const signedIndemnity = manifest?.signed_indemnity_document || null;
                                                     console.log('manifest', manifest);
                                                     return (
                                                         <div key={i} className="flex flex-col px-6 py-6 gap-2 border-b border-gray-100">
@@ -758,6 +759,25 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                                                                         className="mt-4"
                                                                         onClick={() => handleManifestCheckIn(manifest)}
                                                                     />
+                                                                    {signedIndemnity?.url && (
+                                                                        <div className="mt-2 flex flex-wrap gap-2">
+                                                                            <a
+                                                                                href={signedIndemnity.url}
+                                                                                target="_blank"
+                                                                                rel="noopener noreferrer"
+                                                                                className="text-xs font-semibold text-blue-600 hover:text-blue-800"
+                                                                            >
+                                                                                View PDF
+                                                                            </a>
+                                                                            <a
+                                                                                href={signedIndemnity.url}
+                                                                                download={signedIndemnity.file_name || true}
+                                                                                className="text-xs font-semibold text-blue-600 hover:text-blue-800"
+                                                                            >
+                                                                                Download
+                                                                            </a>
+                                                                        </div>
+                                                                    )}
                                                                 </div>
                                                             </div>
                                                             <div className="flex w-full items-center gap-5">

@@ -149,6 +149,7 @@ export default function CheckInAnswersModal({ isOpen, onClose, manifest, answers
     const combinedFullName = `${firstName} ${lastName}`.trim();
     const canSave = Boolean(bookingItemId) && (Boolean(customerId) || combinedFullName.length > 0);
     const canEdit = Boolean(bookingItemId);
+    const signedIndemnity = manifest?.signed_indemnity_document || null;
 
     const handleSave = () => {
         if (!canSave || isSaving) return;
@@ -240,6 +241,36 @@ export default function CheckInAnswersModal({ isOpen, onClose, manifest, answers
                 </div>
 
                 <div className="max-h-[70vh] space-y-6 overflow-y-auto px-6 py-4">
+                    {signedIndemnity?.url && (
+                        <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
+                            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                                <div>
+                                    <h3 className="text-sm font-semibold text-blue-950">Signed indemnity PDF</h3>
+                                    <p className="mt-1 text-xs text-blue-700">
+                                        Signed {signedIndemnity.signed_at || '-'}
+                                    </p>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                    <a
+                                        href={signedIndemnity.url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="rounded-lg border border-blue-500 bg-white px-4 py-2 text-sm font-semibold text-blue-600 hover:bg-blue-50"
+                                    >
+                                        View PDF
+                                    </a>
+                                    <a
+                                        href={signedIndemnity.url}
+                                        download={signedIndemnity.file_name || true}
+                                        className="rounded-lg border border-blue-500 bg-blue-500 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-600"
+                                    >
+                                        Download PDF
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
                         {localAnswers.length === 0 ? (
                             <div className="text-sm text-gray-600">

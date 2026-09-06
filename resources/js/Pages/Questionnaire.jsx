@@ -13,7 +13,43 @@ import GreenButton from '@/Components/GreenButton';
 import ConfirmModal from '@/Components/ConfirmModal';
 import axios from 'axios';
 
-export default function BookingLookup({ auth, booking, bookings, bookingItem, questions, leadGuides, safetyGuides, typeGroups, ageGroups, typeGender, typeReferral, typeConfirmation }) {
+const DEFAULT_INDEMNITY_DOCUMENT = {
+  title: 'Digital Indemnity / Disclaimer / Waiver',
+  definitions: [
+    'In this document "Canopy Tours" means and includes the operating company, site operator, land/property owners, holding and subsidiary companies, affiliates, employees, directors, members, agents, shareholders, contractors, and representatives connected to the activity.',
+    'The "activity" means and includes Canopy Tours and all related activities, whether directly or indirectly, including but not limited to use of the cableway, climbing up and down platforms, walking along pathways, and being conveyed by any motor vehicle.',
+  ],
+  terms: [
+    'I acknowledge that I am aware of and appreciate the real dangers and risks associated with the activity, including that the activity may take place at considerable height and speed above the ground, where falling is an inherent danger. I also acknowledge risks including reptiles, insects, bodily harm, injury, and death. I accept and acknowledge that I participate in the activity entirely at my own risk.',
+    'I understand that I need to be in good health to participate in the activity. I declare that I am in good health, that I am not pregnant, and that I am prepared to act responsibly at all times.',
+    'I waive any and all claims of whatsoever cause or nature, howsoever arising against Canopy Tours, which I might have arising out of any harm, injury, death, or loss suffered while participating in, or related directly or indirectly to, the activity, whether arising from an act, omission, or negligence on the part of Canopy Tours.',
+    'I undertake to indemnify and hold harmless Canopy Tours from any and all claims of whatsoever cause or nature which may be made by my spouse, children, dependants, or any other party who may suffer damages, including but not limited to personal injury, death, loss of support, or any other loss, arising from any cause whatsoever, including any act, omission, or negligence on the part of Canopy Tours.',
+    'Without limiting the above, I acknowledge that Canopy Tours shall not be liable to me or any of my dependants for any injury, illness, death, harm, loss, loss of support, consequential loss, damage, or damages of whatsoever nature from any cause whatsoever that may be sustained as a result of my participation in the activity, including negligence.',
+    'Any claims, whether in contract, delict, or otherwise, instituted against Canopy Tours shall be governed by the laws of South Africa and may only be instituted in a South African court, to the exclusion of all other jurisdictions.',
+    'Without limiting the above clauses, I, together with my heirs, successors in title, executors, and administrators, release Canopy Tours from any and all liability and/or claims that could accrue to me or them due to illness, injury, death, and/or loss of or damage to property, irrespective of whether such claim or claims arose as a result of any act or omission, whether by negligence or gross negligence, or any other cause whatsoever.',
+    'In the event of injury, Canopy Tours may at its discretion and without prejudice or admission of liability arrange and pay for emergency medical treatment for and on behalf of myself, my spouse, common-law partner, my children whether minor or adult, relatives, and/or any person accompanying me. I acknowledge that I will be directly responsible to reimburse Canopy Tours for these expenses.',
+    'I allow Canopy Tours to use any pictures and/or video taken of me for any purposes they wish, including marketing, promotions, and social media.',
+    'I agree not to smoke or light any flame whatsoever for the duration of the tour, from the time I leave reception for the tour until I return to reception after the tour, including the drive up to the start of the zip-line.',
+  ],
+};
+
+const IndemnityTermsPreview = ({ document = DEFAULT_INDEMNITY_DOCUMENT, compact = false }) => (
+  <div className={`rounded-xl border border-gray-200 bg-white text-left text-gray-700 ${compact ? 'max-h-64 overflow-y-auto p-4 text-xs' : 'p-5 text-sm'}`}>
+    <h3 className="mb-3 text-center font-semibold text-gray-900">{document.title}</h3>
+    <div className="space-y-3">
+      {(document.definitions || []).map((definition, index) => (
+        <p key={`definition-${index}`}>{definition}</p>
+      ))}
+      <ol className="list-decimal space-y-3 pl-5">
+        {(document.terms || []).map((term, index) => (
+          <li key={`term-${index}`}>{term}</li>
+        ))}
+      </ol>
+    </div>
+  </div>
+);
+
+export default function BookingLookup({ auth, booking, bookings, bookingItem, questions = [], leadGuides, safetyGuides, typeGroups, ageGroups, typeGender, typeReferral, typeConfirmation, indemnityDocument = DEFAULT_INDEMNITY_DOCUMENT, canSendIndemnityEmail = true, team }) {
   const { props } = usePage();
   const { flash, old } = props;
   const mode = 'edit';
@@ -63,6 +99,8 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
   const { data, setData, post, put, errors, reset, processing, isDirty, transform } = useForm({
     customer_manifests: [],
     return_to: null,
+    send_indemnity_email: false,
+    signing_place: old?.signing_place ?? team?.name ?? '',
   });
 
   const markSelectedManifest = (manifests, selectedIndex) => (
@@ -390,6 +428,8 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
   const lunchOptions = getQuestionOptions('lunch_option');
   const hasLunch = isEnabled('lunch_option') && lunchOptions.length > 0;
   const confirmationLabel = (value) => resolveOptionLabel(typeConfirmation, value) || '-';
+  const formatDisplayDate = (value) => value ? String(value).slice(0, 10) : '-';
+  const formatDisplayTime = (value) => value ? String(value).slice(0, 5) : '-';
 
   const questionStepsBase = [1, 2, 3, 6, 7, 8, 9, 10, 11, 12, 13, 14];
   let questionSteps = isEnabled('age_id')
@@ -400,6 +440,47 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
   }
 
   const selectedManifest = selected != null ? data.customer_manifests?.[selected] : null;
+  const isMinorParticipant = String(selectedManifest?.age_id ?? '') === '1' || selectedManifest?.type === 'child';
+  const activityDate = bookingItem?.booking_inventory?.date ?? bookingItem?.booking_inventory?.activity_date ?? null;
+  const activityTime = bookingItem?.booking_inventory?.inventory_time_slot?.start_time ?? bookingItem?.booking_inventory?.time ?? null;
+  const declarationRows = [
+    { label: 'Medical condition', value: isEnabled('medical_id') ? confirmationLabel(selectedManifest?.medical_id) : 'Not captured' },
+    { label: 'Medical details', value: isEnabled('medical_detail') ? (selectedManifest?.medical_detail || '-') : 'Not captured' },
+    { label: 'Fit to walk', value: isEnabled('is_fit') ? confirmationLabel(selectedManifest?.is_fit) : 'Not captured' },
+    {
+      label: 'Pregnancy',
+      value: isEnabled('pregnant')
+        ? (String(selectedManifest?.gender ?? '') === '2' ? confirmationLabel(selectedManifest?.pregnant) : 'Not applicable')
+        : 'Not captured',
+    },
+    {
+      label: 'Parent / guardian consent',
+      value: isMinorParticipant
+        ? (selectedManifest?.parent_name || selectedManifest?.guardian_name || selectedManifest?.parent_id || 'Required but not captured as a signed statement')
+        : 'Not applicable',
+    },
+    { label: 'Photo / video consent', value: 'Included in point 9 - confirm if this should be separate' },
+  ];
+  const selectedEmail = selectedManifest?.email_address?.trim() || '';
+  const signingPlace = data.signing_place?.trim() || team?.name || 'Canopy Tours';
+  const signatureLabel = isMinorParticipant ? 'Parent / guardian signature' : 'Signature';
+  const signingDate = new Intl.DateTimeFormat('en-ZA', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date());
+  const capturedAnswerRows = [
+    { label: 'Type group', value: resolveOptionLabel(typeGroups, selectedManifest?.type_group_id) },
+    { label: 'Full name', value: selectedManifest?.full_name },
+    { label: 'Age', value: resolveOptionLabel(ageGroups, selectedManifest?.age_id) },
+    { label: 'Referral', value: resolveOptionLabel(typeReferral, selectedManifest?.referral_id) },
+    { label: 'Continent', value: resolveOptionLabel(continents, selectedManifest?.continent_id) },
+    { label: 'Country', value: resolveOptionLabel(countries, selectedManifest?.country_id) },
+    { label: 'Province', value: resolveOptionLabel(states, selectedManifest?.province_id) },
+    ...(hasLunch ? [{ label: 'Lunch option', value: resolveOptionLabel(lunchOptions, selectedManifest?.lunch_option) }] : []),
+    ...declarationRows,
+  ];
+  const sendIndemnityEmailBlocked = Boolean(data.send_indemnity_email) && (!selectedEmail || !canSendIndemnityEmail);
   const isStep2Disabled = !selectedManifest?.age_id;
   const isContinentStep = continents.length > 0 && countries.length === 0;
   const isCountryStep = countries.length > 0 && states.length === 0;
@@ -444,6 +525,7 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
   const isStep12Disabled = hasLunch && !selectedManifest?.lunch_option;
   const isStep13Disabled = selectedManifest?.is_agree !== true;
   const isStep14Disabled = !selectedManifest?.signature;
+  const isSubmitDisabled = processing || sendIndemnityEmailBlocked;
 
   const getNextButtonClass = (disabled) => (
     `flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px]
@@ -1130,9 +1212,9 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
                 <span className="text-welcome-card-title-mb text-center w-full mt-[42px] mb-2 px-6 sm:px-[39px]">
                   Please agree to the following terms and conditions
                 </span>
-                <span className="text-welcome-card-title-mb text-center w-full mb-[8px] px-6 sm:px-[39px]">
-                  By accessing and using this website, you acknowledge and agree to the terms outlined in this Indemnity Agreement. This form serves to protect the website owners, administrators, and affiliated parties from any liability arising from the use of the site, its content, or any services provided. By proceeding, you confirm that you understand and accept full responsibility for any risks associated with your use of this website and waive any claims against its owners for potential losses, damages, or liabilities.
-                </span>
+                <div className="w-full mb-[8px] px-6 sm:px-[39px]">
+                  <IndemnityTermsPreview document={indemnityDocument} compact />
+                </div>
                 <div className="w-[100%] sm:w-full mb-[8px] px-6 sm:px-[39px]">
                   <CustomCheckboxQ
                     label="I agree to the terms and conditions"
@@ -1204,34 +1286,72 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
                   <span className='block' ><span className='text-booking-heading capitalize'>booking reference</span> {booking?.reference}</span>
                   <span className='block'><span className='text-booking-subheading capitalize'>Service</span> {bookingItem?.service?.name}</span>
                 </span>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 h-auto pl-7 sm:px-[12px] mb-2">
-
-                  {/* <span className='flex flex-col items-center gap-2'><span className='text-booking-subheading capitalize'>lead guide</span> {leadGuides?.find(g => g.id == data.customer_manifests[selected]?.lead_guide_id)?.name}</span>
-                  <span className='flex flex-col items-center gap-2'><span className='text-booking-subheading capitalize'>safety guide</span> {safetyGuides?.find(g => g.id == data.customer_manifests[selected]?.safety_guide_id)?.name}</span> */}
-                  <span className='flex flex-col items-center gap-2'><span className='text-booking-subheading capitalize'>type group</span> {typeGroups?.find(g => g.id == data.customer_manifests[selected]?.type_group_id)?.name}</span>
-                  <span className='flex flex-col items-center gap-2'><span className='text-booking-subheading capitalize'>full name</span> {data.customer_manifests[selected]?.full_name}</span>
-                  <span className='flex flex-col items-center gap-2'><span className='text-booking-subheading capitalize'>age</span> {ageGroups?.find(g => g.id == data.customer_manifests[selected]?.age_id)?.name}</span>
-                  <span className='flex flex-col items-center gap-2'><span className='text-booking-subheading capitalize'>referral</span> {typeReferral?.find(r => r.id == data.customer_manifests[selected]?.referral_id)?.name}</span>
-                  {hasLunch && (
-                    <span className='flex flex-col items-center gap-2'><span className='text-booking-subheading capitalize'>lunch option</span> {resolveOptionLabel(lunchOptions, data.customer_manifests[selected]?.lunch_option)}</span>
+                <div className="flex flex-col gap-4 px-6 sm:px-[12px] mb-4">
+                  <IndemnityTermsPreview document={indemnityDocument} />
+                  <div className="rounded-xl border border-gray-200 bg-white p-5 text-left text-sm text-gray-700">
+                    <h3 className="mb-3 text-center font-semibold text-gray-900">Captured Digital Acceptance</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <span><strong>Full name:</strong> {selectedManifest?.full_name || '-'}</span>
+                      <span><strong>Email:</strong> {selectedManifest?.email_address || '-'}</span>
+                      <span><strong>Booking reference:</strong> {booking?.reference || '-'}</span>
+                      <span><strong>Service:</strong> {bookingItem?.service?.name || '-'}</span>
+                      <span><strong>Activity date:</strong> {formatDisplayDate(activityDate)}</span>
+                      <span><strong>Activity time:</strong> {formatDisplayTime(activityTime)}</span>
+                      <span><strong>Signing date:</strong> {signingDate}</span>
+                      <span><strong>Signed at:</strong> {signingPlace}</span>
+                      <span><strong>Agreement:</strong> {selectedManifest?.is_agree ? 'Accepted' : 'Not accepted'}</span>
+                    </div>
+                    <div className="mt-4">
+                      <label className="text-booking-subheading capitalize">Signed at</label>
+                      <input
+                        type="text"
+                        value={data.signing_place}
+                        onChange={(event) => setData('signing_place', event.target.value)}
+                        className="mt-1 block w-full h-[48px] border-gray-300 shadow-sm input-text rounded-[10px]"
+                        placeholder={team?.name || 'Canopy Tours'}
+                      />
+                    </div>
+                    <div className="mt-4">
+                      <h4 className="mb-2 font-semibold text-gray-900">{signatureLabel}</h4>
+                      {selectedManifest?.signature ? (
+                        <img src={selectedManifest.signature} alt={`${signatureLabel} preview`} className="border rounded-lg bg-white w-64 h-auto" />
+                      ) : (
+                        <span className="text-booking-subheading capitalize">Signature Not Found</span>
+                      )}
+                    </div>
+                    <h4 className="mt-4 mb-2 font-semibold text-gray-900">Check-in Answers / Declarations</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {capturedAnswerRows.map((row) => (
+                        <span key={row.label}><strong>{row.label}:</strong> {row.value || '-'}</span>
+                      ))}
+                    </div>
+                  </div>
+                  {canSendIndemnityEmail && (
+                    <div className="rounded-xl border border-gray-200 bg-white p-4 text-left text-sm text-gray-700">
+                      <CustomCheckbox
+                        label="Email me a copy of the signed indemnity PDF"
+                        name="send_indemnity_email"
+                        checked={Boolean(data.send_indemnity_email)}
+                        onChange={(name, value) => setData(name, value)}
+                        errors={errors}
+                      />
+                      <label className="text-booking-subheading capitalize">Email address</label>
+                      <input
+                        type="email"
+                        value={selectedEmail}
+                        readOnly
+                        className="mt-1 block w-full h-[48px] border-gray-300 shadow-sm input-text rounded-[10px] bg-gray-50"
+                        placeholder="No email captured"
+                      />
+                      {Boolean(data.send_indemnity_email) && !selectedEmail && (
+                        <p className="mt-2 text-sm text-red-600">An email address is required when the email copy option is selected.</p>
+                      )}
+                      {errors.send_indemnity_email && (
+                        <p className="mt-2 text-sm text-red-600">{errors.send_indemnity_email}</p>
+                      )}
+                    </div>
                   )}
-                  <span className='flex flex-col items-center gap-2'><span className='text-booking-subheading capitalize'>continent</span> {continents?.find(c => c.id == data.customer_manifests[selected]?.continent_id)?.name}</span>
-                  <span className='flex flex-col items-center gap-2'><span className='text-booking-subheading capitalize'>country</span> {countries?.find(c => c.id == data.customer_manifests[selected]?.country_id)?.name}</span>
-                  <span className='flex flex-col items-center gap-2'><span className='text-booking-subheading capitalize'>province</span> {states?.find(s => s.id == data.customer_manifests[selected]?.province_id)?.name}</span>
-                  <span className='flex flex-col items-center gap-2'><span className='text-booking-subheading capitalize'>any medical condition</span> {confirmationLabel(data.customer_manifests[selected]?.medical_id)}</span>
-                  <span className='flex flex-col items-center gap-2'><span className='text-booking-subheading capitalize'>medical condition detail</span> {data.customer_manifests[selected]?.medical_detail || '-'}</span>
-                  <span className='flex flex-col items-center gap-2'><span className='text-booking-subheading capitalize'>fit to walk</span> {confirmationLabel(data.customer_manifests[selected]?.is_fit)}</span>
-                  <span className='flex flex-col items-center gap-2'><span className='text-booking-subheading capitalize'>agree to terms</span> {data.customer_manifests[selected]?.is_agree ? "yes" : "no"}</span>
-                  <span className='flex flex-col items-center gap-2'><span className='text-booking-subheading capitalize'>email_address</span> {data.customer_manifests[selected]?.email_address}</span>
-                  <span className='flex flex-col items-center gap-2'>
-                    {data.customer_manifests[selected]?.signature ?
-                      (<img src={data.customer_manifests[selected]?.signature} alt="Signature preview" className="border w-64 h-auto" />)
-                      :
-                      (<span className='text-booking-subheading capitalize'>Signature Not Found</span>)
-                    }
-                  </span>
                 </div>
-
               </div>
               <div className="flex items-center justify-center gap-6">
                 <button type='button' disabled={isStep14Disabled} onClick={() => handlePrevNext(14, selected)} className={getNextButtonClass(isStep14Disabled)} >
@@ -1241,9 +1361,9 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
                 <button
                   type='button'
                   onClick={(e) => handleSubmit(e)}
-                  disabled={processing}
+                  disabled={isSubmitDisabled}
 
-                  className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] bg-green-gradient-overlay border-[#31B700] text-white shadow-inset-white cursor-pointer">
+                  className={`flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border-[3px] ${isSubmitDisabled ? 'border-primary-14 text-primary-14 cursor-not-allowed opacity-50' : 'bg-green-gradient-overlay border-[#31B700] text-white shadow-inset-white cursor-pointer'}`}>
                   <span className="text-btn-outline-gray">Submit</span>
                 </button>
               </div>

@@ -32,6 +32,7 @@ use App\Models\TypeGroup;
 use App\Models\TypeReferral;
 use App\Models\TypeFile;
 use App\Models\User;
+use App\Services\IndemnityDocumentService;
 use App\Services\QuestionnaireSeeder;
 use App\Services\EmailDispatchService;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -223,6 +224,7 @@ class BookingQuestionnaireController extends Controller
             $bookingItem = BookingItem::with([
                 'booking',
                 'service',
+                'booking_inventory.inventory_time_slot',
                 'customers',
                 'customer_manifests',
             ])
@@ -239,6 +241,7 @@ class BookingQuestionnaireController extends Controller
                     'error' => 'Booking not found',
                 ], 200);
             }
+            $this->rememberIndemnityView($request, (int) $bookingItem->id, $customerId ? (int) $customerId : null);
 
             $questionnaire = Questionnaire::where('service_id', $bookingItem->service_id)
                 ->where('season_id', $bookingItem->season_id)
@@ -492,6 +495,8 @@ class BookingQuestionnaireController extends Controller
                 'typeReferral' => $typeReferral,
                 'typeConfirmation' => $typeConfirmation,
                 'questions' => $questions,
+                'indemnityDocument' => IndemnityDocumentService::document(),
+                'canSendIndemnityEmail' => app(EmailDispatchService::class)->canSendAutomatic($bookingItem->booking->team_id ?? $bookingItem->team_id, EmailDispatchService::SETTING_AUTO_QUESTIONNAIRE),
                 'team' => $team,
                 'bookings' => $formatted,
             ]);
@@ -663,9 +668,16 @@ class BookingQuestionnaireController extends Controller
                 'is_agree' => 'You must agree to the indemnity terms before submitting.',
             ]);
         }
+        $sendIndemnityEmail = filter_var($manifests['send_indemnity_email'] ?? false, FILTER_VALIDATE_BOOLEAN);
+        $signingPlace = trim((string) ($manifests['signing_place'] ?? ''));
+        if ($sendIndemnityEmail && blank($validated['email_address'] ?? null)) {
+            throw ValidationException::withMessages([
+                'send_indemnity_email' => 'An email address is required to send a copy of the signed indemnity PDF.',
+            ]);
+        }
 
         try {
-            $booking = DB::transaction(function () use ($validated) {
+            $stored = DB::transaction(function () use ($validated) {
                 $bookingItem = BookingItem::find($validated['booking_item_id']);
                 $booking = Booking::find($bookingItem->booking_id);
                 $customer = Customer::find($validated['customer_id']);
@@ -1047,8 +1059,24 @@ class BookingQuestionnaireController extends Controller
                     }
                 }
 
-                return $booking;
+                return [
+                    'booking' => $booking,
+                    'booking_item_id' => $bookingItem->id,
+                    'customer_id' => $customer->id,
+                    'customer_manifest_id' => $customerManifest->id,
+                ];
             });
+            $booking = $stored['booking'];
+            $viewMeta = $this->indemnityViewMeta($request, (int) $stored['booking_item_id'], (int) $stored['customer_id']);
+            $manifest = CustomerManifest::with([
+                'customer',
+                'booking_item.booking',
+                'booking_item.service.team',
+                'booking_item.booking_inventory.inventory_time_slot',
+            ])->find($stored['customer_manifest_id']);
+            if ($manifest) {
+                app(IndemnityDocumentService::class)->generateForManifest($manifest, $viewMeta, $sendIndemnityEmail, $signingPlace);
+            }
 
             $bookingItemId = collect($manifests['customer_manifests'] ?? [])->first()['booking_item_id'] ?? null;
             $bookingItem = $bookingItemId
@@ -1281,6 +1309,8 @@ class BookingQuestionnaireController extends Controller
                 'typeReferral' => $typeReferral,
                 'typeConfirmation' => $typeConfirmation,
                 'questionnaire' => $questionnaireFlat,
+                'indemnityDocument' => IndemnityDocumentService::document(),
+                'canSendIndemnityEmail' => app(EmailDispatchService::class)->canSendAutomatic($bookingItem->booking->team_id ?? $bookingItem->team_id, EmailDispatchService::SETTING_AUTO_QUESTIONNAIRE),
                 'team' => $team,
             ]);
         } catch (InvalidSignatureException $e) {
@@ -1315,6 +1345,38 @@ class BookingQuestionnaireController extends Controller
     public function getStates($countryId)
     {
         return State::where('country_id', $countryId)->where('name', '!=', ' ')->wherenotnull('name')->orderBy('name')->get();
+    }
+
+    private function rememberIndemnityView(Request $request, int $bookingItemId, ?int $customerId = null): void
+    {
+        $meta = [
+            'viewed_at' => now()->toDateTimeString(),
+            'viewed_ip' => $request->ip(),
+            'viewed_user_agent' => $request->userAgent(),
+        ];
+
+        $request->session()->put($this->indemnityViewSessionKey($bookingItemId), $meta);
+
+        if ($customerId) {
+            $request->session()->put($this->indemnityViewSessionKey($bookingItemId, $customerId), $meta);
+        }
+    }
+
+    private function indemnityViewMeta(Request $request, int $bookingItemId, ?int $customerId = null): array
+    {
+        if ($customerId) {
+            $specific = $request->session()->get($this->indemnityViewSessionKey($bookingItemId, $customerId));
+            if ($specific) {
+                return $specific;
+            }
+        }
+
+        return $request->session()->get($this->indemnityViewSessionKey($bookingItemId), []);
+    }
+
+    private function indemnityViewSessionKey(int $bookingItemId, ?int $customerId = null): string
+    {
+        return 'indemnity_viewed.' . $bookingItemId . '.' . ($customerId ?: 'booking');
     }
 
     private function checkInAlertText(string $reason, ?Customer $customer, ?Booking $booking): string

@@ -21,6 +21,7 @@ use App\Models\Email;
 use App\Models\AuditLog;
 use App\Models\Country;
 use App\Models\Customer;
+use App\Models\CustomerIndemnityDocument;
 use App\Models\Discount;
 use App\Models\Inventory;
 use App\Models\InventoryOverride;
@@ -3988,6 +3989,35 @@ class BookingsController extends Controller
 
         $manifest = $bookingItem->paxByBookingItem($bookingItem->id);
         if ($bookingItem) {
+            $formatIndemnityDocument = function (?CustomerIndemnityDocument $document) {
+                if (!$document) {
+                    return null;
+                }
+
+                $path = ltrim((string) $document->signed_pdf_path, '/');
+                $url = str_starts_with($path, 'http://') || str_starts_with($path, 'https://')
+                    ? $path
+                    : asset(str_starts_with($path, 'storage/') ? $path : 'storage/' . $path);
+
+                return [
+                    'id' => $document->id,
+                    'uuid' => $document->uuid,
+                    'file_name' => 'indemnity-' . ($document->booking?->reference ?: $document->uuid) . '.pdf',
+                    'url' => $url,
+                    'signed_at' => $document->signed_at?->format('Y-m-d H:i:s'),
+                    'emailed_at' => $document->emailed_at?->format('Y-m-d H:i:s'),
+                ];
+            };
+
+            $indemnityDocumentsByCustomer = CustomerIndemnityDocument::with('booking:id,reference')
+                ->where('booking_item_id', $bookingItem->id)
+                ->whereNotNull('customer_id')
+                ->orderByDesc('signed_at')
+                ->orderByDesc('id')
+                ->get()
+                ->unique('customer_id')
+                ->keyBy('customer_id');
+
             $confirmOptions = TypeConfirmation::whereIn('id', [1, 2])
                 ->select('id', 'name')
                 ->get()
@@ -4153,17 +4183,21 @@ class BookingsController extends Controller
             };
 
             // Attach resolved question answers to BOTH the raw manifests and the computed manifest rows.
-            $bookingItem->customer_manifests?->each(function ($customerManifest) use ($answersByCustomer, $formatAnswers) {
+            $bookingItem->customer_manifests?->each(function ($customerManifest) use ($answersByCustomer, $formatAnswers, $indemnityDocumentsByCustomer, $formatIndemnityDocument) {
                 $answers = $formatAnswers($answersByCustomer->get($customerManifest->customer_id, collect()));
                 $customerManifest->setAttribute('question_answers', $answers);
+                $customerManifest->setAttribute('signed_indemnity_document', $formatIndemnityDocument($indemnityDocumentsByCustomer->get($customerManifest->customer_id)));
             });
 
             $manifest = collect($manifest)
-                ->map(function ($row) use ($answersByCustomer, $formatAnswers) {
+                ->map(function ($row) use ($answersByCustomer, $formatAnswers, $indemnityDocumentsByCustomer, $formatIndemnityDocument) {
                     $customerId = $row['customer_id'] ?? null;
                     $row['question_answers'] = $customerId
                         ? $formatAnswers($answersByCustomer->get($customerId, collect()))
                         : collect();
+                    $row['signed_indemnity_document'] = $customerId
+                        ? $formatIndemnityDocument($indemnityDocumentsByCustomer->get($customerId))
+                        : null;
                     return $row;
                 })
                 ->values();
