@@ -527,8 +527,6 @@ class BookingQuestionnaireController extends Controller
 
     public function UpdateCustomerManifest(UpdateCustomerManifestRequest $request)
     {
-        dd($request->all());
-
         $validated = $request->validate([
             'customer_manifests' => 'required|array',
         ]);
@@ -555,7 +553,6 @@ class BookingQuestionnaireController extends Controller
                     'contact_number' => $detail['contact_number'],
                     'age' => $detail['age'],
                     'parent_id' => $detail['parent_id'],
-                    'contact_number' => $detail['contact_number'],
                 ]
             );
 
