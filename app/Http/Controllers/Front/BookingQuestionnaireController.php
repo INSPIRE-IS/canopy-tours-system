@@ -774,6 +774,12 @@ class BookingQuestionnaireController extends Controller
                 if ($enabledSlugs->contains('is_fit') && $isBlank($validated['is_fit'] ?? null)) {
                     $requiredErrors['is_fit'] = 'Please answer the fitness question.';
                 }
+                if ($enabledSlugs->contains('pregnant') && (string) ($validated['gender'] ?? '') === '2' && (string) ($validated['pregnant'] ?? '') === '1') {
+                    $requiredErrors['pregnant'] = 'This activity cannot proceed for guests who are pregnant. Please urgently discuss this with staff before proceeding with the questionnaire.';
+                }
+                if ($enabledSlugs->contains('is_fit') && (string) ($validated['is_fit'] ?? '') === '2') {
+                    $requiredErrors['is_fit'] = 'This activity cannot proceed if you are not fit enough to walk 1km in steep terrain. Please urgently discuss this with staff before proceeding with the questionnaire.';
+                }
 
                 if (!empty($requiredErrors)) {
                     throw ValidationException::withMessages($requiredErrors);
