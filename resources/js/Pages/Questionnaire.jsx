@@ -310,6 +310,15 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
     });
   };
 
+  const handleCancelParticipantQuestionnaire = () => {
+    setPrevNext(1);
+    setSelected(null);
+    setData((current) => ({
+      ...current,
+      customer_manifests: markSelectedManifest(current.customer_manifests, null),
+    }));
+  };
+
   // On mount
   useEffect(() => {
     axios.get('/continents').then(res => setContinents(res.data));
@@ -520,8 +529,10 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
   const requiresMedicalDetail = selectedManifest?.medical_id == 1;
   const hasMedicalDetail = Boolean(selectedManifest?.medical_detail?.trim());
   const isStep9Disabled = !selectedManifest?.medical_id || (requiresMedicalDetail && !hasMedicalDetail);
-  const isStep10Disabled = !selectedManifest?.gender || (selectedManifest?.gender == "2" && !selectedManifest?.pregnant);
-  const isStep11Disabled = !selectedManifest?.is_fit;
+  const isPregnancyBlocked = String(selectedManifest?.gender ?? '') === '2' && String(selectedManifest?.pregnant ?? '') === '1';
+  const isFitBlocked = String(selectedManifest?.is_fit ?? '') === '2';
+  const isStep10Disabled = !selectedManifest?.gender || (selectedManifest?.gender == "2" && !selectedManifest?.pregnant) || isPregnancyBlocked;
+  const isStep11Disabled = !selectedManifest?.is_fit || isFitBlocked;
   const isStep12Disabled = hasLunch && !selectedManifest?.lunch_option;
   const isStep13Disabled = selectedManifest?.is_agree !== true;
   const isStep14Disabled = !selectedManifest?.signature;
@@ -1125,6 +1136,18 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
                         </div>
                       ))}
                     </div>
+                    {isPregnancyBlocked && (
+                      <div className="mx-6 sm:mx-[39px] rounded-xl border border-red-200 bg-red-50 p-4 text-center text-sm text-red-700">
+                        This activity cannot proceed for guests who are pregnant. Please urgently discuss this with staff before proceeding with the questionnaire.
+                        <button
+                          type="button"
+                          onClick={handleCancelParticipantQuestionnaire}
+                          className="ml-1 font-semibold underline"
+                        >
+                          Cancel questionnaire
+                        </button>
+                      </div>
+                    )}
                   </>
                 )}
 
@@ -1162,6 +1185,18 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
                     </div>
                   ))}
                 </div>
+                {isFitBlocked && (
+                  <div className="mx-6 sm:mx-[39px] rounded-xl border border-red-200 bg-red-50 p-4 text-center text-sm text-red-700">
+                    This activity cannot proceed if you are not fit enough to walk 1km in steep terrain. Please urgently discuss this with staff before proceeding with the questionnaire.
+                    <button
+                      type="button"
+                      onClick={handleCancelParticipantQuestionnaire}
+                      className="ml-1 font-semibold underline"
+                    >
+                      Cancel questionnaire
+                    </button>
+                  </div>
+                )}
               </div>
               <div className="flex items-center justify-center gap-6">
                 <button type='button' onClick={() => handlePrevNext(10, selected)} className="flex items-center justify-center w-[40%] sm:w-[169px] h-[40px] gap-2 px-4 py-2 rounded-xl border border-primary-14 text-primary-14 cursor-pointer">
