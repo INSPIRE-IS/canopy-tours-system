@@ -209,11 +209,12 @@ class BookingItem extends Model
                 ->values();
         }
 
+        $promotionDiscount = null;
         if ($this->promotion_id != null) {
             $booking_inventory_date = $this->booking_inventory->date;
 
-            $discount = $this->calcDiscount($this->service_id, $this->season_id,  $this->wholesaler_id, $this->promotion_id,  $booking_inventory_date, $this->booking_date, $this->pax_adults, $this->pax_children);
-            Log::info('discount ' . var_export($discount, true));
+            $promotionDiscount = $this->calcDiscount($this->service_id, $this->season_id,  $this->wholesaler_id, $this->promotion_id,  $booking_inventory_date, $this->booking_date, $this->pax_adults, $this->pax_children);
+            Log::info('discount ' . var_export($promotionDiscount, true));
         }
 
         $unassignedDiscounts = $discountItems->groupBy('pax_type')->map(fn($col) => $col->values());
@@ -255,22 +256,13 @@ class BookingItem extends Model
             $type = $manifest?->type ?? $paxType;
 
 
-            if ($this->promotion_id != null) {
-                if ($type == 'adult') {
-                    $price = $discount['applied_rates']['adult'];
-                    $paid = $tot_paid >= $price ? $price : 0;
-                    $tot_paid = $tot_paid - $price;
-                }
-                if ($type == 'child') {
-                    $price = $discount['applied_rates']['child'];
-                    $paid = $tot_paid >= $price ? $price : 0;
-                    $tot_paid = $tot_paid - $price;
-                }
+            if ($promotionDiscount) {
+                $price = $promotionDiscount['applied_rates'][$type] ?? $this->defaultRate($type);
             } else {
                 $price = $customerDiscount->final_rate ?? $this->defaultRate($paxType);
-                $paid = $tot_paid >= $price ? $price : 0;
-                $tot_paid = $tot_paid - $price;
             }
+            $paid = $tot_paid >= $price ? $price : 0;
+            $tot_paid = $tot_paid - $price;
             //$paid  = $customer->pivot->paid ?? 0;
             $paxList->push([
                 'reference' => $booking?->reference,
@@ -282,6 +274,7 @@ class BookingItem extends Model
                 'contact_number'    => $customer->contact_number,
                 'age'               => $customer->age ?? null,
                 'parent_id'         => $customer->parent_id ?? null,
+                'guardian_name'     => $manifest?->guardian_name ?? null,
                 'notes'             =>  $manifest?->notes ?? null,
                 'is_indemnity'      =>  $manifest?->is_indemnity ?? null,
                 'position'          => $manifest?->position ?? null,
@@ -290,8 +283,8 @@ class BookingItem extends Model
                 'paid'      => $paid,
                 'due'       => $price - $paid,
                 'files' => $booking?->files ?? collect(),
-                'booking_discount_item_id'  => $discount->discount->id ?? null,
-                'discount_id'  => $discount->discount->id ?? null,
+                'booking_discount_item_id'  => $customerDiscount?->discount?->id,
+                'discount_id'  => $customerDiscount?->discount?->id,
                 'discount'  => $customerDiscount->discount->name ?? null,
                 'is_lead'   => $customer->pivot->is_lead,
                 'team_id'   => $customer->pivot->team_id ?? null,
@@ -326,7 +319,9 @@ class BookingItem extends Model
 
                 //logger()->info(' customers discount', [$discount]);
                 //logger()->info(' customers type', [$type]);
-                $price = $discount->final_rate ?? $this->defaultRate($type);
+                $price = $promotionDiscount
+                    ? ($promotionDiscount['applied_rates'][$type] ?? $this->defaultRate($type))
+                    : ($discount->final_rate ?? $this->defaultRate($type));
                 //logger()->info(' customers price', [$price]);
                 $paid = $tot_paid >= $price ? $price : 0;
                 $tot_paid = $tot_paid - $price;
@@ -342,6 +337,7 @@ class BookingItem extends Model
                     'contact_number'     => null,
                     'age'       => null,
                     'parent_id'     => null,
+                    'guardian_name' => null,
                     'notes'     => null,
                     'is_indemnity'     => null,
                     'attendance_status' => CustomerManifest::ATTENDANCE_DEFAULT,

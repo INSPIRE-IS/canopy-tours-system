@@ -69,6 +69,7 @@ class CustomerManifestController extends Controller
             'contact_number' => 'nullable|string',
             'age' => 'nullable|integer',
             'parent_id' => 'nullable|integer',
+            'guardian_name' => 'nullable|string',
             'discount_id' => 'nullable|integer',
             'is_lead' => 'boolean',
             'team_id' => 'nullable|integer',
@@ -91,6 +92,7 @@ class CustomerManifestController extends Controller
                 'contact_number' => $validated['contact_number'],
             ]
         );
+        $guardianName = $this->guardianNameForManifest($validated['parent_id'] ?? null, $validated['guardian_name'] ?? null);
 
         $pivotData = [];
         $pivotData[$customer->id] = [
@@ -110,6 +112,7 @@ class CustomerManifestController extends Controller
                 'position' => $validated['position'],
                 'notes' => $validated['notes'],
                 'is_indemnity' => $validated['is_indemnity'],
+                'guardian_name' => $guardianName,
             ]
         );
         if ($validated['discount_id'] != null) {
@@ -122,7 +125,7 @@ class CustomerManifestController extends Controller
         }
 
 
-        $customerManifest = CustomerManifest::updatedOrCreate(
+        $customerManifest = CustomerManifest::updateOrCreate(
             [
                 'customer_id' => $customer->id,
                 'booking_item_id' => $validated['booking_item_id'],
@@ -132,6 +135,7 @@ class CustomerManifestController extends Controller
                 'position' => $validated['position'],
                 'notes' => $validated['notes'],
                 'is_indemnity' => $validated['is_indemnity'],
+                'guardian_name' => $guardianName,
             ]
         );
 
@@ -171,6 +175,8 @@ class CustomerManifestController extends Controller
                         $detail['parent_id'] = $bookingItem->booking->customer_id;
                     }
 
+                    $guardianName = $this->guardianNameForManifest($detail['parent_id'] ?? null, $detail['guardian_name'] ?? null);
+
                     $customer = Customer::updateOrCreate(
                         [
                             'id' => $detail['customer_id'],
@@ -203,6 +209,7 @@ class CustomerManifestController extends Controller
                             'notes' => $detail['notes'],
                             'is_indemnity' => $detail['is_indemnity'],
                             'type' => $detail['type'],
+                            'guardian_name' => $guardianName,
                             'team_id' => $bookingItem->booking->team_id,
                         ]
                     );
@@ -244,6 +251,7 @@ class CustomerManifestController extends Controller
         if ($detail['type'] == 'child' && $detail['parent_id'] == null) {
             $detail['parent_id'] = $bookingItem->booking->customer_id;
         }
+        $guardianName = $this->guardianNameForManifest($detail['parent_id'] ?? null, $detail['guardian_name'] ?? null);
 
         $customer = Customer::updateOrCreate(
             [
@@ -279,6 +287,7 @@ class CustomerManifestController extends Controller
                 'notes'        => $detail['notes'],
                 'is_indemnity' => $detail['is_indemnity'],
                 'type'         => $detail['type'],
+                'guardian_name' => $guardianName,
                 'team_id'         => $bookingItem->booking->team_id,
             ]
         );
@@ -316,6 +325,7 @@ class CustomerManifestController extends Controller
             'attendance_status' => 'required|in:' . implode(',', CustomerManifest::ATTENDANCE_STATUSES),
             'notes' => 'nullable|string',
             'lunch_option' => 'nullable|string',
+            'guardian_name' => 'nullable|string',
         ]);
 
         $bookingItem = BookingItem::with(['booking', 'customers'])->findOrFail($validated['booking_item_id']);
@@ -373,6 +383,9 @@ class CustomerManifestController extends Controller
         if ($request->has('notes')) {
             $manifestData['notes'] = $validated['notes'];
         }
+        if ($request->has('guardian_name')) {
+            $manifestData['guardian_name'] = trim((string) $validated['guardian_name']) ?: null;
+        }
 
         if ($paxType) {
             $manifestData['type'] = $paxType;
@@ -411,5 +424,19 @@ class CustomerManifestController extends Controller
         ], false, true);
 
         return back()->with('success', 'Check-in details updated.');
+    }
+
+    private function guardianNameForManifest(mixed $parentId, mixed $guardianName = null): ?string
+    {
+        $typedGuardianName = trim((string) ($guardianName ?? ''));
+        if ($typedGuardianName !== '') {
+            return $typedGuardianName;
+        }
+
+        if (!is_numeric($parentId)) {
+            return null;
+        }
+
+        return Customer::whereKey((int) $parentId)->value('full_name') ?: null;
     }
 }

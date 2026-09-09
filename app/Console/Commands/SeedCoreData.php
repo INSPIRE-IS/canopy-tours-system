@@ -308,9 +308,15 @@ class SeedCoreData extends Command
                 'value' => 0,
             ],
             [
-                'name' => 'Auto Send Questionnaire Confirmation',
+                'name' => 'Show Guest Indemnity Email Option',
                 'slug' => 'auto_send_questionnaire_confirmation',
-                'info' => 'Automatically send indemnity or feedback confirmation emails after guests complete questionnaire flows.',
+                'info' => 'Show the guest an optional checkbox to receive a signed indemnity PDF by email. The checkbox remains off by default.',
+                'value' => 0,
+            ],
+            [
+                'name' => 'Force Adult Guardian Selection',
+                'slug' => 'force_adult_guardian_selection',
+                'info' => 'Require minor/child indemnities to choose a parent/guardian from the adults on the booking. If disabled, a free-text parent/guardian name is captured.',
                 'value' => 0,
             ],
         ] as $emailSetting) {

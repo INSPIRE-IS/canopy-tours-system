@@ -110,7 +110,7 @@ class IndemnityDocumentService
                 'name' => $customer?->full_name,
                 'email' => $customer?->email_address,
                 'phone' => $customer?->contact_number,
-                'guardian_name' => $this->guardianName($answers),
+                'guardian_name' => $this->guardianName($manifest, $answers),
                 'signing_place' => $signingPlace,
                 'signature_label' => $this->isMinorParticipant($manifest, $answers) ? 'Parent / Guardian Signature' : 'Signature',
             ],
@@ -236,7 +236,7 @@ class IndemnityDocumentService
             'medical_id', 'is_fit', 'is_agree', 'pregnant', 'marketing_opt_in' => $this->lookupName(TypeConfirmation::class, $value),
             'age_id' => collect(Questionnaire::AGES)->firstWhere('id', (int) $value)['name'] ?? $value,
             'gender' => collect(Questionnaire::GENDERS)->firstWhere('id', (int) $value)['name'] ?? $value,
-            'parent_id' => is_numeric($value) ? (Customer::find($value)?->full_name ?? $value) : $value,
+            'parent_id' => $value,
             default => $value,
         };
     }
@@ -255,11 +255,19 @@ class IndemnityDocumentService
         return collect($answers)->firstWhere('slug', $slug)['raw_answer'] ?? null;
     }
 
-    private function guardianName(array $answers): ?string
+    private function guardianName(CustomerManifest $manifest, array $answers): ?string
     {
-        $guardian = collect($answers)->firstWhere('slug', 'parent_id');
+        if (filled($manifest->guardian_name)) {
+            return (string) $manifest->guardian_name;
+        }
 
-        return filled($guardian['answer'] ?? null) ? (string) $guardian['answer'] : null;
+        $guardian = collect($answers)->firstWhere('slug', 'parent_id');
+        $rawGuardian = $guardian['raw_answer'] ?? null;
+        if (filled($rawGuardian) && !is_numeric($rawGuardian)) {
+            return (string) $rawGuardian;
+        }
+
+        return null;
     }
 
     private function isMinorParticipant(CustomerManifest $manifest, array $answers): bool

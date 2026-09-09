@@ -169,8 +169,14 @@ class LookupItem extends Model
             ],
             [
                 'slug' => 'auto_send_questionnaire_confirmation',
-                'name' => 'Auto Send Questionnaire Confirmation',
-                'info' => 'Automatically send indemnity or feedback confirmation emails after guests complete questionnaire flows.',
+                'name' => 'Show Guest Indemnity Email Option',
+                'info' => 'Show the guest an optional checkbox to receive a signed indemnity PDF by email. The checkbox remains off by default.',
+                'default' => false,
+            ],
+            [
+                'slug' => 'force_adult_guardian_selection',
+                'name' => 'Force Adult Guardian Selection',
+                'info' => 'Require minor/child indemnities to choose a parent/guardian from the adults on the booking. If disabled, a free-text parent/guardian name is captured.',
                 'default' => false,
             ],
             [

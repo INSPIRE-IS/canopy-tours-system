@@ -18,6 +18,7 @@ use App\Models\Customer;
 use App\Models\CustomerManifest;
 use App\Models\Email;
 use App\Models\File;
+use App\Models\LookupItem;
 use App\Models\Quesionnaire;
 use App\Models\Question;
 use App\Models\QuestionAnswer;
@@ -368,7 +369,9 @@ class BookingQuestionnaireController extends Controller
                                     $a->question_id == $q['id'];
                             });
 
-                            $valueFromCustomer = $customer->{$q['slug']} ?? null;
+                            $valueFromCustomer = $q['slug'] === 'parent_id'
+                                ? ($customer->guardian_name ?? null)
+                                : ($customer->{$q['slug']} ?? null);
 
                             if ($valueFromCustomer !== null) {
 
@@ -479,6 +482,7 @@ class BookingQuestionnaireController extends Controller
             $typeConfirmation = TypeConfirmation::whereIn('id', [1, 2])->select('id', 'name')->get();
             $typeReferral = TypeReferral::select('id', 'name')->get();
             $team = Team::select('id', 'name', 'description', 'color')->with('file_image', 'file_logo')->find($bookingItem->team_id);
+            $settings = LookupItem::settingsForTeam($bookingItem->booking->team_id ?? $bookingItem->team_id);
 
             //dd($questions);
             //$bookingId = request()->route('bookingId');
@@ -497,6 +501,7 @@ class BookingQuestionnaireController extends Controller
                 'questions' => $questions,
                 'indemnityDocument' => IndemnityDocumentService::document(),
                 'canSendIndemnityEmail' => app(EmailDispatchService::class)->canSendAutomatic($bookingItem->booking->team_id ?? $bookingItem->team_id, EmailDispatchService::SETTING_AUTO_QUESTIONNAIRE),
+                'forceAdultGuardianSelection' => $settings['force_adult_guardian_selection'] ?? false,
                 'team' => $team,
                 'bookings' => $formatted,
             ]);
@@ -542,6 +547,10 @@ class BookingQuestionnaireController extends Controller
             if ($detail['type'] == 'child' && $detail['parent_id'] == null) {
                 $detail['parent_id'] = $bookingItem->booking->customer_id;
             }
+            $guardianName = trim((string) ($detail['guardian_name'] ?? '')) ?: null;
+            if (!$guardianName && is_numeric($detail['parent_id'] ?? null)) {
+                $guardianName = Customer::whereKey((int) $detail['parent_id'])->value('full_name') ?: null;
+            }
 
             $customer = Customer::updateOrCreate(
                 [
@@ -578,6 +587,7 @@ class BookingQuestionnaireController extends Controller
                     'notes' => $detail['notes'],
                     'is_indemnity' => $detail['is_indemnity'],
                     'type' => $detail['type'],
+                    'guardian_name' => $detail['type'] === 'child' ? $guardianName : null,
                     'team_id' => $bookingItem->booking->team_id,
                 ]
             );
@@ -672,12 +682,22 @@ class BookingQuestionnaireController extends Controller
                 'send_indemnity_email' => 'An email address is required to send a copy of the signed indemnity PDF.',
             ]);
         }
+        $settingsBookingItem = BookingItem::with('booking')->find($validated['booking_item_id'] ?? null);
+        $questionnaireSettings = LookupItem::settingsForTeam($settingsBookingItem?->booking?->team_id ?? $settingsBookingItem?->team_id ?? null);
+        $forceAdultGuardianSelection = (bool) ($questionnaireSettings['force_adult_guardian_selection'] ?? false);
 
         try {
-            $stored = DB::transaction(function () use ($validated) {
+            $stored = DB::transaction(function () use ($validated, $forceAdultGuardianSelection) {
                 $bookingItem = BookingItem::find($validated['booking_item_id']);
                 $booking = Booking::find($bookingItem->booking_id);
                 $customer = Customer::find($validated['customer_id']);
+                $parentCustomerId = is_numeric($validated['parent_id'] ?? null)
+                    ? (int) $validated['parent_id']
+                    : null;
+                $guardianName = trim((string) ($validated['guardian_name'] ?? '')) ?: null;
+                if ($forceAdultGuardianSelection && $parentCustomerId) {
+                    $guardianName = Customer::whereKey($parentCustomerId)->value('full_name') ?: $guardianName;
+                }
 
                 if (!$customer) {
                     if (empty($validated['full_name'])) {
@@ -689,7 +709,7 @@ class BookingQuestionnaireController extends Controller
                         'email_address' => $validated['email_address'] ?? null,
                         'contact_number' => $validated['contact_number'] ?? null,
                         'age' => $validated['age_id'] ?? null,
-                        'parent_id' => $validated['parent_id'] ?? null,
+                        'parent_id' => $forceAdultGuardianSelection ? $parentCustomerId : null,
                         'team_id' => $booking->team_id ?? null,
                     ]);
 
@@ -702,12 +722,15 @@ class BookingQuestionnaireController extends Controller
 
                     $validated['customer_id'] = $customer->id;
                 } else {
-                    $customer->update([
+                    $customerUpdates = [
                         'full_name' => $validated['full_name'],
                         'email_address' => $validated['email_address'],
                         'age' => $validated['age_id'],
-                        'parent_id' => $validated['parent_id'],
-                    ]);
+                    ];
+                    if ($forceAdultGuardianSelection) {
+                        $customerUpdates['parent_id'] = $parentCustomerId;
+                    }
+                    $customer->update($customerUpdates);
                 }
                 //dd('here');
 
@@ -780,6 +803,16 @@ class BookingQuestionnaireController extends Controller
                 if ($enabledSlugs->contains('is_fit') && (string) ($validated['is_fit'] ?? '') === '2') {
                     $requiredErrors['is_fit'] = 'This activity cannot proceed if you are not fit enough to walk 1km in steep terrain. Please urgently discuss this with staff before proceeding with the questionnaire.';
                 }
+                $isMinorParticipant = ($validated['type'] ?? null) === 'child' || (string) ($validated['age_id'] ?? '') === '1';
+                if ($enabledSlugs->contains('parent_id') && $isMinorParticipant) {
+                    $guardianValue = $forceAdultGuardianSelection
+                        ? ($validated['parent_id'] ?? null)
+                        : ($validated['guardian_name'] ?? null);
+
+                    if ($isBlank($guardianValue)) {
+                        $requiredErrors['parent_id'] = 'Please enter the parent or guardian full name.';
+                    }
+                }
 
                 if (!empty($requiredErrors)) {
                     throw ValidationException::withMessages($requiredErrors);
@@ -792,6 +825,9 @@ class BookingQuestionnaireController extends Controller
                     if ($key == 'signature') {
                         $value = null;
                     };
+                    if ($key === 'parent_id') {
+                        $value = $guardianName;
+                    }
                     QuestionAnswer::updateOrCreate(
                         [
                             'booking_item_id' => $validated['booking_item_id'],
@@ -802,6 +838,21 @@ class BookingQuestionnaireController extends Controller
                             'answer'          => $value,
                         ]
                     );
+                }
+                if ($guardianName !== null) {
+                    $guardianQuestion = $questions->firstWhere('slug', 'parent_id');
+                    if ($guardianQuestion) {
+                        QuestionAnswer::updateOrCreate(
+                            [
+                                'booking_item_id' => $validated['booking_item_id'],
+                                'customer_id'     => $validated['customer_id'],
+                                'question_id'     => $guardianQuestion->id,
+                            ],
+                            [
+                                'answer' => $guardianName,
+                            ]
+                        );
+                    }
                 }
 
 
@@ -838,6 +889,7 @@ class BookingQuestionnaireController extends Controller
                     ],
                     [
                         'is_indemnity' => 1,
+                        'guardian_name' => $isMinorParticipant ? $guardianName : null,
                         'team_id' => $bookingItem?->booking?->team_id ?? $bookingItem?->team_id ?? $validated['team_id'] ?? null,
                     ]
                 );
@@ -1269,6 +1321,7 @@ class BookingQuestionnaireController extends Controller
             $typeConfirmation = TypeConfirmation::whereIn('id', [1, 2])->select('id', 'name')->get();
             $typeReferral = TypeReferral::select('id', 'name')->get();
             $team = Team::select('id', 'name', 'description', 'color')->with('file_image', 'file_logo')->find($bookingItem->team_id);
+            $settings = LookupItem::settingsForTeam($bookingItem->booking->team_id ?? $bookingItem->team_id);
             $questionnaire = Questionnaire::with('fields')
                 ->where('service_id', $bookingItem->service_id)
                 ->where('season_id', $bookingItem->season_id)
@@ -1314,6 +1367,7 @@ class BookingQuestionnaireController extends Controller
                 'questionnaire' => $questionnaireFlat,
                 'indemnityDocument' => IndemnityDocumentService::document(),
                 'canSendIndemnityEmail' => app(EmailDispatchService::class)->canSendAutomatic($bookingItem->booking->team_id ?? $bookingItem->team_id, EmailDispatchService::SETTING_AUTO_QUESTIONNAIRE),
+                'forceAdultGuardianSelection' => $settings['force_adult_guardian_selection'] ?? false,
                 'team' => $team,
             ]);
         } catch (InvalidSignatureException $e) {
