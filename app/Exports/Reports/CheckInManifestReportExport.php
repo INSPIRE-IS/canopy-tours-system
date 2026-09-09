@@ -32,6 +32,7 @@ class CheckInManifestReportExport implements FromQuery, WithHeadings, WithMappin
         private readonly ?int $serviceId,
         private readonly bool $includeGroupType,
         private readonly bool $includeNationality,
+        private readonly bool $includeGuardian,
         private readonly bool $includeReferral,
         private readonly bool $includeGender,
         private readonly bool $includeMedical,
@@ -174,6 +175,9 @@ class CheckInManifestReportExport implements FromQuery, WithHeadings, WithMappin
         if ($this->includeNationality) {
             $headings[] = 'Nationality';
         }
+        if ($this->includeGuardian) {
+            $headings[] = 'Parent / Guardian';
+        }
         if ($this->includeReferral) {
             $headings[] = 'Referral Captured';
         }
@@ -239,6 +243,7 @@ class CheckInManifestReportExport implements FromQuery, WithHeadings, WithMappin
         if (
             $this->includeGroupType ||
             $this->includeNationality ||
+            $this->includeGuardian ||
             $this->includeReferral ||
             $this->includeGender ||
             $this->includeMedical ||
@@ -261,6 +266,9 @@ class CheckInManifestReportExport implements FromQuery, WithHeadings, WithMappin
                 $row[] = $countryValue !== null
                     ? ($this->countryMap[(string) $countryValue] ?? $countryValue)
                     : '';
+            }
+            if ($this->includeGuardian) {
+                $row[] = $manifest->guardian_name ?? '';
             }
             if ($this->includeReferral) {
                 $referralValue = $answers['referral_id'] ?? null;

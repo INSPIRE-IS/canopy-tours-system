@@ -91,6 +91,7 @@ export default function Index({ auth, services = [], paymentTypes = [], wholesal
         service_id: '',
         include_group_type: false,
         include_nationality: false,
+        include_guardian: false,
         include_referral: false,
         include_gender: false,
         include_medical: false,
@@ -639,6 +640,12 @@ export default function Index({ auth, services = [], paymentTypes = [], wholesal
                                     label="Nationality"
                                     name="include_nationality"
                                     checked={manifestFilters.include_nationality}
+                                    onChange={(name, checked) => setManifestFilters(prev => ({ ...prev, [name]: checked }))}
+                                />
+                                <CustomCheckbox
+                                    label="Parent / Guardian"
+                                    name="include_guardian"
+                                    checked={manifestFilters.include_guardian}
                                     onChange={(name, checked) => setManifestFilters(prev => ({ ...prev, [name]: checked }))}
                                 />
                                 <CustomCheckbox

@@ -49,7 +49,7 @@ const IndemnityTermsPreview = ({ document = DEFAULT_INDEMNITY_DOCUMENT, compact 
   </div>
 );
 
-export default function BookingLookup({ auth, booking, bookings, bookingItem, questions = [], leadGuides, safetyGuides, typeGroups, ageGroups, typeGender, typeReferral, typeConfirmation, indemnityDocument = DEFAULT_INDEMNITY_DOCUMENT, canSendIndemnityEmail = true, team }) {
+export default function BookingLookup({ auth, booking, bookings, bookingItem, questions = [], leadGuides, safetyGuides, typeGroups, ageGroups, typeGender, typeReferral, typeConfirmation, indemnityDocument = DEFAULT_INDEMNITY_DOCUMENT, canSendIndemnityEmail = true, forceAdultGuardianSelection = false, team }) {
   const { props } = usePage();
   const { flash, old } = props;
   const mode = 'edit';
@@ -135,6 +135,19 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
 
         // Convert questionnaire array → { slug: value }
         const qAnswers = questionnaire.reduce((acc, q) => {
+          if (q.slug === 'parent_id') {
+            if (q.answer && /^\d+$/.test(String(q.answer))) {
+              const linkedAdult = bookings.customers
+                ?.map((bookingCustomer) => bookingCustomer.customer)
+                ?.find((bookingCustomer) => String(bookingCustomer?.id ?? bookingCustomer?.customer_id) === String(q.answer));
+              acc.guardian_name = linkedAdult?.full_name || q.answer;
+              acc.parent_id = q.answer;
+            } else {
+              acc.guardian_name = q.answer ?? "";
+            }
+            return acc;
+          }
+
           acc[q.slug] = q.answer ?? "";
           return acc;
         }, {});
@@ -450,6 +463,10 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
 
   const selectedManifest = selected != null ? data.customer_manifests?.[selected] : null;
   const isMinorParticipant = String(selectedManifest?.age_id ?? '') === '1' || selectedManifest?.type === 'child';
+  const guardianDisplayName = selectedManifest?.guardian_name
+    || adults.find((adult) => String(adult.id) === String(selectedManifest?.parent_id))?.name
+    || selectedManifest?.parent_name
+    || null;
   const activityDate = bookingItem?.booking_inventory?.date ?? bookingItem?.booking_inventory?.activity_date ?? null;
   const activityTime = bookingItem?.booking_inventory?.inventory_time_slot?.start_time ?? bookingItem?.booking_inventory?.time ?? null;
   const declarationRows = [
@@ -465,7 +482,7 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
     {
       label: 'Parent / guardian consent',
       value: isMinorParticipant
-        ? (selectedManifest?.parent_name || selectedManifest?.guardian_name || selectedManifest?.parent_id || 'Required but not captured as a signed statement')
+        ? (guardianDisplayName || 'Required but not captured as a signed statement')
         : 'Not applicable',
     },
     { label: 'Photo / video consent', value: 'Included in point 9 - confirm if this should be separate' },
@@ -714,6 +731,11 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
                   {data?.customer_manifests?.map((person, index) => {
                     // console.log("person", person);
                     const nameMissing = !person?.full_name?.trim();
+                    const guardianValue = forceAdultGuardianSelection
+                      ? person?.parent_id
+                      : (person?.guardian_name || (!Number.isFinite(Number(person?.parent_id)) ? person?.parent_id : ''));
+                    const guardianMissing = person?.type === "child" && !String(guardianValue || '').trim();
+                    const startDisabled = nameMissing || guardianMissing;
                     return (
                       <div key={index} className="flex w-full justify-between border p-3 mb-4 rounded-lg">
                         <div className="flex w-full flex-col justify-between items-center mb-2 ">
@@ -740,34 +762,47 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
                               <label
                                 className="text-[#161618] font-poppins text-[12px] font-normal  leading-[130%]"
                               >
-                                Parent
+                                Parent / guardian full name
                               </label>
-                              <select
-                                id={parent}
-                                name={parent}
-                                value={person.parent_id || ""}
-                                onChange={(e) => {
-                                  const updated = data?.customer_manifests?.map((p, idx) =>
-                                    idx === index ? { ...p, parent_id: e.target.value } : p
-                                  );
-                                  setData("customer_manifests", updated);
-                                }}
-                                className={`mt-1 block shadow-sm input-text rounded-[10px] border-gray-300
+                              {forceAdultGuardianSelection ? (
+                                <select
+                                  id="parent_id"
+                                  name="parent_id"
+                                  value={person.parent_id || ""}
+                                  onChange={(e) => handlePersonChange(index, 'parent_id', e.target.value)}
+                                  className={`mt-1 block shadow-sm input-text rounded-[10px] border-gray-300
                                          hover:border-black  active:border-blue-600 w-full
                                             focus:outline-none focus:ring-0 focus:border-black
                                     `}
-                                disabled={mode === "view"}
+                                  disabled={mode === "view"}
 
-                              >
-                                {adults?.map(adult => {
-                                  // console.log("adult", adult);
-                                  return (
-                                    <option className="input-text rounded-[10px] border-gray-300" key={adult.id} value={adult.id}>
-                                      {adult.name}
-                                    </option>
-                                  )
-                                })}
-                              </select>
+                                >
+                                  <option value="">-- Enter adult first --</option>
+                                  {adults?.map(adult => {
+                                    // console.log("adult", adult);
+                                    return (
+                                      <option className="input-text rounded-[10px] border-gray-300" key={adult.id} value={adult.id}>
+                                        {adult.name}
+                                      </option>
+                                    )
+                                  })}
+                                </select>
+                              ) : (
+                                <input
+                                  id={`guardian_name_${index}`}
+                                  name="guardian_name"
+                                  type="text"
+                                  value={person.guardian_name || (!Number.isFinite(Number(person.parent_id)) ? person.parent_id || "" : "")}
+                                  onChange={(e) => handlePersonChange(index, 'guardian_name', e.target.value)}
+                                  className="mt-1 block shadow-sm input-text rounded-[10px] border-gray-300 hover:border-black active:border-blue-600 w-full focus:outline-none focus:ring-0 focus:border-black"
+                                  disabled={mode === "view"}
+                                  placeholder="Enter parent or guardian name"
+                                />
+                              )}
+                              {errors.parent_id && <div className="text-red-500 text-sm">{errors.parent_id}</div>}
+                              {guardianMissing && (
+                                <div className="mt-1 text-xs text-red-600">Parent or guardian full name is required for a child.</div>
+                              )}
                             </div>
                           )}
                           <div className="flex items-center justify-center gap-6">
@@ -776,7 +811,7 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
                                 <span className="text-btn-outline-gray">Complete</span>
                               </button>
                             ) : (
-                              <button type='button' disabled={nameMissing} onClick={() => handlePrevNext(2, index)} className={getWideNextButtonClass(nameMissing)} >
+                              <button type='button' disabled={startDisabled} onClick={() => handlePrevNext(2, index)} className={getWideNextButtonClass(startDisabled)} >
                                 <span className="text-btn-outline-gray">Next</span>
                               </button>
                             )}

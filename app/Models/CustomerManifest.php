@@ -40,6 +40,7 @@ class CustomerManifest extends Model
         'is_indemnity',
         'is_feedback',
         'attendance_status',
+        'guardian_name',
         'customer_id',
         'booking_item_id',
         'created_at',

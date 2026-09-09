@@ -28,7 +28,7 @@ class CheckinKioskController extends Controller
                 'season:id,name',
                 'booking_inventory.inventory_time_slot',
                 'customers:id,full_name,email_address,contact_number,parent_id',
-                'customer_manifests:id,booking_item_id,customer_id,is_indemnity,attendance_status,type',
+                'customer_manifests:id,booking_item_id,customer_id,is_indemnity,attendance_status,type,guardian_name',
             ])
             ->where('team_id', $teamId)
             ->whereHas('booking_inventory', function ($query) use ($date) {
