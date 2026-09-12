@@ -3,6 +3,8 @@
 namespace App\Services;
 
 use App\Models\Booking;
+use App\Models\BookingExtra;
+use App\Models\BookingPayment;
 use App\Models\BookingNote;
 use App\Models\BookingVoucher;
 use App\Models\Customer;
@@ -142,12 +144,31 @@ class RendererService
                 'display_note' => $isPrepaidVoucherPartner ? 'Paid externally via voucher partner' : null,
             ];
         })->values()->toArray();
+        $extras = BookingExtra::where('booking_id', $booking->id)
+            ->orderBy('id')
+            ->get()
+            ->map(function (BookingExtra $extra) {
+                return [
+                    'type' => $extra->type,
+                    'name' => $extra->name ?: ucfirst((string) $extra->type),
+                    'description' => $extra->description,
+                    'quantity' => (float) $extra->quantity,
+                    'unit_price' => (float) $extra->unit_price,
+                    'total_amount' => (float) $extra->total_amount,
+                ];
+            })
+            ->values()
+            ->toArray();
         $invoiceNote = BookingNote::where('booking_id', $booking->id)
             ->where('type', 'invoice_note')
             ->orderByDesc('created_at')
             ->value('note');
         //dd($services);
-        $reportAmountTotal = $invoice->total ?? $booking->grand_tot_due ?? 0;
+        $extrasTotal = round(collect($extras)->sum('total_amount'), 2);
+        $reportAmountTotal = round(
+            (float) collect($services)->sum('report_total') + (float) $extrasTotal,
+            2
+        );
         $prepaidVoucherTotal = collect($services)
             ->where('is_prepaid_wholesaler_voucher', true)
             ->sum('report_total');
@@ -155,7 +176,8 @@ class RendererService
         $amountExVat = round(($amountTotal / 1.15), 2);
         $vat = round(($amountTotal - $amountExVat), 2);
         $customerVisiblePaid = max(0, (float) ($booking->tot_paid ?? 0) - (float) $prepaidVoucherTotal);
-        $amountPaid = round(min((float) $amountTotal, $customerVisiblePaid), 2);
+        $additionalPaid = round((float) BookingPayment::where('booking_id', $booking->id)->sum('additional_amount'), 2);
+        $amountPaid = round(min((float) $amountTotal, $customerVisiblePaid + $additionalPaid), 2);
         $balanceDue = round(max(0, (float) $amountTotal - $amountPaid), 2);
 
         $logoPath = $this->normalizePublicStoragePath($booking->team->file_logo?->getRawOriginal('path')) ?: 'images/logo.png';
@@ -214,6 +236,7 @@ class RendererService
                 'ref' => $booking->reference,
             ],
             'services' => $services,
+            'extras' => $extras,
             'file_logo' => $logoSrc ?: $logoPath,
             'invoice_quote_icon' => $invoiceQuoteIconSrc ?: ($logoSrc ?: $invoiceQuoteIconPath),
             'amount_ex_vat' => $amountExVat,

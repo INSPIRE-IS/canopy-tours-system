@@ -8,6 +8,7 @@ use App\Http\Requests\StoreBookingPaymentRequest;
 use App\Http\Requests\UpdateBookingPaymentRequest;
 use App\Mail\MessageGuestMail;
 use App\Models\Booking;
+use App\Models\BookingExtra;
 use App\Models\BookingItem;
 use App\Models\BookingPayment;
 use App\Models\BookingVoucher;
@@ -79,6 +80,7 @@ class BookingPaymentController extends Controller
             'booking_items.booking_fee' => fn ($query) => $query->withTrashed(),
             'booking_items.booking_inventory' => fn ($query) => $query->withTrashed(),
             'booking_items.booking_inventory.inventory_time_slot' => fn ($query) => $query->withTrashed(),
+            'booking_extras',
             'customer',
         ]);
         $latestPayment = BookingPayment::where('booking_id', $booking->id)
@@ -91,6 +93,28 @@ class BookingPaymentController extends Controller
 
         $additionalRefundableAmount = round($paymentRows->sum(fn(BookingPayment $payment) => (float) ($payment->additional_amount ?? 0)), 2);
         $bookingRefundableAmount = round((float) ($booking->tot_paid ?? 0), 2);
+        $bookingExtras = $booking->booking_extras
+            ->map(fn(BookingExtra $extra) => [
+                'id' => $extra->id,
+                'type' => $extra->type,
+                'name' => $extra->name,
+                'description' => $extra->description,
+                'quantity' => (float) $extra->quantity,
+                'unit_price' => (float) $extra->unit_price,
+                'total_amount' => (float) $extra->total_amount,
+            ])
+            ->values();
+        $pendingExtrasTotal = round(max(0, $bookingExtras->sum('total_amount') - $additionalRefundableAmount), 2);
+        $pendingExtrasNote = $bookingExtras
+            ->map(function (array $extra) {
+                if (!empty($extra['description'])) {
+                    return $extra['description'];
+                }
+
+                return trim(($extra['name'] ?: 'Extra') . ' - ' . $extra['quantity'] . ' x R' . number_format($extra['unit_price'], 2, '.', ''));
+            })
+            ->filter()
+            ->implode(', ');
 
         $paymentHistory = $paymentRows
             ->map(function (BookingPayment $payment) use ($booking) {
@@ -164,6 +188,9 @@ class BookingPaymentController extends Controller
             'payment_history' => $paymentHistory,
             'booking_refundable_amount' => $bookingRefundableAmount,
             'additional_refundable_amount' => max(0, $additionalRefundableAmount),
+            'booking_extras' => $bookingExtras,
+            'pending_extras_total' => $pendingExtrasTotal,
+            'pending_extras_note' => $pendingExtrasNote,
             'gateways' => $gateways,
             'status_payments' => $status_payments,
             'type_pay_options' => $type_pay_options,
