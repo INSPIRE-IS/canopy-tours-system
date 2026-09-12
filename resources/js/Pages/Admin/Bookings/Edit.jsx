@@ -193,6 +193,9 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
         bill_back: false,
         team_id: auth.user.team_id,
         pay_later: false,
+        meal_extra_enabled: false,
+        meal_extra_quantity: 0,
+        meal_extra_unit_price: '',
     });
     useEffect(() => {
         if (flash?.success) {
@@ -1544,6 +1547,8 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
             ? promos.find(p => Number(p.id) === Number(bookingItem.promotion_id))
             : null;
         const promoCodeValue = promo?.promo_code || bookingItem?.promotion?.promo_code || null;
+        const mealExtra = (booking?.booking_extras || bookingItem?.booking_extras || [])
+            .find(extra => extra?.type === 'meal');
 
         setPromoCode(promoCodeValue);
         setPromotionId(bookingItem?.promotion_id || null);
@@ -1617,6 +1622,9 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
             override_rates: hasOverrideRates,
             override_reason: inventoryOverride?.note || '',
             discount_lines: discountLines,
+            meal_extra_enabled: !!mealExtra,
+            meal_extra_quantity: Number(mealExtra?.quantity || 0),
+            meal_extra_unit_price: mealExtra ? Number(mealExtra.unit_price || 0) : '',
         }));
 
         initialServiceIdRef.current = bookingItem?.service_id ?? null;
@@ -2160,6 +2168,10 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
             return sum + (g.count * effectiveRate);
         }, 0);
     const total = Number(data.booking_total || 0);
+    const mealExtraQuantity = Number(data.adults || 0) + Number(data.children || 0) + Number(data.guides || 0);
+    const mealExtraTotal = data.meal_extra_enabled
+        ? Number((mealExtraQuantity * Number(data.meal_extra_unit_price || 0)).toFixed(2))
+        : 0;
     const isCancelledBooking = Boolean(booking?.deleted_at || booking_items?.deleted_at);
     const hasRealPaymentRows = Array.isArray(booking?.booking_payments) && booking.booking_payments.length > 0;
     const wasPrepaidWholesalerVoucher = Boolean(booking_items?.booking_fee?.is_prepaid_wholesaler_voucher);
@@ -2168,6 +2180,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
     const outstandingForSelectedItem = Math.max(total - paidForSelectedItem, 0);
     const creditForSelectedItem = Math.max(paidForSelectedItem - total, 0);
     const payableTotalForPayment = isPrepaidWholesalerVoucher ? 0 : outstandingForSelectedItem;
+    const payableTotalWithExtras = payableTotalForPayment + mealExtraTotal;
     const graduatedPromo = pricing?.applied_promotion?.type === 'graduated';
     const promoTotal = Number(pricing?.total_price ?? data.booking_total ?? 0);
     const promoAdjustmentTarget = graduatedPromo
@@ -2187,6 +2200,12 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
             setData('booking_total', nextTotal);
         }
     }, [pricing, totalAdult, totalChild, totalGuide, data.booking_total, setData]);
+
+    useEffect(() => {
+        if (Number(data.meal_extra_quantity || 0) !== Number(mealExtraQuantity || 0)) {
+            setData('meal_extra_quantity', mealExtraQuantity);
+        }
+    }, [mealExtraQuantity, data.meal_extra_quantity, setData]);
 
     // find currently selected discount from the list
     const selectedDiscount = discountList?.find(d => d.id === parseInt(discountId));
@@ -3179,6 +3198,45 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
                                 </div>
                             </div>
                         </div>
+                        <details className="mt-6 p-6 bg-white rounded-[10px] border border-secondary-100 shadow">
+                            <summary className="cursor-pointer text-booking-card-title">Booking Extras</summary>
+                            <div className="mt-4 grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                                <div className="mb-4 w-full">
+                                    <CustomCheckbox
+                                        label="Includes meal"
+                                        name="meal_extra_enabled"
+                                        checked={data.meal_extra_enabled}
+                                        onChange={handleChange}
+                                        errors={errors}
+                                        disabled={isCancelledBooking}
+                                    />
+                                </div>
+                                <div className="mb-4 w-full">
+                                    <div className="text-xs text-gray-500 mb-1">Meal qty follows total pax</div>
+                                    <div className="h-[48px] flex items-center rounded-[10px] border border-gray-300 px-4 text-sm text-gray-700">
+                                        {mealExtraQuantity}
+                                    </div>
+                                </div>
+                                <CustomInputText
+                                    title="Meal amount per pax"
+                                    name="meal_extra_unit_price"
+                                    type="number"
+                                    value={data.meal_extra_unit_price}
+                                    onChange={(e) => handleChange(e.target.name, e.target.value)}
+                                    errors={errors}
+                                    disabled={isCancelledBooking}
+                                />
+                                <div className="mb-4 w-full">
+                                    <div className="text-xs text-gray-500 mb-1">Meal extra total</div>
+                                    <div className="h-[48px] flex items-center rounded-[10px] border border-gray-300 bg-[#DBECFD4D] px-4 text-sm font-semibold text-[#4D81E7]">
+                                        R {mealExtraTotal.toFixed(2)}
+                                    </div>
+                                </div>
+                            </div>
+                            <p className="mt-3 text-xs text-gray-500">
+                                Extras show on the invoice and prefill the payment page additional amount. They stay separate from canopy tour value and Franchise Fees.
+                            </p>
+                        </details>
                         {/* add another activity 
                             <div className="flex items-center justify-between">
                                 <label className="text-booking-subheading">Add Another Activity to this Booking</label>
@@ -3290,10 +3348,18 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
                                         <span className="text-booking-lbl-main-sub text-[#4D81E7]">R {Number(total || 0).toFixed(2)}</span>
                                     </div>
                                 </div>
+                                {mealExtraTotal > 0 && (
+                                    <div className="flex items-center space-x-[37px]">
+                                        <span className="text-booking-lbl-main w-[160px] font-normal text-right">Booking extras</span>
+                                        <div className="flex items-center justify-between w-[417px] h-[43px] bg-[#DBECFD4D] pl-[17px] py-[12.5px] rounded-[6px]">
+                                            <span className="text-booking-lbl-main-sub text-[#4D81E7]">R {mealExtraTotal.toFixed(2)}</span>
+                                        </div>
+                                    </div>
+                                )}
                                 <div className="flex items-center space-x-[37px]">
                                     <span className="text-booking-lbl-main w-[160px] font-normal text-right">Deposit Due Today</span>
                                     <div className="flex items-center justify-between w-[417px] h-[43px] bg-[#DBECFD4D] pl-[17px] py-[12.5px] rounded-[6px]">
-                                        <span className="text-booking-lbl-main-sub text-[#AFAFAF]">R {((Number(data?.deposit_due) || 0) * (Number(payableTotalForPayment) || 0)).toFixed(2)}</span>
+                                        <span className="text-booking-lbl-main-sub text-[#AFAFAF]">R {((Number(data?.deposit_due) || 0) * (Number(payableTotalWithExtras) || 0)).toFixed(2)}</span>
                                     </div>
                                 </div>
                                 {paidForSelectedItem > 0 && (
@@ -3315,7 +3381,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
                                 <div className="flex items-center space-x-[37px]">
                                     <span className="text-booking-lbl-main w-[160px] text-right">Total Due Today</span>
                                     <div className="flex items-center justify-between w-[417px] h-[43px] bg-[#DBECFD4D] pl-[17px] py-[12.5px] rounded-[6px]">
-                                        <span className="text-booking-lbl-main-sub text-[#FF0000]">R {((Number(data?.due_today) || 0) * (Number(payableTotalForPayment) || 0)).toFixed(2)}</span>
+                                        <span className="text-booking-lbl-main-sub text-[#FF0000]">R {((Number(data?.due_today) || 0) * (Number(payableTotalWithExtras) || 0)).toFixed(2)}</span>
                                     </div>
                                 </div>
                                 <div className="flex items-center space-x-[37px]">

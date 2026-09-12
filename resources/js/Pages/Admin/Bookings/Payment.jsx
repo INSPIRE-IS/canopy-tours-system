@@ -14,7 +14,7 @@ import CancelledBookingBanner from '@/Components/CancelledBookingBanner';
 // import { useRoute } from 'ziggy-js';
 // import { Ziggy } from '@/ziggy'; // the generated file
 
-export default function Dashboard({ auth, booking, payment_history = [], booking_refundable_amount = 0, additional_refundable_amount = 0, lookups, mode, gateways, status_payments, type_pay_options, type_payments, updated_bies, users }) {
+export default function Dashboard({ auth, booking, payment_history = [], booking_refundable_amount = 0, additional_refundable_amount = 0, booking_extras = [], pending_extras_total = 0, pending_extras_note = '', lookups, mode, gateways, status_payments, type_pay_options, type_payments, updated_bies, users }) {
     console.log("auth", auth);
     const { props } = usePage();
     const { flash } = props;
@@ -82,11 +82,11 @@ export default function Dashboard({ auth, booking, payment_history = [], booking
         ex_vat_amount: outstandingAmount.toFixed(2),
         lookup_item_id: vatLookup.id,
         ...calculateVatFields(outstandingAmount),
-        additional_amount: '0.00',
+        additional_amount: Number(pending_extras_total || 0).toFixed(2),
         payment_date: booking.due_date,
         updated_by_id: auth.user.id,
         short_payment_note: '',
-        additional_payment_note: '',
+        additional_payment_note: pending_extras_note || '',
         note: '',
         reference: booking.reference,
         meta: '',
@@ -123,6 +123,7 @@ export default function Dashboard({ auth, booking, payment_history = [], booking
     const isPayOnline = !!payOnlineOption && data.type_pay_option_id === payOnlineOption.id;
 
     const amountDue = outstandingAmount;
+    const pendingExtras = Number(pending_extras_total || 0);
     const bookingRefundableAmount = Number(booking_refundable_amount || 0);
     const additionalRefundableAmount = Number(additional_refundable_amount || 0);
     const isFullyPaid = amountDue <= 0;
@@ -480,6 +481,12 @@ export default function Dashboard({ auth, booking, payment_history = [], booking
                                 <p className="text-xs text-gray-500">Use this section to capture money received now. Use Refund Payment only for money already received and being returned.</p>
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 ">
+                                {pendingExtras > 0 && (
+                                    <div className="sm:col-span-2 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                                        <div className="font-semibold">Pending booking extra: R{pendingExtras.toFixed(2)}</div>
+                                        <div>{pending_extras_note || 'Extra amount has been prefilled below.'}</div>
+                                    </div>
+                                )}
                                 <div>
                                     <CustomInputText
                                         title="Booking Payment Amount"

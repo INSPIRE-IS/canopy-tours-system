@@ -71,6 +71,11 @@ class Booking extends Model
         return $this->hasMany(BookingItem::class);
     }
 
+    public function booking_extras()
+    {
+        return $this->hasMany(BookingExtra::class);
+    }
+
     public function customer()
     {
         return $this->belongsTo(Customer::class, 'customer_id');

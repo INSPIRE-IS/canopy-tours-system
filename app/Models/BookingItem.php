@@ -74,6 +74,11 @@ class BookingItem extends Model
         return $this->hasMany(BookingPriceLine::class, 'booking_item_id', 'id');
     }
 
+    public function booking_extras()
+    {
+        return $this->hasMany(BookingExtra::class, 'booking_item_id', 'id');
+    }
+
     // public function booking_payments()
     // {
     //     return $this->hasMany(BookingPayment::class);

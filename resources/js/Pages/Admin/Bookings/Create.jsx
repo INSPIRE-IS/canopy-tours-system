@@ -183,6 +183,9 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
         bill_back: false,
         team_id: auth.user.team_id,
         pay_later: false,
+        meal_extra_enabled: false,
+        meal_extra_quantity: 0,
+        meal_extra_unit_price: '',
     });
     useEffect(() => {
         if (flash?.success) {
@@ -2021,6 +2024,9 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
     const currentActivityDisplayItem = hasCompleteCurrentActivity()
         ? {
             booking_total: Number(data.booking_total || 0),
+            adults: Number(data.adults || 0),
+            children: Number(data.children || 0),
+            guides: Number(data.guides || 0),
             pricing,
         }
         : null;
@@ -2029,6 +2035,12 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
         ...(activityItems.length > 0 && currentActivityDisplayItem ? [currentActivityDisplayItem] : []),
     ];
     const activityItemsTotal = visibleActivityItems.reduce((sum, item) => sum + Number(item.booking_total || 0), 0);
+    const mealExtraQuantity = visibleActivityItems.length > 0
+        ? visibleActivityItems.reduce((sum, item) => sum + Number(item.adults || 0) + Number(item.children || 0) + Number(item.guides || 0), 0)
+        : (Number(data.adults || 0) + Number(data.children || 0) + Number(data.guides || 0));
+    const mealExtraTotal = data.meal_extra_enabled
+        ? Number((mealExtraQuantity * Number(data.meal_extra_unit_price || 0)).toFixed(2))
+        : 0;
     const bookingTotalForPayment = visibleActivityItems.length > 0 ? activityItemsTotal : total;
     const payableTotalForPayment = visibleActivityItems.length > 0
         ? visibleActivityItems.reduce((sum, item) => {
@@ -2036,6 +2048,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
             return sum + (prepaid ? 0 : Number(item.booking_total || 0));
         }, 0)
         : (isPrepaidWholesalerVoucher ? 0 : total);
+    const payableTotalWithExtras = payableTotalForPayment + mealExtraTotal;
     const graduatedPromo = pricing?.applied_promotion?.type === 'graduated';
     const promoTotal = Number(pricing?.total_price ?? data.booking_total ?? 0);
     const promoAdjustmentTarget = graduatedPromo
@@ -2055,6 +2068,12 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
             setData('booking_total', nextTotal);
         }
     }, [pricing, totalAdult, totalChild, totalGuide, data.booking_total, setData]);
+
+    useEffect(() => {
+        if (Number(data.meal_extra_quantity || 0) !== Number(mealExtraQuantity || 0)) {
+            setData('meal_extra_quantity', mealExtraQuantity);
+        }
+    }, [mealExtraQuantity, data.meal_extra_quantity, setData]);
 
     // find currently selected discount from the list
     const selectedDiscount = discountList?.find(d => d.id === parseInt(discountId));
@@ -3036,6 +3055,43 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                 </div>
                             </div>
                         </div>
+                        <details className="mt-6 p-6 bg-white rounded-[10px] border border-secondary-100 shadow">
+                            <summary className="cursor-pointer text-booking-card-title">Booking Extras</summary>
+                            <div className="mt-4 grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                                <div className="mb-4 w-full">
+                                    <CustomCheckbox
+                                        label="Includes meal"
+                                        name="meal_extra_enabled"
+                                        checked={data.meal_extra_enabled}
+                                        onChange={handleChange}
+                                        errors={errors}
+                                    />
+                                </div>
+                                <div className="mb-4 w-full">
+                                    <div className="text-xs text-gray-500 mb-1">Meal qty follows total pax</div>
+                                    <div className="h-[48px] flex items-center rounded-[10px] border border-gray-300 px-4 text-sm text-gray-700">
+                                        {mealExtraQuantity}
+                                    </div>
+                                </div>
+                                <CustomInputText
+                                    title="Meal amount per pax"
+                                    name="meal_extra_unit_price"
+                                    type="number"
+                                    value={data.meal_extra_unit_price}
+                                    onChange={(e) => handleChange(e.target.name, e.target.value)}
+                                    errors={errors}
+                                />
+                                <div className="mb-4 w-full">
+                                    <div className="text-xs text-gray-500 mb-1">Meal extra total</div>
+                                    <div className="h-[48px] flex items-center rounded-[10px] border border-gray-300 bg-[#DBECFD4D] px-4 text-sm font-semibold text-[#4D81E7]">
+                                        R {mealExtraTotal.toFixed(2)}
+                                    </div>
+                                </div>
+                            </div>
+                            <p className="mt-3 text-xs text-gray-500">
+                                Extras show on the invoice and prefill the payment page additional amount. They stay separate from canopy tour value and Franchise Fees.
+                            </p>
+                        </details>
                         <div className="flex flex-wrap items-center justify-end gap-3 pt-4">
                             <BlueButton
                                 title="Add Another Activity"
@@ -3190,16 +3246,24 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                         <span className="text-booking-lbl-main-sub text-[#4D81E7]">R {Number(bookingTotalForPayment || 0).toFixed(2)}</span>
                                     </div>
                                 </div>
+                                {mealExtraTotal > 0 && (
+                                    <div className="flex items-center space-x-[37px]">
+                                        <span className="text-booking-lbl-main w-[160px] font-normal text-right">Booking extras</span>
+                                        <div className="flex items-center justify-between w-[417px] h-[43px] bg-[#DBECFD4D] pl-[17px] py-[12.5px] rounded-[6px]">
+                                            <span className="text-booking-lbl-main-sub text-[#4D81E7]">R {mealExtraTotal.toFixed(2)}</span>
+                                        </div>
+                                    </div>
+                                )}
                                 <div className="flex items-center space-x-[37px]">
                                     <span className="text-booking-lbl-main w-[160px] font-normal text-right">Deposit Due Today</span>
                                     <div className="flex items-center justify-between w-[417px] h-[43px] bg-[#DBECFD4D] pl-[17px] py-[12.5px] rounded-[6px]">
-                                        <span className="text-booking-lbl-main-sub text-[#AFAFAF]">R {((Number(data?.deposit_due) || 0) * (Number(payableTotalForPayment) || 0)).toFixed(2)}</span>
+                                        <span className="text-booking-lbl-main-sub text-[#AFAFAF]">R {((Number(data?.deposit_due) || 0) * (Number(payableTotalWithExtras) || 0)).toFixed(2)}</span>
                                     </div>
                                 </div>
                                 <div className="flex items-center space-x-[37px]">
                                     <span className="text-booking-lbl-main w-[160px] text-right">Total Due Today</span>
                                     <div className="flex items-center justify-between w-[417px] h-[43px] bg-[#DBECFD4D] pl-[17px] py-[12.5px] rounded-[6px]">
-                                        <span className="text-booking-lbl-main-sub text-[#FF0000]">R {((Number(data?.due_today) || 0) * (Number(payableTotalForPayment) || 0)).toFixed(2)}</span>
+                                        <span className="text-booking-lbl-main-sub text-[#FF0000]">R {((Number(data?.due_today) || 0) * (Number(payableTotalWithExtras) || 0)).toFixed(2)}</span>
                                     </div>
                                 </div>
                                 <div className="flex items-center space-x-[37px]">

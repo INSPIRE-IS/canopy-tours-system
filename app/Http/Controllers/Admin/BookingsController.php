@@ -10,6 +10,7 @@ use App\Mail\BookingMail;
 use App\Models\Alert;
 use App\Models\Booking;
 use App\Models\BookingDetail;
+use App\Models\BookingExtra;
 use App\Models\BookingFee;
 use App\Models\BookingInfo;
 use App\Models\BookingInventory;
@@ -953,6 +954,9 @@ class BookingsController extends Controller
             'rate_per_child' => 'numeric|nullable',
             'rate_per_guide' => 'numeric|nullable',
             'booking_total' => 'required_without:activity_items|nullable|numeric',
+            'meal_extra_enabled' => 'nullable|boolean',
+            'meal_extra_quantity' => 'nullable|numeric|min:0',
+            'meal_extra_unit_price' => 'nullable|numeric|min:0',
             'override_reason' => 'required_if:override_rates,1|nullable|string',
 
             'is_wholesaler' => 'boolean', //   "is_wholesaler" => "true"
@@ -983,7 +987,7 @@ class BookingsController extends Controller
                     'activity_count' => count($activityItems),
                 ]);
                 $message = "Booking {$booking->reference} saved successfully.";
-                if ($validated['pay_later'] || (float) ($booking->tot_paid ?? 0) >= (float) ($booking->grand_tot_due ?? 0)) {
+                if ($validated['pay_later'] || ((float) ($booking->tot_paid ?? 0) >= (float) ($booking->grand_tot_due ?? 0) && $this->bookingExtrasTotal($booking) <= 0)) {
                     return redirect()
                         ->route('admin.bookings.index')
                         ->with('success', $message);
@@ -1286,6 +1290,12 @@ class BookingsController extends Controller
                     'team_id'        => auth()->user()->team_id,
                 ]);
                 $this->refreshBookingPaymentTotals($booking, $amount);
+                $extrasTotal = $this->syncMealExtra(
+                    $booking,
+                    $booking_item,
+                    $validated,
+                    (float) ((int) ($validated['adults'] ?? 0) + (int) ($validated['children'] ?? 0) + (int) ($validated['guides'] ?? 0))
+                );
 
                 $this->syncBookingPriceLines($booking_item, $pricing, $validated['booking_date'], $inventoryTimeSlot->start_time, [
                     'team_id' => auth()->user()->team_id,
@@ -1313,8 +1323,9 @@ class BookingsController extends Controller
                     ->where('type_invoice_id', $invoiceTypeId)
                     ->where('team_id', auth()->user()->team_id)
                     ->first();
-                $amountExVat = round(($amount / 1.15), 2);
-                $vatAmount = round(($amount - $amountExVat), 2);
+                $invoiceTotal = round($amount + $extrasTotal, 2);
+                $amountExVat = round(($invoiceTotal / 1.15), 2);
+                $vatAmount = round(($invoiceTotal - $amountExVat), 2);
                 $invoice = Invoice::create([
                     'booking_id'     => $booking->id,
                     'gift_voucher_id'    => null,
@@ -1322,7 +1333,7 @@ class BookingsController extends Controller
                     'due_date'       => $validated['booking_date'],
                     'subtotal'       => $amountExVat,
                     'vat'            => $vatAmount,
-                    'total'          => $amount,
+                    'total'          => $invoiceTotal,
                     'status'         => 'draft',
                     'invoice_template_id'    => $template?->id,
                     'type_invoice_id' => $invoiceTypeId,
@@ -1416,7 +1427,7 @@ class BookingsController extends Controller
                         'due_date'       => $validated['booking_date'],
                         'subtotal'       => $amountExVat,
                         'vat'            => $vatAmount,
-                        'total'          => $amount,
+                        'total'          => $invoiceTotal,
                         'status'         => 'draft',
                         'invoice_template_id'    => $quoteTemplate?->id,
                         'type_invoice_id' => $quoteTypeId,
@@ -1609,7 +1620,7 @@ class BookingsController extends Controller
                 'booking' => $booking,
             ]);
             $message = "Booking {$booking->reference} saved successfully.";
-            if ($validated['pay_later'] || (float) ($booking->tot_paid ?? 0) >= (float) ($booking->grand_tot_due ?? 0)) {
+            if ($validated['pay_later'] || ((float) ($booking->tot_paid ?? 0) >= (float) ($booking->grand_tot_due ?? 0) && $this->bookingExtrasTotal($booking) <= 0)) {
                 return redirect()
                     ->route('admin.bookings.index')
                     ->with('success', $message);
@@ -1684,6 +1695,51 @@ class BookingsController extends Controller
             ->all();
     }
 
+    private function syncMealExtra(Booking $booking, ?BookingItem $bookingItem, array $payload, ?float $defaultQuantity = null): float
+    {
+        BookingExtra::where('booking_id', $booking->id)
+            ->where('type', BookingExtra::TYPE_MEAL)
+            ->delete();
+
+        if (empty($payload['meal_extra_enabled'])) {
+            return 0.0;
+        }
+
+        $quantity = round((float) ($payload['meal_extra_quantity'] ?? $defaultQuantity ?? 0), 2);
+        $unitPrice = round((float) ($payload['meal_extra_unit_price'] ?? 0), 2);
+        $total = round($quantity * $unitPrice, 2);
+
+        if ($quantity <= 0 || $unitPrice <= 0 || $total <= 0) {
+            return 0.0;
+        }
+
+        $quantityLabel = rtrim(rtrim(number_format($quantity, 2, '.', ''), '0'), '.');
+        BookingExtra::create([
+            'booking_id' => $booking->id,
+            'booking_item_id' => $bookingItem?->id,
+            'service_id' => $bookingItem?->service_id,
+            'team_id' => $booking->team_id,
+            'type' => BookingExtra::TYPE_MEAL,
+            'name' => 'Meal',
+            'description' => "Meal - {$quantityLabel} x R" . number_format($unitPrice, 2, '.', ''),
+            'quantity' => $quantity,
+            'unit_price' => $unitPrice,
+            'total_amount' => $total,
+            'exclude_from_franchise_fees' => true,
+            'meta' => [
+                'source' => 'admin_booking',
+                'pricing_note' => 'Excluded from Franchise Fees; collected as payment additional amount.',
+            ],
+        ]);
+
+        return $total;
+    }
+
+    private function bookingExtrasTotal(Booking $booking): float
+    {
+        return round((float) BookingExtra::where('booking_id', $booking->id)->sum('total_amount'), 2);
+    }
+
     private function storeMultiActivityBooking(array $validated, array $activityItems, bool $autoSendInvoice, bool $autoSendQuote): Booking
     {
         return DB::transaction(function () use ($validated, $activityItems, $autoSendInvoice, $autoSendQuote) {
@@ -1716,6 +1772,7 @@ class BookingsController extends Controller
             $totalAmount = 0.0;
             $invoiceLines = [];
             $wholesalerIds = [];
+            $firstBookingItem = null;
 
             foreach ($activityItems as $index => $activity) {
                 $season = Season::findOrFail($activity['season_id']);
@@ -1843,6 +1900,7 @@ class BookingsController extends Controller
                     'discount_id' => null,
                     'team_id' => $teamId,
                 ]);
+                $firstBookingItem ??= $bookingItem;
 
                 $bookingItem->customers()->sync([
                     $customer->id => [
@@ -1981,14 +2039,21 @@ class BookingsController extends Controller
             }
 
             $this->refreshBookingPaymentTotals($booking, round($totalAmount, 2));
+            $extrasTotal = $this->syncMealExtra(
+                $booking,
+                $firstBookingItem,
+                $validated,
+                (float) collect($activityItems)->sum(fn($item) => (int) ($item['adults'] ?? 0) + (int) ($item['children'] ?? 0) + (int) ($item['guides'] ?? 0))
+            );
 
             $invoiceTypeId = $this->getTypeInvoiceId(TypeInvoice::SLUG_STD);
             $template = InvoiceTemplate::where('is_default', true)
                 ->where('type_invoice_id', $invoiceTypeId)
                 ->where('team_id', $teamId)
                 ->first();
-            $amountExVat = round(($totalAmount / 1.15), 2);
-            $vatAmount = round(($totalAmount - $amountExVat), 2);
+            $invoiceTotal = round($totalAmount + $extrasTotal, 2);
+            $amountExVat = round(($invoiceTotal / 1.15), 2);
+            $vatAmount = round(($invoiceTotal - $amountExVat), 2);
             $invoice = Invoice::create([
                 'booking_id' => $booking->id,
                 'gift_voucher_id' => null,
@@ -1996,7 +2061,7 @@ class BookingsController extends Controller
                 'due_date' => $booking->due_date,
                 'subtotal' => $amountExVat,
                 'vat' => $vatAmount,
-                'total' => round($totalAmount, 2),
+                'total' => $invoiceTotal,
                 'status' => 'draft',
                 'invoice_template_id' => $template?->id,
                 'type_invoice_id' => $invoiceTypeId,
@@ -2082,6 +2147,7 @@ class BookingsController extends Controller
 
         $booking->load([
             'booking_payments', // :id,booking_id,amount
+            'booking_extras',
             'booking_discounts.booking_discount_items.discount',
             'customer',
         ]);
@@ -2101,6 +2167,7 @@ class BookingsController extends Controller
             'customers.booking_questionnaire', // :id,booking_id,customer_id,guide_id,safety_guide_id,type_group_id,fullname,email,signature,birth_date,type_referral,country_id,province_id,is_medical,medical_detail,is_fit,is_agree
             'booking_detail' => fn ($query) => $query->withTrashed(), //:id,booking_id ,start_time,end_time
             'booking_fee' => fn ($query) => $query->withTrashed(), //:id,booking_id,tot_amount
+            'booking_extras',
             'booking_inventory' => fn ($query) => $query->withTrashed(), // :id,booking_id,inventory_id
             'booking_inventory.inventory_time_slot' => fn ($query) => $query->withTrashed(),
             'booking_inventory.inventory_override' => fn ($query) => $query->withTrashed(),
@@ -2330,6 +2397,9 @@ class BookingsController extends Controller
             'rate_per_child' => 'numeric|nullable',
             'rate_per_guide' => 'numeric|nullable',
             'booking_total' => 'required|numeric',
+            'meal_extra_enabled' => 'nullable|boolean',
+            'meal_extra_quantity' => 'nullable|numeric|min:0',
+            'meal_extra_unit_price' => 'nullable|numeric|min:0',
             'override_reason' => 'required_if:override_rates,1|nullable|string',
 
             'is_wholesaler' => 'boolean',
@@ -2697,6 +2767,12 @@ class BookingsController extends Controller
                     'override_rates' => $overrideRates,
                     'override_reason' => $validated['override_reason'] ?? null,
                 ]);
+                $this->syncMealExtra(
+                    $booking,
+                    $bookingItem,
+                    $validated,
+                    (float) ($adultsCount + $childrenCount + $guidesCount)
+                );
 
                 $this->createBookingNotes($booking, $bookingItem, $validated);
                 $this->logAudit('Booking updated', $booking, $bookingItem, [
@@ -2752,6 +2828,7 @@ class BookingsController extends Controller
                     ->where('booking_id', $booking->id)
                     ->get();
                 $parentTotal = round((float) $invoiceBookingItems->sum(fn($item) => (float) ($item->booking_fee?->tot_amount ?? 0)), 2);
+                $extrasTotal = $this->bookingExtrasTotal($booking);
                 $this->refreshBookingPaymentTotals($booking, $parentTotal, [
                     'due_date' => $invoiceBookingItems
                         ->pluck('booking_inventory.date')
@@ -2789,8 +2866,9 @@ class BookingsController extends Controller
                     ->where('type_invoice_id', $invoiceTypeId)
                     ->where('team_id', auth()->user()->team_id)
                     ->first();
-                $amountExVat = round(($parentTotal / 1.15), 2);
-                $vatAmount = round(($parentTotal - $amountExVat), 2);
+                $invoiceTotal = round($parentTotal + $extrasTotal, 2);
+                $amountExVat = round(($invoiceTotal / 1.15), 2);
+                $vatAmount = round(($invoiceTotal - $amountExVat), 2);
                 $invoice = Invoice::create([
                     'booking_id'     => $booking->id,
                     'gift_voucher_id'    => null,
@@ -2798,7 +2876,7 @@ class BookingsController extends Controller
                     'due_date'       => $booking->due_date,
                     'subtotal'       => $amountExVat,
                     'vat'            => $vatAmount,
-                    'total'          => $parentTotal,
+                    'total'          => $invoiceTotal,
                     'status'         => 'draft',
                     'invoice_template_id'    => $template?->id,
                     'type_invoice_id' => $invoiceTypeId,
@@ -2888,7 +2966,7 @@ class BookingsController extends Controller
                         'due_date'       => $bookingDate,
                         'subtotal'       => $amountExVat,
                         'vat'            => $vatAmount,
-                        'total'          => $amount,
+                        'total'          => $invoiceTotal,
                         'status'         => 'draft',
                         'invoice_template_id'    => $quoteTemplate?->id,
                         'type_invoice_id' => $quoteTypeId,

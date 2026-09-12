@@ -158,6 +158,23 @@
                     </td>
                 </tr>
             @endforeach
+            @foreach($extras ?? [] as $extra)
+                <tr>
+                    <td class="border">
+                        {{ $extra['name'] ?? 'Extra' }}
+                        @if(!empty($extra['description']))
+                            <div class="mt-1">
+                                <small>{{ $extra['description'] }}</small>
+                            </div>
+                        @endif
+                    </td>
+                    <td class="border center" colspan="3">
+                        {{ rtrim(rtrim(number_format($extra['quantity'] ?? 0, 2), '0'), '.') }}
+                        x {{ number_format($extra['unit_price'] ?? 0, 2) }}
+                    </td>
+                    <td class="border right">{{ number_format($extra['total_amount'] ?? 0, 2) }}</td>
+                </tr>
+            @endforeach
         </tbody>
         <tfoot>
             <tr>
