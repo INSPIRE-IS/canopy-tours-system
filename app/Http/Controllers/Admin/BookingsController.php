@@ -4849,17 +4849,6 @@ class BookingsController extends Controller
             ->where('season_id', $season->id)
             ->first();
 
-        // outside season bounds
-        if ($startDate->lt(Carbon::parse($season->start_date)) || $endDate->gt(Carbon::parse($season->end_date))) {
-            return response()->json([
-                'schedule' => [],
-                'days'     => collect(CarbonPeriod::create($startDate, $endDate))
-                    ->map(fn(\Carbon\Carbon $d) => $d->format('D d'))
-                    ->values(),
-                'message'  => 'Selected date is outside the inventory availability period.',
-            ], 200);
-        }
-
         // booking data
         $rawBookingData = DB::table('bookings as b')
             ->leftJoin('booking_items as items', 'items.booking_id', '=', 'b.id')

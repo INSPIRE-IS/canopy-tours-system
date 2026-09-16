@@ -97,6 +97,18 @@ class ServiceCalendarBuilder
                 // $cutoff = now()->addDay(); // 24-hour lockout    
                 Log::info('cutoff' . $cutoff);
 
+                if ($date->lt($season->start_date) || $date->gt($season->end_date)) {
+                    $row['days'][$label] = [
+                        'date' => $dateStr,
+                        'slots' => 0,
+                        'status' => 'unavailable',
+                        'note' => 'Outside season',
+                        'internal_only' => false,
+                        'is_date_override' => false,
+                    ];
+                    continue;
+                }
+
                 $slotCapacity = (int) ($service->capacity ?? 0);
                 if ($hasSlotOverride) {
                     $overrideCapacity = is_array($overrideMeta) ? ($overrideMeta['capacity_override'] ?? null) : null;
