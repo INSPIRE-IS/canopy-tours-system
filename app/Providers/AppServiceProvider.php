@@ -33,7 +33,7 @@ class AppServiceProvider extends ServiceProvider
         $isSandboxMailEnvironment = app()->environment(['local', 'staging', 'development']);
 
         if ($isSandboxMailEnvironment) {
-            Log::info('Mail is set to sandbox');
+            // Log::info('Mail is set to sandbox');
             Mail::alwaysTo('sandbox@inspireonline.co.za');
 
             $subjectPrefix = config('mail.audit_subject_prefix') ?: '[' . app()->environment() . ']';

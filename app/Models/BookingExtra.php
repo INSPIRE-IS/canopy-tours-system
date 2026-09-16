@@ -13,6 +13,7 @@ class BookingExtra extends Model
     use HasFactory, SoftDeletes, MultiTenantModelTrait, Auditable;
 
     public const TYPE_MEAL = 'meal';
+    public const TYPE_CUSTOM = 'custom';
 
     protected $fillable = [
         'booking_id',
@@ -50,5 +51,10 @@ class BookingExtra extends Model
     public function service()
     {
         return $this->belongsTo(Service::class);
+    }
+
+    public function payment_allocations()
+    {
+        return $this->hasMany(BookingExtraPaymentAllocation::class);
     }
 }

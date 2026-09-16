@@ -186,6 +186,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
         meal_extra_enabled: false,
         meal_extra_quantity: 0,
         meal_extra_unit_price: '',
+        booking_extras: [],
     });
     useEffect(() => {
         if (flash?.success) {
@@ -2038,9 +2039,10 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
     const mealExtraQuantity = visibleActivityItems.length > 0
         ? visibleActivityItems.reduce((sum, item) => sum + Number(item.adults || 0) + Number(item.children || 0) + Number(item.guides || 0), 0)
         : (Number(data.adults || 0) + Number(data.children || 0) + Number(data.guides || 0));
-    const mealExtraTotal = data.meal_extra_enabled
-        ? Number((mealExtraQuantity * Number(data.meal_extra_unit_price || 0)).toFixed(2))
-        : 0;
+    const bookingExtras = Array.isArray(data.booking_extras) ? data.booking_extras : [];
+    const bookingExtrasTotal = bookingExtras.reduce((sum, extra) => {
+        return sum + (Number(extra.quantity || 0) * Number(extra.unit_price || 0));
+    }, 0);
     const bookingTotalForPayment = visibleActivityItems.length > 0 ? activityItemsTotal : total;
     const payableTotalForPayment = visibleActivityItems.length > 0
         ? visibleActivityItems.reduce((sum, item) => {
@@ -2048,7 +2050,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
             return sum + (prepaid ? 0 : Number(item.booking_total || 0));
         }, 0)
         : (isPrepaidWholesalerVoucher ? 0 : total);
-    const payableTotalWithExtras = payableTotalForPayment + mealExtraTotal;
+    const payableTotalWithExtras = payableTotalForPayment + bookingExtrasTotal;
     const graduatedPromo = pricing?.applied_promotion?.type === 'graduated';
     const promoTotal = Number(pricing?.total_price ?? data.booking_total ?? 0);
     const promoAdjustmentTarget = graduatedPromo
@@ -2069,11 +2071,22 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
         }
     }, [pricing, totalAdult, totalChild, totalGuide, data.booking_total, setData]);
 
-    useEffect(() => {
-        if (Number(data.meal_extra_quantity || 0) !== Number(mealExtraQuantity || 0)) {
-            setData('meal_extra_quantity', mealExtraQuantity);
-        }
-    }, [mealExtraQuantity, data.meal_extra_quantity, setData]);
+    const addBookingExtra = () => {
+        setData('booking_extras', [
+            ...bookingExtras,
+            { id: null, name: '', quantity: mealExtraQuantity || 1, unit_price: '' },
+        ]);
+    };
+
+    const updateBookingExtra = (index, field, value) => {
+        setData('booking_extras', bookingExtras.map((extra, currentIndex) => (
+            currentIndex === index ? { ...extra, [field]: value } : extra
+        )));
+    };
+
+    const removeBookingExtra = (index) => {
+        setData('booking_extras', bookingExtras.filter((_, currentIndex) => currentIndex !== index));
+    };
 
     // find currently selected discount from the list
     const selectedDiscount = discountList?.find(d => d.id === parseInt(discountId));
@@ -3057,36 +3070,62 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                         </div>
                         <details className="mt-6 p-6 bg-white rounded-[10px] border border-secondary-100 shadow">
                             <summary className="cursor-pointer text-booking-card-title">Booking Extras</summary>
-                            <div className="mt-4 grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-                                <div className="mb-4 w-full">
-                                    <CustomCheckbox
-                                        label="Includes meal"
-                                        name="meal_extra_enabled"
-                                        checked={data.meal_extra_enabled}
-                                        onChange={handleChange}
-                                        errors={errors}
-                                    />
-                                </div>
-                                <div className="mb-4 w-full">
-                                    <div className="text-xs text-gray-500 mb-1">Meal qty follows total pax</div>
-                                    <div className="h-[48px] flex items-center rounded-[10px] border border-gray-300 px-4 text-sm text-gray-700">
-                                        {mealExtraQuantity}
-                                    </div>
-                                </div>
-                                <CustomInputText
-                                    title="Meal amount per pax"
-                                    name="meal_extra_unit_price"
-                                    type="number"
-                                    value={data.meal_extra_unit_price}
-                                    onChange={(e) => handleChange(e.target.name, e.target.value)}
-                                    errors={errors}
-                                />
-                                <div className="mb-4 w-full">
-                                    <div className="text-xs text-gray-500 mb-1">Meal extra total</div>
-                                    <div className="h-[48px] flex items-center rounded-[10px] border border-gray-300 bg-[#DBECFD4D] px-4 text-sm font-semibold text-[#4D81E7]">
-                                        R {mealExtraTotal.toFixed(2)}
-                                    </div>
-                                </div>
+                            <div className="mt-4 space-y-3">
+                                {bookingExtras.length === 0 && (
+                                    <p className="text-sm text-gray-500">Add optional non-tour extras such as meals, braai, sandwiches, accommodation, or merchandise.</p>
+                                )}
+                                {bookingExtras.map((extra, index) => {
+                                    const extraTotal = Number(extra.quantity || 0) * Number(extra.unit_price || 0);
+                                    return (
+                                        <div key={index} className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end rounded-md border border-gray-200 p-3">
+                                            <div className="md:col-span-5">
+                                                <CustomInputText
+                                                    title="Extra description"
+                                                    name={`booking_extra_name_${index}`}
+                                                    type="text"
+                                                    value={extra.name || ''}
+                                                    onChange={(e) => updateBookingExtra(index, 'name', e.target.value)}
+                                                    errors={errors}
+                                                />
+                                            </div>
+                                            <div className="md:col-span-2">
+                                                <CustomInputText
+                                                    title="Qty / pax"
+                                                    name={`booking_extra_quantity_${index}`}
+                                                    type="number"
+                                                    value={extra.quantity}
+                                                    onChange={(e) => updateBookingExtra(index, 'quantity', e.target.value)}
+                                                    errors={errors}
+                                                />
+                                            </div>
+                                            <div className="md:col-span-2">
+                                                <CustomInputText
+                                                    title="Amount each"
+                                                    name={`booking_extra_unit_price_${index}`}
+                                                    type="number"
+                                                    value={extra.unit_price}
+                                                    onChange={(e) => updateBookingExtra(index, 'unit_price', e.target.value)}
+                                                    errors={errors}
+                                                />
+                                            </div>
+                                            <div className="md:col-span-2 mb-4">
+                                                <div className="text-xs text-gray-500 mb-1">Total</div>
+                                                <div className="h-[48px] flex items-center rounded-[10px] border border-gray-300 bg-[#DBECFD4D] px-4 text-sm font-semibold text-[#4D81E7]">
+                                                    R {extraTotal.toFixed(2)}
+                                                </div>
+                                            </div>
+                                            <div className="md:col-span-1 mb-4">
+                                                <button type="button" className="text-sm text-red-600" onClick={() => removeBookingExtra(index)}>Remove</button>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                                <button type="button" className="text-sm font-semibold text-[#4D81E7]" onClick={addBookingExtra}>
+                                    + Add extra
+                                </button>
+                                {bookingExtrasTotal > 0 && (
+                                    <div className="text-sm font-semibold text-[#4D81E7]">Extras total: R {bookingExtrasTotal.toFixed(2)}</div>
+                                )}
                             </div>
                             <p className="mt-3 text-xs text-gray-500">
                                 Extras show on the invoice and prefill the payment page additional amount. They stay separate from canopy tour value and Franchise Fees.
@@ -3246,11 +3285,11 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                         <span className="text-booking-lbl-main-sub text-[#4D81E7]">R {Number(bookingTotalForPayment || 0).toFixed(2)}</span>
                                     </div>
                                 </div>
-                                {mealExtraTotal > 0 && (
+                                {bookingExtrasTotal > 0 && (
                                     <div className="flex items-center space-x-[37px]">
                                         <span className="text-booking-lbl-main w-[160px] font-normal text-right">Booking extras</span>
                                         <div className="flex items-center justify-between w-[417px] h-[43px] bg-[#DBECFD4D] pl-[17px] py-[12.5px] rounded-[6px]">
-                                            <span className="text-booking-lbl-main-sub text-[#4D81E7]">R {mealExtraTotal.toFixed(2)}</span>
+                                            <span className="text-booking-lbl-main-sub text-[#4D81E7]">R {bookingExtrasTotal.toFixed(2)}</span>
                                         </div>
                                     </div>
                                 )}

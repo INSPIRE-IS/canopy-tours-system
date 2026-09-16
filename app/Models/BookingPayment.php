@@ -98,4 +98,9 @@ class BookingPayment extends Model
     {
         return $this->belongsTo(Team::class, 'team_id');
     }
+
+    public function booking_extra_payment_allocations()
+    {
+        return $this->hasMany(BookingExtraPaymentAllocation::class);
+    }
 }
