@@ -35,7 +35,7 @@ class HandleInertiaRequests extends Middleware
     public function share(Request $request): array
     {
         $sessionId = session()->getId() ?? null;
-        logger()->info('sessionId inertia ' . $sessionId);
+        // logger()->info('sessionId inertia ' . $sessionId);
         $user = $request->user();
         $teams = Team::all();
         $unreadCount = 0;

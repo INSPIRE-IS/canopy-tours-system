@@ -44,6 +44,7 @@ export default function Dashboard({ auth, booking, payment_history = [], booking
     const vatRate = Number(vatLookup.rate || 0);
     const vatMultiplier = Number(vatLookup.multiplier || (1 + vatRate));
     const paymentHistory = Array.isArray(payment_history) ? payment_history : [];
+    const bookingExtrasList = Array.isArray(booking_extras) ? booking_extras : [];
     const bookingItems = Array.isArray(booking?.booking_items) ? booking.booking_items : [];
     const isCancelledBooking = Boolean(booking?.deleted_at);
     const formatMoney = (value) => `R${Number(value || 0).toFixed(2)}`;
@@ -485,6 +486,21 @@ export default function Dashboard({ auth, booking, payment_history = [], booking
                                     <div className="sm:col-span-2 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
                                         <div className="font-semibold">Pending booking extra: R{pendingExtras.toFixed(2)}</div>
                                         <div>{pending_extras_note || 'Extra amount has been prefilled below.'}</div>
+                                        {bookingExtrasList.length > 0 && (
+                                            <div className="mt-2 space-y-1">
+                                                {bookingExtrasList.map((extra) => {
+                                                    const total = Number(extra.total_amount || 0);
+                                                    const allocated = Number(extra.allocated_amount || 0);
+                                                    const pending = Math.max(0, total - allocated);
+                                                    return (
+                                                        <div key={extra.id} className="flex flex-wrap justify-between gap-2 text-xs">
+                                                            <span>{extra.name || extra.description || 'Extra'} ({Number(extra.quantity || 0)} x R{Number(extra.unit_price || 0).toFixed(2)})</span>
+                                                            <span>Pending R{pending.toFixed(2)} / R{total.toFixed(2)}</span>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                                 <div>

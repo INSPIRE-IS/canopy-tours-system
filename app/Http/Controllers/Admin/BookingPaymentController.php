@@ -9,6 +9,7 @@ use App\Http\Requests\UpdateBookingPaymentRequest;
 use App\Mail\MessageGuestMail;
 use App\Models\Booking;
 use App\Models\BookingExtra;
+use App\Models\BookingExtraPaymentAllocation;
 use App\Models\BookingItem;
 use App\Models\BookingPayment;
 use App\Models\BookingVoucher;
@@ -80,7 +81,7 @@ class BookingPaymentController extends Controller
             'booking_items.booking_fee' => fn ($query) => $query->withTrashed(),
             'booking_items.booking_inventory' => fn ($query) => $query->withTrashed(),
             'booking_items.booking_inventory.inventory_time_slot' => fn ($query) => $query->withTrashed(),
-            'booking_extras',
+            'booking_extras.payment_allocations',
             'customer',
         ]);
         $latestPayment = BookingPayment::where('booking_id', $booking->id)
@@ -102,9 +103,16 @@ class BookingPaymentController extends Controller
                 'quantity' => (float) $extra->quantity,
                 'unit_price' => (float) $extra->unit_price,
                 'total_amount' => (float) $extra->total_amount,
+                'allocated_amount' => round((float) $extra->payment_allocations->sum('amount'), 2),
             ])
             ->values();
-        $pendingExtrasTotal = round(max(0, $bookingExtras->sum('total_amount') - $additionalRefundableAmount), 2);
+        $hasExtraAllocations = $booking->booking_extras
+            ->flatMap(fn(BookingExtra $extra) => $extra->payment_allocations)
+            ->isNotEmpty();
+        $allocatedExtrasTotal = round((float) $bookingExtras->sum('allocated_amount'), 2);
+        $pendingExtrasTotal = $hasExtraAllocations
+            ? round(max(0, $bookingExtras->sum('total_amount') - $allocatedExtrasTotal), 2)
+            : round(max(0, $bookingExtras->sum('total_amount') - $additionalRefundableAmount), 2);
         $pendingExtrasNote = $bookingExtras
             ->map(function (array $extra) {
                 if (!empty($extra['description'])) {
@@ -309,6 +317,8 @@ class BookingPaymentController extends Controller
                     'updated_by_id' => $validated['updated_by_id'],
                     'team_id' => $validated['team_id'],
                 ]);
+
+                $this->allocateAdditionalAmountToBookingExtras($booking, $bookingPayment, $additionalAmount, 'payment', $additionalPaymentNote);
 
                 $booking->update([
                     'status_payment_id' => $validated['status_payment_id'],
@@ -627,6 +637,8 @@ class BookingPaymentController extends Controller
                     });
 
                     $this->regenerateInvoicePdf($booking);
+                } elseif ($additionalRefundTotal > 0) {
+                    $this->allocateAdditionalAmountToBookingExtras($booking, $payment, -$additionalRefundTotal, 'refund', $note);
                 }
 
                 AuditLog::create([
@@ -882,6 +894,47 @@ class BookingPaymentController extends Controller
         Mail::to($customer->email_address)->send(new MessageGuestMail($subject, $content));
 
         return response()->json(['success' => true]);
+    }
+
+    private function allocateAdditionalAmountToBookingExtras(Booking $booking, BookingPayment $payment, float $amount, string $type, ?string $note = null): void
+    {
+        if (abs($amount) < 0.01) {
+            return;
+        }
+
+        $remaining = round(abs($amount), 2);
+        $extras = BookingExtra::with('payment_allocations')
+            ->where('booking_id', $booking->id)
+            ->orderBy('id', $amount > 0 ? 'asc' : 'desc')
+            ->get();
+
+        foreach ($extras as $extra) {
+            if ($remaining <= 0) {
+                break;
+            }
+
+            $allocated = round((float) $extra->payment_allocations->sum('amount'), 2);
+            $available = $amount > 0
+                ? round(max(0, (float) $extra->total_amount - $allocated), 2)
+                : round(max(0, $allocated), 2);
+
+            if ($available <= 0) {
+                continue;
+            }
+
+            $allocationAmount = round(min($remaining, $available), 2);
+            BookingExtraPaymentAllocation::create([
+                'booking_id' => $booking->id,
+                'booking_extra_id' => $extra->id,
+                'booking_payment_id' => $payment->id,
+                'amount' => $amount > 0 ? $allocationAmount : -$allocationAmount,
+                'allocation_type' => $type,
+                'note' => $note,
+                'team_id' => $booking->team_id,
+            ]);
+
+            $remaining = round($remaining - $allocationAmount, 2);
+        }
     }
 
     public function edit(Booking $booking)

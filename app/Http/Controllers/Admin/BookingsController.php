@@ -957,6 +957,12 @@ class BookingsController extends Controller
             'meal_extra_enabled' => 'nullable|boolean',
             'meal_extra_quantity' => 'nullable|numeric|min:0',
             'meal_extra_unit_price' => 'nullable|numeric|min:0',
+            'booking_extras' => 'nullable|array',
+            'booking_extras.*.id' => 'nullable|integer|exists:booking_extras,id',
+            'booking_extras.*.name' => 'nullable|string|max:255',
+            'booking_extras.*.description' => 'nullable|string|max:255',
+            'booking_extras.*.quantity' => 'nullable|numeric|min:0',
+            'booking_extras.*.unit_price' => 'nullable|numeric|min:0',
             'override_reason' => 'required_if:override_rates,1|nullable|string',
 
             'is_wholesaler' => 'boolean', //   "is_wholesaler" => "true"
@@ -1290,7 +1296,7 @@ class BookingsController extends Controller
                     'team_id'        => auth()->user()->team_id,
                 ]);
                 $this->refreshBookingPaymentTotals($booking, $amount);
-                $extrasTotal = $this->syncMealExtra(
+                $extrasTotal = $this->syncBookingExtras(
                     $booking,
                     $booking_item,
                     $validated,
@@ -1695,44 +1701,98 @@ class BookingsController extends Controller
             ->all();
     }
 
-    private function syncMealExtra(Booking $booking, ?BookingItem $bookingItem, array $payload, ?float $defaultQuantity = null): float
+    private function syncBookingExtras(Booking $booking, ?BookingItem $bookingItem, array $payload, ?float $defaultQuantity = null): float
     {
+        $incomingExtras = $this->normaliseBookingExtras($payload, $defaultQuantity);
+        $existingIds = BookingExtra::withTrashed()
+            ->where('booking_id', $booking->id)
+            ->pluck('id')
+            ->map(fn($id) => (int) $id)
+            ->all();
+        $incomingExtras = array_map(function (array $extra) use ($existingIds) {
+            if (!empty($extra['id']) && !in_array((int) $extra['id'], $existingIds, true)) {
+                $extra['id'] = null;
+            }
+
+            return $extra;
+        }, $incomingExtras);
+        $incomingIds = collect($incomingExtras)->pluck('id')->filter()->map(fn($id) => (int) $id)->all();
+
         BookingExtra::where('booking_id', $booking->id)
-            ->where('type', BookingExtra::TYPE_MEAL)
+            ->when(!empty($incomingIds), fn($query) => $query->whereNotIn('id', $incomingIds))
             ->delete();
 
-        if (empty($payload['meal_extra_enabled'])) {
+        if (empty($incomingExtras)) {
             return 0.0;
         }
 
-        $quantity = round((float) ($payload['meal_extra_quantity'] ?? $defaultQuantity ?? 0), 2);
-        $unitPrice = round((float) ($payload['meal_extra_unit_price'] ?? 0), 2);
-        $total = round($quantity * $unitPrice, 2);
+        $total = 0.0;
+        foreach ($incomingExtras as $extra) {
+            $data = [
+                'booking_id' => $booking->id,
+                'booking_item_id' => $bookingItem?->id,
+                'service_id' => $bookingItem?->service_id,
+                'team_id' => $booking->team_id,
+                'type' => BookingExtra::TYPE_CUSTOM,
+                'name' => $extra['name'],
+                'description' => $extra['description'],
+                'quantity' => $extra['quantity'],
+                'unit_price' => $extra['unit_price'],
+                'total_amount' => $extra['total_amount'],
+                'exclude_from_franchise_fees' => true,
+                'meta' => [
+                    'source' => 'admin_booking',
+                    'pricing_note' => 'Excluded from Franchise Fees; collected as payment additional amount.',
+                ],
+            ];
 
-        if ($quantity <= 0 || $unitPrice <= 0 || $total <= 0) {
-            return 0.0;
+            if (!empty($extra['id'])) {
+                BookingExtra::where('booking_id', $booking->id)
+                    ->where('id', $extra['id'])
+                    ->update($data);
+            } else {
+                BookingExtra::create($data);
+            }
+
+            $total = round($total + $extra['total_amount'], 2);
         }
-
-        $quantityLabel = rtrim(rtrim(number_format($quantity, 2, '.', ''), '0'), '.');
-        BookingExtra::create([
-            'booking_id' => $booking->id,
-            'booking_item_id' => $bookingItem?->id,
-            'service_id' => $bookingItem?->service_id,
-            'team_id' => $booking->team_id,
-            'type' => BookingExtra::TYPE_MEAL,
-            'name' => 'Meal',
-            'description' => "Meal - {$quantityLabel} x R" . number_format($unitPrice, 2, '.', ''),
-            'quantity' => $quantity,
-            'unit_price' => $unitPrice,
-            'total_amount' => $total,
-            'exclude_from_franchise_fees' => true,
-            'meta' => [
-                'source' => 'admin_booking',
-                'pricing_note' => 'Excluded from Franchise Fees; collected as payment additional amount.',
-            ],
-        ]);
 
         return $total;
+    }
+
+    private function normaliseBookingExtras(array $payload, ?float $defaultQuantity = null): array
+    {
+        $rows = $payload['booking_extras'] ?? [];
+        if (empty($rows) && !empty($payload['meal_extra_enabled'])) {
+            $rows = [[
+                'name' => 'Meal',
+                'quantity' => $payload['meal_extra_quantity'] ?? $defaultQuantity ?? 0,
+                'unit_price' => $payload['meal_extra_unit_price'] ?? 0,
+            ]];
+        }
+
+        return collect(is_array($rows) ? $rows : [])
+            ->filter(fn($row) => is_array($row))
+            ->map(function (array $row) {
+                $quantity = round((float) ($row['quantity'] ?? 0), 2);
+                $unitPrice = round((float) ($row['unit_price'] ?? 0), 2);
+                $total = round($quantity * $unitPrice, 2);
+                $name = trim((string) ($row['name'] ?? $row['description'] ?? ''));
+                $name = $name !== '' ? $name : 'Extra';
+                $quantityLabel = rtrim(rtrim(number_format($quantity, 2, '.', ''), '0'), '.');
+
+                return [
+                    'id' => !empty($row['id']) ? (int) $row['id'] : null,
+                    'name' => $name,
+                    'description' => trim((string) ($row['description'] ?? '')) ?: "{$name} - {$quantityLabel} x R" . number_format($unitPrice, 2, '.', ''),
+                    'quantity' => $quantity,
+                    'unit_price' => $unitPrice,
+                    'total_amount' => $total,
+                ];
+            })
+            ->filter(fn($row) => $row['quantity'] > 0 && $row['unit_price'] > 0 && $row['total_amount'] > 0)
+            ->values()
+            ->all();
     }
 
     private function bookingExtrasTotal(Booking $booking): float
@@ -2039,7 +2099,7 @@ class BookingsController extends Controller
             }
 
             $this->refreshBookingPaymentTotals($booking, round($totalAmount, 2));
-            $extrasTotal = $this->syncMealExtra(
+            $extrasTotal = $this->syncBookingExtras(
                 $booking,
                 $firstBookingItem,
                 $validated,
@@ -2400,6 +2460,12 @@ class BookingsController extends Controller
             'meal_extra_enabled' => 'nullable|boolean',
             'meal_extra_quantity' => 'nullable|numeric|min:0',
             'meal_extra_unit_price' => 'nullable|numeric|min:0',
+            'booking_extras' => 'nullable|array',
+            'booking_extras.*.id' => 'nullable|integer|exists:booking_extras,id',
+            'booking_extras.*.name' => 'nullable|string|max:255',
+            'booking_extras.*.description' => 'nullable|string|max:255',
+            'booking_extras.*.quantity' => 'nullable|numeric|min:0',
+            'booking_extras.*.unit_price' => 'nullable|numeric|min:0',
             'override_reason' => 'required_if:override_rates,1|nullable|string',
 
             'is_wholesaler' => 'boolean',
@@ -2767,7 +2833,7 @@ class BookingsController extends Controller
                     'override_rates' => $overrideRates,
                     'override_reason' => $validated['override_reason'] ?? null,
                 ]);
-                $this->syncMealExtra(
+                $this->syncBookingExtras(
                     $booking,
                     $bookingItem,
                     $validated,
