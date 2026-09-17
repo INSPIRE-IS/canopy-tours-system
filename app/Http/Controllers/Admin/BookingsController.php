@@ -957,12 +957,7 @@ class BookingsController extends Controller
             'meal_extra_enabled' => 'nullable|boolean',
             'meal_extra_quantity' => 'nullable|numeric|min:0',
             'meal_extra_unit_price' => 'nullable|numeric|min:0',
-            'booking_extras' => 'nullable|array',
-            'booking_extras.*.id' => 'nullable|integer|exists:booking_extras,id',
-            'booking_extras.*.name' => 'nullable|string|max:255',
-            'booking_extras.*.description' => 'nullable|string|max:255',
-            'booking_extras.*.quantity' => 'nullable|numeric|min:0',
-            'booking_extras.*.unit_price' => 'nullable|numeric|min:0',
+            ...$this->bookingExtraValidationRules(),
             'override_reason' => 'required_if:override_rates,1|nullable|string',
 
             'is_wholesaler' => 'boolean', //   "is_wholesaler" => "true"
@@ -975,7 +970,7 @@ class BookingsController extends Controller
             'pay_later' => 'boolean', //   "pay_later" => "true"
             'send_invoice' => 'boolean',
             'send_quote' => 'boolean',
-        ]);
+        ], $this->bookingExtraValidationMessages());
         $teamId = (int) auth()->user()->team_id;
         $settings = LookupItem::settingsForTeam($teamId);
         $pickupEnabled = $settings['enable_pickup_dropoff'] ?? true;
@@ -1779,12 +1774,10 @@ class BookingsController extends Controller
                 $total = round($quantity * $unitPrice, 2);
                 $name = trim((string) ($row['name'] ?? $row['description'] ?? ''));
                 $name = $name !== '' ? $name : 'Extra';
-                $quantityLabel = rtrim(rtrim(number_format($quantity, 2, '.', ''), '0'), '.');
-
                 return [
                     'id' => !empty($row['id']) ? (int) $row['id'] : null,
                     'name' => $name,
-                    'description' => trim((string) ($row['description'] ?? '')) ?: "{$name} - {$quantityLabel} x R" . number_format($unitPrice, 2, '.', ''),
+                    'description' => trim((string) ($row['description'] ?? '')) ?: null,
                     'quantity' => $quantity,
                     'unit_price' => $unitPrice,
                     'total_amount' => $total,
@@ -1793,6 +1786,33 @@ class BookingsController extends Controller
             ->filter(fn($row) => $row['quantity'] > 0 && $row['unit_price'] > 0 && $row['total_amount'] > 0)
             ->values()
             ->all();
+    }
+
+    private function bookingExtraValidationRules(): array
+    {
+        return [
+            'booking_extras' => 'nullable|array',
+            'booking_extras.*' => 'required|array',
+            'booking_extras.*.id' => 'nullable|integer|exists:booking_extras,id',
+            'booking_extras.*.name' => 'required|string|max:30',
+            'booking_extras.*.description' => 'nullable|string|max:255',
+            'booking_extras.*.quantity' => 'required|integer|min:1',
+            'booking_extras.*.unit_price' => 'required|numeric|min:0.01|decimal:0,2',
+        ];
+    }
+
+    private function bookingExtraValidationMessages(): array
+    {
+        return [
+            'booking_extras.*.name.required' => 'Enter an item name for this extra.',
+            'booking_extras.*.name.max' => 'Use 30 characters or fewer for the extra item.',
+            'booking_extras.*.quantity.required' => 'Enter a quantity for this extra.',
+            'booking_extras.*.quantity.integer' => 'Extra quantity must be a whole number.',
+            'booking_extras.*.quantity.min' => 'Extra quantity must be at least 1.',
+            'booking_extras.*.unit_price.required' => 'Enter an amount for this extra.',
+            'booking_extras.*.unit_price.min' => 'Extra amount must be greater than zero.',
+            'booking_extras.*.unit_price.decimal' => 'Extra amount must have no more than two decimal places.',
+        ];
     }
 
     private function bookingExtrasTotal(Booking $booking): float
@@ -2460,12 +2480,7 @@ class BookingsController extends Controller
             'meal_extra_enabled' => 'nullable|boolean',
             'meal_extra_quantity' => 'nullable|numeric|min:0',
             'meal_extra_unit_price' => 'nullable|numeric|min:0',
-            'booking_extras' => 'nullable|array',
-            'booking_extras.*.id' => 'nullable|integer|exists:booking_extras,id',
-            'booking_extras.*.name' => 'nullable|string|max:255',
-            'booking_extras.*.description' => 'nullable|string|max:255',
-            'booking_extras.*.quantity' => 'nullable|numeric|min:0',
-            'booking_extras.*.unit_price' => 'nullable|numeric|min:0',
+            ...$this->bookingExtraValidationRules(),
             'override_reason' => 'required_if:override_rates,1|nullable|string',
 
             'is_wholesaler' => 'boolean',
@@ -2478,7 +2493,7 @@ class BookingsController extends Controller
             'pay_later' => 'boolean',
             'send_invoice' => 'boolean',
             'send_quote' => 'boolean',
-        ]);
+        ], $this->bookingExtraValidationMessages());
         $teamId = (int) auth()->user()->team_id;
         abort_if((int) $booking->team_id !== $teamId, 403);
 
