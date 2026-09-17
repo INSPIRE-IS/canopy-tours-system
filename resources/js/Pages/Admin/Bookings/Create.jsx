@@ -92,6 +92,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
     const lastSlotWarningRef = useRef('');
     const lastCapacityWarningRef = useRef('');
     const lastPricingKeyRef = useRef('');
+    const bookingExtrasRef = useRef(null);
     const canOverrideCapacity = !!selectedService?.allow_internal_capacity_override;
     const canOverrideRates = !!selectedSeason?.allow_internal_price_override;
     const canOverrideTimeSlots = !!selectedSeason?.inventory?.allow_internal_override;
@@ -115,7 +116,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
     };
 
     // console.log('schedule ',schedule);
-    const { data, setData, post, processing, errors, transform } = useForm({
+    const { data, setData, post, processing, errors, clearErrors, transform } = useForm({
         is_wholesaler: false,
         wholesaler_id: '',
         add_consultant: false,
@@ -1882,9 +1883,15 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                 }
             },
             onError: (errs) => {
-                const msg = errs?.booking_total || errs?.start_time || errs?.booking_date || 'Please fix the highlighted fields and try again.';
+                const extraError = Object.entries(errs || {}).find(([key]) => key.startsWith('booking_extras.'));
+                const msg = extraError?.[1] || errs?.booking_total || errs?.start_time || errs?.booking_date || 'Please fix the highlighted fields and try again.';
                 showToast(msg, 'error');
-                window.scrollTo({ top: 0, behavior: 'smooth' });
+                if (extraError && bookingExtrasRef.current) {
+                    bookingExtrasRef.current.open = true;
+                    bookingExtrasRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                } else {
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                }
             },
         });
     };
@@ -2079,12 +2086,15 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
     };
 
     const updateBookingExtra = (index, field, value) => {
+        clearErrors(`booking_extras.${index}.${field}`);
         setData('booking_extras', bookingExtras.map((extra, currentIndex) => (
             currentIndex === index ? { ...extra, [field]: value } : extra
         )));
     };
 
     const removeBookingExtra = (index) => {
+        const extraErrorKeys = Object.keys(errors).filter(key => key.startsWith('booking_extras.'));
+        if (extraErrorKeys.length) clearErrors(...extraErrorKeys);
         setData('booking_extras', bookingExtras.filter((_, currentIndex) => currentIndex !== index));
     };
 
@@ -3068,7 +3078,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                 </div>
                             </div>
                         </div>
-                        <details className="mt-6 p-6 bg-white rounded-[10px] border border-secondary-100 shadow">
+                        <details ref={bookingExtrasRef} className="mt-6 p-6 bg-white rounded-[10px] border border-secondary-100 shadow">
                             <summary className="cursor-pointer text-booking-card-title">Booking Extras</summary>
                             <div className="mt-4 space-y-3">
                                 {bookingExtras.length === 0 && (
@@ -3077,52 +3087,57 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                                 {bookingExtras.map((extra, index) => {
                                     const extraTotal = Number(extra.quantity || 0) * Number(extra.unit_price || 0);
                                     return (
-                                        <div key={index} className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end rounded-md border border-gray-200 p-3">
-                                            <div className="md:col-span-5">
+                                        <div key={index} className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-end rounded-md border border-gray-200 p-3">
+                                            <div className="min-w-0 lg:col-span-4">
                                                 <CustomInputText
-                                                    title="Extra description"
-                                                    name={`booking_extra_name_${index}`}
+                                                    title="Extra item (max 30 characters)"
+                                                    name={`booking_extras.${index}.name`}
                                                     type="text"
+                                                    maxLength={30}
                                                     value={extra.name || ''}
                                                     onChange={(e) => updateBookingExtra(index, 'name', e.target.value)}
                                                     errors={errors}
                                                 />
                                             </div>
-                                            <div className="md:col-span-2">
+                                            <div className="min-w-0 lg:col-span-2">
                                                 <CustomInputText
-                                                    title="Qty / pax"
-                                                    name={`booking_extra_quantity_${index}`}
+                                                    title="Quantity"
+                                                    name={`booking_extras.${index}.quantity`}
                                                     type="number"
+                                                    min="1"
+                                                    step="1"
                                                     value={extra.quantity}
                                                     onChange={(e) => updateBookingExtra(index, 'quantity', e.target.value)}
                                                     errors={errors}
                                                 />
                                             </div>
-                                            <div className="md:col-span-2">
+                                            <div className="min-w-0 lg:col-span-2">
                                                 <CustomInputText
                                                     title="Amount each"
-                                                    name={`booking_extra_unit_price_${index}`}
+                                                    name={`booking_extras.${index}.unit_price`}
                                                     type="number"
+                                                    min="0.01"
+                                                    step="0.01"
                                                     value={extra.unit_price}
                                                     onChange={(e) => updateBookingExtra(index, 'unit_price', e.target.value)}
                                                     errors={errors}
                                                 />
                                             </div>
-                                            <div className="md:col-span-2 mb-4">
+                                            <div className="min-w-0 lg:col-span-2 mb-4">
                                                 <div className="text-xs text-gray-500 mb-1">Total</div>
                                                 <div className="h-[48px] flex items-center rounded-[10px] border border-gray-300 bg-[#DBECFD4D] px-4 text-sm font-semibold text-[#4D81E7]">
                                                     R {extraTotal.toFixed(2)}
                                                 </div>
                                             </div>
-                                            <div className="md:col-span-1 mb-4">
-                                                <button type="button" className="text-sm text-red-600" onClick={() => removeBookingExtra(index)}>Remove</button>
+                                            <div className="min-w-0 lg:col-span-2 mb-4">
+                                                <button type="button" className="flex h-[40px] w-full items-center justify-center rounded-[10px] border-[3px] border-[#C65468] bg-red-gradient-overlay px-4 py-2 text-white shadow-inset-white disabled:cursor-not-allowed disabled:opacity-50" onClick={() => removeBookingExtra(index)} disabled={processing}>
+                                                    <span className="text-btn-outline-gray">Remove</span>
+                                                </button>
                                             </div>
                                         </div>
                                     );
                                 })}
-                                <button type="button" className="text-sm font-semibold text-[#4D81E7]" onClick={addBookingExtra}>
-                                    + Add extra
-                                </button>
+                                <BlueButton title="Add extra" type="button" icon width="w-auto" onClick={addBookingExtra} disabled={processing} />
                                 {bookingExtrasTotal > 0 && (
                                     <div className="text-sm font-semibold text-[#4D81E7]">Extras total: R {bookingExtrasTotal.toFixed(2)}</div>
                                 )}
