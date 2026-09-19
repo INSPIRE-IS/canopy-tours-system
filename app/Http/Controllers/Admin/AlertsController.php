@@ -183,7 +183,8 @@ class AlertsController extends Controller
 
     public function resolve(Request $request, Alert $alert)
     {
-        $user = auth()->user();
+        /** @var User|null $user */
+        $user = $request->user();
         abort_if(!$user, Response::HTTP_FORBIDDEN, '403 Forbidden');
 
         $validated = $request->validate([

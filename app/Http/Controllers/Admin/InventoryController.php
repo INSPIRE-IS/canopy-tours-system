@@ -17,6 +17,7 @@ use App\Models\Service;
 use App\Models\TypeDay;
 use App\Models\TypeTimeSlot;
 use App\Models\User;
+use App\Services\Calendar\ServiceCalendarBuilder;
 use Gate;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -166,8 +167,18 @@ class InventoryController extends Controller
 
         $bookingData = $rawBookingData->keyBy(fn($row) => $row->date . '_' . $row->time);
 
-        $schedule = app(\App\Services\Calendar\ServiceCalendarBuilder::class)
-            ->build($inventory, $season, $service, $bookingData, $startDate, $endDate, 0, null, null, true);
+        $schedule = ServiceCalendarBuilder::build(
+            $inventory,
+            $season,
+            $service,
+            $bookingData,
+            $startDate,
+            $endDate,
+            0,
+            null,
+            null,
+            true
+        );
 
         return response()->json([
             'inventory' => [

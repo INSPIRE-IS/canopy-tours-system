@@ -69,8 +69,18 @@ class InspectAvailability extends Command
 
         $teamId = $this->option('team') ? (int) $this->option('team') : (int) ($service->team_id ?? $season->team_id ?? 0);
         $bookingData = $this->bookingData($inventory->id, $teamId, $startDate, $endDate);
-        $calendar = app(ServiceCalendarBuilder::class)
-            ->build($inventory, $season, $service, $bookingData, $startDate, $endDate, 0, null, null, true);
+        $calendar = ServiceCalendarBuilder::build(
+            $inventory,
+            $season,
+            $service,
+            $bookingData,
+            $startDate,
+            $endDate,
+            0,
+            null,
+            null,
+            true
+        );
         $actualMap = $this->actualCalendarMap($calendar);
 
         $overrideDates = $this->overrideDates($inventory->id, $startDate, $endDate);

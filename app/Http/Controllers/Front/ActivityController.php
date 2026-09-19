@@ -262,6 +262,7 @@ class ActivityController extends Controller
             abort(404);
         }
         // dd($season->service);
+        /** @var Inventory|null $inventory */
         $inventory = $season->inventory;
 
         if (!$inventory) {
@@ -327,7 +328,6 @@ class ActivityController extends Controller
                 ->values(),
             'i_adults' => $request->input('adults', 0),
             'i_children' => $request->input('children', 0),
-            'start_date' => $request->input('start_date', now()),
             'availableTimes' => [],
             'team' => $team,
             'countries' => $countries,
@@ -373,6 +373,7 @@ class ActivityController extends Controller
             abort(404);
         }
 
+        /** @var Inventory|null $inventory */
         $inventory = Inventory::with(['inventory_type_days', 'inventory_time_slots'])
             ->where('season_id', $season->id)
             ->first();
@@ -416,8 +417,18 @@ class ActivityController extends Controller
 
 
         // build schedule (still extendable with promo/closeout)
-        $schedule = app(\App\Services\Calendar\ServiceCalendarBuilder::class)
-            ->build($inventory, $season, $service, $bookingData, $startDate, $endDate, $totalRequested, null, null, false);
+        $schedule = ServiceCalendarBuilder::build(
+            $inventory,
+            $season,
+            $service,
+            $bookingData,
+            $startDate,
+            $endDate,
+            $totalRequested,
+            null,
+            null,
+            false
+        );
 
         return response()->json([
             'schedule' => $schedule,
