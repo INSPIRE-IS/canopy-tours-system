@@ -68,6 +68,7 @@ use App\Models\TypeInvoice;
 use App\Models\Questionnaire;
 use App\Models\State;
 use App\Models\Team;
+use App\Services\Calendar\ServiceCalendarBuilder;
 use App\Models\TypeAlert;
 use App\Models\TypeBooking;
 use App\Models\TypeConfirmation;
@@ -826,7 +827,7 @@ class BookingsController extends Controller
             })
             ->with([
                 'seasons' => function ($query) use ($today) {
-                    $query->select('id', 'name', 'start_date', 'end_date', 'service_id', 'rake_rate_adult', 'rake_rate_child', 'rake_rate_guide', 'allow_internal_price_override', 'status')
+                    $query->select('id', 'name', 'start_date', 'end_date', 'service_id', 'rake_rate_adult', 'rake_rate_child', 'rake_rate_guide', 'allow_internal_price_override', 'internal_only', 'status')
                         ->whereDate('end_date', '>=', $today);
                 },
                 'seasons.inventory',
@@ -5096,8 +5097,18 @@ class BookingsController extends Controller
                 'pax' => (int) $request->input('current_booking_pax', 0),
             ];
         }
-        $schedule = app(\App\Services\Calendar\ServiceCalendarBuilder::class)
-            ->build($inventory, $season, $service, $bookingData, $startDate, $endDate, $totalRequested, $startTime, $currentBooking, true);
+        $schedule = ServiceCalendarBuilder::build(
+            $inventory,
+            $season,
+            $service,
+            $bookingData,
+            $startDate,
+            $endDate,
+            $totalRequested,
+            $startTime,
+            $currentBooking,
+            true
+        );
 
         return response()->json([
             'schedule' => $schedule,

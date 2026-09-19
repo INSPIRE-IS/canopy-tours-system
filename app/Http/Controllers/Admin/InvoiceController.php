@@ -124,7 +124,6 @@ class InvoiceController extends Controller
         //$template = file_get_contents('invoice-template.html');
 
         $data = [
-            'logo' => '<img src="/assets/icons/logo-icon.png" alt="Logo" style="max-height:50px;">',
             'site' => [
                 'name' => 'Magoebaskloof Canopy Tours',
                 'reg_no' => '2008/018998/07',
@@ -261,7 +260,6 @@ class InvoiceController extends Controller
             '{{children}}'            => $data['service']['children'] ?? '',
             '{{guides}}'              => $data['service']['guides'] ?? '',
             '{{notes}}'               => $data['notes'] ?? '',
-            '{{logo}}'                => $data['logo'] ?? '',
             '{{bank_account_owner}}'  => $data['bank']['owner'] ?? '',
             '{{bank_account_no}}'     => $data['bank']['number'] ?? '',
             '{{bank_account_type}}'   => $data['bank']['type'] ?? '',

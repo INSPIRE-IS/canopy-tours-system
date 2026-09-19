@@ -75,12 +75,12 @@ class BookingPaymentController extends Controller
         $updated_bies = User::select('name', 'id')->get();
 
         $booking->load([
-            'booking_items' => fn ($query) => $query->withTrashed(),
+            'booking_items' => fn($query) => $query->withTrashed(),
             'booking_items.service',
             'booking_items.season',
-            'booking_items.booking_fee' => fn ($query) => $query->withTrashed(),
-            'booking_items.booking_inventory' => fn ($query) => $query->withTrashed(),
-            'booking_items.booking_inventory.inventory_time_slot' => fn ($query) => $query->withTrashed(),
+            'booking_items.booking_fee' => fn($query) => $query->withTrashed(),
+            'booking_items.booking_inventory' => fn($query) => $query->withTrashed(),
+            'booking_items.booking_inventory.inventory_time_slot' => fn($query) => $query->withTrashed(),
             'booking_extras.payment_allocations',
             'customer',
         ]);
@@ -153,7 +153,7 @@ class BookingPaymentController extends Controller
             });
         if ($paymentRows->isEmpty()) {
             $prepaidAllocations = $booking->booking_items
-                ->filter(fn ($item) => (bool) ($item->booking_fee?->is_prepaid_wholesaler_voucher ?? false)
+                ->filter(fn($item) => (bool) ($item->booking_fee?->is_prepaid_wholesaler_voucher ?? false)
                     && (float) ($item->booking_fee?->tot_paid ?? 0) > 0)
                 ->map(function ($item) use ($booking) {
                     return [
@@ -227,7 +227,6 @@ class BookingPaymentController extends Controller
             'vat_amount' => 'nullable|numeric|min:0',
             'additional_amount' => 'nullable|numeric|min:0',
             'voucher_code' => 'nullable|string',
-            'redeemer_name' => 'required|string',
             'short_payment_note' => 'nullable|string',
             'additional_payment_note' => 'nullable|string',
             'note' => 'nullable|string',

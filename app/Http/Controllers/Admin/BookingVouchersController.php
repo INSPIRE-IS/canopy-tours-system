@@ -205,7 +205,6 @@ class BookingVouchersController extends Controller
             '{{children}}'            => $data['service']['children'] ?? '',
             '{{guides}}'              => $data['service']['guides'] ?? '',
             '{{notes}}'               => $data['notes'] ?? '',
-            '{{logo}}'                => $data['logo'] ?? '',
             '{{bank_account_owner}}'  => $data['bank']['owner'] ?? '',
             '{{bank_account_no}}'     => $data['bank']['number'] ?? '',
             '{{bank_account_type}}'   => $data['bank']['type'] ?? '',

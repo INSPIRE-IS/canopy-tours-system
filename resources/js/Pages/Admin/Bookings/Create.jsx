@@ -20,6 +20,7 @@ import OutlineButton from '@/Components/OutlineButton';
 import PromoModal from './PromoModal';
 import { useToast } from '@/Context/ToastContext';
 import PhoneInput from '@/Components/PhoneInput';
+import { calendarAnchorSeasonForDate, calendarSeasonForDate, calendarSeasonsForRange, mergeSeasonCalendars } from './calendarSeasons';
 
 const PRICING_MODES = {
     STANDARD: 'STANDARD',
@@ -69,6 +70,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
     const [selectedService, setSelectedService] = useState(null);
     const [selectedSeason, setSelectedSeason] = useState(null);
     const [activityDate, setActivityDate] = useState(() => new Date(start_date));
+    const calendarRequestRef = useRef(0);
     const [selectedSlot, setSelectedSlot] = useState(null); // stores {date: string, day: string, time: string }
     const [showWholesaler, setShowWholesaler] = useState(false);
     const [wholesalerApplied, setWholesalerApplied] = useState(false);
@@ -200,7 +202,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
 
     useEffect(() => {
         loadCalendar();
-    }, [activityId, activityDate, view_mode, data.start_time, data.adults, data.children]);
+    }, [activityId, activityDate, view_mode, data.start_time, data.adults, data.children, seasons, selectedSeason]);
 
     useEffect(() => {
         if (prefillsRef.current) return;
@@ -247,25 +249,71 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
     const loadCalendar = async () => {
         // console.log('-----------------loadCalendar-------------');
         console.log('----------------- loadCalendar line 159------------- ', data);
-        if (activityId) {
+        if (activityId && selectedSeason) {
+            const requestId = ++calendarRequestRef.current;
             setLoading(true);
             try {
-                const response = await axios.get(route('admin.booking.activity.calendar'), {
-                    params: {
-                        activity_id: activityId,
-                        view_mode: view_mode,
-                        start_date: format(activityDate, 'yyyy-MM-dd'),
-                        start_time: data.start_time,
-                        adults: data.adults || 0,
-                        children: data.children || 0
-                    }
-                });
-                console.log('ScheduleData ', response);
-                setScheduleData(response.data);
+                const rangeStart = view_mode === 'day' ? activityDate : addDays(activityDate, -2);
+                const rangeEnd = addDays(rangeStart, (view_mode === 'day' ? 1 : view_mode === 'month' ? 30 : 7) - 1);
+                const calendarSeasons = calendarSeasonsForRange(
+                    seasons,
+                    selectedSeason,
+                    format(rangeStart, 'yyyy-MM-dd'),
+                    format(rangeEnd, 'yyyy-MM-dd')
+                );
+                const targets = calendarSeasons.length ? calendarSeasons : [selectedSeason].filter(s => s.inventory);
+                if (!targets.length) {
+                    setScheduleData({ schedule: [], days: [], message: 'No inventory for this date range.' });
+                    return;
+                }
+                const selectedTime = selectedSeason.inventory?.inventory_time_slots
+                    ?.find(slot => Number(slot.id) === Number(data.start_time))
+                    ?.start_time;
+                const responses = await Promise.all(targets.map(async season => ({
+                    season,
+                    calendar: (await axios.get(route('admin.booking.activity.calendar'), {
+                        params: {
+                            activity_id: season.id,
+                            view_mode: view_mode,
+                            start_date: format(activityDate, 'yyyy-MM-dd'),
+                            start_time: selectedTime
+                                ? season.inventory?.inventory_time_slots?.find(slot => slot.start_time === selectedTime)?.id || null
+                                : null,
+                            adults: data.adults || 0,
+                            children: data.children || 0
+                        }
+                    })).data,
+                })));
+                if (requestId !== calendarRequestRef.current) return;
+                const merged = mergeSeasonCalendars(responses, responses[0].calendar.days, selectedSeason);
+                if (new URLSearchParams(window.location.search).has('calendar_debug')) {
+                    const summarize = calendar => Object.fromEntries((calendar.days || []).map(day => [
+                        day,
+                        (calendar.schedule || []).reduce((counts, row) => {
+                            const status = row.days?.[day]?.status || 'missing';
+                            counts[status] = (counts[status] || 0) + 1;
+                            return counts;
+                        }, {}),
+                    ]));
+                    console.info('Booking calendar diagnostic', {
+                        bookingDate: data.booking_date,
+                        browsingDate: format(activityDate, 'yyyy-MM-dd'),
+                        viewMode: view_mode,
+                        selectedSeasonId: selectedSeason.id,
+                        requestedSeasonIds: targets.map(season => season.id),
+                        responses: responses.map(({ season, calendar }) => ({
+                            seasonId: season.id,
+                            rowCount: calendar.schedule?.length || 0,
+                            statuses: summarize(calendar),
+                        })),
+                        mergedStatuses: summarize(merged),
+                    });
+                }
+                setScheduleData(merged);
             } catch (error) {
                 console.error('Failed to load calendar:', error);
             } finally {
-                setLoading(false);
+                if (requestId === calendarRequestRef.current) setLoading(false);
             }
         }
     };
@@ -1374,8 +1422,12 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
 
     const selectCalendarSlot = (cell, day, row, slotList = timeslots) => {
         const time = row.time.slice(0, 5);
-        const slot = (slotList || []).find(s => String(s.id) === String(row.slot_id))
-            || (slotList || []).find(s => s.name === time);
+        const targetSeason = seasons.find(s => Number(s.id) === Number(cell.season_id)) || selectedSeason;
+        const targetSlots = targetSeason?.id === selectedSeason?.id
+            ? slotList
+            : (targetSeason?.inventory?.inventory_time_slots || []).map(s => ({ id: s.id, name: s.start_time.slice(0, 5) }));
+        const slot = (targetSlots || []).find(s => String(s.id) === String(cell.slot_id ?? row.slot_id))
+            || (targetSlots || []).find(s => s.name === time);
 
         if (!slot) {
             showToast('Please select a valid slot.', 'error');
@@ -1384,15 +1436,19 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
 
         const nextSlot = { activityDate: cell.date, day, time: row.time };
         setSelectedSlot(nextSlot);
-        setData('selected_slot', nextSlot);
-        setData('booking_date', cell.date);
+        setData(prev => ({
+            ...prev,
+            selected_slot: nextSlot,
+            booking_date: cell.date,
+            season_id: targetSeason.id,
+            start_time: slot.id,
+        }));
         setActivityDate(parseDate(cell.date));
-        setData('start_time', slot.id);
     };
 
     const canStaffOverrideClosedCell = (cell) => {
         if (!cell || cell.status === 'available' || cell.status === 'full') return false;
-        if (cell.note === 'Past date') return false;
+        if (cell.note === 'Past date' || cell.note?.startsWith('Outside season')) return false;
         return ['blocked_day', 'blocked_slot', 'unavailable'].includes(cell.status);
     };
 
@@ -1406,7 +1462,8 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
 
         if (!canStaffOverrideClosedCell(cell)) return;
 
-        if (!canOverrideTimeSlots) {
+        const targetSeason = seasons.find(s => Number(s.id) === Number(cell.season_id)) || selectedSeason;
+        if (!targetSeason?.inventory?.allow_internal_override) {
             showToast('Override time slots are not allowed for this inventory.', 'error');
             return;
         }
@@ -1420,7 +1477,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
         try {
             const response = await axios.post(route('admin.inventory-slot-ranges.store'), {
                 service_id: selectedService.id,
-                season_id: selectedSeason.id,
+                season_id: targetSeason.id,
                 start_date: cell.date,
                 end_date: cell.date,
                 time_slots: [row.time.slice(0, 5)],
@@ -1445,7 +1502,7 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                 ]
                 : timeslots;
 
-            if (returnedSlots.length) {
+            if (returnedSlots.length && targetSeason.id === selectedSeason?.id) {
                 setTimeslots(formatted);
             }
 
@@ -1467,22 +1524,13 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
             //const selectedDate = new Date(value);
             const selectedDate = parseDate(data.booking_date);
             // console.log('selectedDate', selectedDate);
-            const dateFallsInSeason = (season) => {
-                if (!season) return false;
-                const start = new Date(season.start_date);
-                const end = new Date(season.end_date);
-                return selectedDate >= start && selectedDate <= end;
-            };
             const currentSeason = seasons.find(s => Number(s.id) === Number(data.season_id));
-            const season = dateFallsInSeason(currentSeason) ? currentSeason : seasons.find(s => {
-                const start = new Date(s.start_date);
-                // console.log('start', start);
-                const end = new Date(s.end_date);
-                // console.log('end', end);
-                const selected = selectedDate >= start && selectedDate <= end;
-                // console.log('selected----------ooooooooooooooooooooooooooo', selected);
-                return selected;
-            });
+            const selectedDateString = format(selectedDate, 'yyyy-MM-dd');
+            const anchorSeason = currentSeason || calendarAnchorSeasonForDate(seasons, selectedDateString);
+            const candidateSeasons = anchorSeason
+                ? calendarSeasonsForRange(seasons, anchorSeason, selectedDateString, selectedDateString)
+                : [];
+            const season = calendarSeasonForDate(candidateSeasons, currentSeason, selectedDateString);
 
             console.log('-------------selectedSeason---------', season);
             //const time_slots = selectedSeason ? setTimeslots(selectedSeason?.inventory?.time_slots) : [];
@@ -1529,8 +1577,17 @@ export default function Dashboard({ auth, wholesalers = [], services = [], sched
                 setTimeslots(formattedTimeSlots);
                 console.log('-------------------------data-------------------------', data);
             } else {
-                setTimeslots([]); // fallback
-                setSelectedSeason(null);
+                setTimeslots([]);
+                setSelectedSlot(null);
+                setData(prev => ({
+                    ...prev,
+                    season_id: null,
+                    start_time: '',
+                    selected_slot: [],
+                }));
+                setSelectedSeason(anchorSeason);
+                setActivityId(anchorSeason?.id || null);
+                setActivityDate(selectedDate);
             }
         }
 
