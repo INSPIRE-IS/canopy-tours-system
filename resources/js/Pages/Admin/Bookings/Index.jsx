@@ -23,6 +23,7 @@ import ConfirmModal from '@/Components/ConfirmModal';
 import Modal from '@/Components/Modal';
 import { useToast } from '@/Context/ToastContext';
 import CustomDatePicker from '@/Components/CustomDatePicker';
+import { phoneDigitsForSearch } from './bookingSearch';
 // import { useRoute } from 'ziggy-js';
 // import { Ziggy } from '@/ziggy'; // the generated file
 
@@ -615,7 +616,7 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
     const searchResults = useMemo(() => {
         const term = (searchQuery || '').trim().toLowerCase();
         if (!term) return [];
-        const digits = term.replace(/\D/g, '');
+        const digits = phoneDigitsForSearch(term);
 
         const matches = (Array.isArray(bookings) ? bookings : []).filter((booking) => {
             const haystack = [
