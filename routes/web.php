@@ -37,6 +37,7 @@ use App\Http\Controllers\Front\ActivityController;
 use App\Http\Controllers\Front\BookingQuestionnaireController;
 use App\Http\Controllers\Front\FeedbackQuestionnaireController;
 use App\Http\Controllers\Front\PaymentController;
+use App\Http\Controllers\Front\PublicBookingV2Controller;
 use App\Http\Controllers\ProfileController;
 use App\Models\Service;
 use Illuminate\Foundation\Application;
@@ -98,6 +99,10 @@ Route::redirect('/', '/front/welcome');
 Route::get('/front/welcome/{team_id?}', [ActivityController::class, 'index'])->name('front.welcome');
 Route::get('/activity', [ActivityController::class, 'activity'])->name('front.activity');
 Route::get('/activity/calendar', [ActivityController::class, 'calendar'])->name('front.activity.calendar');
+Route::get('/front/v2/welcome/{team}', [PublicBookingV2Controller::class, 'index'])
+    ->name('front.v2.welcome');
+Route::get('/front/v2/services/{service}/availability', [PublicBookingV2Controller::class, 'availability'])
+    ->name('front.v2.services.availability');
 // Route::get('/front/activity/selected-promo/{promo_id}', [ActivityController::class, 'selectedPromo']);
 Route::get('/front/activity/selected-promo', [ActivityController::class, 'selectedPromo']);
 Route::post('/booking/store', [ActivityController::class, 'store'])->name('front.booking.store');
