@@ -61,3 +61,19 @@
     font-style: normal;
     font-display: swap;
   }
+
+@font-face {
+  font-family: 'Montserrat';
+  src: url('../fonts/Montserrat-Latin.woff2') format('woff2');
+  font-weight: 500 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Roboto';
+  src: url('../fonts/Roboto-Latin.woff2') format('woff2');
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+}
