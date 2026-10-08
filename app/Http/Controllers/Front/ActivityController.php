@@ -974,7 +974,6 @@ class ActivityController extends Controller
 
     public function voucher(Request $request)
     {
-        dd($request->all());
         $activityId = $request->activity_id;
         // return view('front.voucher', compact('activityId'));
         return Inertia::render('GiftVoucher', ['activityId' => $activityId]);
