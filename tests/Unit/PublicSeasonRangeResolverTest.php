@@ -21,6 +21,21 @@ function publicSeason(int $id, string $startDate, string $endDate, int $serviceI
     return $season;
 }
 
+it('clamps an ordinary request to one public season', function () {
+    $segments = app(PublicSeasonRangeResolver::class)->resolve(
+        new Collection([
+            publicSeason(8, '2026-07-01', '2026-12-31'),
+        ]),
+        CarbonImmutable::parse('2026-09-10'),
+        CarbonImmutable::parse('2026-09-12')
+    );
+
+    expect($segments)->toHaveCount(1)
+        ->and($segments[0]['season']->id)->toBe(8)
+        ->and($segments[0]['start_date']->toDateString())->toBe('2026-09-10')
+        ->and($segments[0]['end_date']->toDateString())->toBe('2026-09-12');
+});
+
 it('resolves adjacent public seasons into separate requested segments', function () {
     $segments = app(PublicSeasonRangeResolver::class)->resolve(
         new Collection([

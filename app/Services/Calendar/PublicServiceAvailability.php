@@ -38,6 +38,7 @@ class PublicServiceAvailability
         $days = $this->emptyDays($startDate, $endDate);
         $slotsByDate = [];
         $totalRequested = $adults + $children;
+        $arrivalMinutes = $this->arrivalMinutes($service->pillbox_conditions);
 
         foreach ($segments as $segment) {
             $season = $segment['season'];
@@ -51,43 +52,58 @@ class PublicServiceAvailability
                 $segmentEnd
             );
 
-            $schedule = ServiceCalendarBuilder::build(
-                $inventory,
-                $season,
-                $service,
-                $bookingData,
-                $segmentStart,
-                $segmentEnd,
-                $totalRequested,
-                null,
-                null,
-                false
-            );
+            // The shared builder keys cells by labels such as "Wed 03". Build one
+            // calendar month at a time so equal labels in adjacent months cannot collide.
+            foreach ($this->monthRanges($segmentStart, $segmentEnd) as [$rangeStart, $rangeEnd]) {
+                $schedule = ServiceCalendarBuilder::build(
+                    $inventory,
+                    $season,
+                    $service,
+                    $bookingData,
+                    $rangeStart,
+                    $rangeEnd,
+                    $totalRequested,
+                    null,
+                    null,
+                    false
+                );
 
-            foreach ($schedule as $row) {
-                foreach ($row['days'] ?? [] as $cell) {
-                    $date = $cell['date'] ?? null;
-                    if (!$date || !isset($days[$date]) || ($cell['status'] ?? null) !== 'available') {
-                        continue;
+                foreach ($schedule as $row) {
+                    foreach ($row['days'] ?? [] as $cell) {
+                        $date = $cell['date'] ?? null;
+                        if (!$date || !isset($days[$date])) {
+                            continue;
+                        }
+
+                        $status = $cell['status'] ?? 'unavailable';
+                        if ($status === 'full' && $days[$date]['status'] !== 'available') {
+                            $days[$date]['status'] = 'full';
+                        }
+
+                        if ($status !== 'available') {
+                            continue;
+                        }
+
+                        $slot = [
+                            'season_id' => $season->id,
+                            'inventory_id' => $inventory->id,
+                            'slot_id' => $row['slot_id'],
+                            'time' => $row['time'],
+                            'arrival_by' => $this->arrivalBy($row['time'], $arrivalMinutes),
+                            'spaces_remaining' => max(0, (int) ($cell['slots'] ?? 0)),
+                            'adult_price' => (float) $season->rake_rate_adult,
+                            'child_price' => (float) $season->rake_rate_child,
+                            'guide_price' => (float) $season->rake_rate_guide,
+                        ];
+
+                        $slotsByDate[$date][] = $slot;
+                        $days[$date]['is_open'] = true;
+                        $days[$date]['status'] = 'available';
+                        $days[$date]['slot_count']++;
+                        $days[$date]['from_price'] = $days[$date]['from_price'] === null
+                            ? $slot['adult_price']
+                            : min($days[$date]['from_price'], $slot['adult_price']);
                     }
-
-                    $slot = [
-                        'season_id' => $season->id,
-                        'inventory_id' => $inventory->id,
-                        'slot_id' => $row['slot_id'],
-                        'time' => $row['time'],
-                        'spaces_remaining' => max(0, (int) ($cell['slots'] ?? 0)),
-                        'adult_price' => (float) $season->rake_rate_adult,
-                        'child_price' => (float) $season->rake_rate_child,
-                        'guide_price' => (float) $season->rake_rate_guide,
-                    ];
-
-                    $slotsByDate[$date][] = $slot;
-                    $days[$date]['is_open'] = true;
-                    $days[$date]['slot_count']++;
-                    $days[$date]['from_price'] = $days[$date]['from_price'] === null
-                        ? $slot['adult_price']
-                        : min($days[$date]['from_price'], $slot['adult_price']);
                 }
             }
         }
@@ -120,12 +136,47 @@ class PublicServiceAvailability
             $days[$dateString] = [
                 'date' => $dateString,
                 'is_open' => false,
+                'status' => 'unavailable',
                 'from_price' => null,
                 'slot_count' => 0,
             ];
         }
 
         return $days;
+    }
+
+    private function arrivalMinutes(?string $conditions): ?int
+    {
+        if (!$conditions || !preg_match('/arrive\s+(\d+)\s+minutes?/i', $conditions, $matches)) {
+            return null;
+        }
+
+        return (int) $matches[1];
+    }
+
+    private function monthRanges(CarbonImmutable $startDate, CarbonImmutable $endDate): array
+    {
+        $ranges = [];
+        $cursor = $startDate;
+
+        while ($cursor->lte($endDate)) {
+            $rangeEnd = $cursor->endOfMonth()->min($endDate)->startOfDay();
+            $ranges[] = [$cursor, $rangeEnd];
+            $cursor = $rangeEnd->addDay()->startOfDay();
+        }
+
+        return $ranges;
+    }
+
+    private function arrivalBy(string $time, ?int $arrivalMinutes): ?string
+    {
+        if ($arrivalMinutes === null) {
+            return null;
+        }
+
+        return CarbonImmutable::createFromFormat('H:i:s', $time, 'Africa/Johannesburg')
+            ->subMinutes($arrivalMinutes)
+            ->format('H:i');
     }
 
     private function bookingData(int $inventoryId, int $teamId, CarbonImmutable $startDate, CarbonImmutable $endDate)

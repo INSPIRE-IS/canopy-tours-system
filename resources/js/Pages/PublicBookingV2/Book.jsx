@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Head } from '@inertiajs/react';
 import {
     addMonths,
@@ -177,6 +177,8 @@ export default function Book({ team, services = [], selectedServiceId }) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [showMobileDetails, setShowMobileDetails] = useState(false);
+    const availabilityCache = useRef(null);
+    const availabilityKey = `${service?.id || 0}:${adults}:${children}`;
 
     useEffect(() => {
         if (!service) return;
@@ -186,44 +188,135 @@ export default function Book({ team, services = [], selectedServiceId }) {
     }, [service?.id]);
 
     useEffect(() => {
-        if (!service) return undefined;
+        const previousCache = availabilityCache.current;
+        previousCache?.controllers.forEach((controller) => controller.abort());
 
-        const controller = new AbortController();
-        const start = startOfMonth(viewMonth);
-        const end = endOfMonth(addMonths(viewMonth, 1));
-        setLoading(true);
+        const cache = {
+            key: availabilityKey,
+            days: {},
+            slotsByDate: {},
+            loadedMonths: new Set(),
+            pendingMonths: new Map(),
+            controllers: new Set(),
+        };
+
+        availabilityCache.current = cache;
+        setAvailability({});
+        setSlotsByDate({});
         setError('');
 
-        axios.get(route('front.v2.services.availability', { service: service.id }), {
-            params: {
-                start_date: dateKey(start),
-                end_date: dateKey(end),
-                adults,
-                children,
-            },
-            signal: controller.signal,
-        }).then(({ data }) => {
-            const days = Object.fromEntries((data.days || []).map((day) => [day.date, day]));
-            setAvailability(days);
-            setSlotsByDate(data.slots_by_date || {});
+        return () => {
+            if (availabilityCache.current === cache) {
+                cache.controllers.forEach((controller) => controller.abort());
+            }
+        };
+    }, [availabilityKey]);
 
-            if (!selectedDate || !days[selectedDate]?.is_open) {
-                const firstOpen = (data.days || []).find((day) => day.is_open)?.date || null;
-                setSelectedDate(firstOpen);
+    useEffect(() => {
+        if (!service) return undefined;
+
+        const cache = availabilityCache.current;
+        if (!cache || cache.key !== availabilityKey) return undefined;
+
+        let viewChanged = false;
+        const visibleMonths = [startOfMonth(viewMonth), startOfMonth(addMonths(viewMonth, 1))];
+        const lookAheadMonths = [startOfMonth(addMonths(viewMonth, 2)), startOfMonth(addMonths(viewMonth, 3))];
+        const visibleStart = dateKey(visibleMonths[0]);
+        const visibleEnd = dateKey(endOfMonth(visibleMonths[1]));
+
+        const ensureMonths = async (months) => {
+            const monthKeys = months.map((month) => format(month, 'yyyy-MM'));
+            const pending = [...new Set(monthKeys
+                .map((key) => cache.pendingMonths.get(key))
+                .filter(Boolean))];
+
+            if (pending.length > 0) {
+                await Promise.all(pending);
+            }
+
+            const missingMonths = months.filter((month) => {
+                const key = format(month, 'yyyy-MM');
+                return !cache.loadedMonths.has(key) && !cache.pendingMonths.has(key);
+            });
+
+            if (missingMonths.length === 0) return;
+
+            const start = startOfMonth(missingMonths[0]);
+            const end = endOfMonth(missingMonths[missingMonths.length - 1]);
+            const missingKeys = missingMonths.map((month) => format(month, 'yyyy-MM'));
+            const controller = new AbortController();
+            cache.controllers.add(controller);
+
+            let request;
+            request = axios.get(route('front.v2.services.availability', { service: service.id }), {
+                params: {
+                    start_date: dateKey(start),
+                    end_date: dateKey(end),
+                    adults,
+                    children,
+                },
+                signal: controller.signal,
+            }).then(({ data }) => {
+                if (availabilityCache.current !== cache || controller.signal.aborted) return;
+
+                Object.assign(cache.days, Object.fromEntries((data.days || []).map((day) => [day.date, day])));
+                Object.assign(cache.slotsByDate, data.slots_by_date || {});
+                missingKeys.forEach((key) => cache.loadedMonths.add(key));
+                setAvailability({ ...cache.days });
+                setSlotsByDate({ ...cache.slotsByDate });
+            }).finally(() => {
+                cache.controllers.delete(controller);
+                missingKeys.forEach((key) => {
+                    if (cache.pendingMonths.get(key) === request) {
+                        cache.pendingMonths.delete(key);
+                    }
+                });
+            });
+
+            missingKeys.forEach((key) => cache.pendingMonths.set(key, request));
+            await request;
+        };
+
+        const visibleAlreadyLoaded = visibleMonths.every((month) => cache.loadedMonths.has(format(month, 'yyyy-MM')));
+        setLoading(!visibleAlreadyLoaded);
+        setError('');
+
+        ensureMonths(visibleMonths).then(() => {
+            if (viewChanged || availabilityCache.current !== cache) return;
+
+            setLoading(false);
+            setSelectedDate((currentDate) => {
+                const currentDateIsVisible = currentDate
+                    && currentDate >= visibleStart
+                    && currentDate <= visibleEnd
+                    && cache.days[currentDate]?.is_open;
+
+                if (currentDateIsVisible) return currentDate;
+
+                const firstOpen = Object.values(cache.days).sort((left, right) => left.date.localeCompare(right.date)).find((day) => (
+                    day.date >= visibleStart
+                    && day.date <= visibleEnd
+                    && day.is_open
+                ))?.date || null;
                 setSelectedSlotId(null);
-            }
+
+                return firstOpen;
+            });
+
+            ensureMonths(lookAheadMonths).catch(() => {
+                // Prefetch failures stay silent and are retried if the customer navigates forward.
+            });
         }).catch((requestError) => {
-            if (requestError.code !== 'ERR_CANCELED') {
-                setAvailability({});
-                setSlotsByDate({});
-                setError(requestError.response?.data?.message || 'Availability could not be loaded. Please try again.');
-            }
-        }).finally(() => {
-            if (!controller.signal.aborted) setLoading(false);
+            if (viewChanged || requestError.code === 'ERR_CANCELED' || availabilityCache.current !== cache) return;
+
+            setLoading(false);
+            setError(requestError.response?.data?.message || 'Availability could not be loaded. Please try again.');
         });
 
-        return () => controller.abort();
-    }, [service?.id, viewMonth, adults, children]);
+        return () => {
+            viewChanged = true;
+        };
+    }, [service?.id, availabilityKey, viewMonth]);
 
     const slots = selectedDate ? (slotsByDate[selectedDate] || []) : [];
     const selectedSlot = slots.find((slot) => Number(slot.slot_id) === Number(selectedSlotId)) || null;
@@ -338,7 +431,7 @@ export default function Book({ team, services = [], selectedServiceId }) {
                                 <div className="kct-times-scroll">
                                     {slots.map((slot) => {
                                         const selected = Number(slot.slot_id) === Number(selectedSlotId);
-                                        const arriveBy = subtractMinutes(slot.time, arrivalMinutes);
+                                        const arriveBy = slot.arrival_by || subtractMinutes(slot.time, arrivalMinutes);
                                         const availabilityLabel = `${slot.spaces_remaining} ${Number(slot.spaces_remaining) === 1 ? 'space' : 'spaces'}${Number(slot.spaces_remaining) <= 3 ? ' left' : ''}`;
                                         return (
                                             <button
