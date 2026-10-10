@@ -10,15 +10,17 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class BookingExtra extends Model
 {
-    use HasFactory, SoftDeletes, MultiTenantModelTrait, Auditable;
+    use Auditable, HasFactory, MultiTenantModelTrait, SoftDeletes;
 
     public const TYPE_MEAL = 'meal';
+
     public const TYPE_CUSTOM = 'custom';
 
     protected $fillable = [
         'booking_id',
         'booking_item_id',
         'service_id',
+        'season_extra_id',
         'team_id',
         'type',
         'name',
@@ -51,6 +53,11 @@ class BookingExtra extends Model
     public function service()
     {
         return $this->belongsTo(Service::class);
+    }
+
+    public function season_extra()
+    {
+        return $this->belongsTo(SeasonExtra::class)->withTrashed();
     }
 
     public function payment_allocations()

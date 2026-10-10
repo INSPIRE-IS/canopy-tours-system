@@ -4,6 +4,7 @@ use App\Models\Service;
 use App\Services\Calendar\PublicServiceAvailability;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
+use Inertia\Testing\AssertableInertia as Assert;
 
 function createPublicAvailabilitySeason(
     int $teamId,
@@ -97,7 +98,6 @@ function createPublicAvailabilityContext(): array
 
 it('returns owned slots across adjacent public seasons while preserving a real gap', function () {
     [$teamId, $serviceId] = createPublicAvailabilityContext();
-
 
     $oldSeason = createPublicAvailabilitySeason(
         $teamId,
@@ -347,4 +347,145 @@ it('does not expose staff-only seasons to public availability', function () {
         'is_open' => false,
         'slot_count' => 0,
     ])->and($response['slots_by_date'])->toBe([]);
+});
+
+it('renders checkout from the server-owned service date and slot', function () {
+    [$teamId, $serviceId] = createPublicAvailabilityContext();
+    $season = createPublicAvailabilitySeason($teamId, $serviceId, '2032', '2032-01-01', '2032-12-31', 995, '09:00:00');
+
+    $this->get(route('front.v2.checkout', [
+        'team' => $teamId,
+        'service' => $serviceId,
+        'date' => '2032-02-10',
+        'slot_id' => $season['slotId'],
+        'adults' => 2,
+        'children' => 1,
+    ]))->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->component('PublicBookingV2/Checkout')
+        ->where('service.id', $serviceId)
+        ->where('selection.date', '2032-02-10')
+        ->where('selection.slot_id', $season['slotId'])
+        ->where('selection.season_id', $season['seasonId'])
+        ->where('selection.inventory_id', $season['inventoryId'])
+        ->where('selection.adults', 2)
+        ->where('selection.children', 1)
+        ->where('quote.adult_unit_price', 995)
+        ->where('quote.child_unit_price', 895)
+        ->where('quote.total', 2885)
+    );
+});
+
+it('returns only active extras for the selected season with per-booking and per-guest totals', function () {
+    [$teamId, $serviceId] = createPublicAvailabilityContext();
+    $season = createPublicAvailabilitySeason($teamId, $serviceId, '2032', '2032-01-01', '2032-12-31', 995, '09:00:00');
+
+    DB::table('seasons')->where('id', $season['seasonId'])->update(['include_public_extras' => true]);
+    DB::table('season_extras')->insert([
+        [
+            'season_id' => $season['seasonId'],
+            'team_id' => $teamId,
+            'name' => 'Tour video',
+            'description' => 'One video package per booking.',
+            'unit_price' => 150,
+            'is_per_guest' => false,
+            'is_active' => true,
+            'sort_order' => 0,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ],
+        [
+            'season_id' => $season['seasonId'],
+            'team_id' => $teamId,
+            'name' => 'Meal',
+            'description' => 'One meal per booked guest.',
+            'unit_price' => 100,
+            'is_per_guest' => true,
+            'is_active' => true,
+            'sort_order' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ],
+        [
+            'season_id' => $season['seasonId'],
+            'team_id' => $teamId,
+            'name' => 'Hidden item',
+            'description' => null,
+            'unit_price' => 50,
+            'is_per_guest' => false,
+            'is_active' => false,
+            'sort_order' => 2,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ],
+    ]);
+
+    $checkout = fn () => $this->get(route('front.v2.checkout', [
+        'team' => $teamId,
+        'service' => $serviceId,
+        'date' => '2032-02-10',
+        'slot_id' => $season['slotId'],
+        'adults' => 2,
+        'children' => 1,
+    ]));
+
+    $checkout()->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->has('extras', 2)
+        ->where('extras.0.name', 'Tour video')
+        ->where('extras.0.is_per_guest', false)
+        ->where('extras.0.quantity', 1)
+        ->where('extras.0.total', 150)
+        ->where('extras.1.name', 'Meal')
+        ->where('extras.1.is_per_guest', true)
+        ->where('extras.1.quantity', 3)
+        ->where('extras.1.total', 300)
+        ->where('quote.total', 2885)
+    );
+
+    DB::table('seasons')->where('id', $season['seasonId'])->update(['include_public_extras' => false]);
+
+    $checkout()->assertOk()->assertInertia(fn (Assert $page) => $page->where('extras', []));
+});
+
+it('rejects a stale checkout slot', function () {
+    [$teamId, $serviceId] = createPublicAvailabilityContext();
+    createPublicAvailabilitySeason($teamId, $serviceId, '2032', '2032-01-01', '2032-12-31', 995, '09:00:00');
+
+    $this->from(route('front.v2.welcome', $teamId))->get(route('front.v2.checkout', [
+        'team' => $teamId,
+        'service' => $serviceId,
+        'date' => '2032-02-10',
+        'slot_id' => 999999,
+        'adults' => 2,
+        'children' => 0,
+    ]))->assertRedirect(route('front.v2.welcome', $teamId))->assertSessionHasErrors('slot_id');
+});
+
+it('rejects checkout for another team, past dates, invalid adult counts, and excessive pax', function () {
+    [$teamId, $serviceId] = createPublicAvailabilityContext();
+    $season = createPublicAvailabilitySeason($teamId, $serviceId, '2032', '2032-01-01', '2032-12-31', 995, '09:00:00');
+    $otherTeamId = DB::table('teams')->insertGetId([
+        'name' => 'Other Team',
+        'is_published' => true,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+    $base = [
+        'team' => $teamId,
+        'service' => $serviceId,
+        'date' => '2032-02-10',
+        'slot_id' => $season['slotId'],
+        'adults' => 2,
+        'children' => 0,
+    ];
+
+    $this->get(route('front.v2.checkout', [...$base, 'team' => $otherTeamId]))->assertNotFound();
+    $this->from(route('front.v2.welcome', $teamId))
+        ->get(route('front.v2.checkout', [...$base, 'date' => '2020-01-01']))
+        ->assertSessionHasErrors('date');
+    $this->from(route('front.v2.welcome', $teamId))
+        ->get(route('front.v2.checkout', [...$base, 'adults' => 0]))
+        ->assertSessionHasErrors('adults');
+    $this->from(route('front.v2.welcome', $teamId))
+        ->get(route('front.v2.checkout', [...$base, 'adults' => 8, 'children' => 1]))
+        ->assertSessionHasErrors('adults');
 });

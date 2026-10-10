@@ -235,7 +235,7 @@ export function TimeOptions({ slots, selectedSlotId, onSelect, arrivalMinutes, m
     });
 }
 
-export function BookingSummary({ tourSummary, total, canContinue }) {
+export function BookingSummary({ tourSummary, total, canContinue, onContinue }) {
     return (
         <footer className="kct-sticky-summary">
             <div className="kct-summary-selection">
@@ -251,7 +251,7 @@ export function BookingSummary({ tourSummary, total, canContinue }) {
             </div>
             <div className="kct-summary-total">
                 <span><small>Total</small><strong>{money(total)}</strong></span>
-                <button type="button" disabled={!canContinue}>Continue</button>
+                <button type="button" disabled={!canContinue} onClick={onContinue}>Continue</button>
             </div>
         </footer>
     );

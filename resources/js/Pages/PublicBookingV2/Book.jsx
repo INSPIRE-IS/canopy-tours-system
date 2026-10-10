@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Head } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
 import { useToast } from '@/Context/ToastContext';
 import {
     addMonths,
@@ -262,6 +262,27 @@ export default function Book({ team, services = [], selectedServiceId }) {
         setLoading(true);
         setAvailabilityRequestVersion((version) => version + 1);
     };
+    const continueToCheckout = () => {
+        if (!selectedDate || !selectedSlot || availabilityUpdating) return;
+
+        router.get(route('front.v2.checkout', {
+            team: team.id,
+            service: service.id,
+        }), {
+            date: selectedDate,
+            slot_id: selectedSlot.slot_id,
+            adults,
+            children,
+        }, {
+            preserveState: true,
+            onError: (errors) => {
+                const message = Object.values(errors || {})[0]
+                    || 'That selection could not be opened. Please choose the date and time again.';
+                setSelectionNotice(message);
+                showToast(message, 'error', 7000);
+            },
+        });
+    };
 
     if (!service) {
         return (
@@ -445,7 +466,8 @@ export default function Book({ team, services = [], selectedServiceId }) {
                 <BookingSummary
                     tourSummary={tourSummary}
                     total={total}
-                    canContinue={Boolean(selectedSlot && adults + children > 0)}
+                    canContinue={Boolean(selectedSlot && adults > 0 && !availabilityUpdating)}
+                    onContinue={continueToCheckout}
                 />
             </div>
         </div>
