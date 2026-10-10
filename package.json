@@ -3,7 +3,8 @@
     "type": "module",
     "scripts": {
         "dev": "vite",
-        "build": "vite build"
+        "build": "vite build",
+        "test:public-booking-v2": "node --test tests/Frontend/PublicBookingV2State.test.mjs"
     },
     "devDependencies": {
         "@headlessui/react": "^1.4.2",

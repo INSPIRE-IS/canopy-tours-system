@@ -93,6 +93,7 @@
 .kct-pax-control { gap: 12px; font-size: 15px; font-weight: 500; }
 .kct-stepper { gap: 4px; }
 .kct-stepper button, .kct-calendar-nav button { width: 44px; height: 44px; padding: 0; display: flex; align-items: center; justify-content: center; border: 1px solid var(--kct-border-control); border-radius: 50%; background: #fff; color: var(--kct-text-primary); cursor: pointer; }
+.kct-stepper button:disabled { opacity: 0.42; cursor: not-allowed; }
 .kct-stepper strong { width: 28px; text-align: center; font-size: 17px; font-weight: 600; }
 
 .kct-booking-layout { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 32px; }
@@ -100,11 +101,16 @@
 .kct-calendar-nav { display: flex; align-items: center; justify-content: space-between; color: var(--kct-text-muted); font-size: 13px; }
 .kct-months { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px; }
 .kct-month { display: flex; flex-direction: column; gap: 10px; }
+.kct-month.is-loading { opacity: 0.55; pointer-events: none; }
 .kct-month h3 { margin: 0; text-align: center; font-size: 16px; font-weight: 700; }
 .kct-calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
 .kct-calendar-weekdays { color: var(--kct-text-muted); text-align: center; font-size: 12px; font-weight: 600; }
 .kct-calendar-day { min-width: 0; height: 64px; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 0; background: transparent; font-size: 15px; }
 .kct-calendar-day--closed { color: var(--kct-text-disabled); }
+.kct-calendar-day--full { gap: 2px; border: 1px solid #ecd5b4; border-radius: var(--kct-radius-control); background: #fff8ed; color: var(--kct-text-warning); }
+.kct-calendar-day--full strong { font-size: 16px; font-weight: 700; }
+.kct-calendar-day--full small { font-size: 11px; font-weight: 500; }
+.kct-calendar-day:disabled { cursor: not-allowed; }
 .kct-calendar-day--open { gap: 2px; border: 1px solid var(--kct-border-available); border-radius: var(--kct-radius-control); background: var(--kct-surface-tint); cursor: pointer; }
 .kct-calendar-day--open strong { font-size: 16px; font-weight: 700; }
 .kct-calendar-day--open small { color: var(--kct-action-primary); font-size: 11px; font-weight: 500; }
@@ -124,8 +130,11 @@
 .kct-time-option b { height: 40px; padding: 0 18px; display: flex; align-items: center; border: 1px solid var(--kct-action-primary); border-radius: 10px; color: var(--kct-action-primary); font-size: 14px; font-weight: 600; }
 .kct-time-option.is-selected { border: 2px solid var(--kct-action-primary); background: var(--kct-surface-tint); }
 .kct-time-option.is-selected b { padding: 0 16px; border: 0; background: var(--kct-action-primary); color: #fff; }
-.kct-times-empty, .kct-error { color: var(--kct-text-muted); }
+.kct-times-empty, .kct-error { margin: 0; color: var(--kct-text-muted); line-height: 1.5; }
 .kct-error { color: #b42318; }
+.kct-availability-error { padding: 10px 12px; display: flex; align-items: center; justify-content: space-between; gap: 12px; border: 1px solid #f1b7ae; border-radius: 10px; background: #fff4f2; color: #b42318; }
+.kct-availability-error button { flex: 0 0 auto; padding: 7px 12px; border: 1px solid currentColor; border-radius: 8px; background: #fff; color: #b42318; font-weight: 600; cursor: pointer; }
+.kct-selection-notice { margin: 0; padding: 10px 12px; border: 1px solid #ecd5b4; border-radius: 10px; background: #fff8ed; color: #8a4b08; line-height: 1.4; }
 
 .kct-info-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
 .kct-info-card { padding: 24px; display: flex; flex-direction: column; gap: 8px; border: 1px solid var(--kct-border-subtle); border-radius: var(--kct-radius-card); background: #fff; }
@@ -194,6 +203,8 @@
     .kct-month.is-compact .kct-calendar-weekdays { font-size: 11px; }
     .kct-month.is-compact .kct-calendar-day { height: 44px; font-size: 14px; }
     .kct-month.is-compact .kct-calendar-day--open { border-radius: 10px; font-size: 15px; font-weight: 700; }
+    .kct-month.is-compact .kct-calendar-day--full { gap: 0; line-height: 1; }
+    .kct-month.is-compact .kct-calendar-day--full small { font-size: 8px; line-height: 1; }
 
     .kct-mobile-time-card h2 span { font-family: Roboto, system-ui, sans-serif; color: var(--kct-text-muted); font-size: 13px; font-weight: 400; }
     .kct-mobile-time-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
