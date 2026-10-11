@@ -17,9 +17,12 @@ use App\Models\Service;
 use App\Models\TypePayment;
 use App\Models\BookingQuestionnaire;
 use App\Models\Wholesaler;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
+use Maatwebsite\Excel\Excel as ExcelWriter;
 use Maatwebsite\Excel\Facades\Excel;
 
 class ReportsController extends Controller
@@ -110,10 +113,94 @@ class ReportsController extends Controller
 
     public function export(Request $request)
     {
+        $validated = $this->validateReportRequest($request);
+        [$export, $label] = $this->buildReport($validated, (int) auth()->user()->team_id);
+
+        $delivery = $validated['delivery'] ?? 'download';
+        $filename = strtolower($label) . '-report-' . now()->format('Ymd-His') . '.xlsx';
+
+        if ($delivery === 'email') {
+            $path = 'reports/' . $filename;
+            $disk = 'public';
+            $user = $request->user();
+            $downloadUrl = Storage::disk($disk)->url($path);
+
+            Excel::queue($export, $path, $disk)->chain([
+                new SendReportReadyEmail(
+                    $user->email,
+                    $user->name ?? $user->email,
+                    $downloadUrl,
+                    $label
+                ),
+            ]);
+
+            return response()->json([
+                'message' => 'Report queued. You will receive an email when it is ready.',
+            ]);
+        }
+
+        return Excel::download($export, $filename);
+    }
+
+    public function preview(Request $request)
+    {
+        $validated = $this->validateReportRequest($request, true);
+        [$export, $label] = $this->buildReport($validated, (int) auth()->user()->team_id);
+
+        $html = Excel::raw($export, ExcelWriter::HTML);
+        $title = htmlspecialchars($label . ' Report', ENT_QUOTES, 'UTF-8');
+        $period = htmlspecialchars(
+            $validated['start_date'] . ' to ' . $validated['end_date'],
+            ENT_QUOTES,
+            'UTF-8'
+        );
+
+        $styles = <<<'HTML'
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+    body { margin: 0; background: #f5f6f3; color: #161618; font-family: Arial, sans-serif; }
+    .report-preview-toolbar { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 14px 20px; background: #fff; border-bottom: 1px solid #d9ddd5; }
+    .report-preview-title { font-size: 18px; font-weight: 700; }
+    .report-preview-period { margin-top: 3px; color: #667085; font-size: 13px; }
+    .report-preview-print { padding: 9px 16px; border: 0; border-radius: 8px; background: #167c18; color: #fff; cursor: pointer; font-weight: 700; }
+    .report-preview-table { margin: 20px; padding: 16px; overflow-x: auto; background: #fff; border: 1px solid #d9ddd5; border-radius: 10px; }
+    .report-preview-table table { min-width: max-content; }
+    @media print {
+        body { background: #fff; }
+        .report-preview-toolbar { position: static; }
+        .report-preview-print { display: none; }
+        .report-preview-table { margin: 0; padding: 0; border: 0; }
+    }
+</style>
+HTML;
+        $toolbar = <<<HTML
+<div class="report-preview-toolbar">
+    <div>
+        <div class="report-preview-title">{$title}</div>
+        <div class="report-preview-period">{$period}</div>
+    </div>
+    <button type="button" class="report-preview-print" onclick="window.print()">Print</button>
+</div>
+<div class="report-preview-table">
+HTML;
+
+        $html = str_replace('</head>', $styles . '</head>', $html);
+        $html = str_replace('<body>', '<body>' . $toolbar, $html);
+        $html = str_replace('</body>', '</div></body>', $html);
+
+        return response($html)
+            ->header('Content-Type', 'text/html; charset=UTF-8')
+            ->header('Content-Disposition', 'inline');
+    }
+
+    private function validateReportRequest(Request $request, bool $preview = false): array
+    {
+        $dateRule = $preview ? ['required', 'date'] : ['nullable', 'date'];
+
         $validated = $request->validate([
             'report' => 'required|in:bookings,payments,checkin_manifest,booking_adjustment,marketing_opt_in,franchise_fees,wholesaler_usage,promo_code_usage',
-            'start_date' => 'nullable|date',
-            'end_date' => 'nullable|date',
+            'start_date' => $dateRule,
+            'end_date' => $preview ? ['required', 'date', 'after_or_equal:start_date'] : $dateRule,
             'service_id' => 'nullable|exists:services,id',
             'service_ids' => 'nullable|array',
             'service_ids.*' => 'integer|exists:services,id',
@@ -133,7 +220,23 @@ class ReportsController extends Controller
             'delivery' => 'nullable|in:download,email',
         ]);
 
-        $teamId = auth()->user()->team_id;
+        if ($preview) {
+            $startDate = CarbonImmutable::parse($validated['start_date'])->startOfDay();
+            $endDate = CarbonImmutable::parse($validated['end_date'])->startOfDay();
+
+            if ($endDate->gt($startDate->addMonthsNoOverflow(2))) {
+                throw ValidationException::withMessages([
+                    'end_date' => 'Online report viewing is limited to a maximum period of two months.',
+                ]);
+            }
+        }
+
+        return $validated;
+    }
+
+    private function buildReport(array $validated, int $teamId): array
+    {
+
         $serviceId = $validated['service_id'] ?? null;
         $serviceIds = collect($validated['service_ids'] ?? [])
             ->filter()
@@ -235,30 +338,7 @@ class ReportsController extends Controller
             $label = 'Booking Adjustment';
         }
 
-        $delivery = $validated['delivery'] ?? 'download';
-        $filename = strtolower($label) . '-report-' . now()->format('Ymd-His') . '.xlsx';
-
-        if ($delivery === 'email') {
-            $path = 'reports/' . $filename;
-            $disk = 'public';
-            $user = $request->user();
-            $downloadUrl = Storage::disk($disk)->url($path);
-
-            Excel::queue($export, $path, $disk)->chain([
-                new SendReportReadyEmail(
-                    $user->email,
-                    $user->name ?? $user->email,
-                    $downloadUrl,
-                    $label
-                ),
-            ]);
-
-            return response()->json([
-                'message' => 'Report queued. You will receive an email when it is ready.',
-            ]);
-        }
-
-        return Excel::download($export, $filename);
+        return [$export, $label];
     }
 
     /**
