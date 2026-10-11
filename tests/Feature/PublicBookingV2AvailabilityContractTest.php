@@ -2,6 +2,7 @@
 
 use App\Models\Service;
 use App\Services\Calendar\PublicServiceAvailability;
+use Carbon\Carbon;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -488,4 +489,279 @@ it('rejects checkout for another team, past dates, invalid adult counts, and exc
     $this->from(route('front.v2.welcome', $teamId))
         ->get(route('front.v2.checkout', [...$base, 'adults' => 8, 'children' => 1]))
         ->assertSessionHasErrors('adults');
+});
+
+it('creates a session-bound checkout hold and excludes it only for its owning session', function () {
+    [$teamId, $serviceId] = createPublicAvailabilityContext();
+    $season = createPublicAvailabilitySeason($teamId, $serviceId, '2032', '2032-01-01', '2032-12-31', 995, '09:00:00');
+    DB::table('teams')->where('id', $teamId)->update([
+        'frontend_hold_enabled' => true,
+        'frontend_hold_minutes' => 15,
+    ]);
+
+    $before = now();
+    $response = $this->post(route('front.v2.holds.store', [
+        'team' => $teamId,
+        'service' => $serviceId,
+    ]), [
+        'date' => '2032-02-10',
+        'slot_id' => $season['slotId'],
+        'adults' => 2,
+        'children' => 1,
+    ]);
+
+    $hold = DB::table('public_booking_holds')->sole();
+    $response->assertRedirect(route('front.v2.checkout', [
+        'team' => $teamId,
+        'service' => $serviceId,
+        'hold' => $hold->uuid,
+    ]));
+
+    $expiresAt = CarbonImmutable::parse($hold->expires_at);
+
+    $holdSessionKey = session('public_booking_v2_session_key');
+
+    expect($hold->session_id)->toBe($holdSessionKey)
+        ->and($hold->team_id)->toBe($teamId)
+        ->and($hold->service_id)->toBe($serviceId)
+        ->and($hold->season_id)->toBe($season['seasonId'])
+        ->and($hold->inventory_id)->toBe($season['inventoryId'])
+        ->and($hold->inventory_time_slot_id)->toBe($season['slotId'])
+        ->and($hold->adults)->toBe(2)
+        ->and($hold->children)->toBe(1)
+        ->and($expiresAt->betweenIncluded(
+            $before->copy()->addMinutes(14),
+            $before->copy()->addMinutes(16)
+        ))->toBeTrue();
+
+    $service = Service::query()->findOrFail($serviceId);
+    $publicAvailability = app(PublicServiceAvailability::class)->build(
+        $service,
+        CarbonImmutable::parse('2032-02-10'),
+        CarbonImmutable::parse('2032-02-10'),
+        1,
+        0
+    );
+    $ownAvailability = app(PublicServiceAvailability::class)->build(
+        $service,
+        CarbonImmutable::parse('2032-02-10'),
+        CarbonImmutable::parse('2032-02-10'),
+        1,
+        0,
+        $holdSessionKey
+    );
+
+    expect($publicAvailability['slots_by_date']['2032-02-10'][0]['spaces_remaining'])->toBe(5)
+        ->and($ownAvailability['slots_by_date']['2032-02-10'][0]['spaces_remaining'])->toBe(8);
+
+    $this->get($response->headers->get('Location'))->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->component('PublicBookingV2/Checkout')
+        ->where('hold.uuid', $hold->uuid)
+        ->where('hold.duration_minutes', 15)
+        ->where('selection.adults', 2)
+        ->where('selection.children', 1)
+    );
+});
+
+it('releases expired holds and replaces a previous active hold for the same session', function () {
+    [$teamId, $serviceId] = createPublicAvailabilityContext();
+    $season = createPublicAvailabilitySeason($teamId, $serviceId, '2032', '2032-01-01', '2032-12-31', 995, '09:00:00');
+    DB::table('teams')->where('id', $teamId)->update([
+        'frontend_hold_enabled' => true,
+        'frontend_hold_minutes' => 15,
+    ]);
+    $payload = [
+        'date' => '2032-02-10',
+        'slot_id' => $season['slotId'],
+        'adults' => 2,
+        'children' => 0,
+    ];
+    $url = route('front.v2.holds.store', ['team' => $teamId, 'service' => $serviceId]);
+
+    $this->post($url, $payload)->assertRedirect();
+    $firstHold = DB::table('public_booking_holds')->first();
+    $this->post($url, $payload)->assertRedirect();
+
+    expect(DB::table('public_booking_holds')->count())->toBe(2)
+        ->and(DB::table('public_booking_holds')->where('id', $firstHold->id)->value('cancelled_at'))->not->toBeNull()
+        ->and(DB::table('public_booking_holds')->whereNull('cancelled_at')->count())->toBe(1);
+
+    DB::table('public_booking_holds')->whereNull('cancelled_at')->update(['expires_at' => now()->subSecond()]);
+    $availability = app(PublicServiceAvailability::class)->build(
+        Service::query()->findOrFail($serviceId),
+        CarbonImmutable::parse('2032-02-10'),
+        CarbonImmutable::parse('2032-02-10'),
+        8,
+        0
+    );
+
+    expect($availability['slots_by_date']['2032-02-10'][0]['spaces_remaining'])->toBe(8);
+});
+
+it('allows the same browser session to create a new hold after checkout expiry', function () {
+    [$teamId, $serviceId] = createPublicAvailabilityContext();
+    $season = createPublicAvailabilitySeason($teamId, $serviceId, '2032', '2032-01-01', '2032-12-31', 995, '09:00:00');
+    DB::table('teams')->where('id', $teamId)->update([
+        'frontend_hold_enabled' => true,
+        'frontend_hold_minutes' => 15,
+    ]);
+    $url = route('front.v2.holds.store', ['team' => $teamId, 'service' => $serviceId]);
+    $payload = [
+        'date' => '2032-02-10',
+        'slot_id' => $season['slotId'],
+        'adults' => 2,
+        'children' => 0,
+    ];
+
+    $this->post($url, $payload)->assertRedirect();
+    $expiredHold = DB::table('public_booking_holds')->sole();
+    DB::table('public_booking_holds')->where('id', $expiredHold->id)->update([
+        'expires_at' => now()->subSecond(),
+    ]);
+
+    $this->get(route('front.v2.checkout', [
+        'team' => $teamId,
+        'service' => $serviceId,
+        'hold' => $expiredHold->uuid,
+    ]))->assertRedirect(route('front.v2.welcome', [
+        'team' => $teamId,
+        'service_id' => $serviceId,
+        'notice' => 'hold_expired',
+    ]));
+
+    $this->post($url, $payload)->assertRedirect();
+
+    expect(DB::table('public_booking_holds')->count())->toBe(2)
+        ->and(DB::table('public_booking_holds')->where('expires_at', '>', now())->count())->toBe(1);
+});
+
+it('treats the Johannesburg calendar date as today instead of comparing midnight across timezones', function () {
+    [$teamId, $serviceId] = createPublicAvailabilityContext();
+    createPublicAvailabilitySeason($teamId, $serviceId, '2032', '2032-01-01', '2032-12-31', 995, '12:00:00');
+    Carbon::setTestNow(CarbonImmutable::parse('2032-02-10 22:30:00', 'UTC'));
+
+    try {
+        $availability = app(PublicServiceAvailability::class);
+        $service = Service::query()->findOrFail($serviceId);
+        $today = CarbonImmutable::parse('2032-02-11', 'Africa/Johannesburg')->startOfDay();
+        $yesterday = $today->subDay();
+
+        $todayResult = $availability->build($service, $today, $today, 2, 0);
+        $yesterdayResult = $availability->build($service, $yesterday, $yesterday, 2, 0);
+
+        expect($todayResult['slots_by_date'])->toHaveKey('2032-02-11')
+            ->and($todayResult['slots_by_date']['2032-02-11'][0]['slot_id'])->toBeInt()
+            ->and($yesterdayResult['slots_by_date'])->not->toHaveKey('2032-02-10')
+            ->and($yesterdayResult['days'][0]['status'])->toBe('unavailable');
+    } finally {
+        Carbon::setTestNow();
+    }
+});
+
+it('releases the checkout hold on countdown expiry before allowing another selection', function () {
+    [$teamId, $serviceId] = createPublicAvailabilityContext();
+    $season = createPublicAvailabilitySeason($teamId, $serviceId, '2032', '2032-01-01', '2032-12-31', 995, '09:00:00');
+    DB::table('teams')->where('id', $teamId)->update([
+        'frontend_hold_enabled' => true,
+        'frontend_hold_minutes' => 15,
+    ]);
+    $storeUrl = route('front.v2.holds.store', ['team' => $teamId, 'service' => $serviceId]);
+    $payload = [
+        'date' => '2032-02-10',
+        'slot_id' => $season['slotId'],
+        'adults' => 2,
+        'children' => 0,
+    ];
+
+    $this->post($storeUrl, $payload)->assertRedirect();
+    $firstHold = DB::table('public_booking_holds')->sole();
+
+    $this->post(route('front.v2.holds.release', [
+        'team' => $teamId,
+        'service' => $serviceId,
+        'hold' => $firstHold->uuid,
+    ]))->assertRedirect(route('front.v2.welcome', [
+        'team' => $teamId,
+        'service_id' => $serviceId,
+        'notice' => 'hold_expired',
+    ]));
+
+    expect(DB::table('public_booking_holds')->where('id', $firstHold->id)->value('cancelled_at'))->not->toBeNull()
+        ->and(session('public_booking_v2_hold_uuid'))->toBeNull();
+
+    $this->post($storeUrl, $payload)->assertRedirect();
+
+    expect(DB::table('public_booking_holds')->count())->toBe(2)
+        ->and(DB::table('public_booking_holds')->whereNull('cancelled_at')->count())->toBe(1);
+});
+
+it('does not create a hold when the site setting is disabled', function () {
+    [$teamId, $serviceId] = createPublicAvailabilityContext();
+    $season = createPublicAvailabilitySeason($teamId, $serviceId, '2032', '2032-01-01', '2032-12-31', 995, '09:00:00');
+    $payload = [
+        'date' => '2032-02-10',
+        'slot_id' => $season['slotId'],
+        'adults' => 2,
+        'children' => 0,
+    ];
+
+    $this->post(route('front.v2.holds.store', [
+        'team' => $teamId,
+        'service' => $serviceId,
+    ]), $payload)->assertRedirect(route('front.v2.checkout', [
+        'team' => $teamId,
+        'service' => $serviceId,
+        ...$payload,
+    ]));
+
+    expect(DB::table('public_booking_holds')->count())->toBe(0);
+});
+
+it('rejects a competing hold when active bookings and holds leave too little capacity', function () {
+    [$teamId, $serviceId] = createPublicAvailabilityContext();
+    $season = createPublicAvailabilitySeason($teamId, $serviceId, '2032', '2032-01-01', '2032-12-31', 995, '09:00:00');
+    DB::table('teams')->where('id', $teamId)->update(['frontend_hold_enabled' => true]);
+    DB::table('public_booking_holds')->insert([
+        'uuid' => '84f0a1e3-806e-4701-a313-85bd2254326a',
+        'session_id' => 'another-browser',
+        'team_id' => $teamId,
+        'service_id' => $serviceId,
+        'season_id' => $season['seasonId'],
+        'inventory_id' => $season['inventoryId'],
+        'inventory_time_slot_id' => $season['slotId'],
+        'booking_date' => '2032-02-10',
+        'adults' => 7,
+        'children' => 0,
+        'expires_at' => now()->addMinutes(15),
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    $this->from(route('front.v2.welcome', $teamId))->post(route('front.v2.holds.store', [
+        'team' => $teamId,
+        'service' => $serviceId,
+    ]), [
+        'date' => '2032-02-10',
+        'slot_id' => $season['slotId'],
+        'adults' => 2,
+        'children' => 0,
+    ])->assertRedirect(route('front.v2.welcome', $teamId))->assertSessionHasErrors('slot_id');
+
+    expect(DB::table('public_booking_holds')->count())->toBe(1);
+});
+
+it('rejects checkout without an active hold when holds are enabled', function () {
+    [$teamId, $serviceId] = createPublicAvailabilityContext();
+    createPublicAvailabilitySeason($teamId, $serviceId, '2032', '2032-01-01', '2032-12-31', 995, '09:00:00');
+    DB::table('teams')->where('id', $teamId)->update(['frontend_hold_enabled' => true]);
+
+    $this->get(route('front.v2.checkout', [
+        'team' => $teamId,
+        'service' => $serviceId,
+        'hold' => '84f0a1e3-806e-4701-a313-85bd2254326f',
+    ]))->assertRedirect(route('front.v2.welcome', [
+        'team' => $teamId,
+        'service_id' => $serviceId,
+        'notice' => 'hold_expired',
+    ]));
 });

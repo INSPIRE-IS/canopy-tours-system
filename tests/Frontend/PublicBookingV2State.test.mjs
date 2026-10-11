@@ -5,6 +5,8 @@ import {
     calculateBookingTotal,
     findFirstOpenDate,
     findSelectedSlot,
+    formatHoldCountdown,
+    remainingHoldSeconds,
 } from '../../resources/js/Pages/PublicBookingV2/bookingState.js';
 
 const slots = [{ slot_id: 31, adult_price: 895, child_price: 795 }];
@@ -42,4 +44,18 @@ test('reports request failure separately from loading and empty states', () => {
 test('chooses only an open date inside the requested calendar month', () => {
     assert.equal(findFirstOpenDate(days, '2026-10-01', '2026-10-31'), '2026-10-09');
     assert.equal(findFirstOpenDate(days, '2026-11-01', '2026-11-30'), null);
+});
+
+test('counts a server expiry down without returning negative seconds', () => {
+    const now = Date.parse('2026-10-10T10:00:00Z');
+
+    assert.equal(remainingHoldSeconds('2026-10-10T10:15:00Z', now), 900);
+    assert.equal(remainingHoldSeconds('2026-10-10T09:59:59Z', now), 0);
+    assert.equal(remainingHoldSeconds(null, now), null);
+});
+
+test('formats the checkout hold as minutes and seconds', () => {
+    assert.equal(formatHoldCountdown(900), '15:00');
+    assert.equal(formatHoldCountdown(61), '1:01');
+    assert.equal(formatHoldCountdown(0), '0:00');
 });

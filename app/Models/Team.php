@@ -43,6 +43,8 @@ class Team extends Model
         'bank_branch_name',
         'branch_code',
         'is_published',
+        'frontend_hold_enabled',
+        'frontend_hold_minutes',
         'invoice_note',
         'vat_no',
         'created_at',
@@ -54,6 +56,8 @@ class Team extends Model
 
     protected $casts = [
         'is_published' => 'boolean',
+        'frontend_hold_enabled' => 'boolean',
+        'frontend_hold_minutes' => 'integer',
     ];
 
     protected function serializeDate(DateTimeInterface $date)

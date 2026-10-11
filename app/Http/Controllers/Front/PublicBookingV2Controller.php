@@ -6,9 +6,12 @@ use App\Http\Controllers\Controller;
 use App\Models\Season;
 use App\Models\Service;
 use App\Models\Team;
+use App\Models\PublicBookingHold;
 use App\Services\Calendar\PublicServiceAvailability;
+use App\Services\PublicBookingHoldService;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -104,6 +107,9 @@ class PublicBookingV2Controller extends Controller
             ],
             'services' => $services,
             'selectedServiceId' => $selectedServiceId,
+            'notice' => $request->string('notice')->toString() === 'hold_expired'
+                ? 'Your checkout hold expired. Please choose a time again.'
+                : null,
         ]);
     }
 
@@ -140,8 +146,49 @@ class PublicBookingV2Controller extends Controller
             $startDate,
             $endDate,
             (int) ($validated['adults'] ?? 0),
-            (int) ($validated['children'] ?? 0)
+            (int) ($validated['children'] ?? 0),
+            $this->publicHoldSessionKey($request)
         ));
+    }
+
+    public function storeHold(
+        Request $request,
+        Team $team,
+        Service $service,
+        PublicBookingHoldService $holdService
+    ): RedirectResponse {
+        $this->abortUnlessPublicService($team, $service);
+
+        $validated = $this->validateSelection($request);
+        $date = CarbonImmutable::parse($validated['date'], 'Africa/Johannesburg')->startOfDay();
+        $adults = (int) $validated['adults'];
+        $children = (int) ($validated['children'] ?? 0);
+        $this->validateSelectionLimits($service, $date, $adults, $children);
+
+        if (! $team->frontend_hold_enabled) {
+            return redirect()->route('front.v2.checkout', [
+                'team' => $team->id,
+                'service' => $service->id,
+                ...$validated,
+            ]);
+        }
+
+        $hold = $holdService->createOrRefresh(
+            $team,
+            $service,
+            $date,
+            (int) $validated['slot_id'],
+            $adults,
+            $children,
+            $this->publicHoldSessionKey($request)
+        );
+        $request->session()->put('public_booking_v2_hold_uuid', $hold->uuid);
+
+        return redirect()->route('front.v2.checkout', [
+            'team' => $team->id,
+            'service' => $service->id,
+            'hold' => $hold->uuid,
+        ]);
     }
 
     public function checkout(
@@ -149,42 +196,53 @@ class PublicBookingV2Controller extends Controller
         Team $team,
         Service $service,
         PublicServiceAvailability $availability
-    ): Response {
-        abort_unless(
-            $team->is_published
-                && $service->team_id === $team->id
-                && $service->is_online_bookable,
-            404
-        );
+    ): Response|RedirectResponse {
+        $this->abortUnlessPublicService($team, $service);
 
-        $validated = $request->validate([
-            'date' => ['required', 'date_format:Y-m-d'],
-            'slot_id' => ['required', 'integer', 'min:1'],
-            'adults' => ['required', 'integer', 'min:1'],
-            'children' => ['nullable', 'integer', 'min:0'],
-        ]);
+        $hold = null;
+        if ($team->frontend_hold_enabled) {
+            $request->validate(['hold' => ['required', 'uuid']]);
+            $hold = PublicBookingHold::query()
+                ->active()
+                ->where('uuid', $request->string('hold'))
+                ->where('session_id', $this->publicHoldSessionKey($request))
+                ->where('team_id', $team->id)
+                ->where('service_id', $service->id)
+                ->first();
 
-        $date = CarbonImmutable::parse($validated['date'], 'Africa/Johannesburg')->startOfDay();
-        $today = CarbonImmutable::today('Africa/Johannesburg');
-        $adults = (int) $validated['adults'];
-        $children = (int) ($validated['children'] ?? 0);
+            if (! $hold) {
+                return redirect()->route('front.v2.welcome', [
+                    'team' => $team->id,
+                    'service_id' => $service->id,
+                    'notice' => 'hold_expired',
+                ]);
+            }
+
+            $date = CarbonImmutable::parse($hold->booking_date, 'Africa/Johannesburg')->startOfDay();
+            $adults = (int) $hold->adults;
+            $children = (int) $hold->children;
+            $slotId = (int) $hold->inventory_time_slot_id;
+        } else {
+            $validated = $this->validateSelection($request);
+            $date = CarbonImmutable::parse($validated['date'], 'Africa/Johannesburg')->startOfDay();
+            $adults = (int) $validated['adults'];
+            $children = (int) ($validated['children'] ?? 0);
+            $slotId = (int) $validated['slot_id'];
+        }
+
         $pax = $adults + $children;
+        $this->validateSelectionLimits($service, $date, $adults, $children);
 
-        if ($date->lt($today)) {
-            throw ValidationException::withMessages([
-                'date' => 'Please choose a current or future booking date.',
-            ]);
-        }
-
-        if ($pax > (int) $service->capacity) {
-            throw ValidationException::withMessages([
-                'adults' => "This activity allows a maximum of {$service->capacity} guests per booking.",
-            ]);
-        }
-
-        $calendar = $availability->build($service, $date, $date, $adults, $children);
+        $calendar = $availability->build(
+            $service,
+            $date,
+            $date,
+            $adults,
+            $children,
+            $hold?->session_id
+        );
         $slot = collect($calendar['slots_by_date'][$date->toDateString()] ?? [])
-            ->first(fn (array $candidate) => (int) $candidate['slot_id'] === (int) $validated['slot_id']);
+            ->first(fn (array $candidate) => (int) $candidate['slot_id'] === $slotId);
 
         if (! $slot) {
             throw ValidationException::withMessages([
@@ -257,11 +315,95 @@ class PublicBookingV2Controller extends Controller
                 'total' => round($adultTotal + $childTotal, 2),
             ],
             'extras' => $extras,
+            'hold' => $hold ? [
+                'uuid' => $hold->uuid,
+                'expires_at' => $hold->expires_at->toIso8601String(),
+                'duration_minutes' => (int) $team->frontend_hold_minutes,
+            ] : null,
             'changeUrl' => route('front.v2.welcome', [
                 'team' => $team->id,
                 'service_id' => $service->id,
             ]),
         ]);
+    }
+
+    public function releaseHold(
+        Request $request,
+        Team $team,
+        Service $service,
+        string $hold
+    ): RedirectResponse {
+        $this->abortUnlessPublicService($team, $service);
+
+        PublicBookingHold::query()
+            ->where('uuid', $hold)
+            ->where('session_id', $this->publicHoldSessionKey($request))
+            ->where('team_id', $team->id)
+            ->where('service_id', $service->id)
+            ->whereNull('completed_at')
+            ->whereNull('cancelled_at')
+            ->update(['cancelled_at' => now()]);
+
+        if ($request->session()->get('public_booking_v2_hold_uuid') === $hold) {
+            $request->session()->forget('public_booking_v2_hold_uuid');
+        }
+
+        return redirect()->route('front.v2.welcome', [
+            'team' => $team->id,
+            'service_id' => $service->id,
+            'notice' => 'hold_expired',
+        ]);
+    }
+
+    private function validateSelection(Request $request): array
+    {
+        return $request->validate([
+            'date' => ['required', 'date_format:Y-m-d'],
+            'slot_id' => ['required', 'integer', 'min:1'],
+            'adults' => ['required', 'integer', 'min:1'],
+            'children' => ['nullable', 'integer', 'min:0'],
+        ]);
+    }
+
+    private function validateSelectionLimits(
+        Service $service,
+        CarbonImmutable $date,
+        int $adults,
+        int $children
+    ): void {
+        if ($date->lt(CarbonImmutable::today('Africa/Johannesburg'))) {
+            throw ValidationException::withMessages([
+                'date' => 'Please choose a current or future booking date.',
+            ]);
+        }
+
+        if (($adults + $children) > (int) $service->capacity) {
+            throw ValidationException::withMessages([
+                'adults' => "This activity allows a maximum of {$service->capacity} guests per booking.",
+            ]);
+        }
+    }
+
+    private function abortUnlessPublicService(Team $team, Service $service): void
+    {
+        abort_unless(
+            $team->is_published
+                && $service->team_id === $team->id
+                && $service->is_online_bookable,
+            404
+        );
+    }
+
+    private function publicHoldSessionKey(Request $request): string
+    {
+        $key = $request->session()->get('public_booking_v2_session_key');
+
+        if (! is_string($key) || $key === '') {
+            $key = (string) Str::uuid();
+            $request->session()->put('public_booking_v2_session_key', $key);
+        }
+
+        return $key;
     }
 
     private function frontContent(?string $value): ?string

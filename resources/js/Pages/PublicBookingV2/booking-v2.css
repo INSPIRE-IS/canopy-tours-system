@@ -387,6 +387,14 @@
     font-size: 26px;
 }
 
+.kct-hold-countdown {
+    margin: 12px 0 0;
+    text-align: center;
+    color: #6b625d;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
 .kct-confirm-pay {
     display: flex;
     height: 56px;

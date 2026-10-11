@@ -1,7 +1,8 @@
-import React, { useMemo, useState } from 'react';
-import { Head } from '@inertiajs/react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Head, router } from '@inertiajs/react';
 import { format, parseISO } from 'date-fns';
 import { ChevronIcon, money } from './BookingComponents';
+import { formatHoldCountdown, remainingHoldSeconds } from './bookingState';
 import './booking-v2.css';
 
 function LockIcon() {
@@ -99,7 +100,7 @@ function ExtrasSelector({ extras, selectedIds, onToggle }) {
     );
 }
 
-function PaymentSummary({ total, canSubmit, submissionEnabled }) {
+function PaymentSummary({ total, canSubmit, submissionEnabled, holdSeconds }) {
     return (
         <>
             <div className="kct-promo-row">
@@ -118,6 +119,11 @@ function PaymentSummary({ total, canSubmit, submissionEnabled }) {
             >
                 Confirm &amp; pay
             </button>
+            {holdSeconds !== null && (
+                <p className="kct-hold-countdown">
+                    Your place is held for {formatHoldCountdown(holdSeconds)}.
+                </p>
+            )}
         </>
     );
 }
@@ -132,11 +138,13 @@ function CheckoutTitle({ changeUrl }) {
     );
 }
 
-export default function Checkout({ team, service, selection, quote, extras = [], changeUrl }) {
+export default function Checkout({ team, service, selection, quote, extras = [], hold = null, changeUrl }) {
     const [details, setDetails] = useState({ full_name: '', email: '', phone: '' });
     const [accepted, setAccepted] = useState(false);
     const [showConditions, setShowConditions] = useState(false);
     const [selectedExtraIds, setSelectedExtraIds] = useState([]);
+    const [holdSeconds, setHoldSeconds] = useState(() => remainingHoldSeconds(hold?.expires_at));
+    const expiryRedirected = useRef(false);
     const logoFallback = '/images/kct-booking-v2/logo-karkloof.png';
     const heroFallback = '/images/kct-booking-v2/hero-zipline.jpg';
     const formattedDate = format(parseISO(selection.date), 'EEE d MMMM yyyy');
@@ -160,6 +168,28 @@ export default function Checkout({ team, service, selection, quote, extras = [],
     const selectedExtras = extras.filter((extra) => selectedExtraIds.includes(extra.id));
     const extrasTotal = selectedExtras.reduce((total, extra) => total + Number(extra.total || 0), 0);
     const checkoutTotal = Number(quote.total || 0) + extrasTotal;
+
+    useEffect(() => {
+        if (!hold?.expires_at) return undefined;
+
+        const updateRemaining = () => {
+            const remaining = remainingHoldSeconds(hold.expires_at);
+            setHoldSeconds(remaining);
+
+            if (remaining === 0 && !expiryRedirected.current) {
+                expiryRedirected.current = true;
+                router.post(route('front.v2.holds.release', {
+                    team: team.id,
+                    service: service.id,
+                    hold: hold.uuid,
+                }), {}, { replace: true });
+            }
+        };
+        const interval = window.setInterval(updateRemaining, 1000);
+        updateRemaining();
+
+        return () => window.clearInterval(interval);
+    }, [hold?.expires_at, hold?.uuid, service.id, team.id]);
 
     const updateDetail = (field) => (event) => {
         setDetails((current) => ({ ...current, [field]: event.target.value }));
@@ -252,11 +282,11 @@ export default function Checkout({ team, service, selection, quote, extras = [],
                             heroFallback={heroFallback}
                         />
                         <hr />
-                        <PaymentSummary total={checkoutTotal} canSubmit={canSubmit} submissionEnabled={submissionEnabled} />
+                        <PaymentSummary total={checkoutTotal} canSubmit={canSubmit} submissionEnabled={submissionEnabled} holdSeconds={holdSeconds} />
                     </aside>
 
                     <section className="kct-checkout-summary kct-checkout-mobile-payment" aria-label="Promo code and payment total">
-                        <PaymentSummary total={checkoutTotal} canSubmit={canSubmit} submissionEnabled={submissionEnabled} />
+                        <PaymentSummary total={checkoutTotal} canSubmit={canSubmit} submissionEnabled={submissionEnabled} holdSeconds={holdSeconds} />
                     </section>
                 </main>
             </div>

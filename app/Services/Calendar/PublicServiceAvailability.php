@@ -19,7 +19,8 @@ class PublicServiceAvailability
         CarbonImmutable $startDate,
         CarbonImmutable $endDate,
         int $adults = 0,
-        int $children = 0
+        int $children = 0,
+        ?string $excludeHoldSessionId = null
     ): array {
         $seasons = Season::query()
             ->with([
@@ -49,7 +50,8 @@ class PublicServiceAvailability
                 $inventory->id,
                 $season->team_id,
                 $segmentStart,
-                $segmentEnd
+                $segmentEnd,
+                $excludeHoldSessionId
             );
 
             // The shared builder keys cells by labels such as "Wed 03". Build one
@@ -179,9 +181,15 @@ class PublicServiceAvailability
             ->format('H:i');
     }
 
-    private function bookingData(int $inventoryId, int $teamId, CarbonImmutable $startDate, CarbonImmutable $endDate)
+    private function bookingData(
+        int $inventoryId,
+        int $teamId,
+        CarbonImmutable $startDate,
+        CarbonImmutable $endDate,
+        ?string $excludeHoldSessionId = null
+    )
     {
-        return DB::table('bookings as b')
+        $bookings = DB::table('bookings as b')
             ->leftJoin('booking_items as items', 'items.booking_id', '=', 'b.id')
             ->leftJoin('booking_inventories as bi', 'bi.booking_item_id', '=', 'items.id')
             ->leftJoin('inventory_type_days as itd', 'itd.id', '=', 'bi.inventory_type_day_id')
@@ -202,5 +210,38 @@ class PublicServiceAvailability
             ->groupBy('bi.date', 'td.name', 'its.start_time')
             ->get()
             ->keyBy(fn ($row) => $row->date . '_' . $row->time);
+
+        $holds = DB::table('public_booking_holds as holds')
+            ->join('inventory_time_slots as hold_slots', 'hold_slots.id', '=', 'holds.inventory_time_slot_id')
+            ->where('holds.inventory_id', $inventoryId)
+            ->where('holds.team_id', $teamId)
+            ->whereNull('holds.completed_at')
+            ->whereNull('holds.cancelled_at')
+            ->where('holds.expires_at', '>', now())
+            ->whereBetween('holds.booking_date', [$startDate->toDateString(), $endDate->toDateString()])
+            ->when(
+                $excludeHoldSessionId,
+                fn ($query) => $query->where('holds.session_id', '!=', $excludeHoldSessionId)
+            )
+            ->select([
+                'holds.booking_date as date',
+                'hold_slots.start_time as time',
+                DB::raw('SUM(holds.adults + holds.children) as total'),
+            ])
+            ->groupBy('holds.booking_date', 'hold_slots.start_time')
+            ->get();
+
+        foreach ($holds as $hold) {
+            $key = $hold->date . '_' . $hold->time;
+
+            if ($bookings->has($key)) {
+                $bookings[$key]->total = (int) $bookings[$key]->total + (int) $hold->total;
+                continue;
+            }
+
+            $bookings->put($key, $hold);
+        }
+
+        return $bookings;
     }
 }

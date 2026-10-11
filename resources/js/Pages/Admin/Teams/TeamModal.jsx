@@ -46,6 +46,8 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams, permissions = {}
         bank_branch_name: "",
         branch_code: "",
         is_published: true,
+        frontend_hold_enabled: false,
+        frontend_hold_minutes: 15,
         invoice_note: "",
         vat_no: "",
         team_id: team?.team_id,
@@ -85,6 +87,8 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams, permissions = {}
                 bank_branch_name: team.bank_branch_name || "",
                 branch_code: team.branch_code || "",
                 is_published: team.is_published ?? true,
+                frontend_hold_enabled: team.frontend_hold_enabled ?? false,
+                frontend_hold_minutes: team.frontend_hold_minutes ?? 15,
                 invoice_note: team.invoice_note || "",
                 vat_no: team.vat_no || "",
                 team_id: team.team_id,
@@ -98,7 +102,12 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams, permissions = {}
             });
         } else if (mode === "create") {
             reset(); // Clear form for create mode
-            setData((prev) => ({ ...prev, is_published: true }));
+            setData((prev) => ({
+                ...prev,
+                is_published: true,
+                frontend_hold_enabled: false,
+                frontend_hold_minutes: 15,
+            }));
         }
         setLogo(null);
         setImage(null);
@@ -170,6 +179,8 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams, permissions = {}
         if (canPublishSite) {
             formData.append('is_published', data.is_published ? 1 : 0);
         }
+        formData.append('frontend_hold_enabled', data.frontend_hold_enabled ? 1 : 0);
+        formData.append('frontend_hold_minutes', data.frontend_hold_minutes ?? '');
         formData.append('invoice_note', data.invoice_note);
         formData.append('vat_no', data.vat_no);
         formData.append('team_id', data.team_id);
@@ -303,6 +314,38 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams, permissions = {}
                             </div>
                         </div>
                     )}
+
+                    <label className="block font-semibold mb-1">Public Checkout Hold</label>
+                    <span className="border-bottom border-[1px] border-black flex flex-row w-full items-center gap-2 justify-start mb-4"></span>
+                    <div className="flex flex-row w-full items-start gap-6 justify-start mb-4">
+                        <div className="w-1/2 pt-6">
+                            <CustomCheckbox
+                                label="Enable frontend checkout hold"
+                                name="frontend_hold_enabled"
+                                checked={!!data.frontend_hold_enabled}
+                                onChange={handleChange}
+                                errors={errors}
+                                disabled={mode === "view"}
+                            />
+                            <p className="text-xs text-gray-500">
+                                Reserves the selected places while a guest completes checkout.
+                            </p>
+                        </div>
+                        <div className="w-1/2">
+                            <InputText
+                                title="Hold duration (minutes)"
+                                field="frontend_hold_minutes"
+                                type="number"
+                                min="1"
+                                max="120"
+                                value={data.frontend_hold_minutes}
+                                mode={mode}
+                                handleChange={handleChange}
+                                errors={errors}
+                                disabled={!data.frontend_hold_enabled || mode === "view"}
+                            />
+                        </div>
+                    </div>
 
                     <div className="flex flex-row w-full items-center gap-2 justify-start mb-4">
                         <InputRichText

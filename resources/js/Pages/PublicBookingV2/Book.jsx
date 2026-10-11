@@ -33,7 +33,7 @@ const dateKey = (date) => format(date, 'yyyy-MM-dd');
 // Switch to true only after the client approves persistent inline reset copy.
 const SHOW_INLINE_SELECTION_NOTICE = false;
 
-export default function Book({ team, services = [], selectedServiceId }) {
+export default function Book({ team, services = [], selectedServiceId, notice = null }) {
     const { showToast } = useToast();
     const [serviceId, setServiceId] = useState(Number(selectedServiceId || services[0]?.id || 0));
     const service = useMemo(
@@ -55,7 +55,14 @@ export default function Book({ team, services = [], selectedServiceId }) {
     const [availabilityRequestVersion, setAvailabilityRequestVersion] = useState(0);
     const [showMobileDetails, setShowMobileDetails] = useState(false);
     const availabilityCache = useRef(null);
+    const shownNotice = useRef(null);
     const availabilityKey = `${service?.id || 0}:${availabilityPax.adults}:${availabilityPax.children}`;
+
+    useEffect(() => {
+        if (!notice || shownNotice.current === notice) return;
+        shownNotice.current = notice;
+        showToast(notice, 'warning', 7000);
+    }, [notice, showToast]);
 
     useEffect(() => {
         if (!service) return;
@@ -265,7 +272,7 @@ export default function Book({ team, services = [], selectedServiceId }) {
     const continueToCheckout = () => {
         if (!selectedDate || !selectedSlot || availabilityUpdating) return;
 
-        router.get(route('front.v2.checkout', {
+        router.post(route('front.v2.holds.store', {
             team: team.id,
             service: service.id,
         }), {
@@ -274,7 +281,7 @@ export default function Book({ team, services = [], selectedServiceId }) {
             adults,
             children,
         }, {
-            preserveState: true,
+            preserveState: false,
             onError: (errors) => {
                 const message = Object.values(errors || {})[0]
                     || 'That selection could not be opened. Please choose the date and time again.';

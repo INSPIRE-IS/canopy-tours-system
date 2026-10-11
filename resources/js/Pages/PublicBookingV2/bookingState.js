@@ -26,3 +26,18 @@ export function availabilityState(days, startDate, endDate, loading, error) {
 
     return visibleDays.some((day) => day.is_open) ? 'available' : 'empty';
 }
+
+export function remainingHoldSeconds(expiresAt, nowMilliseconds = Date.now()) {
+    if (!expiresAt) return null;
+
+    const expiryMilliseconds = new Date(expiresAt).getTime();
+    if (!Number.isFinite(expiryMilliseconds)) return 0;
+
+    return Math.max(0, Math.ceil((expiryMilliseconds - nowMilliseconds) / 1000));
+}
+
+export function formatHoldCountdown(seconds) {
+    const safeSeconds = Math.max(0, Number(seconds) || 0);
+
+    return `${Math.floor(safeSeconds / 60)}:${String(safeSeconds % 60).padStart(2, '0')}`;
+}

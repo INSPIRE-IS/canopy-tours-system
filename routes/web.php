@@ -101,6 +101,10 @@ Route::get('/activity', [ActivityController::class, 'activity'])->name('front.ac
 Route::get('/activity/calendar', [ActivityController::class, 'calendar'])->name('front.activity.calendar');
 Route::get('/front/v2/welcome/{team}', [PublicBookingV2Controller::class, 'index'])
     ->name('front.v2.welcome');
+Route::post('/front/v2/holds/{team}/{service}', [PublicBookingV2Controller::class, 'storeHold'])
+    ->name('front.v2.holds.store');
+Route::post('/front/v2/holds/{team}/{service}/{hold}/release', [PublicBookingV2Controller::class, 'releaseHold'])
+    ->name('front.v2.holds.release');
 Route::get('/front/v2/checkout/{team}/{service}', [PublicBookingV2Controller::class, 'checkout'])
     ->name('front.v2.checkout');
 Route::get('/front/v2/services/{service}/availability', [PublicBookingV2Controller::class, 'availability'])
