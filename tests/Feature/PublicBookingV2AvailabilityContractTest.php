@@ -97,6 +97,133 @@ function createPublicAvailabilityContext(): array
     return [$teamId, $serviceId];
 }
 
+function createAvailabilityBooking(
+    int $teamId,
+    int $serviceId,
+    int $seasonId,
+    int $inventoryId,
+    int $slotId,
+    int $statusPaymentId,
+    string $date,
+    int $pax,
+    ?string $paymentWindowExpiredAt = null
+): int {
+    $bookingId = DB::table('bookings')->insertGetId([
+        'lead_name' => 'Availability Guest',
+        'status_payment_id' => $statusPaymentId,
+        'payment_window_expired_at' => $paymentWindowExpiredAt,
+        'tot_paid' => $statusPaymentId === 2 ? 895 : 0,
+        'grand_tot_due' => 895,
+        'reference' => 'REF-' . uniqid(),
+        'team_id' => $teamId,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+    $bookingItemId = DB::table('booking_items')->insertGetId([
+        'booking_id' => $bookingId,
+        'service_id' => $serviceId,
+        'season_id' => $seasonId,
+        'inventory_id' => $inventoryId,
+        'pax_adults' => $pax,
+        'team_id' => $teamId,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+    $bookingDetailId = DB::table('booking_details')->insertGetId([
+        'booking_item_id' => $bookingItemId,
+        'team_id' => $teamId,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+    $inventoryTypeDayId = DB::table('inventory_type_days')
+        ->where('inventory_id', $inventoryId)
+        ->value('id');
+
+    DB::table('booking_inventories')->insert([
+        'date' => $date,
+        'adults' => $pax,
+        'pax' => $pax,
+        'booking_item_id' => $bookingItemId,
+        'booking_detail_id' => $bookingDetailId,
+        'inventory_type_day_id' => $inventoryTypeDayId,
+        'inventory_time_slot_id' => $slotId,
+        'team_id' => $teamId,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    return $bookingId;
+}
+
+it('releases expired unpaid capacity while retaining paid bookings that completed late', function () {
+    [$teamId, $serviceId] = createPublicAvailabilityContext();
+    $season = createPublicAvailabilitySeason(
+        $teamId,
+        $serviceId,
+        '2032',
+        '2032-01-01',
+        '2032-12-31',
+        895,
+        '09:00:00'
+    );
+    DB::table('status_payments')->insert([
+        'id' => 1,
+        'name' => 'Pending',
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+    DB::table('status_payments')->insert([
+        'id' => 2,
+        'name' => 'Paid',
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+    $date = '2032-04-10';
+
+    createAvailabilityBooking(
+        $teamId,
+        $serviceId,
+        $season['seasonId'],
+        $season['inventoryId'],
+        $season['slotId'],
+        1,
+        $date,
+        3,
+        '2032-04-10 08:00:00'
+    );
+    createAvailabilityBooking(
+        $teamId,
+        $serviceId,
+        $season['seasonId'],
+        $season['inventoryId'],
+        $season['slotId'],
+        2,
+        $date,
+        2,
+        '2032-04-10 08:00:00'
+    );
+    createAvailabilityBooking(
+        $teamId,
+        $serviceId,
+        $season['seasonId'],
+        $season['inventoryId'],
+        $season['slotId'],
+        1,
+        $date,
+        1
+    );
+
+    $availability = app(PublicServiceAvailability::class)->build(
+        Service::query()->findOrFail($serviceId),
+        CarbonImmutable::parse($date),
+        CarbonImmutable::parse($date),
+        1,
+        0
+    );
+
+    expect($availability['slots_by_date'][$date][0]['spaces_remaining'])->toBe(5);
+});
+
 it('returns owned slots across adjacent public seasons while preserving a real gap', function () {
     [$teamId, $serviceId] = createPublicAvailabilityContext();
 

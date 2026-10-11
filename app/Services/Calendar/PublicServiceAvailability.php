@@ -198,6 +198,10 @@ class PublicServiceAvailability
             ->where('items.inventory_id', $inventoryId)
             ->where('items.team_id', $teamId)
             ->whereNull('b.deleted_at')
+            ->where(function ($query) {
+                $query->whereNull('b.payment_window_expired_at')
+                    ->orWhere('b.status_payment_id', 2);
+            })
             ->whereNull('items.deleted_at')
             ->whereNull('bi.deleted_at')
             ->whereBetween('bi.date', [$startDate->toDateString(), $endDate->toDateString()])

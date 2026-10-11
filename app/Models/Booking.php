@@ -21,6 +21,7 @@ class Booking extends Model
         'created_at',
         'updated_at',
         'deleted_at',
+        'payment_window_expired_at',
     ];
 
     protected $fillable = [
@@ -29,6 +30,7 @@ class Booking extends Model
         'lead_name',
         'type_booking_id',
         'status_payment_id',
+        'payment_window_expired_at',
         'is_sms',
         'is_corporate',
         'due_date',
@@ -41,6 +43,10 @@ class Booking extends Model
         'updated_at',
         'deleted_at',
         'team_id',
+    ];
+
+    protected $casts = [
+        'payment_window_expired_at' => 'datetime',
     ];
 
     public const TIME_SLOTS = [
