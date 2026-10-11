@@ -236,6 +236,7 @@
 }
 
 .kct-checkout-fields input,
+.kct-checkout-fields select,
 .kct-promo-row input {
     box-sizing: border-box;
     border: 1px solid #c9ccc4;
@@ -250,7 +251,13 @@
     padding: 0 14px;
 }
 
+.kct-checkout-fields select {
+    height: 48px;
+    padding: 0 40px 0 14px;
+}
+
 .kct-checkout-fields input:focus,
+.kct-checkout-fields select:focus,
 .kct-promo-row input:focus {
     border-color: var(--kct-action-primary);
     outline: 3px solid rgb(27 122 16 / 15%);
@@ -414,6 +421,50 @@
     opacity: .45;
 }
 
+.kct-gift-pax-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px;
+}
+
+.kct-gift-pax-grid .kct-pax-control {
+    justify-content: space-between;
+    padding: 16px;
+    border: 1px solid var(--kct-border-subtle);
+    border-radius: 14px;
+}
+
+.kct-gift-pax-grid .kct-pax-control > span {
+    font-weight: 600;
+}
+
+.kct-gift-summary-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: fit-content;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: #fff7cc;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.kct-phone-preview {
+    margin: -6px 0 0;
+    color: var(--kct-text-muted);
+    font-size: 12px;
+}
+
+.kct-checkout-error {
+    padding: 12px 14px;
+    border: 1px solid #f2b8b5;
+    border-radius: 10px;
+    background: #fff1f0;
+    color: #8f1d18;
+    font-size: 14px;
+}
+
 .kct-conditions-backdrop {
     position: fixed;
     z-index: 80;
@@ -468,6 +519,10 @@
     }
 
     .kct-checkout-fields {
+        grid-template-columns: 1fr;
+    }
+
+    .kct-gift-pax-grid {
         grid-template-columns: 1fr;
     }
 

@@ -107,6 +107,8 @@ Route::post('/front/v2/holds/{team}/{service}/{hold}/release', [PublicBookingV2C
     ->name('front.v2.holds.release');
 Route::get('/front/v2/checkout/{team}/{service}', [PublicBookingV2Controller::class, 'checkout'])
     ->name('front.v2.checkout');
+Route::get('/front/v2/gift/{team}/{service}', [PublicBookingV2Controller::class, 'gift'])
+    ->name('front.v2.gift');
 Route::get('/front/v2/services/{service}/availability', [PublicBookingV2Controller::class, 'availability'])
     ->name('front.v2.services.availability');
 // Route::get('/front/activity/selected-promo/{promo_id}', [ActivityController::class, 'selectedPromo']);

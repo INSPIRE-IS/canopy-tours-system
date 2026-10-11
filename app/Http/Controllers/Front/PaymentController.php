@@ -234,19 +234,53 @@ class PaymentController extends Controller
 
     public function gift(GiftVoucher $gift)
     {
-        //dd($gift);
         $sessionId = session()->getId() ?? null;
-        //logger()->info('sessionId inertia ' . $sessionId);
+        $gift->load([
+            'gift_voucher_items.team.file_logo',
+            'gift_voucher_items.team.file_image',
+            'gift_voucher_items.service.file',
+            'gift_voucher_items.season',
+        ]);
+        $voucherItem = $gift->gift_voucher_items->first();
+        $team = $voucherItem?->team;
+        $service = $voucherItem?->service;
+        $season = $voucherItem?->season;
+        $teamId = $team?->id;
+
         if ($sessionId != $gift->session_id || $gift->status_payment_id != 1) {
-            return redirect()->route('front.legacy.welcome');
+            return $teamId
+                ? redirect()->route('front.welcome', ['team' => $teamId])
+                : redirect('/');
         }
 
-        $teamId = $this->resolveGiftTeamId($gift);
         $gift->setAttribute('team_id', $teamId);
         $payfastStatus = config('app.debug') ? $this->getPayfastStatus($teamId) : null;
 
         return Inertia::render('GiftPayment', [
             'gift' => $gift,
+            'team' => [
+                'id' => $teamId,
+                'name' => $team?->name,
+                'file_logo' => $team?->file_logo ? ['path' => $team->file_logo->path] : null,
+            ],
+            'service' => [
+                'id' => $service?->id,
+                'name' => $service?->name ?? 'Gift Voucher',
+                'image' => $service?->file?->path ?? $team?->file_image?->path,
+            ],
+            'season' => [
+                'id' => $season?->id,
+                'name' => $season?->name,
+            ],
+            'voucherItem' => $voucherItem ? [
+                'pax_adults' => (int) $voucherItem->pax_adults,
+                'pax_children' => (int) $voucherItem->pax_children,
+                'price_adult' => (float) $voucherItem->price_adult,
+                'price_child' => (float) $voucherItem->price_child,
+            ] : null,
+            'backUrl' => $teamId && $service?->id
+                ? route('front.v2.gift', ['team' => $teamId, 'service' => $service->id])
+                : ($teamId ? route('front.welcome', ['team' => $teamId]) : url('/')),
             'payfastStatus' => $payfastStatus,
         ]);
     }

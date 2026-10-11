@@ -322,7 +322,7 @@ export default function Book({ team, services = [], selectedServiceId, notice = 
                             </label>
                         )}
                         {service.gift_activity_id && (
-                            <a className="kct-voucher-button" href={route('front.voucher', { activity_id: service.gift_activity_id })}>
+                            <a className="kct-voucher-button" href={route('front.v2.gift', { team: team.id, service: service.id })}>
                                 <GiftIcon />
                                 <span className="kct-voucher-label-desktop">Buy a Gift Voucher</span>
                                 <span className="kct-voucher-label-mobile">Gift voucher</span>

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Front;
 
 use App\Http\Controllers\Controller;
+use App\Models\Country;
 use App\Models\Season;
 use App\Models\Service;
 use App\Models\Team;
@@ -337,6 +338,57 @@ class PublicBookingV2Controller extends Controller
                 'duration_minutes' => (int) $team->frontend_hold_minutes,
             ] : null,
             'changeUrl' => route('front.welcome', [
+                'team' => $team->id,
+                'service_id' => $service->id,
+            ]),
+        ]);
+    }
+
+    public function gift(Team $team, Service $service): Response
+    {
+        $this->abortUnlessPublicService($team, $service);
+
+        $today = CarbonImmutable::today('Africa/Johannesburg');
+        $season = Season::query()
+            ->where('service_id', $service->id)
+            ->where('team_id', $team->id)
+            ->where('internal_only', false)
+            ->whereDate('end_date', '>=', $today->toDateString())
+            ->orderBy('start_date')
+            ->firstOrFail();
+
+        $team->load(['file_logo', 'file_image']);
+        $service->loadMissing('file');
+
+        return Inertia::render('PublicBookingV2/GiftCheckout', [
+            'team' => [
+                'id' => $team->id,
+                'name' => $team->name,
+                'file_logo' => $team->file_logo ? [
+                    'path' => $this->publicAssetUrl($team->file_logo->path),
+                ] : null,
+            ],
+            'service' => [
+                'id' => $service->id,
+                'name' => $service->name,
+                'image' => $this->publicAssetUrl($service->file?->path)
+                    ?? $this->publicAssetUrl($team->file_image?->path),
+            ],
+            'season' => [
+                'id' => $season->id,
+                'name' => $season->name,
+                'start_date' => CarbonImmutable::parse($season->start_date)->toDateString(),
+                'end_date' => CarbonImmutable::parse($season->end_date)->toDateString(),
+                'adult_price' => (float) $season->rake_rate_adult,
+                'child_price' => (float) $season->rake_rate_child,
+            ],
+            'countries' => Country::query()
+                ->select('id', 'name', 'phonecode')
+                ->whereNotNull('phonecode')
+                ->where('phonecode', '!=', '')
+                ->orderBy('name')
+                ->get(),
+            'backUrl' => route('front.welcome', [
                 'team' => $team->id,
                 'service_id' => $service->id,
             ]),

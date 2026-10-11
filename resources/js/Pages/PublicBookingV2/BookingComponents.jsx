@@ -61,8 +61,8 @@ export function GiftIcon() {
     );
 }
 
-export function Stepper({ label, value, onChange, maximum }) {
-    const canDecrease = value > 0;
+export function Stepper({ label, value, onChange, maximum, minimum = 0 }) {
+    const canDecrease = value > minimum;
     const canIncrease = value < maximum;
 
     return (
