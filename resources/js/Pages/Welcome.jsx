@@ -8,7 +8,7 @@ import CustomInputText from '@/Components/CustomInputText';
 import BlueButton from '@/Components/BlueButton';
 import RichTextDisplay from '@/Components/RichTextDisplay';
 
-export default function HomePage({ activities, auth, teams, team_id, team, canShowLogin = false }) {
+export default function HomePage({ activities, auth, teams, team_id, team, countries = [], canShowLogin = false }) {
   const [date, setDate] = useState(new Date());
   const [teamId, setTeamId] = useState(team_id);
   const [selectedService, setSelectedService] = useState(null);
