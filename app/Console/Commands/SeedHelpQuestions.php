@@ -1075,9 +1075,9 @@ class SeedHelpQuestions extends Command
             [
                 'category' => 'Reports',
                 'question' => 'Which reports are available right now?',
-                'description' => 'Operational exports available to staff.',
+                'description' => 'Operational reports available to staff.',
                 'where' => '<a href="/admin/reports">Admin > Reports</a>',
-                'business_rules' => 'Currently available reports are Bookings, Payments, Check-in/Manifest, Booking Adjustment, Marketing Opt-In, Franchise Fees, Wholesaler Usage, and Promo Code Usage exports. All reports are team-scoped and support download or queued email delivery.',
+                'business_rules' => 'Currently available reports are Bookings, Payments, Check-in/Manifest, Booking Adjustment, Marketing Opt-In, Franchise Fees, Wholesaler Usage, and Promo Code Usage. All reports are team-scoped and support download, queued email delivery, or online viewing in a new browser tab. Online viewing requires a start and end date and is limited to a maximum two-month period; use download or email for larger ranges.',
                 'examples' => 'Use Bookings to export pax and totals by activity date. Use Payments to export payment transactions by payment date. Use Check-in/Manifest to export guest check-in status and optional manifest fields. Use Booking Adjustment to compare rack totals vs adjusted totals. Use Marketing Opt-In for guests who opted into birthday marketing. Use Franchise Fees for the monthly franchise worksheet. Use Wholesaler Usage to review operator/accommodation partner bookings by date range. Use Promo Code Usage to review promo-code bookings, pax, value, and discount impact.',
                 'is_internal' => true,
             ],
