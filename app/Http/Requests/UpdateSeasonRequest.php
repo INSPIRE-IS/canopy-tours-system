@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Models\Season;
+use Carbon\CarbonImmutable;
 use Gate;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -93,6 +94,20 @@ class UpdateSeasonRequest extends FormRequest
     {
         $season = $this->route('season');
         $seasonId = $season instanceof Season ? $season->id : $season;
+
+        if ($season instanceof Season) {
+            $dateFormat = config('panel.date_format');
+            $serviceUnchanged = (int) $season->service_id === (int) $this->input('service_id');
+            $startDateUnchanged = CarbonImmutable::parse($season->start_date)->format($dateFormat)
+                === $this->input('start_date');
+            $endDateUnchanged = CarbonImmutable::parse($season->end_date)->format($dateFormat)
+                === $this->input('end_date');
+
+            // Historical overlaps must not block unrelated edits to an existing season.
+            if ($serviceUnchanged && $startDateUnchanged && $endDateUnchanged) {
+                return;
+            }
+        }
 
         $overlap = Season::query()
             ->where('team_id', auth()->user()->team_id)

@@ -218,7 +218,10 @@ class ActivityController extends Controller
         $team = Team::select('id', 'name', 'description', 'color', 'is_published')
             ->with('file_image', 'file_logo')
             ->find($teamId);
-        //dd($team);
+        $countries = Country::select('id', 'name', 'phonecode')
+            ->whereNotNull('phonecode')
+            ->orderBy('name')
+            ->get();
 
         return Inertia::render('Welcome', [
             'canLogin' => Route::has('login'),
@@ -230,6 +233,7 @@ class ActivityController extends Controller
             'teams' => $teams,
             'team' => $team,
             'team_id' => $teamId ?? 0,
+            'countries' => $countries,
         ]);
     }
 
