@@ -8,6 +8,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (Schema::hasColumn('customer_indemnity_documents', 'signing_place')) {
+            return;
+        }
+
         Schema::table('customer_indemnity_documents', function (Blueprint $table) {
             $table->string('signing_place')->nullable()->after('guardian_name');
         });

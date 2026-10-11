@@ -917,30 +917,27 @@ class ActivityController extends Controller
                 $adultsCount = (int) ($validated['adults'] ?? 0);
                 $amount_adults = $season->rake_rate_adult * $adultsCount;
                 $childrenCount = (int) ($validated['children'] ?? 0);
-                $amount_children = $season->rake_rate_children * $childrenCount;
+                $amount_children = $season->rake_rate_child * $childrenCount;
                 //$guidesCount = (int) ($validated['guides'] ?? 0);
                 $amount_guides = 0; //  $season->rake_rate_guide * 1;
                 $amount = $amount_adults + $amount_children + $amount_guides;
 
-                //get gift voucher
-                $voucher = GiftVoucher::where('session_id', $sessionId)->first();
-                if (!$voucher) {
-                    $voucher = GiftVoucher::create([
-                        'full_name' => $validated['full_name'],
-                        'email_address' => $validated['email'],
-                        'contact_number' => $validated['phone'],
-                        'voucher_code' => 'VREF-' . strtoupper(Str::random(6)),
-                        'grand_tot_due' => $amount,
-                        'note' => '',
-                        'expire_date' => null,
-                        'status_payment_id' => 1,
-                        'paid_date' => null,
-                        'redeemed' => false,
-                        'redeemed_date' => null,
-                        'user_id' => null,
-                        'session_id' => $sessionId,
-                    ]);
-                }
+                // Each checkout is a separate voucher purchase, even in the same browser session.
+                $voucher = GiftVoucher::create([
+                    'full_name' => $validated['full_name'],
+                    'email_address' => $validated['email'],
+                    'contact_number' => $validated['phone'],
+                    'voucher_code' => 'VREF-' . strtoupper(Str::random(6)),
+                    'grand_tot_due' => $amount,
+                    'note' => '',
+                    'expire_date' => null,
+                    'status_payment_id' => 1,
+                    'paid_date' => null,
+                    'redeemed' => false,
+                    'redeemed_date' => null,
+                    'user_id' => null,
+                    'session_id' => $sessionId,
+                ]);
 
                 $voucherItem = GiftVoucherItem::create([
                     'pax_adults' => $adultsCount,
