@@ -70,7 +70,7 @@ export default function ReviewPayment({ auth, booking, lookups, payfastStatus, c
     } else {
       // Redirect to page with team_id
       //localStorage.setItem('preferred_team_id', savedTeamId);
-      router.get(route('front.welcome', { team_id: savedTeamId }));
+      router.get(route('front.legacy.welcome', { team_id: savedTeamId }));
     }
   }, []);
 
@@ -267,7 +267,7 @@ export default function ReviewPayment({ auth, booking, lookups, payfastStatus, c
               onChange={(e) => {
                 localStorage.setItem('preferred_team_id', e.target.value);
                 setShowLocationModal(false);
-                router.get(route('front.welcome', { team_id: e.target.value }));
+                router.get(route('front.legacy.welcome', { team_id: e.target.value }));
                 //setData(e.target.name, e.target.value);
               }}
               options={teams}

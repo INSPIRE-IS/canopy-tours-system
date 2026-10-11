@@ -20,6 +20,22 @@ use Inertia\Response;
 
 class PublicBookingV2Controller extends Controller
 {
+    public function entry(): RedirectResponse
+    {
+        $publishedTeamIds = Team::query()
+            ->where('is_published', true)
+            ->orderBy('name')
+            ->limit(2)
+            ->pluck('id');
+
+        if ($publishedTeamIds->count() === 1) {
+            return redirect()->route('front.welcome', ['team' => $publishedTeamIds->first()]);
+        }
+
+        // Keep the existing selector as a safe fallback until the new multi-site entry screen is built.
+        return redirect()->route('front.legacy.welcome');
+    }
+
     public function index(Request $request, Team $team): Response
     {
         abort_unless($team->is_published, 404);
@@ -211,7 +227,7 @@ class PublicBookingV2Controller extends Controller
                 ->first();
 
             if (! $hold) {
-                return redirect()->route('front.v2.welcome', [
+                return redirect()->route('front.welcome', [
                     'team' => $team->id,
                     'service_id' => $service->id,
                     'notice' => 'hold_expired',
@@ -320,7 +336,7 @@ class PublicBookingV2Controller extends Controller
                 'expires_at' => $hold->expires_at->toIso8601String(),
                 'duration_minutes' => (int) $team->frontend_hold_minutes,
             ] : null,
-            'changeUrl' => route('front.v2.welcome', [
+            'changeUrl' => route('front.welcome', [
                 'team' => $team->id,
                 'service_id' => $service->id,
             ]),
@@ -348,7 +364,7 @@ class PublicBookingV2Controller extends Controller
             $request->session()->forget('public_booking_v2_hold_uuid');
         }
 
-        return redirect()->route('front.v2.welcome', [
+        return redirect()->route('front.welcome', [
             'team' => $team->id,
             'service_id' => $service->id,
             'notice' => 'hold_expired',

@@ -99,7 +99,7 @@ class PaymentController extends Controller
         $sessionId = session()->getId() ?? null;
         //logger()->info('sessionId inertia ' . $sessionId);
         if ($sessionId != $booking->session_id || $booking->status_payment_id != 1) {
-            return redirect()->route('front.welcome');
+            return redirect()->route('front.legacy.welcome');
         }
         $teamId = $booking->team_id;
         $lookups = LookupItem::findDefaultForTeam('vat_rate', $teamId);
@@ -135,7 +135,7 @@ class PaymentController extends Controller
     {
         $sessionId = session()->getId() ?? null;
         if ($sessionId !== $booking->session_id || (int) $booking->status_payment_id !== 1) {
-            return redirect()->route('front.welcome');
+            return redirect()->route('front.legacy.welcome');
         }
 
         if ((int) $bookingItem->booking_id !== (int) $booking->id) {
@@ -209,7 +209,7 @@ class PaymentController extends Controller
 
         if (! Booking::whereKey($booking->id)->exists()) {
             return redirect()
-                ->route('front.welcome', ['team_id' => $booking->team_id])
+                ->route('front.legacy.welcome', ['team_id' => $booking->team_id])
                 ->with('success', 'The booking cart was cancelled.');
         }
 
@@ -239,7 +239,7 @@ class PaymentController extends Controller
         $lookups = LookupItem::findDefaultForTeam('vat_rate', $teamId);
         //logger()->info('sessionId inertia ' . $sessionId);
         if ($sessionId != $gift->session_id || $gift->status_payment_id != 1) {
-            return redirect()->route('front.welcome');
+            return redirect()->route('front.legacy.welcome');
         }
 
         $teamId = $this->resolveGiftTeamId($gift);
@@ -265,11 +265,11 @@ class PaymentController extends Controller
     {
         $sessionId = session()->getId() ?? null;
         if (! $signedAccess && $sessionId != $booking->session_id) {
-            return redirect()->route('front.welcome');
+            return redirect()->route('front.legacy.welcome');
         }
 
         if ((int) $booking->status_payment_id !== 1 || (float) $booking->grand_tot_due <= 0) {
-            return redirect()->route('front.welcome');
+            return redirect()->route('front.legacy.welcome');
         }
 
         $customer = Customer::find($booking->customer_id);
@@ -317,7 +317,7 @@ class PaymentController extends Controller
     {
         $sessionId = session()->getId() ?? null;
         if ($sessionId != $gift->session_id || $gift->status_payment_id != 1) {
-            return redirect()->route('front.welcome');
+            return redirect()->route('front.legacy.welcome');
         }
 
         $teamId = $this->resolveGiftTeamId($gift);
@@ -1685,7 +1685,7 @@ class PaymentController extends Controller
         $sessionId = session()->getId() ?? null;
         //logger()->info('sessionId inertia ' . $sessionId);
         if ($sessionId != $booking->session_id || $booking->status_payment_id != 1) {
-            return redirect()->route('front.welcome');
+            return redirect()->route('front.legacy.welcome');
         }
 
         $booking = Booking::with('team.file_logo', 'booking_items', 'booking_items.customers', 'booking_items.booking_fee')->find($booking->id);
@@ -1819,7 +1819,7 @@ class PaymentController extends Controller
 
         $sessionId = session()->getId() ?? null;
         if ($sessionId != $booking->session_id || $booking->status_payment_id != 1) {
-            return redirect()->route('front.welcome');
+            return redirect()->route('front.legacy.welcome');
         }
         // $booking = Booking::with('team.file_logo', 'booking_items', 'booking_items.customers', 'booking_items.booking_inventory', 'booking_items.booking_fee')->find($booking->id);
         // there could be multiple bookin items per booking for now simplify to one
@@ -2451,7 +2451,7 @@ class PaymentController extends Controller
         $sessionId = session()->getId() ?? null;
         //logger()->info('sessionId inertia ' . $sessionId);
         if ($sessionId != $booking->session_id || $booking->status_payment_id != 1) {
-            return redirect()->route('front.welcome');
+            return redirect()->route('front.legacy.welcome');
         }
 
         $booking = Booking::with('team.file_logo', 'booking_items', 'booking_items.customers', 'booking_items.booking_fee')->find($booking->id);
@@ -2546,7 +2546,7 @@ class PaymentController extends Controller
         $sessionId = session()->getId() ?? null;
         $renderService = app(RendererService::class);
         if ($sessionId != $booking->session_id || $booking->status_payment_id != 1) {
-            return redirect()->route('front.welcome');
+            return redirect()->route('front.legacy.welcome');
         }
         $booking = Booking::with('team.file_logo', 'booking_items', 'booking_items.customers', 'booking_items.booking_fee')
             ->find($booking->id);

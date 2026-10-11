@@ -95,12 +95,12 @@ use Inertia\Inertia;
 
 
 
-Route::redirect('/', '/front/welcome');
-Route::get('/front/welcome/{team_id?}', [ActivityController::class, 'index'])->name('front.welcome');
+Route::get('/', [PublicBookingV2Controller::class, 'entry']);
+Route::get('/front/legacy/welcome/{team_id?}', [ActivityController::class, 'index'])->name('front.legacy.welcome');
 Route::get('/activity', [ActivityController::class, 'activity'])->name('front.activity');
 Route::get('/activity/calendar', [ActivityController::class, 'calendar'])->name('front.activity.calendar');
-Route::get('/front/v2/welcome/{team}', [PublicBookingV2Controller::class, 'index'])
-    ->name('front.v2.welcome');
+Route::get('/front/welcome/{team}', [PublicBookingV2Controller::class, 'index'])
+    ->name('front.welcome');
 Route::post('/front/v2/holds/{team}/{service}', [PublicBookingV2Controller::class, 'storeHold'])
     ->name('front.v2.holds.store');
 Route::post('/front/v2/holds/{team}/{service}/{hold}/release', [PublicBookingV2Controller::class, 'releaseHold'])

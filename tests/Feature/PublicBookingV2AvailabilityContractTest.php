@@ -155,6 +155,32 @@ function createAvailabilityBooking(
     return $bookingId;
 }
 
+it('opens the new booking flow when exactly one site is published', function () {
+    $teamId = DB::table('teams')->insertGetId([
+        'name' => 'Karkloof Canopy Tour',
+        'is_published' => true,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    $this->get('/')->assertRedirect(route('front.welcome', ['team' => $teamId]));
+});
+
+it('keeps the legacy site selector as the safe fallback for zero or multiple published sites', function () {
+    $this->get('/')->assertRedirect(route('front.legacy.welcome'));
+
+    foreach (['Karkloof Canopy Tour', 'Second Published Site'] as $name) {
+        DB::table('teams')->insert([
+            'name' => $name,
+            'is_published' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    $this->get('/')->assertRedirect(route('front.legacy.welcome'));
+});
+
 it('releases expired unpaid capacity while retaining paid bookings that completed late', function () {
     [$teamId, $serviceId] = createPublicAvailabilityContext();
     $season = createPublicAvailabilitySeason(
@@ -578,14 +604,14 @@ it('rejects a stale checkout slot', function () {
     [$teamId, $serviceId] = createPublicAvailabilityContext();
     createPublicAvailabilitySeason($teamId, $serviceId, '2032', '2032-01-01', '2032-12-31', 995, '09:00:00');
 
-    $this->from(route('front.v2.welcome', $teamId))->get(route('front.v2.checkout', [
+    $this->from(route('front.welcome', $teamId))->get(route('front.v2.checkout', [
         'team' => $teamId,
         'service' => $serviceId,
         'date' => '2032-02-10',
         'slot_id' => 999999,
         'adults' => 2,
         'children' => 0,
-    ]))->assertRedirect(route('front.v2.welcome', $teamId))->assertSessionHasErrors('slot_id');
+    ]))->assertRedirect(route('front.welcome', $teamId))->assertSessionHasErrors('slot_id');
 });
 
 it('rejects checkout for another team, past dates, invalid adult counts, and excessive pax', function () {
@@ -607,13 +633,13 @@ it('rejects checkout for another team, past dates, invalid adult counts, and exc
     ];
 
     $this->get(route('front.v2.checkout', [...$base, 'team' => $otherTeamId]))->assertNotFound();
-    $this->from(route('front.v2.welcome', $teamId))
+    $this->from(route('front.welcome', $teamId))
         ->get(route('front.v2.checkout', [...$base, 'date' => '2020-01-01']))
         ->assertSessionHasErrors('date');
-    $this->from(route('front.v2.welcome', $teamId))
+    $this->from(route('front.welcome', $teamId))
         ->get(route('front.v2.checkout', [...$base, 'adults' => 0]))
         ->assertSessionHasErrors('adults');
-    $this->from(route('front.v2.welcome', $teamId))
+    $this->from(route('front.welcome', $teamId))
         ->get(route('front.v2.checkout', [...$base, 'adults' => 8, 'children' => 1]))
         ->assertSessionHasErrors('adults');
 });
@@ -750,7 +776,7 @@ it('allows the same browser session to create a new hold after checkout expiry',
         'team' => $teamId,
         'service' => $serviceId,
         'hold' => $expiredHold->uuid,
-    ]))->assertRedirect(route('front.v2.welcome', [
+    ]))->assertRedirect(route('front.welcome', [
         'team' => $teamId,
         'service_id' => $serviceId,
         'notice' => 'hold_expired',
@@ -807,7 +833,7 @@ it('releases the checkout hold on countdown expiry before allowing another selec
         'team' => $teamId,
         'service' => $serviceId,
         'hold' => $firstHold->uuid,
-    ]))->assertRedirect(route('front.v2.welcome', [
+    ]))->assertRedirect(route('front.welcome', [
         'team' => $teamId,
         'service_id' => $serviceId,
         'notice' => 'hold_expired',
@@ -864,7 +890,7 @@ it('rejects a competing hold when active bookings and holds leave too little cap
         'updated_at' => now(),
     ]);
 
-    $this->from(route('front.v2.welcome', $teamId))->post(route('front.v2.holds.store', [
+    $this->from(route('front.welcome', $teamId))->post(route('front.v2.holds.store', [
         'team' => $teamId,
         'service' => $serviceId,
     ]), [
@@ -872,7 +898,7 @@ it('rejects a competing hold when active bookings and holds leave too little cap
         'slot_id' => $season['slotId'],
         'adults' => 2,
         'children' => 0,
-    ])->assertRedirect(route('front.v2.welcome', $teamId))->assertSessionHasErrors('slot_id');
+    ])->assertRedirect(route('front.welcome', $teamId))->assertSessionHasErrors('slot_id');
 
     expect(DB::table('public_booking_holds')->count())->toBe(1);
 });
@@ -886,7 +912,7 @@ it('rejects checkout without an active hold when holds are enabled', function ()
         'team' => $teamId,
         'service' => $serviceId,
         'hold' => '84f0a1e3-806e-4701-a313-85bd2254326f',
-    ]))->assertRedirect(route('front.v2.welcome', [
+    ]))->assertRedirect(route('front.welcome', [
         'team' => $teamId,
         'service_id' => $serviceId,
         'notice' => 'hold_expired',

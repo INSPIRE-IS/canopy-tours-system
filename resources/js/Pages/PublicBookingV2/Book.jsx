@@ -305,7 +305,7 @@ export default function Book({ team, services = [], selectedServiceId, notice = 
             <Head title={`Book ${service.name}`} />
             <div className="kct-app-shell">
                 <header className="kct-header">
-                    <a href={route('front.v2.welcome', { team: team.id })} aria-label={`${team.name} booking home`}>
+                    <a href={route('front.welcome', { team: team.id })} aria-label={`${team.name} booking home`}>
                         <img
                             src={team?.file_logo?.path || logoFallback}
                             onError={(event) => { event.currentTarget.src = logoFallback; }}

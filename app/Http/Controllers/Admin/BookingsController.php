@@ -5602,7 +5602,7 @@ class BookingsController extends Controller
         $sessionId = session()->getId() ?? null;
         //logger()->info('sessionId inertia ' . $sessionId);
         if ($sessionId != $booking->session_id || $booking->status_payment_id != 1) {
-            return redirect()->route('front.welcome');
+            return redirect()->route('front.legacy.welcome');
         }
 
         $booking = Booking::with('team.file_logo', 'booking_items', 'booking_items.customers', 'booking_items.booking_fee')->find($booking->id);

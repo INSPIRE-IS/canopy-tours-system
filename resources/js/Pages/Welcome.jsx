@@ -52,7 +52,7 @@ export default function HomePage({ activities, auth, teams, team_id, team, canSh
       // If the previously selected team is no longer available (e.g. unpublished),
       // clear it so the user can pick a valid team instead of looping on a 404.
       if (allowedTeamIds.has(savedTeamId)) {
-        router.get(route('front.welcome', { team_id: savedTeamId }));
+        router.get(route('front.legacy.welcome', { team_id: savedTeamId }));
         return;
       }
 
@@ -63,7 +63,7 @@ export default function HomePage({ activities, auth, teams, team_id, team, canSh
       const onlyTeamId = teams[0]?.id;
       if (onlyTeamId) {
         localStorage.setItem('preferred_team_id', String(onlyTeamId));
-        router.get(route('front.welcome', { team_id: onlyTeamId }));
+        router.get(route('front.legacy.welcome', { team_id: onlyTeamId }));
         return;
       }
     }
@@ -161,7 +161,7 @@ export default function HomePage({ activities, auth, teams, team_id, team, canSh
                     <NavSelect name={team.name} onChange={(e) => {
                       localStorage.setItem('preferred_team_id', team.id);
                       setShowLocationModal(false);
-                      router.get(route('front.welcome', { team_id: team.id }));
+                      router.get(route('front.legacy.welcome', { team_id: team.id }));
                       //setData(e.target.name, e.target.value);
                     }} />
                   ))}
@@ -331,7 +331,7 @@ export default function HomePage({ activities, auth, teams, team_id, team, canSh
               onChange={(e) => {
                 localStorage.setItem('preferred_team_id', e.target.value);
                 setShowLocationModal(false);
-                router.get(route('front.welcome', { team_id: e.target.value }));
+                router.get(route('front.legacy.welcome', { team_id: e.target.value }));
                 //setData(e.target.name, e.target.value);
               }}
               options={teams}

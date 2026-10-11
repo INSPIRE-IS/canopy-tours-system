@@ -319,7 +319,7 @@ export default function BookingLookup({ auth, booking, bookings, bookingItem, qu
       message,
       confirmText: 'Close',
       cancelText: 'Stay',
-      onConfirm: () => data.return_to === 'kiosk' ? returnToKiosk() : router.get(route('front.welcome')),
+      onConfirm: () => data.return_to === 'kiosk' ? returnToKiosk() : router.get(route('front.legacy.welcome')),
     });
   };
 
