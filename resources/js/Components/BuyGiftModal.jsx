@@ -1,4 +1,4 @@
-import React, { use, useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import InputText from './InputText';
 import PhoneInput from '@/Components/PhoneInput';
@@ -57,6 +57,7 @@ export default function BuyGiftModal({ isOpen, onClose, activityName, pricePerAd
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const submittingRef = useRef(false);
 
   // const handleChange = (e) => {
   //   setData({ ...data, [e.target.name]: e.target.value });
@@ -66,6 +67,8 @@ export default function BuyGiftModal({ isOpen, onClose, activityName, pricePerAd
     //setData("name", e.target.value);
   };
   const handleConfirm = async () => {
+    if (submittingRef.current) return;
+
     if (!data.full_name || !data.email || !data.phone) {
       showToast("Please fill in all the required fields.", "info");
       return;
@@ -74,6 +77,7 @@ export default function BuyGiftModal({ isOpen, onClose, activityName, pricePerAd
       showToast("Please enter a valid email address.", "warning");
       return;
     }
+    submittingRef.current = true;
     setLoading(true);
     setError(null);
 
@@ -87,8 +91,10 @@ export default function BuyGiftModal({ isOpen, onClose, activityName, pricePerAd
 
     } catch (err) {
       console.error('Gift failed:', err.response?.data || err);
-      setError(err.response?.data?.error || 'An error occurred.');
-    } finally {
+      const message = err.response?.data?.error || err.response?.data?.message || 'An error occurred.';
+      setError(message);
+      showToast(message, 'error');
+      submittingRef.current = false;
       setLoading(false);
     }
   };
@@ -116,7 +122,7 @@ export default function BuyGiftModal({ isOpen, onClose, activityName, pricePerAd
             errors={errors}
             mode={mode}
             required
-            min="0"
+            min="1"
           />
           <InputText
             title="Number of Children"
@@ -170,10 +176,10 @@ export default function BuyGiftModal({ isOpen, onClose, activityName, pricePerAd
           <button onClick={onClose} className="px-4 py-2 bg-gray-200 rounded">Cancel</button>
           <button
             onClick={handleConfirm}
-            disabled={processing}
+            disabled={loading || processing}
             className="px-4 py-2 bg-green-600 text-white rounded"
           >
-            {processing ? 'Processing...' : 'Confirm & Pay'}
+            {loading || processing ? 'Processing...' : 'Confirm & Pay'}
           </button>
         </div>
       </div>
