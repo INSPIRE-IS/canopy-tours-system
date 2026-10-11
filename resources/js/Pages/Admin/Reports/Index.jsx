@@ -8,6 +8,39 @@ import CustomCheckbox from '@/Components/CustomCheckbox';
 import { useToast } from '@/Context/ToastContext';
 
 const formatDate = (date) => date.toISOString().slice(0, 10);
+const deliveryOptions = [
+    { id: 'download', name: 'Download now' },
+    { id: 'email', name: 'Email when ready' },
+    { id: 'preview', name: 'View online (maximum 2 months)' },
+];
+
+const reportButtonTitle = (delivery, label) => (
+    delivery === 'preview' ? `View ${label}` : `Export ${label}`
+);
+
+const previewDateError = ({ start_date: startDate, end_date: endDate }) => {
+    if (!startDate || !endDate) {
+        return 'Choose a start and end date before viewing a report online.';
+    }
+
+    const start = new Date(`${startDate}T00:00:00`);
+    const end = new Date(`${endDate}T00:00:00`);
+    if (end < start) {
+        return 'The report end date must be on or after the start date.';
+    }
+
+    const targetMonthStart = new Date(start.getFullYear(), start.getMonth() + 2, 1);
+    const targetMonthEnd = new Date(start.getFullYear(), start.getMonth() + 3, 0);
+    const maximumEnd = new Date(
+        targetMonthStart.getFullYear(),
+        targetMonthStart.getMonth(),
+        Math.min(start.getDate(), targetMonthEnd.getDate())
+    );
+
+    return end > maximumEnd
+        ? 'Online report viewing is limited to a maximum period of two months.'
+        : null;
+};
 
 function ServiceCheckboxGroup({ services = [], selectedIds = [], onChange }) {
     const selectedSet = new Set(selectedIds.map(String));
@@ -157,6 +190,22 @@ export default function Index({ auth, services = [], paymentTypes = [], wholesal
 
     const exportReport = async (report, filters) => {
         const params = buildParams(report, filters);
+        if (filters.delivery === 'preview') {
+            const dateError = previewDateError(filters);
+            if (dateError) {
+                showToast(dateError, 'error');
+                return;
+            }
+
+            delete params.delivery;
+            window.open(
+                route('admin.reports.preview', params),
+                '_blank',
+                'noopener,noreferrer'
+            );
+            return;
+        }
+
         if (filters.delivery === 'email') {
             try {
                 const response = await axios.post(route('admin.reports.export'), params);
@@ -247,15 +296,12 @@ export default function Index({ auth, services = [], paymentTypes = [], wholesal
                                 name="booking_delivery"
                                 value={bookingFilters.delivery}
                                 onChange={(e) => setBookingFilters(prev => ({ ...prev, delivery: e.target.value }))}
-                                options={[
-                                    { id: 'download', name: 'Download now' },
-                                    { id: 'email', name: 'Email when ready' },
-                                ]}
+                                options={deliveryOptions}
                                 showOption={false}
                             />
                             <div className="flex justify-end">
                                 <BlueButton
-                                    title="Export Bookings"
+                                    title={reportButtonTitle(bookingFilters.delivery, 'Bookings')}
                                     width="w-[180px]"
                                     onClick={() => exportReport('bookings', bookingFilters)}
                                 />
@@ -317,15 +363,12 @@ export default function Index({ auth, services = [], paymentTypes = [], wholesal
                                 name="promo_code_usage_delivery"
                                 value={promoFilters.delivery}
                                 onChange={(e) => setPromoFilters(prev => ({ ...prev, delivery: e.target.value }))}
-                                options={[
-                                    { id: 'download', name: 'Download now' },
-                                    { id: 'email', name: 'Email when ready' },
-                                ]}
+                                options={deliveryOptions}
                                 showOption={false}
                             />
                             <div className="flex justify-end">
                                 <BlueButton
-                                    title="Export Promo Codes"
+                                    title={reportButtonTitle(promoFilters.delivery, 'Promo Codes')}
                                     width="w-[200px]"
                                     onClick={() => exportReport('promo_code_usage', promoFilters)}
                                 />
@@ -376,15 +419,12 @@ export default function Index({ auth, services = [], paymentTypes = [], wholesal
                                 name="franchise_delivery"
                                 value={franchiseFilters.delivery}
                                 onChange={(e) => setFranchiseFilters(prev => ({ ...prev, delivery: e.target.value }))}
-                                options={[
-                                    { id: 'download', name: 'Download now' },
-                                    { id: 'email', name: 'Email when ready' },
-                                ]}
+                                options={deliveryOptions}
                                 showOption={false}
                             />
                             <div className="flex justify-end">
                                 <BlueButton
-                                    title="Export Franchise"
+                                    title={reportButtonTitle(franchiseFilters.delivery, 'Franchise')}
                                     width="w-[180px]"
                                     onClick={() => exportReport('franchise_fees', franchiseFilters)}
                                 />
@@ -446,15 +486,12 @@ export default function Index({ auth, services = [], paymentTypes = [], wholesal
                                 name="wholesaler_usage_delivery"
                                 value={wholesalerFilters.delivery}
                                 onChange={(e) => setWholesalerFilters(prev => ({ ...prev, delivery: e.target.value }))}
-                                options={[
-                                    { id: 'download', name: 'Download now' },
-                                    { id: 'email', name: 'Email when ready' },
-                                ]}
+                                options={deliveryOptions}
                                 showOption={false}
                             />
                             <div className="flex justify-end">
                                 <BlueButton
-                                    title="Export Wholesalers"
+                                    title={reportButtonTitle(wholesalerFilters.delivery, 'Wholesalers')}
                                     width="w-[190px]"
                                     onClick={() => exportReport('wholesaler_usage', wholesalerFilters)}
                                 />
@@ -508,15 +545,12 @@ export default function Index({ auth, services = [], paymentTypes = [], wholesal
                                 name="marketing_delivery"
                                 value={marketingFilters.delivery}
                                 onChange={(e) => setMarketingFilters(prev => ({ ...prev, delivery: e.target.value }))}
-                                options={[
-                                    { id: 'download', name: 'Download now' },
-                                    { id: 'email', name: 'Email when ready' },
-                                ]}
+                                options={deliveryOptions}
                                 showOption={false}
                             />
                             <div className="flex justify-end">
                                 <BlueButton
-                                    title="Export Opt-Ins"
+                                    title={reportButtonTitle(marketingFilters.delivery, 'Opt-Ins')}
                                     width="w-[180px]"
                                     onClick={() => exportReport('marketing_opt_in', marketingFilters)}
                                 />
@@ -575,15 +609,12 @@ export default function Index({ auth, services = [], paymentTypes = [], wholesal
                                 name="payment_delivery"
                                 value={paymentFilters.delivery}
                                 onChange={(e) => setPaymentFilters(prev => ({ ...prev, delivery: e.target.value }))}
-                                options={[
-                                    { id: 'download', name: 'Download now' },
-                                    { id: 'email', name: 'Email when ready' },
-                                ]}
+                                options={deliveryOptions}
                                 showOption={false}
                             />
                             <div className="flex justify-end">
                                 <BlueButton
-                                    title="Export Payments"
+                                    title={reportButtonTitle(paymentFilters.delivery, 'Payments')}
                                     width="w-[180px]"
                                     onClick={() => exportReport('payments', paymentFilters)}
                                 />
@@ -696,15 +727,12 @@ export default function Index({ auth, services = [], paymentTypes = [], wholesal
                                 name="manifest_delivery"
                                 value={manifestFilters.delivery}
                                 onChange={(e) => setManifestFilters(prev => ({ ...prev, delivery: e.target.value }))}
-                                options={[
-                                    { id: 'download', name: 'Download now' },
-                                    { id: 'email', name: 'Email when ready' },
-                                ]}
+                                options={deliveryOptions}
                                 showOption={false}
                             />
                             <div className="flex justify-end">
                                 <BlueButton
-                                    title="Export Manifest"
+                                    title={reportButtonTitle(manifestFilters.delivery, 'Manifest')}
                                     width="w-[180px]"
                                     onClick={() => exportReport('checkin_manifest', manifestFilters)}
                                 />
@@ -755,15 +783,12 @@ export default function Index({ auth, services = [], paymentTypes = [], wholesal
                                 name="adjustment_delivery"
                                 value={adjustmentFilters.delivery}
                                 onChange={(e) => setAdjustmentFilters(prev => ({ ...prev, delivery: e.target.value }))}
-                                options={[
-                                    { id: 'download', name: 'Download now' },
-                                    { id: 'email', name: 'Email when ready' },
-                                ]}
+                                options={deliveryOptions}
                                 showOption={false}
                             />
                             <div className="flex justify-end">
                                 <BlueButton
-                                    title="Export Adjustments"
+                                    title={reportButtonTitle(adjustmentFilters.delivery, 'Adjustments')}
                                     width="w-[180px]"
                                     onClick={() => exportReport('booking_adjustment', adjustmentFilters)}
                                 />
