@@ -150,7 +150,9 @@ class PromoCodeUsageReportExport implements FromCollection, ShouldAutoSize, Shou
                 'season:id,name,rake_rate_adult,rake_rate_child,rake_rate_guide',
             ])
             ->where('team_id', $this->teamId)
-            ->whereHas('booking', fn (Builder $query) => $query->whereNull('deleted_at'))
+            ->whereHas('booking', fn (Builder $query) => $query
+                ->whereNull('deleted_at')
+                ->operational())
             ->where(function (Builder $query) {
                 $query->whereNotNull('promotion_id')
                     ->orWhereHas('price_lines', fn (Builder $sub) => $sub->where('source_type', 'promotion'));

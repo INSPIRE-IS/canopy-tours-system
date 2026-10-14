@@ -4,12 +4,14 @@ namespace App\Http\Controllers\Front;
 
 use App\Http\Controllers\Controller;
 use App\Jobs\FulfillGiftVoucherPayment;
+use App\Jobs\FulfillBookingPayment;
 use App\Mail\BookingMail;
 use App\Mail\MessageGuestMail;
 use App\Models\Alert;
 use App\Models\Booking;
 use App\Models\BookingItem;
 use App\Models\BookingPayment;
+use App\Models\BookingExtraPaymentAllocation;
 use App\Models\Gateway;
 use App\Models\GatewayConfig;
 use App\Models\GatewayLog;
@@ -103,11 +105,12 @@ class PaymentController extends Controller
 
     public function booking(Booking $booking)
     {
+        // Legacy multi-item cart review. V2 regular checkout redirects directly to PayFast after confirmation.
         //dd($booking);
         $sessionId = session()->getId() ?? null;
         //logger()->info('sessionId inertia ' . $sessionId);
         if ($sessionId != $booking->session_id || $booking->status_payment_id != 1) {
-            return redirect()->route('front.welcome');
+            return redirect()->route('front.legacy.welcome');
         }
         $teamId = $booking->team_id;
         $lookups = LookupItem::findDefaultForTeam('vat_rate', $teamId);
@@ -145,7 +148,7 @@ class PaymentController extends Controller
     {
         $sessionId = session()->getId() ?? null;
         if ($sessionId !== $booking->session_id || (int) $booking->status_payment_id !== 1) {
-            return redirect()->route('front.welcome');
+            return redirect()->route('front.legacy.welcome');
         }
 
         if ((int) $bookingItem->booking_id !== (int) $booking->id) {
@@ -219,7 +222,7 @@ class PaymentController extends Controller
 
         if (! Booking::whereKey($booking->id)->exists()) {
             return redirect()
-                ->route('front.welcome', ['team_id' => $booking->team_id])
+                ->route('front.legacy.welcome', ['team_id' => $booking->team_id])
                 ->with('success', 'The booking cart was cancelled.');
         }
 
@@ -243,19 +246,53 @@ class PaymentController extends Controller
 
     public function gift(GiftVoucher $gift)
     {
-        //dd($gift);
         $sessionId = session()->getId() ?? null;
-        //logger()->info('sessionId inertia ' . $sessionId);
+        $gift->load([
+            'gift_voucher_items.team.file_logo',
+            'gift_voucher_items.team.file_image',
+            'gift_voucher_items.service.file',
+            'gift_voucher_items.season',
+        ]);
+        $voucherItem = $gift->gift_voucher_items->first();
+        $team = $voucherItem?->team;
+        $service = $voucherItem?->service;
+        $season = $voucherItem?->season;
+        $teamId = $team?->id;
+
         if ($sessionId != $gift->session_id || $gift->status_payment_id != 1) {
-            return redirect()->route('front.welcome');
+            return $teamId
+                ? redirect()->route('front.welcome', ['team' => $teamId])
+                : redirect('/');
         }
 
-        $teamId = $this->resolveGiftTeamId($gift);
         $gift->setAttribute('team_id', $teamId);
         $payfastStatus = config('app.debug') ? $this->getPayfastStatus($teamId) : null;
 
         return Inertia::render('GiftPayment', [
             'gift' => $gift,
+            'team' => [
+                'id' => $teamId,
+                'name' => $team?->name,
+                'file_logo' => $team?->file_logo ? ['path' => $team->file_logo->path] : null,
+            ],
+            'service' => [
+                'id' => $service?->id,
+                'name' => $service?->name ?? 'Gift Voucher',
+                'image' => $service?->file?->path ?? $team?->file_image?->path,
+            ],
+            'season' => [
+                'id' => $season?->id,
+                'name' => $season?->name,
+            ],
+            'voucherItem' => $voucherItem ? [
+                'pax_adults' => (int) $voucherItem->pax_adults,
+                'pax_children' => (int) $voucherItem->pax_children,
+                'price_adult' => (float) $voucherItem->price_adult,
+                'price_child' => (float) $voucherItem->price_child,
+            ] : null,
+            'backUrl' => $teamId && $service?->id
+                ? route('front.v2.gift', ['team' => $teamId, 'service' => $service->id])
+                : ($teamId ? route('front.welcome', ['team' => $teamId]) : url('/')),
             'payfastStatus' => $payfastStatus,
         ]);
     }
@@ -274,11 +311,11 @@ class PaymentController extends Controller
     {
         $sessionId = session()->getId() ?? null;
         if (! $signedAccess && $sessionId != $booking->session_id) {
-            return redirect()->route('front.welcome');
+            return redirect()->route('front.legacy.welcome');
         }
 
         if ((int) $booking->status_payment_id !== 1 || (float) $booking->grand_tot_due <= 0) {
-            return redirect()->route('front.welcome');
+            return redirect()->route('front.legacy.welcome');
         }
 
         $customer = Customer::find($booking->customer_id);
@@ -326,7 +363,7 @@ class PaymentController extends Controller
     {
         $sessionId = session()->getId() ?? null;
         if ($sessionId != $gift->session_id || $gift->status_payment_id != 1) {
-            return redirect()->route('front.welcome');
+            return redirect()->route('front.legacy.welcome');
         }
 
         $teamId = $this->resolveGiftTeamId($gift);
@@ -863,7 +900,7 @@ class PaymentController extends Controller
             return [false, $message ?: 'Invalid payload'];
         }
 
-        if ($context['booking'] && $context['booking']->status_payment_id != 2) {
+        if ($context['booking']) {
             $meta = [
                 'ip' => $request->ip(),
                 'payfast' => Arr::only($payload, [
@@ -878,12 +915,13 @@ class PaymentController extends Controller
                 'event' => $event,
             ];
 
-            // Never do long-running PDF/email work in the ITN callback. It can time out and roll back payment.
-            if ($event === 'notify') {
+            if ($context['booking']->status_payment_id != 2) {
+                // Payment is committed before queued documents/email work can run.
                 $this->completeBookingPaymentDbOnly($context['booking'], $context['gateway_id'], $meta);
-            } else {
-                $this->completeBookingPayment($context['booking'], $context['gateway_id'], $meta);
             }
+
+            // Dispatch for duplicate callbacks too so a prior fulfilment failure remains recoverable.
+            FulfillBookingPayment::dispatch($context['booking']->id)->afterResponse();
         }
 
         if ($context['voucher']) {
@@ -1217,7 +1255,15 @@ class PaymentController extends Controller
         $meta = array_merge(['ip' => request()->ip()], $meta);
 
         return DB::transaction(function () use ($booking, $gatewayId, $meta) {
-            $booking = Booking::with('booking_items.booking_fee')->findOrFail($booking->id);
+            $booking = Booking::with(['booking_items.booking_fee', 'booking_extras'])
+                ->lockForUpdate()
+                ->findOrFail($booking->id);
+
+            if ((int) $booking->status_payment_id === 2) {
+                return $booking;
+            }
+
+            $wasExpired = $booking->payment_window_expired_at !== null;
 
             $booking->update([
                 'status_payment_id' => 2,
@@ -1227,7 +1273,7 @@ class PaymentController extends Controller
             $vat = $this->vatBreakdownForTeam($booking->team_id, (float) $booking->grand_tot_due);
             $vatItem = $vat['vat_item'];
 
-            BookingPayment::updateOrCreate(
+            $payment = BookingPayment::updateOrCreate(
                 ['booking_id' => $booking->id],
                 [
                     'type_pay_option_id' => 2,
@@ -1248,6 +1294,7 @@ class PaymentController extends Controller
                     'team_id' => $booking->team_id,
                 ]
             );
+            $this->allocatePaidPublicExtras($booking, $payment);
 
             $grandTot = (float) $booking->grand_tot_due;
             foreach ($booking->booking_items as $item) {
@@ -1269,9 +1316,14 @@ class PaymentController extends Controller
                     'amount' => $booking->grand_tot_due,
                     'gateway_id' => $gatewayId,
                     'meta' => $meta,
+                    'payment_window_was_expired' => $wasExpired,
                 ]),
                 'host' => request()->ip(),
             ]);
+
+            if ($wasExpired) {
+                $this->alertStaffForLatePublicPayment($booking);
+            }
 
             return $booking;
         });
@@ -1284,6 +1336,7 @@ class PaymentController extends Controller
         return DB::transaction(function () use ($booking, $gatewayId, $meta) {
             $renderService = app(RendererService::class);
             $booking = Booking::findOrFail($booking->id);
+            $wasExpired = $booking->payment_window_expired_at !== null;
             // Mark as paid (in real app, you'd validate PayFast response)
             $booking->update([
                 'status_payment_id' => 2, // e.g., "paid"
@@ -1293,7 +1346,7 @@ class PaymentController extends Controller
             $vat = $this->vatBreakdownForTeam($booking->team_id, (float) $booking->grand_tot_due);
             $vatItem = $vat['vat_item'];
 
-            BookingPayment::updateOrCreate(
+            $payment = BookingPayment::updateOrCreate(
                 ['booking_id' => $booking->id,],
                 [
                     'type_pay_option_id'   => 2,     // or 'Pay Offline'
@@ -1314,6 +1367,8 @@ class PaymentController extends Controller
                     'team_id'        => $booking->team_id,
                 ]
             );
+            $booking->loadMissing('booking_extras');
+            $this->allocatePaidPublicExtras($booking, $payment);
 
             $grandTot = $booking->grand_tot_due;
             foreach ($booking->booking_items as $item) {
@@ -1337,6 +1392,10 @@ class PaymentController extends Controller
                 ->get();
             foreach ($users as $user) {
                 $user->alerts()->attach($alert->id); // âœ… attach by ID
+            }
+
+            if ($wasExpired) {
+                $this->alertStaffForLatePublicPayment($booking);
             }
 
             $customer = Customer::findOrFail($booking->customer_id);
@@ -1524,6 +1583,49 @@ class PaymentController extends Controller
         }
     }
 
+    private function allocatePaidPublicExtras(Booking $booking, BookingPayment $payment): void
+    {
+        foreach ($booking->booking_extras as $extra) {
+            if (data_get($extra->meta, 'source') !== 'public_booking_v2') {
+                continue;
+            }
+
+            BookingExtraPaymentAllocation::updateOrCreate(
+                [
+                    'booking_id' => $booking->id,
+                    'booking_extra_id' => $extra->id,
+                    'booking_payment_id' => $payment->id,
+                    'allocation_type' => 'payment',
+                ],
+                [
+                    'amount' => round((float) $extra->total_amount, 2),
+                    'note' => 'Paid with public PayFast booking checkout.',
+                    'team_id' => $booking->team_id,
+                ]
+            );
+        }
+    }
+
+    private function alertStaffForLatePublicPayment(Booking $booking): void
+    {
+        $alert = Alert::firstOrCreate(
+            [
+                'booking_id' => $booking->id,
+                'alert_text' => 'Late online payment requires capacity review',
+                'team_id' => $booking->team_id,
+            ],
+            [
+                'alert_link' => route('admin.bookings.index', [], false),
+                'type_alert_id' => 3,
+            ]
+        );
+
+        User::where('team_id', $booking->team_id)
+            ->whereHas('roles', fn ($query) => $query->whereIn('name', ['Manager', 'Consultant']))
+            ->get()
+            ->each(fn (User $user) => $user->alerts()->syncWithoutDetaching([$alert->id]));
+    }
+
     public function offline(Request $request)
     {
         $type = $request->type;
@@ -1596,7 +1698,7 @@ class PaymentController extends Controller
         $sessionId = session()->getId() ?? null;
         //logger()->info('sessionId inertia ' . $sessionId);
         if ($sessionId != $booking->session_id || $booking->status_payment_id != 1) {
-            return redirect()->route('front.welcome');
+            return redirect()->route('front.legacy.welcome');
         }
 
         $booking = Booking::with('team.file_logo', 'booking_items', 'booking_items.customers', 'booking_items.booking_fee')->find($booking->id);
@@ -1730,7 +1832,7 @@ class PaymentController extends Controller
 
         $sessionId = session()->getId() ?? null;
         if ($sessionId != $booking->session_id || $booking->status_payment_id != 1) {
-            return redirect()->route('front.welcome');
+            return redirect()->route('front.legacy.welcome');
         }
         // $booking = Booking::with('team.file_logo', 'booking_items', 'booking_items.customers', 'booking_items.booking_inventory', 'booking_items.booking_fee')->find($booking->id);
         // there could be multiple bookin items per booking for now simplify to one
@@ -2362,7 +2464,7 @@ class PaymentController extends Controller
         $sessionId = session()->getId() ?? null;
         //logger()->info('sessionId inertia ' . $sessionId);
         if ($sessionId != $booking->session_id || $booking->status_payment_id != 1) {
-            return redirect()->route('front.welcome');
+            return redirect()->route('front.legacy.welcome');
         }
 
         $booking = Booking::with('team.file_logo', 'booking_items', 'booking_items.customers', 'booking_items.booking_fee')->find($booking->id);
@@ -2457,7 +2559,7 @@ class PaymentController extends Controller
         $sessionId = session()->getId() ?? null;
         $renderService = app(RendererService::class);
         if ($sessionId != $booking->session_id || $booking->status_payment_id != 1) {
-            return redirect()->route('front.welcome');
+            return redirect()->route('front.legacy.welcome');
         }
         $booking = Booking::with('team.file_logo', 'booking_items', 'booking_items.customers', 'booking_items.booking_fee')
             ->find($booking->id);

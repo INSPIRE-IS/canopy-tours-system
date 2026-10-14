@@ -4,7 +4,6 @@ namespace App\Models;
 
 use App\Traits\Auditable;
 use App\Traits\MultiTenantModelTrait;
-use Carbon\Carbon;
 use DateTimeInterface;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -12,7 +11,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Season extends Model
 {
-    use SoftDeletes, MultiTenantModelTrait, Auditable, HasFactory;
+    use Auditable, HasFactory, MultiTenantModelTrait, SoftDeletes;
 
     public $table = 'seasons';
 
@@ -34,6 +33,7 @@ class Season extends Model
         'rake_rate_guide',
         'allow_internal_price_override',
         'internal_only',
+        'include_public_extras',
         'status',
         'created_by_id',
         'updated_by_id',
@@ -46,6 +46,7 @@ class Season extends Model
     protected $casts = [
         'allow_internal_price_override' => 'boolean',
         'internal_only' => 'boolean',
+        'include_public_extras' => 'boolean',
         'status' => 'boolean',
     ];
 
@@ -77,5 +78,10 @@ class Season extends Model
     public function inventory()
     {
         return $this->hasOne(Inventory::class); // ✅ correct
+    }
+
+    public function extras()
+    {
+        return $this->hasMany(SeasonExtra::class)->orderBy('sort_order')->orderBy('id');
     }
 }

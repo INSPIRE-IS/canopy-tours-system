@@ -583,7 +583,8 @@ class BookingsController extends Controller
         $bookingsQuery = Booking::with([
             'booking_payments',
         ])
-            ->where('team_id', $teamId);
+            ->where('team_id', $teamId)
+            ->operational();
 
         if ($includeCancelled) {
             $bookingsQuery->withTrashed();
@@ -616,7 +617,14 @@ class BookingsController extends Controller
         ];
 
         $bookingItemsQuery = BookingItem::with($bookingItemRelations)
-            ->where('team_id', $teamId);
+            ->where('team_id', $teamId)
+            ->whereHas('booking', function ($query) use ($includeCancelled) {
+                if ($includeCancelled) {
+                    $query->withTrashed();
+                }
+
+                $query->operational();
+            });
 
         if ($includeCancelled) {
             $bookingItemsQuery->withTrashed();
@@ -5054,6 +5062,10 @@ class BookingsController extends Controller
             ->where('items.inventory_id', $inventory->id)
             ->where('items.team_id', auth()->user()->team_id)
             ->whereNull('b.deleted_at')
+            ->where(function ($query) {
+                $query->whereNull('b.payment_window_expired_at')
+                    ->orWhere('b.status_payment_id', 2);
+            })
             ->whereNull('items.deleted_at')
             ->whereNull('bi.deleted_at')
             ->whereBetween('bi.date', [$startDate->toDateString(), $endDate->toDateString()])
@@ -5163,6 +5175,10 @@ class BookingsController extends Controller
                 ->where('b.inventory_id', $activityId)
                 ->where('b.team_id', auth()->user()->team_id)
                 ->whereNull('b.deleted_at')
+                ->where(function ($query) {
+                    $query->whereNull('b.payment_window_expired_at')
+                        ->orWhere('b.status_payment_id', 2);
+                })
                 ->whereNull('bi.deleted_at')
                 ->whereBetween('bi.date', [$startDate->toDateString(), $endDate->toDateString()])
                 ->select([
@@ -5594,7 +5610,7 @@ class BookingsController extends Controller
         $sessionId = session()->getId() ?? null;
         //logger()->info('sessionId inertia ' . $sessionId);
         if ($sessionId != $booking->session_id || $booking->status_payment_id != 1) {
-            return redirect()->route('front.welcome');
+            return redirect()->route('front.legacy.welcome');
         }
 
         $booking = Booking::with('team.file_logo', 'booking_items', 'booking_items.customers', 'booking_items.booking_fee')->find($booking->id);

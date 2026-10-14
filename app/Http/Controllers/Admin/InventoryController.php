@@ -54,6 +54,10 @@ class InventoryController extends Controller
                 ->where('items.team_id', auth()->user()->team_id)
                 ->whereNull('items.deleted_at')
                 ->whereNull('b.deleted_at')
+                ->where(function ($query) {
+                    $query->whereNull('b.payment_window_expired_at')
+                        ->orWhere('b.status_payment_id', 2);
+                })
                 ->whereNull('bi.deleted_at')
                 ->groupBy('items.inventory_id', 'bi.date', 'bi.inventory_time_slot_id')
                 ->select([
@@ -154,6 +158,10 @@ class InventoryController extends Controller
             ->where('items.inventory_id', $inventory->id)
             ->where('items.team_id', auth()->user()->team_id)
             ->whereNull('b.deleted_at')
+            ->where(function ($query) {
+                $query->whereNull('b.payment_window_expired_at')
+                    ->orWhere('b.status_payment_id', 2);
+            })
             ->whereNull('items.deleted_at')
             ->whereNull('bi.deleted_at')
             ->whereBetween('bi.date', [$startDate->toDateString(), $endDate->toDateString()])
@@ -545,6 +553,10 @@ class InventoryController extends Controller
             ->where('items.team_id', auth()->user()->team_id)
             ->whereNull('items.deleted_at')
             ->whereNull('b.deleted_at')
+            ->where(function ($query) {
+                $query->whereNull('b.payment_window_expired_at')
+                    ->orWhere('b.status_payment_id', 2);
+            })
             ->whereNull('bi.deleted_at')
             ->whereIn('bi.date', $dates)
             ->whereIn('bi.inventory_time_slot_id', $slotIds)

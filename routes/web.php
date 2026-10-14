@@ -37,6 +37,7 @@ use App\Http\Controllers\Front\ActivityController;
 use App\Http\Controllers\Front\BookingQuestionnaireController;
 use App\Http\Controllers\Front\FeedbackQuestionnaireController;
 use App\Http\Controllers\Front\PaymentController;
+use App\Http\Controllers\Front\PublicBookingV2Controller;
 use App\Http\Controllers\ProfileController;
 use App\Models\Service;
 use Illuminate\Foundation\Application;
@@ -94,16 +95,36 @@ use Inertia\Inertia;
 
 
 
-Route::redirect('/', '/front/welcome');
-Route::get('/front/welcome/{team_id?}', [ActivityController::class, 'index'])->name('front.welcome');
+Route::get('/', [PublicBookingV2Controller::class, 'entry']);
+// Legacy public activity/cart fallback. Keep until its UI, signed links, and rollback use are deliberately retired.
+Route::get('/front/legacy/welcome/{team_id?}', [ActivityController::class, 'index'])->name('front.legacy.welcome');
 Route::get('/activity', [ActivityController::class, 'activity'])->name('front.activity');
 Route::get('/activity/calendar', [ActivityController::class, 'calendar'])->name('front.activity.calendar');
+Route::get('/front/welcome/{team}', [PublicBookingV2Controller::class, 'index'])
+    ->name('front.welcome');
+Route::post('/front/v2/holds/{team}/{service}', [PublicBookingV2Controller::class, 'storeHold'])
+    ->name('front.v2.holds.store');
+Route::post('/front/v2/holds/{team}/{service}/{hold}/release', [PublicBookingV2Controller::class, 'releaseHold'])
+    ->name('front.v2.holds.release');
+Route::get('/front/v2/checkout/{team}/{service}', [PublicBookingV2Controller::class, 'checkout'])
+    ->name('front.v2.checkout');
+Route::post('/front/v2/checkout/{team}/{service}/confirm', [PublicBookingV2Controller::class, 'confirmCheckout'])
+    ->block(10, 10)
+    ->name('front.v2.checkout.confirm');
+Route::post('/front/v2/checkout/{team}/{service}/promo', [PublicBookingV2Controller::class, 'applyPromo'])
+    ->name('front.v2.checkout.promo');
+Route::get('/front/v2/gift/{team}/{service}', [PublicBookingV2Controller::class, 'gift'])
+    ->name('front.v2.gift');
+Route::get('/front/v2/services/{service}/availability', [PublicBookingV2Controller::class, 'availability'])
+    ->name('front.v2.services.availability');
 // Route::get('/front/activity/selected-promo/{promo_id}', [ActivityController::class, 'selectedPromo']);
 Route::get('/front/activity/selected-promo', [ActivityController::class, 'selectedPromo']);
+// Legacy public cart endpoint. V2 uses front.v2.checkout.confirm and must not append to this session cart.
 Route::post('/booking/store', [ActivityController::class, 'store'])->name('front.booking.store');
 Route::post('/booking/gift-store', [ActivityController::class, 'storeGift'])->name('front.booking.gift-store');
 
 Route::get('/test-order', [ActivityController::class, 'showTestOrder']); // Review payment screen
+// Legacy cart review screen; still used by the legacy flow and therefore not safe to remove.
 Route::get('/payment/booking/{booking}', [PaymentController::class, 'booking'])->name('front.payment.booking');
 Route::delete('/payment/booking/{booking}/items/{bookingItem}', [PaymentController::class, 'removeBookingItem'])->name('front.payment.booking-items.destroy');
 Route::get('/payment/booking/signed/{booking}', [PaymentController::class, 'bookingSigned'])

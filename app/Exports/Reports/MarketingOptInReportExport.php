@@ -52,7 +52,7 @@ class MarketingOptInReportExport implements FromCollection, WithHeadings, WithMa
                 }
             })
             ->whereHas('booking_item.booking', function (Builder $query) {
-                $query->whereNull('deleted_at');
+                $query->whereNull('deleted_at')->operational();
             })
             ->when($this->startDate || $this->endDate, function (Builder $query) {
                 $query->whereHas('booking_item.booking_inventory', function (Builder $sub) {

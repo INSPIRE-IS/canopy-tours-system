@@ -25,7 +25,7 @@ it('provides phone countries to the welcome gift purchase modal', function () {
         'updated_at' => now(),
     ]);
 
-    $this->get(route('front.welcome', ['team_id' => $teamId]))
+    $this->get(route('front.legacy.welcome', ['team_id' => $teamId]))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('Welcome')

@@ -158,7 +158,9 @@ class FranchiseFeesReportExport implements FromCollection, WithHeadings, ShouldA
                 'season:id,rake_rate_adult,rake_rate_child,rake_rate_guide',
             ])
             ->where('team_id', $this->teamId)
-            ->whereHas('booking', fn(Builder $query) => $query->whereNull('deleted_at'));
+            ->whereHas('booking', fn(Builder $query) => $query
+                ->whereNull('deleted_at')
+                ->operational());
 
         if (!empty($this->serviceIds)) {
             $query->whereIn('service_id', $this->serviceIds);

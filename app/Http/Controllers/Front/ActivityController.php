@@ -39,6 +39,7 @@ use Inertia\Inertia;
 use PHPUnit\Framework\Constraint\IsFalse;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Route;
 use Spatie\Browsershot\Browsershot;
 use Str;
@@ -404,6 +405,10 @@ class ActivityController extends Controller
             ->where('items.inventory_id', $inventory->id)
             ->where('items.team_id', $season->team_id)
             ->whereNull('b.deleted_at')
+            ->where(function ($query) {
+                $query->whereNull('b.payment_window_expired_at')
+                    ->orWhere('b.status_payment_id', 2);
+            })
             ->whereNull('items.deleted_at')
             ->whereNull('bi.deleted_at')
             ->whereBetween('bi.date', [$startDate->toDateString(), $endDate->toDateString()])
@@ -549,6 +554,7 @@ class ActivityController extends Controller
     }
     public function store(Request $request)
     {
+        // Legacy public cart persistence. Public Booking V2 creates one provisional booking at checkout confirmation.
         // TODO: validate the inventory is still available
 
         $validated = $request->validate([
@@ -898,10 +904,17 @@ class ActivityController extends Controller
             'phone' => 'required|string',
             // 'date' => 'required|date',
             // 'time' => 'required',
-            'adults' => 'required|integer|min:1',
+            'adults' => 'required|integer|min:0',
             'children' => 'nullable|integer|min:0',
             'activity_id' => 'required|integer',
         ]);
+
+        if ((int) $validated['adults'] + (int) ($validated['children'] ?? 0) < 1) {
+            throw ValidationException::withMessages([
+                'adults' => 'Choose at least one adult or child.',
+            ]);
+        }
+
         try {
             $voucher = DB::transaction(function () use ($validated) {
                 $activity_id = $validated['activity_id'];
@@ -975,7 +988,6 @@ class ActivityController extends Controller
 
     public function voucher(Request $request)
     {
-        dd($request->all());
         $activityId = $request->activity_id;
         // return view('front.voucher', compact('activityId'));
         return Inertia::render('GiftVoucher', ['activityId' => $activityId]);

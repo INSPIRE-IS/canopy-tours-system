@@ -102,6 +102,10 @@ class CheckInManifestReportExport implements FromQuery, WithHeadings, WithMappin
                 ->join('booking_inventories as manifest_booking_inventories', 'manifest_booking_inventories.booking_item_id', '=', 'manifest_booking_items.id')
                 ->whereNull('manifest_booking_items.deleted_at')
                 ->whereNull('manifest_bookings.deleted_at')
+                ->where(function ($query) {
+                    $query->whereNull('manifest_bookings.payment_window_expired_at')
+                        ->orWhere('manifest_bookings.status_payment_id', 2);
+                })
                 ->whereNull('manifest_booking_inventories.deleted_at')
                 ->whereNotNull('manifest_booking_inventories.date');
         });

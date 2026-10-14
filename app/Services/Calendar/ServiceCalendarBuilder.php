@@ -3,7 +3,6 @@
 namespace App\Services\Calendar;
 
 use Carbon\CarbonPeriod;
-use Illuminate\Support\Facades\Log;
 use App\Models\InventorySlotRange;
 
 class ServiceCalendarBuilder
@@ -37,7 +36,6 @@ class ServiceCalendarBuilder
             ->unique('id')
             ->sortBy(fn($slot) => (string) $slot->start_time)
             ->values();
-        logger()->info("$serviceId, $seasonId, $startDate, $endDate");
         $calendar = self::initCalendar($season, $service, $bookingData, $startDate, $endDate, $totalRequested, $allowedDays, $timeSlots, $lockoutHours, $currentBooking, $overrideMap);
 
         // Apply Closeouts
@@ -90,12 +88,9 @@ class ServiceCalendarBuilder
                 $slotCloseTime = $lockoutHours ?? 0;
 
                 $now = now('Africa/Johannesburg');
-                Log::info('now' . $now);
                 $cutoff = $slotCloseTime > 0
                     ? $now->copy()->addHours($slotCloseTime)
                     : null;
-                // $cutoff = now()->addDay(); // 24-hour lockout    
-                Log::info('cutoff' . $cutoff);
 
                 if ($date->lt($season->start_date) || $date->gt($season->end_date)) {
                     $row['days'][$label] = [
@@ -140,7 +135,7 @@ class ServiceCalendarBuilder
                     }
                 }
                 // Rule: Past date
-                if ($date->isBefore(now()->startOfDay())) {
+                if ($dateStr < now('Africa/Johannesburg')->toDateString()) {
                     $row['days'][$label] = [
                         'date'   => $dateStr,
                         'slots'  => 0,

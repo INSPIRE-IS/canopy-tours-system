@@ -18,6 +18,12 @@ yarn-error.log
 /.idea
 /.vscode
 /temp
+/docs
+/tests/pest.php
+/tests/Concerns
+/tests/Feature
+/tests/Frontend
+/tests/Unit
 AGENTS.md
 test.txt
 

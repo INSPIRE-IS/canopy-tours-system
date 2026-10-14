@@ -65,6 +65,55 @@ class UpdateSeasonRequest extends FormRequest
                 'nullable',
                 'boolean',
             ],
+            'include_public_extras' => [
+                'nullable',
+                'boolean',
+            ],
+            'extras' => [
+                'required_if:include_public_extras,true',
+                'array',
+                'min:1',
+                'max:20',
+            ],
+            'extras.*' => [
+                'array:id,name,description,unit_price,is_per_guest,is_active',
+            ],
+            'extras.*.id' => [
+                'nullable',
+                'integer',
+                Rule::exists('season_extras', 'id')->where(function ($query) {
+                    $season = $this->route('season');
+                    $seasonId = $season instanceof Season ? $season->id : $season;
+
+                    return $query->where('season_id', $seasonId)
+                        ->where('team_id', auth()->user()->team_id)
+                        ->whereNull('deleted_at');
+                }),
+            ],
+            'extras.*.name' => [
+                'required',
+                'string',
+                'max:30',
+            ],
+            'extras.*.description' => [
+                'nullable',
+                'string',
+                'max:255',
+            ],
+            'extras.*.unit_price' => [
+                'required',
+                'numeric',
+                'min:0.01',
+                'decimal:0,2',
+            ],
+            'extras.*.is_per_guest' => [
+                'required',
+                'boolean',
+            ],
+            'extras.*.is_active' => [
+                'required',
+                'boolean',
+            ],
 
 
             'status' => [
@@ -77,6 +126,22 @@ class UpdateSeasonRequest extends FormRequest
                 'integer',
             ],
 
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'extras.required_if' => 'Add at least one extra or turn off public extras for this season.',
+            'extras.min' => 'Add at least one extra or turn off public extras for this season.',
+            'extras.max' => 'A season can have up to 20 public extras.',
+            'extras.*.id.exists' => 'One of the extras no longer belongs to this season. Refresh and try again.',
+            'extras.*.name.required' => 'Enter a name for each extra.',
+            'extras.*.name.max' => 'Use 30 characters or fewer for the extra name.',
+            'extras.*.description.max' => 'Use 255 characters or fewer for the extra description.',
+            'extras.*.unit_price.required' => 'Enter a price for each extra.',
+            'extras.*.unit_price.min' => 'Extra prices must be greater than zero.',
+            'extras.*.unit_price.decimal' => 'Extra prices may have no more than two decimal places.',
         ];
     }
 
@@ -114,7 +179,7 @@ class UpdateSeasonRequest extends FormRequest
             ->where('service_id', $this->input('service_id'))
             ->whereDate('start_date', '<=', $this->input('end_date'))
             ->whereDate('end_date', '>=', $this->input('start_date'))
-            ->when($seasonId, fn ($query) => $query->where('id', '!=', $seasonId))
+            ->when($seasonId, fn($query) => $query->where('id', '!=', $seasonId))
             ->exists();
 
         if ($overlap) {

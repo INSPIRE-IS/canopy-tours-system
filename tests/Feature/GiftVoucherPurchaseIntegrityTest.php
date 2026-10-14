@@ -104,10 +104,57 @@ it('prices a gift voucher from the adult and child season rates', function () {
     ]);
 });
 
-it('rejects a gift voucher without an adult before storing any records', function () {
+it('allows a child-only gift voucher', function () {
     $fixture = createGiftVoucherPurchaseFixture();
     $payload = giftVoucherPurchasePayload($fixture['seasonId']);
     $payload['adults'] = 0;
+    $payload['children'] = 1;
+
+    $response = $this->postJson(route('front.booking.gift-store'), $payload)
+        ->assertOk()
+        ->assertJson(['success' => true]);
+
+    $this->assertDatabaseHas('gift_vouchers', [
+        'id' => $response->json('voucher_id'),
+        'grand_tot_due' => 795.00,
+    ]);
+    $this->assertDatabaseHas('gift_voucher_items', [
+        'gift_voucher_id' => $response->json('voucher_id'),
+        'pax_adults' => 0,
+        'pax_children' => 1,
+        'price_adult' => 0.00,
+        'price_child' => 795.00,
+    ]);
+});
+
+it('allows an adult-only gift voucher', function () {
+    $fixture = createGiftVoucherPurchaseFixture();
+    $payload = giftVoucherPurchasePayload($fixture['seasonId']);
+    $payload['adults'] = 1;
+    $payload['children'] = 0;
+
+    $response = $this->postJson(route('front.booking.gift-store'), $payload)
+        ->assertOk()
+        ->assertJson(['success' => true]);
+
+    $this->assertDatabaseHas('gift_vouchers', [
+        'id' => $response->json('voucher_id'),
+        'grand_tot_due' => 895.00,
+    ]);
+    $this->assertDatabaseHas('gift_voucher_items', [
+        'gift_voucher_id' => $response->json('voucher_id'),
+        'pax_adults' => 1,
+        'pax_children' => 0,
+        'price_adult' => 895.00,
+        'price_child' => 0.00,
+    ]);
+});
+
+it('rejects a gift voucher without any guests before storing records', function () {
+    $fixture = createGiftVoucherPurchaseFixture();
+    $payload = giftVoucherPurchasePayload($fixture['seasonId']);
+    $payload['adults'] = 0;
+    $payload['children'] = 0;
 
     $this->postJson(route('front.booking.gift-store'), $payload)
         ->assertUnprocessable()

@@ -4,16 +4,8 @@ namespace App\Console\Commands;
 
 use App\Models\AuditLog;
 use App\Models\Booking;
-use App\Models\BookingDiscount;
-use App\Models\BookingFee;
 use App\Models\BookingItem;
-use App\Models\BookingPayment;
-use App\Models\BookingPriceLine;
-use App\Models\CustomerManifest;
-use App\Models\File as BookingFile;
 use App\Models\GatewayLog;
-use App\Models\Invoice;
-use App\Models\InvoiceItem;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
@@ -34,7 +26,7 @@ class ExpireUnpaidFrontendBookings extends Command
         $hoursOverrideValue = $hoursOverride ? max(1, (int) $this->option('hours')) : null;
         $teamId = $this->option('team') !== null ? (int) $this->option('team') : null;
         $force = (bool) $this->option('force');
-        $now = now('Africa/Johannesburg');
+        $now = now();
 
         $bookings = Booking::query()
             ->with([
@@ -49,6 +41,7 @@ class ExpireUnpaidFrontendBookings extends Command
             ->whereNull('user_id')
             ->where('status_payment_id', 1)
             ->whereRaw('COALESCE(tot_paid, 0) = 0')
+            ->whereNull('payment_window_expired_at')
             ->whereNull('deleted_at')
             ->when($teamId, fn($query) => $query->where('team_id', $teamId))
             ->whereDoesntHave('booking_payments', function ($query) {
@@ -69,11 +62,12 @@ class ExpireUnpaidFrontendBookings extends Command
                 ->where('event', 'submit')
                 ->max('created_at');
 
-            $holdFrom = $latestSubmitAt
-                ? Carbon::parse($latestSubmitAt, 'Africa/Johannesburg')
-                : Carbon::parse($booking->created_at, 'Africa/Johannesburg');
+            $holdFrom = ($latestSubmitAt
+                ? Carbon::parse($latestSubmitAt)
+                : $booking->created_at->copy())
+                ->setTimezone('Africa/Johannesburg');
             $expiresAt = $holdFrom->copy()->addHours($hours);
-            $expired = $expiresAt->lte($now);
+            $expired = $expiresAt->lte($now->copy()->setTimezone('Africa/Johannesburg'));
 
             if (! $expired) {
                 continue;
@@ -92,7 +86,7 @@ class ExpireUnpaidFrontendBookings extends Command
                 'hold_hours' => $hours,
                 'expires_at' => $expiresAt->format('Y-m-d H:i:s'),
                 'expired' => $expired ? 'yes' : 'no',
-                'action' => $expired ? ($force ? 'expired' : 'would_expire') : 'kept',
+                'action' => $expired ? ($force ? 'marked_expired' : 'would_mark_expired') : 'kept',
                 'grand_tot_due' => $booking->grand_tot_due,
                 'activity_count' => $booking->booking_items->count(),
                 'activities' => $this->formatActivities($booking),
@@ -118,43 +112,20 @@ class ExpireUnpaidFrontendBookings extends Command
     private function expireBooking(Booking $booking, int $hours, Carbon $holdFrom, Carbon $expiresAt): void
     {
         DB::transaction(function () use ($booking, $hours, $holdFrom, $expiresAt) {
-            $booking = Booking::with(['booking_items'])->findOrFail($booking->id);
-            $bookingItemIds = $booking->booking_items->pluck('id')->all();
-            $invoiceIds = Invoice::where('booking_id', $booking->id)->pluck('id')->all();
+            $booking = Booking::query()->lockForUpdate()->findOrFail($booking->id);
 
-            if (!empty($invoiceIds)) {
-                InvoiceItem::whereIn('invoice_id', $invoiceIds)->delete();
-                Invoice::whereIn('id', $invoiceIds)->delete();
+            if ((int) $booking->status_payment_id !== 1
+                || (float) $booking->tot_paid > 0
+                || $booking->payment_window_expired_at !== null) {
+                return;
             }
 
-            if (!empty($bookingItemIds)) {
-                $bookingDiscounts = BookingDiscount::where('booking_id', $booking->id)
-                    ->orWhereIn('booking_item_id', $bookingItemIds)
-                    ->get();
-                foreach ($bookingDiscounts as $discount) {
-                    $discount->booking_discount_items()->delete();
-                    $discount->delete();
-                }
-
-                BookingPriceLine::whereIn('booking_item_id', $bookingItemIds)->delete();
-                CustomerManifest::whereIn('booking_item_id', $bookingItemIds)->delete();
-                BookingFee::whereIn('booking_item_id', $bookingItemIds)->delete();
-
-                foreach ($booking->booking_items as $item) {
-                    $item->customers()->detach();
-                    $item->booking_inventory()->delete();
-                    $item->booking_detail()->delete();
-                    $item->booking_staff()->delete();
-                    $item->booking_infos()->delete();
-                    $item->delete();
-                }
-            }
-
-            BookingFile::where('booking_id', $booking->id)->delete();
-            $booking->delete();
+            $booking->update([
+                'payment_window_expired_at' => now(),
+            ]);
 
             AuditLog::create([
-                'description' => 'Frontend unpaid booking expired',
+                'description' => 'Frontend unpaid booking payment window expired',
                 'subject_id' => $booking->id,
                 'subject_type' => Booking::class,
                 'user_id' => null,
@@ -164,6 +135,7 @@ class ExpireUnpaidFrontendBookings extends Command
                     'hours' => $hours,
                     'hold_from' => $holdFrom->format('Y-m-d H:i:s'),
                     'expires_at' => $expiresAt->format('Y-m-d H:i:s'),
+                    'payment_window_expired_at' => $booking->payment_window_expired_at?->format('Y-m-d H:i:s'),
                     'reason' => 'Unpaid frontend provisional booking exceeded hold window.',
                 ],
                 'host' => 'console',
