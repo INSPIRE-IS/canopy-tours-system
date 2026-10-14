@@ -9,7 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('teams', function (Blueprint $table) {
-            $table->boolean('frontend_hold_enabled')->default(false)->after('is_published');
+            $table->boolean('frontend_hold_enabled')->default(true)->after('is_published');
             $table->unsignedSmallInteger('frontend_hold_minutes')->default(15)->after('frontend_hold_enabled');
         });
 

@@ -771,12 +771,32 @@
 }
 
 .kct-header > a { display: block; }
+.kct-header-logo { padding: 0; display: block; border: 0; background: transparent; cursor: pointer; }
 .kct-header img { width: 192px; height: 72px; display: block; object-fit: contain; }
 .kct-header-actions { display: flex; align-items: center; gap: 16px; }
 .kct-service-select { display: grid; gap: 4px; font-size: 12px; color: var(--kct-text-muted); }
 .kct-service-select select { height: 44px; min-width: 220px; padding: 0 38px 0 12px; border: 1px solid var(--kct-border-control); border-radius: 10px; background: #fff; color: var(--kct-text-primary); }
 .kct-voucher-button { height: 44px; padding: 0 16px; display: flex; align-items: center; gap: 8px; border-radius: 10px; background: var(--kct-surface-voucher); color: var(--kct-text-primary); text-decoration: none; font-size: 15px; font-weight: 600; }
 .kct-voucher-label-mobile { display: none; }
+
+.kct-site-select-page .kct-app-shell { min-height: 100vh; }
+.kct-site-select-main { min-height: calc(100vh - 104px); background: radial-gradient(circle at 50% 20%, #fff 0, var(--kct-surface-canvas) 52%); }
+.kct-site-picker-backdrop { position: fixed; z-index: 100; inset: 0; padding: 24px; display: grid; place-items: center; background: rgba(24, 34, 22, 0.58); backdrop-filter: blur(5px); }
+.kct-site-picker-dialog { position: relative; width: min(560px, 100%); max-height: calc(100vh - 48px); overflow-y: auto; padding: 42px; border: 1px solid var(--kct-border-subtle); border-radius: var(--kct-radius-card); background: var(--kct-surface-card); box-shadow: 0 24px 70px rgba(20, 31, 18, 0.24); }
+.kct-site-picker-dialog h1 { margin: 5px 0 8px; font-size: 32px; line-height: 1.12; }
+.kct-site-picker-dialog > p { margin: 0; color: var(--kct-text-muted); font-size: 15px; line-height: 1.5; }
+.kct-site-picker-eyebrow { color: var(--kct-action-primary); font-size: 12px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
+.kct-site-picker-close { position: absolute; top: 18px; right: 18px; width: 40px; height: 40px; border: 1px solid var(--kct-border-control); border-radius: 50%; background: #fff; color: var(--kct-text-primary); font-size: 26px; line-height: 1; cursor: pointer; }
+.kct-site-picker-options { margin-top: 28px; display: grid; gap: 12px; }
+.kct-site-picker-option { width: 100%; min-height: 92px; padding: 14px 18px; display: grid; grid-template-columns: 86px minmax(0, 1fr) 24px; align-items: center; gap: 16px; border: 1px solid var(--kct-border-subtle); border-radius: 16px; background: #fff; color: var(--kct-text-primary); text-align: left; cursor: pointer; }
+.kct-site-picker-option:hover { border-color: var(--kct-border-available); background: var(--kct-surface-tint); }
+.kct-site-picker-option img { width: 86px; height: 58px; object-fit: contain; }
+.kct-site-picker-option > span:not(.kct-site-picker-arrow) { min-width: 0; display: grid; gap: 5px; }
+.kct-site-picker-option strong { font-family: Montserrat, system-ui, sans-serif; font-size: 17px; }
+.kct-site-picker-option small { overflow: hidden; color: var(--kct-text-muted); font-size: 13px; line-height: 1.4; text-overflow: ellipsis; white-space: nowrap; }
+.kct-site-picker-arrow { color: var(--kct-action-primary); font-size: 22px; font-weight: 700; }
+.kct-site-picker-empty { margin-top: 28px; padding: 24px; display: grid; gap: 6px; border: 1px solid var(--kct-border-subtle); border-radius: 16px; background: var(--kct-surface-canvas); text-align: center; }
+.kct-site-picker-empty span { color: var(--kct-text-muted); font-size: 14px; }
 
 .kct-main { width: min(1248px, calc(100% - 48px)); margin: 0 auto; padding: 32px 0 0; display: flex; flex-direction: column; gap: 28px; }
 .kct-mobile-book { display: none; }
@@ -943,4 +963,9 @@
     .kct-sticky-summary { padding: 12px 16px 28px; }
     .kct-mobile-summary-copy { max-width: calc(100% - 140px); }
     .kct-mobile-summary-copy small { max-width: 100%; }
+    .kct-site-picker-backdrop { padding: 16px; }
+    .kct-site-picker-dialog { padding: 32px 22px 24px; }
+    .kct-site-picker-dialog h1 { font-size: 27px; }
+    .kct-site-picker-option { min-height: 82px; padding: 12px; grid-template-columns: 64px minmax(0, 1fr) 20px; gap: 12px; }
+    .kct-site-picker-option img { width: 64px; height: 48px; }
 }

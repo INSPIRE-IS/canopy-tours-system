@@ -38,12 +38,19 @@ class PublicBookingV2Controller extends Controller
             return redirect()->route('front.welcome', ['team' => $publishedTeamIds->first()]);
         }
 
-        // Keep the existing selector as a safe fallback until the new multi-site entry screen is built.
-        return redirect()->route('front.legacy.welcome');
+        return redirect()->route('front.welcome');
     }
 
-    public function index(Request $request, Team $team): Response
+    public function index(Request $request, ?Team $team = null): Response
     {
+        $publishedTeams = $this->publishedTeamOptions();
+
+        if (! $team) {
+            return Inertia::render('PublicBookingV2/SiteSelect', [
+                'teams' => $publishedTeams,
+            ]);
+        }
+
         abort_unless($team->is_published, 404);
 
         $services = Service::query()
@@ -114,6 +121,7 @@ class PublicBookingV2Controller extends Controller
         $team->load(['file_logo', 'file_image']);
 
         return Inertia::render('PublicBookingV2/Book', [
+            'teams' => $publishedTeams,
             'team' => [
                 'id' => $team->id,
                 'name' => $team->name,
@@ -134,6 +142,23 @@ class PublicBookingV2Controller extends Controller
                 ? 'Your checkout hold expired. Please choose a time again.'
                 : null,
         ]);
+    }
+
+    private function publishedTeamOptions(): array
+    {
+        return Team::query()
+            ->with('file_logo')
+            ->where('is_published', true)
+            ->orderBy('name')
+            ->get()
+            ->map(fn (Team $team) => [
+                'id' => $team->id,
+                'name' => $team->name,
+                'description' => $this->plainContent($team->description),
+                'logo' => $this->publicAssetUrl($team->file_logo?->path),
+            ])
+            ->values()
+            ->all();
     }
 
     public function availability(

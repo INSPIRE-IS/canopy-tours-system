@@ -17,6 +17,7 @@ Read this before changing the public booking checkout, holds, public extras, Pay
 ## Timing rules
 
 - The short checkout hold starts before customer details are persisted. Its duration comes from the site setting and is normally 15 minutes.
+- Checkout holds are enabled by default for newly created sites. Existing site values are not changed automatically.
 - The three-hour provisional payment window starts from the latest PayFast submit log, or from booking creation if PayFast was never opened.
 - These timers serve different stages and must not be combined: the short hold protects Checkout capacity; the longer window protects an existing provisional booking while PayFast is in progress.
 - A paid booking always consumes capacity, including one paid after its provisional window expired.

@@ -81,6 +81,8 @@ function createPublicAvailabilityContext(): array
     $teamId = DB::table('teams')->insertGetId([
         'name' => 'Karkloof Canopy Tour',
         'is_published' => true,
+        // Most availability cases exercise the legacy no-hold path explicitly.
+        'frontend_hold_enabled' => false,
         'created_at' => now(),
         'updated_at' => now(),
     ]);
@@ -164,10 +166,32 @@ it('opens the new booking flow when exactly one site is published', function () 
     ]);
 
     $this->get('/')->assertRedirect(route('front.welcome', ['team' => $teamId]));
+
+    $this->get(route('front.welcome', ['team' => $teamId]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('PublicBookingV2/Book')
+            ->where('teams.0.id', $teamId));
 });
 
-it('keeps the legacy site selector as the safe fallback for zero or multiple published sites', function () {
-    $this->get('/')->assertRedirect(route('front.legacy.welcome'));
+it('enables the checkout hold by default for newly created sites', function () {
+    $teamId = DB::table('teams')->insertGetId([
+        'name' => 'New Public Site',
+        'is_published' => true,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    expect((bool) DB::table('teams')->where('id', $teamId)->value('frontend_hold_enabled'))->toBeTrue();
+});
+
+it('uses the new site selector for zero or multiple published sites', function () {
+    $this->get('/')->assertRedirect(route('front.welcome'));
+    $this->get(route('front.welcome'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('PublicBookingV2/SiteSelect')
+            ->has('teams', 0));
 
     foreach (['Karkloof Canopy Tour', 'Second Published Site'] as $name) {
         DB::table('teams')->insert([
@@ -178,7 +202,12 @@ it('keeps the legacy site selector as the safe fallback for zero or multiple pub
         ]);
     }
 
-    $this->get('/')->assertRedirect(route('front.legacy.welcome'));
+    $this->get('/')->assertRedirect(route('front.welcome'));
+    $this->get(route('front.welcome'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('PublicBookingV2/SiteSelect')
+            ->has('teams', 2));
 });
 
 it('releases expired unpaid capacity while retaining paid bookings that completed late', function () {

@@ -46,7 +46,7 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams, permissions = {}
         bank_branch_name: "",
         branch_code: "",
         is_published: true,
-        frontend_hold_enabled: false,
+        frontend_hold_enabled: true,
         frontend_hold_minutes: 15,
         invoice_note: "",
         vat_no: "",
@@ -87,7 +87,7 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams, permissions = {}
                 bank_branch_name: team.bank_branch_name || "",
                 branch_code: team.branch_code || "",
                 is_published: team.is_published ?? true,
-                frontend_hold_enabled: team.frontend_hold_enabled ?? false,
+                frontend_hold_enabled: team.frontend_hold_enabled ?? true,
                 frontend_hold_minutes: team.frontend_hold_minutes ?? 15,
                 invoice_note: team.invoice_note || "",
                 vat_no: team.vat_no || "",
@@ -105,7 +105,7 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams, permissions = {}
             setData((prev) => ({
                 ...prev,
                 is_published: true,
-                frontend_hold_enabled: false,
+                frontend_hold_enabled: true,
                 frontend_hold_minutes: 15,
             }));
         }
