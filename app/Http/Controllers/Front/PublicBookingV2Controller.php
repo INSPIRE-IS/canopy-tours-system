@@ -71,9 +71,7 @@ class PublicBookingV2Controller extends Controller
             ->orderBy('name')
             ->get()
             ->map(function (Service $service) {
-                $fieldValues = $service->servicefieldValues->mapWithKeys(function ($fieldValue) {
-                    return [$fieldValue->field->name => $this->frontContent($fieldValue->value)];
-                });
+                $fieldValues = $this->serviceFieldValuesBySlug($service);
                 $today = CarbonImmutable::today('Africa/Johannesburg');
                 $initialSeason = $service->seasons
                     ->first(fn($season) => CarbonImmutable::parse($season->end_date)->gte($today))
@@ -94,20 +92,21 @@ class PublicBookingV2Controller extends Controller
                     'initial_date' => $initialDate,
                     'from_price' => $service->seasons->min('rake_rate_adult'),
                     'gift_activity_id' => $initialSeason?->id,
-                    'description' => $fieldValues['Description'] ?? null,
-                    'activity_description' => $fieldValues['Activity Description'] ?? null,
+                    'description' => $fieldValues['description'] ?? null,
+                    'activity_description' => $fieldValues['activity_description'] ?? null,
                     'hero_summary' => $this->plainContent(
-                        $fieldValues['Description'] ?? $fieldValues['Activity Description'] ?? null
+                        $fieldValues['description'] ?? $fieldValues['activity_description'] ?? null
                     ),
                     'age_label' => $this->minimumAgeLabel(
-                        $fieldValues['Condition Text'] ?? $fieldValues['Requirements'] ?? null
+                        $fieldValues['minimum_age'] ?? null,
+                        $fieldValues['requirements'] ?? $fieldValues['condition_text'] ?? null
                     ),
-                    'arrangements' => $fieldValues['Arrangements'] ?? null,
-                    'requirements' => $fieldValues['Requirements'] ?? null,
-                    'inclusions' => $fieldValues['Inclusions'] ?? null,
-                    'exclusions' => $fieldValues['Exclusions'] ?? null,
-                    'condition_text' => $fieldValues['Condition Text'] ?? null,
-                    'notes' => $fieldValues['Notes'] ?? null,
+                    'arrangements' => $fieldValues['arrangements'] ?? null,
+                    'requirements' => $fieldValues['requirements'] ?? null,
+                    'inclusions' => $fieldValues['inclusions'] ?? null,
+                    'exclusions' => $fieldValues['exclusions'] ?? null,
+                    'condition_text' => $fieldValues['condition_text'] ?? null,
+                    'notes' => $fieldValues['notes'] ?? null,
                 ];
             })
             ->values();
@@ -324,9 +323,7 @@ class PublicBookingV2Controller extends Controller
 
         $team->load(['file_logo', 'file_image']);
         $service->loadMissing(['file', 'servicefieldValues.field']);
-        $fieldValues = $service->servicefieldValues->mapWithKeys(function ($fieldValue) {
-            return [$fieldValue->field->name => $this->frontContent($fieldValue->value)];
-        });
+        $fieldValues = $this->serviceFieldValuesBySlug($service);
 
         return Inertia::render('PublicBookingV2/Checkout', [
             'team' => [
@@ -403,9 +400,7 @@ class PublicBookingV2Controller extends Controller
         ]);
 
         $service->loadMissing('servicefieldValues.field');
-        $fieldValues = $service->servicefieldValues->mapWithKeys(function ($fieldValue) {
-            return [$fieldValue->field->name => $this->frontContent($fieldValue->value)];
-        });
+        $fieldValues = $this->serviceFieldValuesBySlug($service);
         $termsSnapshot = $this->checkoutTermsSnapshot($fieldValues);
         if (! hash_equals(hash('sha256', $termsSnapshot), $validated['terms_hash'])) {
             throw ValidationException::withMessages([
@@ -706,9 +701,18 @@ class PublicBookingV2Controller extends Controller
         return $plainText === '' || $plainText === '.' ? null : $value;
     }
 
+    private function serviceFieldValuesBySlug(Service $service)
+    {
+        return $service->servicefieldValues
+            ->filter(fn ($fieldValue) => $fieldValue->field?->slug)
+            ->mapWithKeys(fn ($fieldValue) => [
+                $fieldValue->field->slug => $this->frontContent($fieldValue->value),
+            ]);
+    }
+
     private function checkoutTermsText($fieldValues): string
     {
-        $value = $fieldValues['Condition Text'] ?? null;
+        $value = $fieldValues['condition_text'] ?? null;
         $text = trim(preg_replace('/\s+/', ' ', strip_tags(html_entity_decode((string) $value))));
 
         return $text !== '' && $text !== '.'
@@ -769,9 +773,13 @@ class PublicBookingV2Controller extends Controller
         return (int) $matches[1];
     }
 
-    private function minimumAgeLabel(?string $content): ?string
+    private function minimumAgeLabel(?string $minimumAge, ?string $fallbackContent = null): ?string
     {
-        $plainText = $this->plainContent($content);
+        if ($minimumAge !== null && preg_match('/^\d+$/', trim($minimumAge))) {
+            return sprintf('Ages %s+', (int) $minimumAge);
+        }
+
+        $plainText = $this->plainContent($fallbackContent);
         if (! $plainText || ! preg_match('/children\s+from\s+(\d+)\s+years?/i', $plainText, $matches)) {
             return null;
         }

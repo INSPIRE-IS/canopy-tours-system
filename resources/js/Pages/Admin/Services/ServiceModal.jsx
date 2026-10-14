@@ -136,6 +136,7 @@ const ServiceModal = ({ isOpen, onClose, mode, service, serviceFields, auth, tea
         'notes',
         'lat_lon_start',
         'lat_long_end',
+        'minimum_age',
     ].includes(field?.slug);
 
     // const handleSubmit = (e) => {
@@ -187,6 +188,9 @@ const ServiceModal = ({ isOpen, onClose, mode, service, serviceFields, auth, tea
                     <input
                         type="number"
                         value={value}
+                        min={field.slug === 'minimum_age' ? 0 : undefined}
+                        max={field.slug === 'minimum_age' ? 120 : undefined}
+                        step={field.slug === 'minimum_age' ? 1 : undefined}
                         onChange={(e) =>
                             setData("fields", { ...data.fields, [field.id]: e.target.value })
                         }

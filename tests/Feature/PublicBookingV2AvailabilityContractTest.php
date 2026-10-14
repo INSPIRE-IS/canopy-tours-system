@@ -1,10 +1,13 @@
 <?php
 
 use App\Models\Service;
+use App\Http\Controllers\Admin\ServicesController;
 use App\Services\Calendar\PublicServiceAvailability;
 use Carbon\Carbon;
 use Carbon\CarbonImmutable;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Inertia\Testing\AssertableInertia as Assert;
 
 function createPublicAvailabilitySeason(
@@ -183,6 +186,93 @@ it('enables the checkout hold by default for newly created sites', function () {
     ]);
 
     expect((bool) DB::table('teams')->where('id', $teamId)->value('frontend_hold_enabled'))->toBeTrue();
+});
+
+it('resolves public service content by slug and prefers the dedicated minimum age', function () {
+    [$teamId, $serviceId] = createPublicAvailabilityContext();
+    $season = createPublicAvailabilitySeason($teamId, $serviceId, '2032', '2032-01-01', '2032-12-31', 895, '09:00:00');
+
+    $values = [
+        'description' => '<p>Forest canopy adventure</p>',
+        'minimum_age' => '6',
+        'requirements' => '<p>Children from 7 years. Arrive in closed shoes.</p>',
+        'inclusions' => '<p>Guides and safety equipment.</p>',
+        'condition_text' => '<p>Cancel at least five days before the tour.</p>',
+    ];
+
+    foreach ($values as $slug => $value) {
+        $fieldId = DB::table('service_fields')->where('slug', $slug)->value('id');
+        DB::table('service_fields')->where('id', $fieldId)->update([
+            'name' => 'Editable label for ' . $slug,
+        ]);
+        DB::table('service_field_values')->insert([
+            'service_id' => $serviceId,
+            'field_id' => $fieldId,
+            'value' => $value,
+            'team_id' => $teamId,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    $this->get(route('front.welcome', ['team' => $teamId]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('services.0.hero_summary', 'Forest canopy adventure')
+            ->where('services.0.age_label', 'Ages 6+')
+            ->where('services.0.requirements', $values['requirements'])
+            ->where('services.0.inclusions', $values['inclusions'])
+            ->where('services.0.condition_text', $values['condition_text']));
+
+    $this->get(route('front.v2.checkout', [
+        'team' => $teamId,
+        'service' => $serviceId,
+        'date' => '2032-02-10',
+        'slot_id' => $season['slotId'],
+        'adults' => 1,
+        'children' => 0,
+    ]))->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->where('terms.text', 'Cancel at least five days before the tour.'));
+});
+
+it('applies the service field definition migration repeatedly without losing values', function () {
+    [$teamId, $serviceId] = createPublicAvailabilityContext();
+    $descriptionId = DB::table('service_fields')->where('slug', 'description')->value('id');
+
+    DB::table('service_field_values')->insert([
+        'service_id' => $serviceId,
+        'field_id' => $descriptionId,
+        'value' => '<p>Existing service summary</p>',
+        'team_id' => $teamId,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    $migration = require database_path('migrations/2026_10_14_000002_define_public_service_fields.php');
+    $migration->up();
+    $migration->up();
+
+    expect(DB::table('service_fields')->where('slug', 'minimum_age')->count())->toBe(1)
+        ->and(DB::table('service_fields')->where('slug', 'description')->value('name'))->toBe('Frontend: Hero summary')
+        ->and(DB::table('service_field_values')->where('field_id', $descriptionId)->value('value'))
+        ->toBe('<p>Existing service summary</p>');
+});
+
+it('rejects a fractional minimum age', function () {
+    $minimumAgeId = DB::table('service_fields')->where('slug', 'minimum_age')->value('id');
+    $request = Request::create('/admin/services', 'POST', [
+        'name' => 'Canopy Tour',
+        'capacity' => 8,
+        'allow_internal_capacity_override' => false,
+        'fields' => [$minimumAgeId => '6.5'],
+    ]);
+
+    try {
+        app(ServicesController::class)->store($request);
+        $this->fail('Expected minimum_age validation to fail.');
+    } catch (ValidationException $exception) {
+        expect($exception->errors())->toHaveKey("fields.{$minimumAgeId}");
+    }
 });
 
 it('uses the new site selector for zero or multiple published sites', function () {
