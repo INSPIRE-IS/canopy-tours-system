@@ -36,10 +36,12 @@ function GiftSummary({ service, season, adults, children, total, backUrl, heroFa
                     <span>Valid pricing period</span>
                     <strong>{format(parseISO(season.start_date), 'd MMM yyyy')} - {format(parseISO(season.end_date), 'd MMM yyyy')}</strong>
                 </div>
-                <div className="kct-checkout-summary-line">
-                    <span>{adults} {adults === 1 ? 'adult' : 'adults'} x {money(season.adult_price)}</span>
-                    <strong>{money(adults * season.adult_price)}</strong>
-                </div>
+                {adults > 0 && (
+                    <div className="kct-checkout-summary-line">
+                        <span>{adults} {adults === 1 ? 'adult' : 'adults'} x {money(season.adult_price)}</span>
+                        <strong>{money(adults * season.adult_price)}</strong>
+                    </div>
+                )}
                 {children > 0 && (
                     <div className="kct-checkout-summary-line">
                         <span>{children} {children === 1 ? 'child' : 'children'} x {money(season.child_price)}</span>
@@ -79,7 +81,7 @@ export default function GiftCheckout({ team, service, season, countries = [], ba
     const canSubmit = details.full_name.trim().length > 1
         && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(details.email.trim())
         && normalizedLocalPhone.length >= 5
-        && adults >= 1;
+        && adults + children >= 1;
 
     const updateDetail = (field) => (event) => {
         setDetails((current) => ({ ...current, [field]: event.target.value }));
@@ -165,7 +167,7 @@ export default function GiftCheckout({ team, service, season, countries = [], ba
                         <section className="kct-checkout-card">
                             <div className="kct-checkout-step-heading"><span>1</span><h2>Choose your voucher</h2></div>
                             <div className="kct-gift-pax-grid">
-                                <Stepper label="Adults" value={adults} minimum={1} maximum={99} onChange={setAdults} />
+                                <Stepper label="Adults" value={adults} maximum={99} onChange={setAdults} />
                                 <Stepper label="Children" value={children} maximum={99} onChange={setChildren} />
                             </div>
                             <p className="kct-checkout-muted">Adult {money(season.adult_price)} each - Child {money(season.child_price)} each</p>
