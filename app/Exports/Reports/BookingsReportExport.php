@@ -48,7 +48,9 @@ class BookingsReportExport implements FromQuery, WithHeadings, WithMapping, Shou
                 'service:id,name',
             ])
             ->where('team_id', $this->teamId)
-            ->whereHas('booking', fn (Builder $query) => $query->whereNull('deleted_at'));
+            ->whereHas('booking', fn (Builder $query) => $query
+                ->whereNull('deleted_at')
+                ->operational());
 
         if ($this->serviceId) {
             $query->where('service_id', $this->serviceId);

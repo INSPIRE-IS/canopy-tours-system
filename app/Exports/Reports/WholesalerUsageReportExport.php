@@ -153,7 +153,9 @@ class WholesalerUsageReportExport implements FromCollection, ShouldAutoSize, Sho
                 'wholesaler_rate:id,name,wholesaler_id,service_id,season_id,price_adult,price_child,price_guide,is_prepaid_voucher,effective_from,effective_to,is_active',
             ])
             ->where('team_id', $this->teamId)
-            ->whereHas('booking', fn (Builder $query) => $query->whereNull('deleted_at'))
+            ->whereHas('booking', fn (Builder $query) => $query
+                ->whereNull('deleted_at')
+                ->operational())
             ->where(function (Builder $query) {
                 $query->whereNotNull('wholesaler_id')
                     ->orWhereHas('price_lines', fn (Builder $sub) => $sub->where('source_type', 'wholesaler'));

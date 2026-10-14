@@ -583,7 +583,8 @@ class BookingsController extends Controller
         $bookingsQuery = Booking::with([
             'booking_payments',
         ])
-            ->where('team_id', $teamId);
+            ->where('team_id', $teamId)
+            ->operational();
 
         if ($includeCancelled) {
             $bookingsQuery->withTrashed();
@@ -616,7 +617,14 @@ class BookingsController extends Controller
         ];
 
         $bookingItemsQuery = BookingItem::with($bookingItemRelations)
-            ->where('team_id', $teamId);
+            ->where('team_id', $teamId)
+            ->whereHas('booking', function ($query) use ($includeCancelled) {
+                if ($includeCancelled) {
+                    $query->withTrashed();
+                }
+
+                $query->operational();
+            });
 
         if ($includeCancelled) {
             $bookingItemsQuery->withTrashed();
