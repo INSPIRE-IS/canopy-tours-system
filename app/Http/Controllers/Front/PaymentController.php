@@ -4,12 +4,14 @@ namespace App\Http\Controllers\Front;
 
 use App\Http\Controllers\Controller;
 use App\Jobs\FulfillGiftVoucherPayment;
+use App\Jobs\FulfillBookingPayment;
 use App\Mail\BookingMail;
 use App\Mail\MessageGuestMail;
 use App\Models\Alert;
 use App\Models\Booking;
 use App\Models\BookingItem;
 use App\Models\BookingPayment;
+use App\Models\BookingExtraPaymentAllocation;
 use App\Models\Gateway;
 use App\Models\GatewayConfig;
 use App\Models\GatewayLog;
@@ -96,6 +98,7 @@ class PaymentController extends Controller
 
     public function booking(Booking $booking)
     {
+        // Legacy multi-item cart review. V2 regular checkout redirects directly to PayFast after confirmation.
         //dd($booking);
         $sessionId = session()->getId() ?? null;
         //logger()->info('sessionId inertia ' . $sessionId);
@@ -888,7 +891,7 @@ class PaymentController extends Controller
             return [false, $message ?: 'Invalid payload'];
         }
 
-        if ($context['booking'] && $context['booking']->status_payment_id != 2) {
+        if ($context['booking']) {
             $meta = [
                 'ip' => $request->ip(),
                 'payfast' => Arr::only($payload, [
@@ -903,12 +906,13 @@ class PaymentController extends Controller
                 'event' => $event,
             ];
 
-            // Never do long-running PDF/email work in the ITN callback. It can time out and roll back payment.
-            if ($event === 'notify') {
+            if ($context['booking']->status_payment_id != 2) {
+                // Payment is committed before queued documents/email work can run.
                 $this->completeBookingPaymentDbOnly($context['booking'], $context['gateway_id'], $meta);
-            } else {
-                $this->completeBookingPayment($context['booking'], $context['gateway_id'], $meta);
             }
+
+            // Dispatch for duplicate callbacks too so a prior fulfilment failure remains recoverable.
+            FulfillBookingPayment::dispatch($context['booking']->id)->afterResponse();
         }
 
         if ($context['voucher']) {
@@ -1242,7 +1246,15 @@ class PaymentController extends Controller
         $meta = array_merge(['ip' => request()->ip()], $meta);
 
         return DB::transaction(function () use ($booking, $gatewayId, $meta) {
-            $booking = Booking::with('booking_items.booking_fee')->findOrFail($booking->id);
+            $booking = Booking::with(['booking_items.booking_fee', 'booking_extras'])
+                ->lockForUpdate()
+                ->findOrFail($booking->id);
+
+            if ((int) $booking->status_payment_id === 2) {
+                return $booking;
+            }
+
+            $wasExpired = $booking->payment_window_expired_at !== null;
 
             $booking->update([
                 'status_payment_id' => 2,
@@ -1252,7 +1264,7 @@ class PaymentController extends Controller
             $vat = $this->vatBreakdownForTeam($booking->team_id, (float) $booking->grand_tot_due);
             $vatItem = $vat['vat_item'];
 
-            BookingPayment::updateOrCreate(
+            $payment = BookingPayment::updateOrCreate(
                 ['booking_id' => $booking->id],
                 [
                     'type_pay_option_id' => 2,
@@ -1273,6 +1285,7 @@ class PaymentController extends Controller
                     'team_id' => $booking->team_id,
                 ]
             );
+            $this->allocatePaidPublicExtras($booking, $payment);
 
             $grandTot = (float) $booking->grand_tot_due;
             foreach ($booking->booking_items as $item) {
@@ -1294,9 +1307,14 @@ class PaymentController extends Controller
                     'amount' => $booking->grand_tot_due,
                     'gateway_id' => $gatewayId,
                     'meta' => $meta,
+                    'payment_window_was_expired' => $wasExpired,
                 ]),
                 'host' => request()->ip(),
             ]);
+
+            if ($wasExpired) {
+                $this->alertStaffForLatePublicPayment($booking);
+            }
 
             return $booking;
         });
@@ -1309,6 +1327,7 @@ class PaymentController extends Controller
         return DB::transaction(function () use ($booking, $gatewayId, $meta) {
             $renderService = app(RendererService::class);
             $booking = Booking::findOrFail($booking->id);
+            $wasExpired = $booking->payment_window_expired_at !== null;
             // Mark as paid (in real app, you'd validate PayFast response)
             $booking->update([
                 'status_payment_id' => 2, // e.g., "paid"
@@ -1318,7 +1337,7 @@ class PaymentController extends Controller
             $vat = $this->vatBreakdownForTeam($booking->team_id, (float) $booking->grand_tot_due);
             $vatItem = $vat['vat_item'];
 
-            BookingPayment::updateOrCreate(
+            $payment = BookingPayment::updateOrCreate(
                 ['booking_id' => $booking->id,],
                 [
                     'type_pay_option_id'   => 2,     // or 'Pay Offline'
@@ -1339,6 +1358,8 @@ class PaymentController extends Controller
                     'team_id'        => $booking->team_id,
                 ]
             );
+            $booking->loadMissing('booking_extras');
+            $this->allocatePaidPublicExtras($booking, $payment);
 
             $grandTot = $booking->grand_tot_due;
             foreach ($booking->booking_items as $item) {
@@ -1362,6 +1383,10 @@ class PaymentController extends Controller
                 ->get();
             foreach ($users as $user) {
                 $user->alerts()->attach($alert->id); // âœ… attach by ID
+            }
+
+            if ($wasExpired) {
+                $this->alertStaffForLatePublicPayment($booking);
             }
 
             $customer = Customer::findOrFail($booking->customer_id);
@@ -1547,6 +1572,49 @@ class PaymentController extends Controller
                 'gateway_id' => $gatewayId,
             ]);
         }
+    }
+
+    private function allocatePaidPublicExtras(Booking $booking, BookingPayment $payment): void
+    {
+        foreach ($booking->booking_extras as $extra) {
+            if (data_get($extra->meta, 'source') !== 'public_booking_v2') {
+                continue;
+            }
+
+            BookingExtraPaymentAllocation::updateOrCreate(
+                [
+                    'booking_id' => $booking->id,
+                    'booking_extra_id' => $extra->id,
+                    'booking_payment_id' => $payment->id,
+                    'allocation_type' => 'payment',
+                ],
+                [
+                    'amount' => round((float) $extra->total_amount, 2),
+                    'note' => 'Paid with public PayFast booking checkout.',
+                    'team_id' => $booking->team_id,
+                ]
+            );
+        }
+    }
+
+    private function alertStaffForLatePublicPayment(Booking $booking): void
+    {
+        $alert = Alert::firstOrCreate(
+            [
+                'booking_id' => $booking->id,
+                'alert_text' => 'Late online payment requires capacity review',
+                'team_id' => $booking->team_id,
+            ],
+            [
+                'alert_link' => route('admin.bookings.index', [], false),
+                'type_alert_id' => 3,
+            ]
+        );
+
+        User::where('team_id', $booking->team_id)
+            ->whereHas('roles', fn ($query) => $query->whereIn('name', ['Manager', 'Consultant']))
+            ->get()
+            ->each(fn (User $user) => $user->alerts()->syncWithoutDetaching([$alert->id]));
     }
 
     public function offline(Request $request)

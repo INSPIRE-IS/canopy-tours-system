@@ -26,6 +26,7 @@ import {
     calculateBookingTotal,
     findFirstOpenDate,
     findSelectedSlot,
+    hasSelectedGuests,
 } from './bookingState';
 import './booking-v2.css';
 
@@ -473,8 +474,9 @@ export default function Book({ team, services = [], selectedServiceId, notice = 
                 <BookingSummary
                     tourSummary={tourSummary}
                     total={total}
-                    canContinue={Boolean(selectedSlot && adults > 0 && !availabilityUpdating)}
+                    canContinue={Boolean(selectedSlot && hasSelectedGuests(adults, children) && !availabilityUpdating)}
                     onContinue={continueToCheckout}
+                    onPromoInfo={() => showToast('You can enter your promo code on the checkout screen.', 'info', 5000)}
                 />
             </div>
         </div>

@@ -7,6 +7,7 @@ use App\Traits\MultiTenantModelTrait;
 use Carbon\Carbon;
 use DateTimeInterface;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -80,6 +81,23 @@ class Booking extends Model
     public function booking_extras()
     {
         return $this->hasMany(BookingExtra::class);
+    }
+
+    public function terms_acceptance()
+    {
+        return $this->hasOne(BookingTermsAcceptance::class);
+    }
+
+    /**
+     * Keep abandoned public checkout records out of operational screens while
+     * retaining them for payment reconciliation and audit history.
+     */
+    public function scopeOperational(Builder $query): Builder
+    {
+        return $query->where(function (Builder $query) {
+            $query->whereNull('payment_window_expired_at')
+                ->orWhere('status_payment_id', 2);
+        });
     }
 
     public function customer()

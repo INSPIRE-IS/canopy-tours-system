@@ -614,7 +614,7 @@ it('rejects a stale checkout slot', function () {
     ]))->assertRedirect(route('front.welcome', $teamId))->assertSessionHasErrors('slot_id');
 });
 
-it('rejects checkout for another team, past dates, invalid adult counts, and excessive pax', function () {
+it('allows child-only checkout and rejects another team, past dates, zero guests, and excessive pax', function () {
     [$teamId, $serviceId] = createPublicAvailabilityContext();
     $season = createPublicAvailabilitySeason($teamId, $serviceId, '2032', '2032-01-01', '2032-12-31', 995, '09:00:00');
     $otherTeamId = DB::table('teams')->insertGetId([
@@ -637,7 +637,14 @@ it('rejects checkout for another team, past dates, invalid adult counts, and exc
         ->get(route('front.v2.checkout', [...$base, 'date' => '2020-01-01']))
         ->assertSessionHasErrors('date');
     $this->from(route('front.welcome', $teamId))
-        ->get(route('front.v2.checkout', [...$base, 'adults' => 0]))
+        ->get(route('front.v2.checkout', [...$base, 'adults' => 0, 'children' => 1]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('selection.adults', 0)
+            ->where('selection.children', 1)
+        );
+    $this->from(route('front.welcome', $teamId))
+        ->get(route('front.v2.checkout', [...$base, 'adults' => 0, 'children' => 0]))
         ->assertSessionHasErrors('adults');
     $this->from(route('front.welcome', $teamId))
         ->get(route('front.v2.checkout', [...$base, 'adults' => 8, 'children' => 1]))
@@ -716,6 +723,37 @@ it('creates a session-bound checkout hold and excludes it only for its owning se
     );
 });
 
+it('creates a child-only hold and rejects a zero-guest hold', function () {
+    [$teamId, $serviceId] = createPublicAvailabilityContext();
+    $season = createPublicAvailabilitySeason($teamId, $serviceId, '2032', '2032-01-01', '2032-12-31', 995, '09:00:00');
+    DB::table('teams')->where('id', $teamId)->update([
+        'frontend_hold_enabled' => true,
+        'frontend_hold_minutes' => 15,
+    ]);
+    $url = route('front.v2.holds.store', ['team' => $teamId, 'service' => $serviceId]);
+    $base = [
+        'date' => '2032-02-10',
+        'slot_id' => $season['slotId'],
+        'adults' => 0,
+    ];
+
+    $this->post($url, [...$base, 'children' => 1])->assertRedirect();
+
+    $this->assertDatabaseHas('public_booking_holds', [
+        'team_id' => $teamId,
+        'service_id' => $serviceId,
+        'adults' => 0,
+        'children' => 1,
+    ]);
+
+    $this->from(route('front.welcome', $teamId))
+        ->post($url, [...$base, 'children' => 0])
+        ->assertRedirect(route('front.welcome', $teamId))
+        ->assertSessionHasErrors('adults');
+
+    expect(DB::table('public_booking_holds')->count())->toBe(1);
+});
+
 it('releases expired holds and replaces a previous active hold for the same session', function () {
     [$teamId, $serviceId] = createPublicAvailabilityContext();
     $season = createPublicAvailabilitySeason($teamId, $serviceId, '2032', '2032-01-01', '2032-12-31', 995, '09:00:00');
@@ -779,8 +817,19 @@ it('allows the same browser session to create a new hold after checkout expiry',
     ]))->assertRedirect(route('front.welcome', [
         'team' => $teamId,
         'service_id' => $serviceId,
-        'notice' => 'hold_expired',
-    ]));
+    ]))->assertSessionHas('public_booking_v2_notice', 'hold_expired');
+
+    $this->get(route('front.welcome', ['team' => $teamId, 'service_id' => $serviceId]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('PublicBookingV2/Book')
+            ->where('notice', 'Your checkout hold expired. Please choose a time again.'));
+
+    $this->get(route('front.welcome', ['team' => $teamId, 'service_id' => $serviceId]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('PublicBookingV2/Book')
+            ->where('notice', null));
 
     $this->post($url, $payload)->assertRedirect();
 
@@ -836,8 +885,7 @@ it('releases the checkout hold on countdown expiry before allowing another selec
     ]))->assertRedirect(route('front.welcome', [
         'team' => $teamId,
         'service_id' => $serviceId,
-        'notice' => 'hold_expired',
-    ]));
+    ]))->assertSessionHas('public_booking_v2_notice', 'hold_expired');
 
     expect(DB::table('public_booking_holds')->where('id', $firstHold->id)->value('cancelled_at'))->not->toBeNull()
         ->and(session('public_booking_v2_hold_uuid'))->toBeNull();
@@ -915,6 +963,5 @@ it('rejects checkout without an active hold when holds are enabled', function ()
     ]))->assertRedirect(route('front.welcome', [
         'team' => $teamId,
         'service_id' => $serviceId,
-        'notice' => 'hold_expired',
-    ]));
+    ]))->assertSessionHas('public_booking_v2_notice', 'hold_expired');
 });

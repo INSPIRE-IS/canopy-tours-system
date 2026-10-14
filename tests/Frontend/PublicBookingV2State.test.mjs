@@ -6,6 +6,7 @@ import {
     findFirstOpenDate,
     findSelectedSlot,
     formatHoldCountdown,
+    hasSelectedGuests,
     remainingHoldSeconds,
 } from '../../resources/js/Pages/PublicBookingV2/bookingState.js';
 
@@ -27,6 +28,12 @@ test('rejects a slot id that is no longer in the available slot list', () => {
 
     assert.equal(slot, null);
     assert.equal(calculateBookingTotal(slot, 2, 0), 0);
+});
+
+test('requires at least one adult or child before continuing', () => {
+    assert.equal(hasSelectedGuests(1, 0), true);
+    assert.equal(hasSelectedGuests(0, 1), true);
+    assert.equal(hasSelectedGuests(0, 0), false);
 });
 
 test('reports empty availability and does not invent a selectable date', () => {

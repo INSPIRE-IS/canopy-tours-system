@@ -4,12 +4,17 @@ namespace App\Http\Controllers\Front;
 
 use App\Http\Controllers\Controller;
 use App\Models\Country;
+use App\Models\Booking;
 use App\Models\Season;
 use App\Models\Service;
 use App\Models\Team;
 use App\Models\PublicBookingHold;
+use App\Models\Promotion;
+use App\Models\InventoryTimeSlot;
 use App\Services\Calendar\PublicServiceAvailability;
 use App\Services\PublicBookingHoldService;
+use App\Services\PublicBookingCheckoutService;
+use App\Services\PricingService;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -104,6 +109,7 @@ class PublicBookingV2Controller extends Controller
         if (! $services->contains('id', $selectedServiceId)) {
             $selectedServiceId = (int) ($services->first()['id'] ?? 0);
         }
+        $noticeCode = $request->session()->pull('public_booking_v2_notice');
 
         $team->load(['file_logo', 'file_image']);
 
@@ -124,7 +130,7 @@ class PublicBookingV2Controller extends Controller
             ],
             'services' => $services,
             'selectedServiceId' => $selectedServiceId,
-            'notice' => $request->string('notice')->toString() === 'hold_expired'
+            'notice' => $noticeCode === 'hold_expired'
                 ? 'Your checkout hold expired. Please choose a time again.'
                 : null,
         ]);
@@ -231,8 +237,7 @@ class PublicBookingV2Controller extends Controller
                 return redirect()->route('front.welcome', [
                     'team' => $team->id,
                     'service_id' => $service->id,
-                    'notice' => 'hold_expired',
-                ]);
+                ])->with('public_booking_v2_notice', 'hold_expired');
             }
 
             $date = CarbonImmutable::parse($hold->booking_date, 'Africa/Johannesburg')->startOfDay();
@@ -311,7 +316,7 @@ class PublicBookingV2Controller extends Controller
                 'name' => $service->name,
                 'image' => $this->publicAssetUrl($service->file?->path)
                     ?? $this->publicAssetUrl($team->file_image?->path),
-                'condition_text' => $fieldValues['Condition Text'] ?? null,
+                'condition_text' => $this->checkoutTermsText($fieldValues),
             ],
             'selection' => [
                 'date' => $date->toDateString(),
@@ -337,11 +342,192 @@ class PublicBookingV2Controller extends Controller
                 'expires_at' => $hold->expires_at->toIso8601String(),
                 'duration_minutes' => (int) $team->frontend_hold_minutes,
             ] : null,
+            'terms' => [
+                'text' => $this->checkoutTermsText($fieldValues),
+                'hash' => hash('sha256', $this->checkoutTermsSnapshot($fieldValues)),
+            ],
             'changeUrl' => route('front.welcome', [
                 'team' => $team->id,
                 'service_id' => $service->id,
             ]),
         ]);
+    }
+
+    public function confirmCheckout(
+        Request $request,
+        Team $team,
+        Service $service,
+        PublicBookingCheckoutService $checkout
+    ): JsonResponse {
+        $this->abortUnlessPublicService($team, $service);
+
+        $validated = $request->validate([
+            'hold_uuid' => ['nullable', 'uuid'],
+            'date' => ['required_without:hold_uuid', 'nullable', 'date_format:Y-m-d'],
+            'slot_id' => ['required_without:hold_uuid', 'nullable', 'integer', 'min:1'],
+            'adults' => ['required_without:hold_uuid', 'nullable', 'integer', 'min:0'],
+            'children' => ['nullable', 'integer', 'min:0'],
+            'full_name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email', 'max:255'],
+            'phone' => ['required', 'string', 'max:50'],
+            'promo_code' => ['nullable', 'string', 'max:100'],
+            'extra_ids' => ['nullable', 'array'],
+            'extra_ids.*' => ['integer', 'distinct'],
+            'terms_accepted' => ['accepted'],
+            'terms_hash' => ['required', 'string', 'size:64'],
+        ]);
+
+        $service->loadMissing('servicefieldValues.field');
+        $fieldValues = $service->servicefieldValues->mapWithKeys(function ($fieldValue) {
+            return [$fieldValue->field->name => $this->frontContent($fieldValue->value)];
+        });
+        $termsSnapshot = $this->checkoutTermsSnapshot($fieldValues);
+        if (! hash_equals(hash('sha256', $termsSnapshot), $validated['terms_hash'])) {
+            throw ValidationException::withMessages([
+                'terms_hash' => 'The conditions changed while you were checking out. Please review and accept them again.',
+            ]);
+        }
+
+        if (empty($validated['hold_uuid'])) {
+            $this->validateSelectionLimits(
+                $service,
+                CarbonImmutable::parse($validated['date'], 'Africa/Johannesburg')->startOfDay(),
+                (int) $validated['adults'],
+                (int) ($validated['children'] ?? 0)
+            );
+        }
+
+        $selectionKey = $validated['hold_uuid'] ?? hash('sha256', implode('|', [
+            $team->id,
+            $service->id,
+            $validated['date'] ?? '',
+            $validated['slot_id'] ?? '',
+            $validated['adults'] ?? '',
+            $validated['children'] ?? 0,
+        ]));
+        $completed = (array) $request->session()->get('public_booking_v2_completed', []);
+        $existingBookingId = $completed[$selectionKey] ?? null;
+        if (! $existingBookingId && ! empty($validated['hold_uuid'])) {
+            $existingBookingId = PublicBookingHold::query()
+                ->where('uuid', $validated['hold_uuid'])
+                ->where('session_id', $this->publicHoldSessionKey($request))
+                ->where('team_id', $team->id)
+                ->where('service_id', $service->id)
+                ->whereNotNull('completed_at')
+                ->value('booking_id');
+        }
+        if ($existingBookingId) {
+            $existing = Booking::query()
+                ->whereKey($existingBookingId)
+                ->where('team_id', $team->id)
+                ->whereHas('booking_items', fn ($query) => $query->where('service_id', $service->id))
+                ->operational()
+                ->first();
+            if ($existing) {
+                return response()->json([
+                    'success' => true,
+                    'booking_id' => $existing->id,
+                    'redirect_url' => route('front.payment.payfast.booking', ['booking' => $existing->id]),
+                ]);
+            }
+        }
+
+        $booking = $checkout->createProvisionalBooking(
+            $team,
+            $service,
+            $validated,
+            $this->publicHoldSessionKey($request),
+            $request->session()->getId(),
+            $termsSnapshot,
+            (string) $request->ip(),
+            $request->userAgent()
+        );
+        $completed[$selectionKey] = $booking->id;
+        $request->session()->put('public_booking_v2_completed', $completed);
+        $request->session()->forget('public_booking_v2_hold_uuid');
+
+        return response()->json([
+            'success' => true,
+            'booking_id' => $booking->id,
+            'redirect_url' => route('front.payment.payfast.booking', ['booking' => $booking->id]),
+        ]);
+    }
+
+    public function applyPromo(
+        Request $request,
+        Team $team,
+        Service $service,
+        PricingService $pricing
+    ): JsonResponse {
+        $this->abortUnlessPublicService($team, $service);
+        $validated = $request->validate([
+            'promo_code' => ['required', 'string', 'max:100'],
+            'date' => ['required', 'date_format:Y-m-d'],
+            'slot_id' => ['required', 'integer', 'min:1'],
+            'season_id' => ['required', 'integer', 'min:1'],
+            'adults' => ['required', 'integer', 'min:0'],
+            'children' => ['nullable', 'integer', 'min:0'],
+        ]);
+        $adults = (int) $validated['adults'];
+        $children = (int) ($validated['children'] ?? 0);
+        $this->validateMinimumGuests($adults, $children);
+
+        $season = Season::query()
+            ->whereKey($validated['season_id'])
+            ->where('team_id', $team->id)
+            ->where('service_id', $service->id)
+            ->where('internal_only', false)
+            ->firstOrFail();
+        $slot = InventoryTimeSlot::query()
+            ->whereKey($validated['slot_id'])
+            ->where('inventory_id', $season->inventory?->id)
+            ->firstOrFail();
+        $promotion = Promotion::query()
+            ->with('promo_day_time_slots')
+            ->where('promo_code', trim($validated['promo_code']))
+            ->where('service_id', $service->id)
+            ->where('internal_use_only', false)
+            ->first();
+        if (! $promotion) {
+            throw ValidationException::withMessages(['promo_code' => 'That promo code is invalid.']);
+        }
+        $date = CarbonImmutable::parse($validated['date'], 'Africa/Johannesburg');
+        $result = $promotion->validateCode(
+            $date->toDateString(),
+            $date->dayOfWeekIso,
+            $promotion->promo_day_time_slots->isNotEmpty() ? $slot : null,
+            $season->id
+        );
+        if (! ($result['status'] ?? false)) {
+            throw ValidationException::withMessages([
+                'promo_code' => $result['message'] ?? 'That promo code is not valid for this booking.',
+            ]);
+        }
+
+        try {
+            $quote = $pricing->calculate([
+                'service_id' => $service->id,
+                'season_id' => $season->id,
+                'booking_date' => $date->toDateString(),
+                'promo_code' => $promotion->promo_code,
+                'pax_groups' => array_values(array_filter([
+                    $adults > 0 ? ['type' => 'adult', 'count' => $adults, 'discount_id' => null] : null,
+                    $children > 0
+                        ? ['type' => 'child', 'count' => $children, 'discount_id' => null]
+                        : null,
+                ])),
+            ]);
+        } catch (\InvalidArgumentException $exception) {
+            throw ValidationException::withMessages(['promo_code' => $exception->getMessage()]);
+        }
+
+        if (empty($quote['applied_promotion'])) {
+            throw ValidationException::withMessages([
+                'promo_code' => 'That promo code is no longer valid for this booking.',
+            ]);
+        }
+
+        return response()->json(['pricing' => $quote]);
     }
 
     public function gift(Team $team, Service $service): Response
@@ -419,8 +605,7 @@ class PublicBookingV2Controller extends Controller
         return redirect()->route('front.welcome', [
             'team' => $team->id,
             'service_id' => $service->id,
-            'notice' => 'hold_expired',
-        ]);
+        ])->with('public_booking_v2_notice', 'hold_expired');
     }
 
     private function validateSelection(Request $request): array
@@ -428,7 +613,7 @@ class PublicBookingV2Controller extends Controller
         return $request->validate([
             'date' => ['required', 'date_format:Y-m-d'],
             'slot_id' => ['required', 'integer', 'min:1'],
-            'adults' => ['required', 'integer', 'min:1'],
+            'adults' => ['required', 'integer', 'min:0'],
             'children' => ['nullable', 'integer', 'min:0'],
         ]);
     }
@@ -439,6 +624,8 @@ class PublicBookingV2Controller extends Controller
         int $adults,
         int $children
     ): void {
+        $this->validateMinimumGuests($adults, $children);
+
         if ($date->lt(CarbonImmutable::today('Africa/Johannesburg'))) {
             throw ValidationException::withMessages([
                 'date' => 'Please choose a current or future booking date.',
@@ -448,6 +635,15 @@ class PublicBookingV2Controller extends Controller
         if (($adults + $children) > (int) $service->capacity) {
             throw ValidationException::withMessages([
                 'adults' => "This activity allows a maximum of {$service->capacity} guests per booking.",
+            ]);
+        }
+    }
+
+    private function validateMinimumGuests(int $adults, int $children): void
+    {
+        if (($adults + $children) < 1) {
+            throw ValidationException::withMessages([
+                'adults' => 'Please select at least one adult or child.',
             ]);
         }
     }
@@ -483,6 +679,21 @@ class PublicBookingV2Controller extends Controller
         $plainText = trim(strip_tags(html_entity_decode($value)));
 
         return $plainText === '' || $plainText === '.' ? null : $value;
+    }
+
+    private function checkoutTermsText($fieldValues): string
+    {
+        $value = $fieldValues['Condition Text'] ?? null;
+        $text = trim(preg_replace('/\s+/', ' ', strip_tags(html_entity_decode((string) $value))));
+
+        return $text !== '' && $text !== '.'
+            ? $text
+            : 'Please contact us if you need a copy of the activity conditions and cancellation policy.';
+    }
+
+    private function checkoutTermsSnapshot($fieldValues): string
+    {
+        return "Conditions and cancellation policy\n\n" . $this->checkoutTermsText($fieldValues);
     }
 
     private function publicAssetUrl(?string $url): ?string

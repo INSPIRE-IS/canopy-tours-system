@@ -10,6 +10,10 @@ export function calculateBookingTotal(slot, adults, children) {
     return (adults * Number(slot.adult_price)) + (children * Number(slot.child_price));
 }
 
+export function hasSelectedGuests(adults, children) {
+    return (Number(adults) + Number(children)) > 0;
+}
+
 export function findFirstOpenDate(days, startDate, endDate) {
     return [...days]
         .sort((left, right) => left.date.localeCompare(right.date))

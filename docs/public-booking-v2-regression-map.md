@@ -2,17 +2,30 @@
 
 Use this note when a complaint appears after Public Booking V2 deployment. Diagnose the affected surface before reverting anything: most V2 files are isolated, while a small number of changes touch shared or legacy code.
 
-## Current uncommitted Part 3A checkout handoff
+## Current uncommitted Part 3 checkout/payment completion
 
-The current working tree adds the first Checkout checkpoint but deliberately does not create a booking, reserve capacity, apply promos, or initiate payment yet.
+The current working tree completes the V2 Checkout handoff while deliberately reusing the existing PayFast gateway and callback flow. The canonical rules and troubleshooting order are in `docs/public-booking-v2-business-rules.md`.
 
-- `app/Http/Controllers/Front/PublicBookingV2Controller.php`: validates team/service ownership, current/future date, at least one adult, total pax against service capacity, and current slot availability before returning a server-owned rack quote. Regression symptom: valid Continue actions return validation errors, stale slots reach Checkout, or totals differ from the selected season rates.
-- `routes/web.php`: adds only the V2 Checkout GET route. Regression symptom: Continue returns 404 or resolves to the wrong controller.
-- `resources/js/Pages/PublicBookingV2/Book.jsx` and `resources/js/Pages/PublicBookingV2/BookingComponents.jsx`: pass the selected date, slot, and pax to Checkout. Regression symptom: Continue remains disabled after a valid selection or sends stale selection data.
-- `resources/js/Pages/PublicBookingV2/Checkout.jsx` and `resources/js/Pages/PublicBookingV2/booking-v2.css`: render the approved responsive Checkout shell. Desktop/tablet retain the two-column format; mobile uses booking details, customer details, extras, terms, then promo/total/Confirm & Pay in task order. The extras are explicitly preview-only placeholder data for visual approval and do not affect totals or persistence. Confirm & pay and promo remain intentionally disabled until their server flows are implemented. Regression symptom: V2 styling changes outside Checkout, mobile fields overflow or appear out of order, or summary values differ from controller props.
-- `tests/Feature/PublicBookingV2AvailabilityContractTest.php`: covers valid handoff, stale slot, wrong-team service, past date, zero adults, and excessive pax. Test-only risk is low.
+### Isolated V2 surfaces
 
-Do not treat Part 3A as a completed customer journey. A rollback can remove the Checkout route/page and Continue handler without touching the Part 2 availability contract.
+- `app/Http/Controllers/Front/PublicBookingV2Controller.php`: renders Checkout, validates terms and promo requests, and delegates final confirmation. Symptoms: valid checkout returns 422, stale terms are accepted, promo totals disagree, or duplicate confirmation creates another booking.
+- `app/Services/PublicBookingCheckoutService.php`: locked transaction that converts one hold into a provisional booking and matching invoice/extras/acceptance records. Symptoms: partial records, incorrect totals, capacity overbooking, or a hold without its linked booking.
+- `resources/js/Pages/PublicBookingV2/Checkout.jsx`: captures details, extras, promo, and acceptance before redirecting to existing PayFast. Symptoms: disabled submission after valid input, stale promo total, expired hold not returning to selection, or duplicate clicks.
+- `booking_terms_acceptances` migration/model: exact legal wording snapshot and server acceptance evidence. Symptoms: booking succeeds without an acceptance row or wording/hash mismatch.
+
+### Shared surfaces changed by Part 3
+
+- `PaymentController.php`: existing PayFast completion now allocates only `public_booking_v2` extras and raises a staff alert for a successful payment received after provisional expiry. Gift and staff-added extra semantics must remain unchanged.
+- `Booking::operational()`, Admin Bookings, and operational report queries: expired unpaid provisional bookings are hidden; active pending and paid-late bookings remain visible. Symptoms: abandoned checkout rows pollute operations or a paid-late booking disappears.
+- `routes/web.php`: V2 confirm/promo routes are added. Legacy public cart and intermediate payment routes remain marked and active for fallback/signed-link use.
+
+### Current verification
+
+- Focused checkout/payment tests cover valid creation, extras and totals, terms rejection, stale terms, expired hold, capacity conflict, valid promo, duplicate confirmation, late PayFast completion, duplicate notification, and V2-only extra allocation.
+- Existing unpaid-expiry and gift-voucher payment tests pass.
+- Every supported report preview renders after the operational filter change, and focused query coverage verifies active/pending and paid-late visibility.
+- Public V2 frontend state tests and the production build pass.
+- Manual browser, PayFast sandbox success/cancel, Admin Bookings, and populated report spot checks remain required before release.
 
 ## Known-good checkpoint
 

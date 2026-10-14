@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Head, router } from '@inertiajs/react';
+import axios from 'axios';
 import { format, parseISO } from 'date-fns';
 import { ChevronIcon, money } from './BookingComponents';
 import { formatHoldCountdown, remainingHoldSeconds } from './bookingState';
@@ -100,12 +101,32 @@ function ExtrasSelector({ extras, selectedIds, onToggle }) {
     );
 }
 
-function PaymentSummary({ total, canSubmit, submissionEnabled, holdSeconds }) {
+function PaymentSummary({
+    total,
+    canSubmit,
+    holdSeconds,
+    promoCode,
+    promoBusy,
+    promoApplied,
+    onPromoChange,
+    onApplyPromo,
+    submitting,
+    onSubmit,
+}) {
     return (
         <>
             <div className="kct-promo-row">
-                <input type="text" aria-label="Promo code" placeholder="Promo code" disabled />
-                <button type="button" disabled>Apply</button>
+                <input
+                    type="text"
+                    aria-label="Promo code"
+                    placeholder="Promo code"
+                    value={promoCode}
+                    onChange={(event) => onPromoChange(event.target.value)}
+                    disabled={promoBusy || submitting}
+                />
+                <button type="button" disabled={!promoCode.trim() || promoBusy || submitting} onClick={onApplyPromo}>
+                    {promoBusy ? 'Checking...' : (promoApplied ? 'Applied' : 'Apply')}
+                </button>
             </div>
             <div className="kct-checkout-total">
                 <span>Total</span>
@@ -114,10 +135,10 @@ function PaymentSummary({ total, canSubmit, submissionEnabled, holdSeconds }) {
             <button
                 type="button"
                 className="kct-confirm-pay"
-                disabled={!canSubmit || !submissionEnabled}
-                title="Payment submission is connected in the next implementation checkpoint."
+                disabled={!canSubmit || submitting}
+                onClick={onSubmit}
             >
-                Confirm &amp; pay
+                {submitting ? 'Preparing payment...' : 'Confirm & pay'}
             </button>
             {holdSeconds !== null && (
                 <p className="kct-hold-countdown">
@@ -138,19 +159,23 @@ function CheckoutTitle({ changeUrl }) {
     );
 }
 
-export default function Checkout({ team, service, selection, quote, extras = [], hold = null, changeUrl }) {
+export default function Checkout({ team, service, selection, quote, extras = [], hold = null, terms, changeUrl }) {
     const [details, setDetails] = useState({ full_name: '', email: '', phone: '' });
     const [accepted, setAccepted] = useState(false);
     const [showConditions, setShowConditions] = useState(false);
     const [selectedExtraIds, setSelectedExtraIds] = useState([]);
+    const [promoCode, setPromoCode] = useState('');
+    const [appliedPromo, setAppliedPromo] = useState(null);
+    const [promoBusy, setPromoBusy] = useState(false);
+    const [submitting, setSubmitting] = useState(false);
+    const [error, setError] = useState('');
     const [holdSeconds, setHoldSeconds] = useState(() => remainingHoldSeconds(hold?.expires_at));
     const expiryRedirected = useRef(false);
+    const submittingRef = useRef(false);
     const logoFallback = '/images/kct-booking-v2/logo-karkloof.png';
     const heroFallback = '/images/kct-booking-v2/hero-zipline.jpg';
     const formattedDate = format(parseISO(selection.date), 'EEE d MMMM yyyy');
     const time = selection.time.slice(0, 5);
-    // Booking creation is enabled only after the hold and final pricing transaction are wired.
-    const submissionEnabled = false;
     const canSubmit = Boolean(details.full_name.trim()
         && details.email.trim()
         && details.phone.trim()
@@ -167,7 +192,8 @@ export default function Checkout({ team, service, selection, quote, extras = [],
     ].filter(Boolean), [quote, selection]);
     const selectedExtras = extras.filter((extra) => selectedExtraIds.includes(extra.id));
     const extrasTotal = selectedExtras.reduce((total, extra) => total + Number(extra.total || 0), 0);
-    const checkoutTotal = Number(quote.total || 0) + extrasTotal;
+    const activityTotal = Number(appliedPromo?.total_price ?? quote.total ?? 0);
+    const checkoutTotal = activityTotal + extrasTotal;
 
     useEffect(() => {
         if (!hold?.expires_at) return undefined;
@@ -198,6 +224,102 @@ export default function Checkout({ team, service, selection, quote, extras = [],
         setSelectedExtraIds((current) => current.includes(extraId)
             ? current.filter((id) => id !== extraId)
             : [...current, extraId]);
+    };
+    const changePromoCode = (value) => {
+        setPromoCode(value);
+        setAppliedPromo(null);
+        setError('');
+    };
+    const applyPromo = async () => {
+        if (!promoCode.trim() || promoBusy) return;
+        setPromoBusy(true);
+        setError('');
+        try {
+            const response = await axios.post(route('front.v2.checkout.promo', {
+                team: team.id,
+                service: service.id,
+            }), {
+                promo_code: promoCode.trim(),
+                date: selection.date,
+                slot_id: selection.slot_id,
+                adults: selection.adults,
+                children: selection.children,
+                season_id: selection.season_id,
+            });
+            setAppliedPromo(response.data.pricing);
+        } catch (requestError) {
+            const validationErrors = requestError.response?.data?.errors;
+            setAppliedPromo(null);
+            setError(validationErrors
+                ? Object.values(validationErrors).flat()[0]
+                : 'That promo code could not be applied.');
+        } finally {
+            setPromoBusy(false);
+        }
+    };
+    const submit = async () => {
+        if (!canSubmit || submittingRef.current) return;
+        if (promoCode.trim() && !appliedPromo) {
+            setError('Apply or remove the promo code before continuing.');
+            return;
+        }
+
+        submittingRef.current = true;
+        setSubmitting(true);
+        setError('');
+        try {
+            const response = await axios.post(route('front.v2.checkout.confirm', {
+                team: team.id,
+                service: service.id,
+            }), {
+                hold_uuid: hold?.uuid || null,
+                date: selection.date,
+                slot_id: selection.slot_id,
+                adults: selection.adults,
+                children: selection.children,
+                full_name: details.full_name.trim(),
+                email: details.email.trim(),
+                phone: details.phone.trim(),
+                promo_code: appliedPromo ? promoCode.trim() : null,
+                extra_ids: selectedExtraIds,
+                terms_accepted: accepted,
+                terms_hash: terms.hash,
+            });
+            window.location.assign(response.data.redirect_url);
+        } catch (requestError) {
+            const validationErrors = requestError.response?.data?.errors;
+            if (validationErrors?.hold_uuid) {
+                if (hold?.uuid) {
+                    router.post(route('front.v2.holds.release', {
+                        team: team.id,
+                        service: service.id,
+                        hold: hold.uuid,
+                    }), {}, { replace: true });
+                } else {
+                    window.location.assign(changeUrl);
+                }
+                return;
+            }
+            const message = validationErrors
+                ? Object.values(validationErrors).flat()[0]
+                : requestError.response?.data?.message;
+            setError(message || 'We could not prepare your booking. Please try again.');
+            submittingRef.current = false;
+            setSubmitting(false);
+        }
+    };
+
+    const paymentSummaryProps = {
+        total: checkoutTotal,
+        canSubmit,
+        holdSeconds,
+        promoCode,
+        promoBusy,
+        promoApplied: Boolean(appliedPromo),
+        onPromoChange: changePromoCode,
+        onApplyPromo: applyPromo,
+        submitting,
+        onSubmit: submit,
     };
 
     return (
@@ -267,6 +389,7 @@ export default function Checkout({ team, service, selection, quote, extras = [],
                                     <button type="button" onClick={() => setShowConditions(true)}>conditions and cancellation policy</button>.
                                 </span>
                             </label>
+                            {error && <div className="kct-checkout-error" role="alert">{error}</div>}
                         </CheckoutStep>
                     </div>
 
@@ -282,11 +405,11 @@ export default function Checkout({ team, service, selection, quote, extras = [],
                             heroFallback={heroFallback}
                         />
                         <hr />
-                        <PaymentSummary total={checkoutTotal} canSubmit={canSubmit} submissionEnabled={submissionEnabled} holdSeconds={holdSeconds} />
+                        <PaymentSummary {...paymentSummaryProps} />
                     </aside>
 
                     <section className="kct-checkout-summary kct-checkout-mobile-payment" aria-label="Promo code and payment total">
-                        <PaymentSummary total={checkoutTotal} canSubmit={canSubmit} submissionEnabled={submissionEnabled} holdSeconds={holdSeconds} />
+                        <PaymentSummary {...paymentSummaryProps} />
                     </section>
                 </main>
             </div>
@@ -298,7 +421,7 @@ export default function Checkout({ team, service, selection, quote, extras = [],
                             <h2 id="conditions-title">Conditions and cancellation policy</h2>
                             <button type="button" onClick={() => setShowConditions(false)} aria-label="Close conditions">x</button>
                         </div>
-                        <p>{service.condition_text || 'Please contact us if you need a copy of the activity conditions and cancellation policy.'}</p>
+                        <p>{terms.text}</p>
                     </section>
                 </div>
             )}

@@ -34,6 +34,99 @@
     font-size: 14px;
 }
 
+/* Payment result */
+.kct-payment-result-page .kct-app-shell {
+    background: var(--kct-surface-canvas);
+}
+
+.kct-payment-result-main {
+    min-height: calc(100vh - 104px);
+    padding: 64px 24px;
+    display: grid;
+    place-items: start center;
+}
+
+.kct-payment-result-card {
+    width: min(560px, 100%);
+    padding: 48px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    border: 1px solid var(--kct-border-subtle);
+    border-radius: var(--kct-radius-card);
+    background: var(--kct-surface-card);
+    text-align: center;
+}
+
+.kct-payment-result-icon {
+    width: 72px;
+    height: 72px;
+    margin-bottom: 22px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+}
+
+.kct-payment-result-card.is-success .kct-payment-result-icon {
+    background: var(--kct-surface-tint);
+    color: var(--kct-action-primary);
+}
+
+.kct-payment-result-card.is-cancelled .kct-payment-result-icon {
+    background: #fff8ed;
+    color: var(--kct-text-warning);
+}
+
+.kct-payment-result-eyebrow {
+    margin-bottom: 8px;
+    color: var(--kct-text-muted);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.kct-payment-result-card h1 {
+    margin: 0;
+    font-size: 34px;
+    line-height: 1.15;
+}
+
+.kct-payment-result-message {
+    margin: 18px 0 0;
+    color: var(--kct-text-primary);
+    font-size: 17px;
+    line-height: 1.55;
+}
+
+.kct-payment-result-support {
+    margin: 10px 0 0;
+    color: var(--kct-text-muted);
+    font-size: 15px;
+    line-height: 1.6;
+}
+
+.kct-payment-result-action {
+    min-width: 180px;
+    height: 52px;
+    margin-top: 28px;
+    padding: 0 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--kct-radius-control);
+    background: var(--kct-action-primary);
+    color: #fff;
+    font-family: Montserrat, sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.kct-payment-result-action:hover {
+    background: var(--kct-action-primary-hover);
+}
+
 .kct-checkout-main {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 420px;
@@ -538,6 +631,27 @@
 
     .kct-secure-checkout {
         font-size: 12px;
+    }
+
+    .kct-payment-result-main {
+        min-height: calc(100vh - 76px);
+        padding: 32px 16px;
+    }
+
+    .kct-payment-result-card {
+        padding: 34px 22px;
+    }
+
+    .kct-payment-result-card h1 {
+        font-size: 28px;
+    }
+
+    .kct-payment-result-message {
+        font-size: 16px;
+    }
+
+    .kct-payment-result-action {
+        width: 100%;
     }
 
     .kct-checkout-main {
