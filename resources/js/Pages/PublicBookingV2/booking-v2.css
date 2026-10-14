@@ -867,6 +867,7 @@
 .kct-info-card .prose > :first-child { margin-top: 0; }
 .kct-info-card .prose > :last-child { margin-bottom: 0; }
 .kct-info-content.is-clamped { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
+.kct-info-content.is-expanded { max-height: 240px; padding-right: 8px; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
 .kct-info-more { width: fit-content; padding: 0; border: 0; background: transparent; color: var(--kct-action-primary); font-size: 14px; font-weight: 600; cursor: pointer; }
 .kct-info-more:hover { color: var(--kct-action-primary-hover); text-decoration: underline; }
 
