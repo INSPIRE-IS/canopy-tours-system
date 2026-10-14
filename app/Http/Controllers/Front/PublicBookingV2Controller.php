@@ -38,19 +38,26 @@ class PublicBookingV2Controller extends Controller
             return redirect()->route('front.welcome', ['team' => $publishedTeamIds->first()]);
         }
 
-        // Keep the existing selector as a safe fallback until the new multi-site entry screen is built.
-        return redirect()->route('front.legacy.welcome');
+        return redirect()->route('front.welcome');
     }
 
-    public function index(Request $request, Team $team): Response
+    public function index(Request $request, ?Team $team = null): Response
     {
+        $publishedTeams = $this->publishedTeamOptions();
+
+        if (! $team) {
+            return Inertia::render('PublicBookingV2/SiteSelect', [
+                'teams' => $publishedTeams,
+            ]);
+        }
+
         abort_unless($team->is_published, 404);
 
         $services = Service::query()
             ->with([
                 'file',
                 'servicefieldValues.field',
-                'seasons' => fn ($query) => $query
+                'seasons' => fn($query) => $query
                     ->where('internal_only', false)
                     ->whereHas('inventory')
                     ->orderBy('start_date'),
@@ -58,7 +65,7 @@ class PublicBookingV2Controller extends Controller
             ])
             ->where('team_id', $team->id)
             ->where('is_online_bookable', true)
-            ->whereHas('seasons', fn ($query) => $query
+            ->whereHas('seasons', fn($query) => $query
                 ->where('internal_only', false)
                 ->whereHas('inventory'))
             ->orderBy('name')
@@ -69,7 +76,7 @@ class PublicBookingV2Controller extends Controller
                 });
                 $today = CarbonImmutable::today('Africa/Johannesburg');
                 $initialSeason = $service->seasons
-                    ->first(fn ($season) => CarbonImmutable::parse($season->end_date)->gte($today))
+                    ->first(fn($season) => CarbonImmutable::parse($season->end_date)->gte($today))
                     ?? $service->seasons->last();
                 $initialDate = $initialSeason
                     ? $today->max(CarbonImmutable::parse($initialSeason->start_date))->toDateString()
@@ -114,6 +121,7 @@ class PublicBookingV2Controller extends Controller
         $team->load(['file_logo', 'file_image']);
 
         return Inertia::render('PublicBookingV2/Book', [
+            'teams' => $publishedTeams,
             'team' => [
                 'id' => $team->id,
                 'name' => $team->name,
@@ -134,6 +142,23 @@ class PublicBookingV2Controller extends Controller
                 ? 'Your checkout hold expired. Please choose a time again.'
                 : null,
         ]);
+    }
+
+    private function publishedTeamOptions(): array
+    {
+        return Team::query()
+            ->with('file_logo')
+            ->where('is_published', true)
+            ->orderBy('name')
+            ->get()
+            ->map(fn(Team $team) => [
+                'id' => $team->id,
+                'name' => $team->name,
+                'description' => $this->plainContent($team->description),
+                'logo' => $this->publicAssetUrl($team->file_logo?->path),
+            ])
+            ->values()
+            ->all();
     }
 
     public function availability(
@@ -264,7 +289,7 @@ class PublicBookingV2Controller extends Controller
             $hold?->session_id
         );
         $slot = collect($calendar['slots_by_date'][$date->toDateString()] ?? [])
-            ->first(fn (array $candidate) => (int) $candidate['slot_id'] === $slotId);
+            ->first(fn(array $candidate) => (int) $candidate['slot_id'] === $slotId);
 
         if (! $slot) {
             throw ValidationException::withMessages([
@@ -275,7 +300,7 @@ class PublicBookingV2Controller extends Controller
         $adultTotal = round($adults * (float) $slot['adult_price'], 2);
         $childTotal = round($children * (float) $slot['child_price'], 2);
         $season = Season::query()
-            ->with(['extras' => fn ($query) => $query->where('is_active', true)])
+            ->with(['extras' => fn($query) => $query->where('is_active', true)])
             ->whereKey((int) $slot['season_id'])
             ->where('service_id', $service->id)
             ->where('team_id', $team->id)
@@ -420,7 +445,7 @@ class PublicBookingV2Controller extends Controller
             $existing = Booking::query()
                 ->whereKey($existingBookingId)
                 ->where('team_id', $team->id)
-                ->whereHas('booking_items', fn ($query) => $query->where('service_id', $service->id))
+                ->whereHas('booking_items', fn($query) => $query->where('service_id', $service->id))
                 ->operational()
                 ->first();
             if ($existing) {

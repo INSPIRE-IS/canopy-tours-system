@@ -28,13 +28,14 @@ import {
     findSelectedSlot,
     hasSelectedGuests,
 } from './bookingState';
+import SitePickerModal from './SitePickerModal';
 import './booking-v2.css';
 
 const dateKey = (date) => format(date, 'yyyy-MM-dd');
 // Switch to true only after the client approves persistent inline reset copy.
 const SHOW_INLINE_SELECTION_NOTICE = false;
 
-export default function Book({ team, services = [], selectedServiceId, notice = null }) {
+export default function Book({ team, teams = [], services = [], selectedServiceId, notice = null }) {
     const { showToast } = useToast();
     const [serviceId, setServiceId] = useState(Number(selectedServiceId || services[0]?.id || 0));
     const service = useMemo(
@@ -55,6 +56,7 @@ export default function Book({ team, services = [], selectedServiceId, notice = 
     const [selectionNotice, setSelectionNotice] = useState('');
     const [availabilityRequestVersion, setAvailabilityRequestVersion] = useState(0);
     const [showMobileDetails, setShowMobileDetails] = useState(false);
+    const [showSitePicker, setShowSitePicker] = useState(false);
     const availabilityCache = useRef(null);
     const shownNotice = useRef(null);
     const availabilityKey = `${service?.id || 0}:${availabilityPax.adults}:${availabilityPax.children}`;
@@ -306,13 +308,18 @@ export default function Book({ team, services = [], selectedServiceId, notice = 
             <Head title={`Book ${service.name}`} />
             <div className="kct-app-shell">
                 <header className="kct-header">
-                    <a href={route('front.welcome', { team: team.id })} aria-label={`${team.name} booking home`}>
+                    <button
+                        type="button"
+                        className="kct-header-logo"
+                        onClick={() => setShowSitePicker(true)}
+                        aria-label="Choose a booking site"
+                    >
                         <img
                             src={team?.file_logo?.path || logoFallback}
                             onError={(event) => { event.currentTarget.src = logoFallback; }}
                             alt={team.name}
                         />
-                    </a>
+                    </button>
                     <div className="kct-header-actions">
                         {services.length > 1 && (
                             <label className="kct-service-select">
@@ -331,6 +338,12 @@ export default function Book({ team, services = [], selectedServiceId, notice = 
                         )}
                     </div>
                 </header>
+
+                <SitePickerModal
+                    teams={teams}
+                    isOpen={showSitePicker}
+                    onClose={() => setShowSitePicker(false)}
+                />
 
                 <main className="kct-main kct-desktop-book">
                     <section className="kct-hero">

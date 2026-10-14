@@ -57,7 +57,6 @@ class Team extends Model
 
     protected $casts = [
         'is_published' => 'boolean',
-        'frontend_unpaid_booking_hold_hours' => 'integer',
         'frontend_hold_enabled' => 'boolean',
         'frontend_hold_minutes' => 'integer',
     ];

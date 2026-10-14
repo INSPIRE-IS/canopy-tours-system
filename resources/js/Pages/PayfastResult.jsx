@@ -40,7 +40,7 @@ export default function PayfastResult({ status, message }) {
 
             <div className="kct-app-shell">
                 <header className="kct-header kct-checkout-header">
-                    <Link href="/" aria-label="Booking home">
+                    <Link href={route('front.welcome')} aria-label="Choose a booking site">
                         <img src="/images/kct-booking-v2/logo-karkloof.png" alt="Karkloof Canopy Tour" />
                     </Link>
                     <span className="kct-secure-checkout"><LockIcon />Secure payment</span>
@@ -55,7 +55,7 @@ export default function PayfastResult({ status, message }) {
                         <h1>{title}</h1>
                         <p className="kct-payment-result-message">{message}</p>
                         <p className="kct-payment-result-support">{supportingMessage}</p>
-                        <Link href="/" className="kct-payment-result-action">
+                        <Link href={route('front.welcome')} className="kct-payment-result-action">
                             Back to home
                         </Link>
                     </section>

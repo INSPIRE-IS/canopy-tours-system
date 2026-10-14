@@ -44,7 +44,6 @@ class UpdateTeamRequest extends FormRequest
             'bank_branch_name' => ['nullable', 'string', 'max:255'],
             'branch_code' => ['nullable', 'string'],
             'is_published' => ['sometimes', 'boolean'],
-            'frontend_unpaid_booking_hold_hours' => ['nullable', 'integer', 'min:1', 'max:24'],
             'frontend_hold_enabled' => ['sometimes', 'boolean'],
             'frontend_hold_minutes' => ['required_if:frontend_hold_enabled,1', 'nullable', 'integer', 'min:1', 'max:120'],
             'team_id' => ['nullable', 'exists:teams,id'],
