@@ -71,19 +71,7 @@ class ServicesController extends Controller
                     $rules[] = 'nullable';
                 }
 
-                // Optionally add more logic based on type_data_id
-                switch ($field->type_data_id) {
-                    case 1:
-                        $rules[] = 'string';
-                        break;
-                    case 2:
-                        $rules[] = 'string';
-                        break;
-                    case 3:
-                        $rules[] = 'numeric';
-                        break;
-                        // Extend as needed
-                }
+                $rules = array_merge($rules, $this->serviceFieldTypeRules($field));
 
                 $serviceFieldRules["fields.{$field->id}"] = $rules;
             }
@@ -174,17 +162,7 @@ class ServicesController extends Controller
                 $rules[] = 'nullable';
             }
 
-            switch ($field->type_data_id) {
-                case 1:
-                    $rules[] = 'string';
-                    break;
-                case 2:
-                    $rules[] = 'string';
-                    break;
-                case 3:
-                    $rules[] = 'numeric';
-                    break;
-            }
+            $rules = array_merge($rules, $this->serviceFieldTypeRules($field));
 
             $serviceFieldRules["fields.{$field->id}"] = $rules;
         }
@@ -312,7 +290,21 @@ class ServicesController extends Controller
             'notes',
             'lat_lon_start',
             'lat_long_end',
+            'minimum_age',
         ], true);
+    }
+
+    private function serviceFieldTypeRules(ServiceField $field): array
+    {
+        if ($field->slug === 'minimum_age') {
+            return ['integer', 'min:0', 'max:120'];
+        }
+
+        return match ((int) $field->type_data_id) {
+            1, 2 => ['string'],
+            3 => ['numeric'],
+            default => [],
+        };
     }
 
     private function normalizeServiceFieldValue(mixed $value, ?ServiceField $field): mixed

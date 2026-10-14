@@ -184,7 +184,7 @@ class ActivityController extends Controller
                     //Log::info('inventory ' . $inventory->season_id);
                     //dd($inventory);
                     $fieldValues = $service->serviceFieldValues->mapWithKeys(function ($fv) {
-                        return [$fv->field->name => $fv->value];
+                        return [$fv->field->slug => $fv->value];
                     });
                     // from services it already filters out the promos that are not active
                     $promos = $service->activePromotions;
@@ -275,7 +275,7 @@ class ActivityController extends Controller
         }
 
         $fieldValues = $season->service->serviceFieldValues->mapWithKeys(function ($fv) {
-            return [$fv->field->name => $this->frontActivityContent($fv->value)];
+            return [$fv->field->slug => $this->frontActivityContent($fv->value)];
         });
         //dd($fieldValues);
         $activity = [
@@ -292,14 +292,14 @@ class ActivityController extends Controller
             'start_date' => $season->start_date,
             'end_date'   => $season->end_date,
             'capacity'   => $season->service?->capacity,
-            'description' => $fieldValues['Description'] ?? null,
-            'condition_text' => $fieldValues['Condition Text'] ?? null,
-            'activity' => $fieldValues['Activity Description'] ?? null,
-            'arrangements' => $fieldValues['Arrangements'] ?? null,
-            'requirements' => $fieldValues['Requirements'] ?? null,
-            'inclusions' => $fieldValues['Inclusions'] ?? null,
-            'exclusions' => $fieldValues['Exclusions'] ?? null,
-            'notes' => $fieldValues['Notes'] ?? null,
+            'description' => $fieldValues['description'] ?? null,
+            'condition_text' => $fieldValues['condition_text'] ?? null,
+            'activity' => $fieldValues['activity_description'] ?? null,
+            'arrangements' => $fieldValues['arrangements'] ?? null,
+            'requirements' => $fieldValues['requirements'] ?? null,
+            'inclusions' => $fieldValues['inclusions'] ?? null,
+            'exclusions' => $fieldValues['exclusions'] ?? null,
+            'notes' => $fieldValues['notes'] ?? null,
         ];
         $schedule = [];
         // dd($activity);
