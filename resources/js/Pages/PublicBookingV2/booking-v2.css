@@ -1432,6 +1432,14 @@
     -webkit-line-clamp: 3;
 }
 
+.kct-info-content.is-expanded {
+    max-height: 240px;
+    padding-right: 8px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+}
+
 .kct-info-more {
     width: fit-content;
     padding: 0;

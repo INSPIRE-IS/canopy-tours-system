@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
 import {
     eachDayOfInterval,
     endOfMonth,
@@ -164,15 +164,25 @@ export function CalendarMonth({ month, availability, selectedDate, onSelect, com
 
 export function InfoCard({ title, content, moreLabel = null }) {
     const [expanded, setExpanded] = useState(false);
+    const contentId = useId();
 
     return (
         <article className="kct-info-card">
             <h3>{title}</h3>
-            <div className={`kct-info-content ${moreLabel && !expanded ? 'is-clamped' : ''}`}>
+            <div
+                id={contentId}
+                className={`kct-info-content ${moreLabel ? (expanded ? 'is-expanded' : 'is-clamped') : ''}`}
+            >
                 {content && <RichTextDisplay content={content} />}
             </div>
             {moreLabel && content && (
-                <button type="button" className="kct-info-more" onClick={() => setExpanded((value) => !value)}>
+                <button
+                    type="button"
+                    className="kct-info-more"
+                    aria-controls={contentId}
+                    aria-expanded={expanded}
+                    onClick={() => setExpanded((value) => !value)}
+                >
                     {expanded ? 'Show less' : moreLabel}
                 </button>
             )}
