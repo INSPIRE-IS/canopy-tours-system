@@ -1,4 +1,4 @@
-import React, { useId, useState } from 'react';
+import React, { useEffect, useId, useRef } from 'react';
 import {
     eachDayOfInterval,
     endOfMonth,
@@ -162,31 +162,77 @@ export function CalendarMonth({ month, availability, selectedDate, onSelect, com
     );
 }
 
-export function InfoCard({ title, content, moreLabel = null }) {
-    const [expanded, setExpanded] = useState(false);
-    const contentId = useId();
-
+export function InfoCard({ title, content, moreLabel = null, onMore = null }) {
     return (
         <article className="kct-info-card">
             <h3>{title}</h3>
-            <div
-                id={contentId}
-                className={`kct-info-content ${moreLabel ? (expanded ? 'is-expanded' : 'is-clamped') : ''}`}
-            >
+            <div className={`kct-info-content ${moreLabel ? 'is-clamped' : ''}`}>
                 {content && <RichTextDisplay content={content} />}
             </div>
-            {moreLabel && content && (
+            {moreLabel && content && onMore && (
                 <button
                     type="button"
                     className="kct-info-more"
-                    aria-controls={contentId}
-                    aria-expanded={expanded}
-                    onClick={() => setExpanded((value) => !value)}
+                    onClick={onMore}
                 >
-                    {expanded ? 'Show less' : moreLabel}
+                    {moreLabel}
                 </button>
             )}
         </article>
+    );
+}
+
+export function ConditionsModal({ isOpen, onClose, content = null, plainText = null }) {
+    const titleId = useId();
+    const closeButton = useRef(null);
+    const onCloseRef = useRef(onClose);
+
+    useEffect(() => {
+        onCloseRef.current = onClose;
+    }, [onClose]);
+
+    useEffect(() => {
+        if (!isOpen) return undefined;
+
+        const previouslyFocused = document.activeElement;
+        const previousOverflow = document.body.style.overflow;
+        const closeOnEscape = (event) => {
+            if (event.key === 'Escape') onCloseRef.current();
+        };
+
+        document.body.style.overflow = 'hidden';
+        document.addEventListener('keydown', closeOnEscape);
+        closeButton.current?.focus();
+
+        return () => {
+            document.body.style.overflow = previousOverflow;
+            document.removeEventListener('keydown', closeOnEscape);
+            previouslyFocused?.focus?.();
+        };
+    }, [isOpen]);
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="kct-conditions-backdrop" role="presentation" onMouseDown={onClose}>
+            <section
+                className="kct-conditions-dialog"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby={titleId}
+                onMouseDown={(event) => event.stopPropagation()}
+            >
+                <header className="kct-conditions-header">
+                    <h2 id={titleId}>Conditions and cancellation policy</h2>
+                    <button ref={closeButton} type="button" onClick={onClose} aria-label="Close conditions">&times;</button>
+                </header>
+                <div className="kct-conditions-body">
+                    {content
+                        ? <RichTextDisplay content={content} />
+                        : <p className="kct-conditions-plain">{plainText}</p>}
+                </div>
+            </section>
+        </div>
     );
 }
 

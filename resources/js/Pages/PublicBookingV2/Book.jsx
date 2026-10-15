@@ -14,6 +14,7 @@ import {
     BookingSummary,
     CalendarMonth,
     ChevronIcon,
+    ConditionsModal,
     GiftIcon,
     InfoCard,
     MobilePaxRow,
@@ -57,6 +58,7 @@ export default function Book({ team, teams = [], services = [], selectedServiceI
     const [availabilityRequestVersion, setAvailabilityRequestVersion] = useState(0);
     const [showMobileDetails, setShowMobileDetails] = useState(false);
     const [showSitePicker, setShowSitePicker] = useState(false);
+    const [showConditions, setShowConditions] = useState(false);
     const availabilityCache = useRef(null);
     const shownNotice = useRef(null);
     const availabilityKey = `${service?.id || 0}:${availabilityPax.adults}:${availabilityPax.children}`;
@@ -411,7 +413,7 @@ export default function Book({ team, teams = [], services = [], selectedServiceI
                     <section className="kct-info-grid">
                         <InfoCard title="Before you go" content={service.requirements || service.arrangements} />
                         <InfoCard title="What's included" content={service.inclusions} />
-                        <InfoCard title="Cancellation" content={service.condition_text} moreLabel="All conditions" />
+                        <InfoCard title="Cancellation" content={service.condition_text} moreLabel="All conditions" onMore={() => setShowConditions(true)} />
                     </section>
                 </main>
 
@@ -478,7 +480,7 @@ export default function Book({ team, teams = [], services = [], selectedServiceI
                             <section className="kct-mobile-details">
                                 <InfoCard title="Before you go" content={service.requirements || service.arrangements} />
                                 <InfoCard title="What's included" content={service.inclusions} />
-                                <InfoCard title="Cancellation" content={service.condition_text} moreLabel="All conditions" />
+                                <InfoCard title="Cancellation" content={service.condition_text} moreLabel="All conditions" onMore={() => setShowConditions(true)} />
                             </section>
                         )}
                     </div>
@@ -490,6 +492,12 @@ export default function Book({ team, teams = [], services = [], selectedServiceI
                     canContinue={Boolean(selectedSlot && hasSelectedGuests(adults, children) && !availabilityUpdating)}
                     onContinue={continueToCheckout}
                     onPromoInfo={() => showToast('You can enter your promo code on the checkout screen.', 'info', 5000)}
+                />
+
+                <ConditionsModal
+                    isOpen={showConditions}
+                    onClose={() => setShowConditions(false)}
+                    content={service.condition_text}
                 />
             </div>
         </div>
