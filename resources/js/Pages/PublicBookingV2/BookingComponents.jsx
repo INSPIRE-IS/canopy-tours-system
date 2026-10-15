@@ -1,4 +1,4 @@
-import React, { useEffect, useId, useRef } from 'react';
+import React, { useEffect, useId, useRef, useState } from 'react';
 import {
     eachDayOfInterval,
     endOfMonth,
@@ -100,8 +100,24 @@ export function CalendarMonth({ month, availability, selectedDate, onSelect, com
     const days = eachDayOfInterval({ start: startOfMonth(month), end: endOfMonth(month) });
     const blanks = Array.from({ length: mondayOffset(days[0]) });
 
+    if (loading) {
+        return (
+            <div className={`kct-month is-loading ${compact ? 'is-compact' : ''}`} aria-hidden="true">
+                {!hideHeading && <h3>{format(month, 'MMMM yyyy')}</h3>}
+                <div className="kct-calendar-grid kct-calendar-weekdays">
+                    {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, index) => <span key={`${day}-${index}`}>{day}</span>)}
+                </div>
+                <div className="kct-calendar-grid">
+                    {Array.from({ length: blanks.length + days.length }, (_, index) => (
+                        <span className="kct-calendar-skeleton" key={index} />
+                    ))}
+                </div>
+            </div>
+        );
+    }
+
     return (
-        <div className={`kct-month ${compact ? 'is-compact' : ''} ${loading ? 'is-loading' : ''}`} aria-busy={loading}>
+        <div className={`kct-month ${compact ? 'is-compact' : ''}`}>
             {!hideHeading && <h3>{format(month, 'MMMM yyyy')}</h3>}
             <div className="kct-calendar-grid kct-calendar-weekdays" aria-hidden="true">
                 {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, index) => <span key={`${day}-${index}`}>{day}</span>)}
@@ -160,6 +176,34 @@ export function CalendarMonth({ month, availability, selectedDate, onSelect, com
             </div>
         </div>
     );
+}
+
+export function TimeOptionsSkeleton({ mobile = false }) {
+    return (
+        <>
+            <div className={`kct-time-skeleton-list ${mobile ? 'is-mobile' : ''}`} aria-hidden="true">
+                {Array.from({ length: 6 }, (_, index) => <span className="kct-time-skeleton" key={index} />)}
+            </div>
+            <span className="sr-only" role="status">Checking available times...</span>
+        </>
+    );
+}
+
+export function TenantImage({ src, alt = '', placeholderClassName = '', ...props }) {
+    const [failedSource, setFailedSource] = useState(null);
+    const canDisplayImage = Boolean(src) && src !== failedSource;
+
+    if (!canDisplayImage) {
+        return (
+            <span
+                className={`kct-image-placeholder ${placeholderClassName}`.trim()}
+                role={alt ? 'img' : undefined}
+                aria-label={alt || undefined}
+            />
+        );
+    }
+
+    return <img src={src} alt={alt} onError={() => setFailedSource(src)} {...props} />;
 }
 
 export function InfoCard({ title, content, moreLabel = null, onMore = null }) {

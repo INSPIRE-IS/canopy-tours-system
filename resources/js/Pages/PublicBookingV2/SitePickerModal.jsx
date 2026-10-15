@@ -1,7 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { router } from '@inertiajs/react';
-
-const logoFallback = '/images/kct-booking-v2/logo-karkloof.png';
+import { TenantImage } from './BookingComponents';
 
 export default function SitePickerModal({ teams = [], isOpen, onClose, required = false }) {
     const firstSiteRef = useRef(null);
@@ -63,10 +62,10 @@ export default function SitePickerModal({ teams = [], isOpen, onClose, required 
                                 className="kct-site-picker-option"
                                 onClick={() => selectSite(team.id)}
                             >
-                                <img
-                                    src={team.logo || logoFallback}
-                                    onError={(event) => { event.currentTarget.src = logoFallback; }}
-                                    alt=""
+                                <TenantImage
+                                    src={team.logo}
+                                    alt={`${team.name} logo`}
+                                    placeholderClassName="kct-image-placeholder--site-option"
                                 />
                                 <span>
                                     <strong>{team.name}</strong>
