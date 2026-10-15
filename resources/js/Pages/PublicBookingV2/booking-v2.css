@@ -399,6 +399,17 @@
     object-position: 50% 58%;
 }
 
+.kct-image-placeholder {
+    display: block;
+    background: linear-gradient(135deg, #e7e9e5 0%, #d8dcd6 100%);
+}
+
+.kct-image-placeholder--summary {
+    width: 100%;
+    height: 160px;
+    border-radius: 14px;
+}
+
 .kct-checkout-summary-title,
 .kct-checkout-summary-line,
 .kct-checkout-total {
@@ -775,6 +786,10 @@
     .kct-checkout-summary > img {
         height: 150px;
     }
+
+    .kct-image-placeholder--summary {
+        height: 150px;
+    }
 }
 
 .kct-book-page {
@@ -829,6 +844,7 @@
 .kct-header > a { display: block; }
 .kct-header-logo { padding: 0; display: block; border: 0; background: transparent; cursor: pointer; }
 .kct-header img { width: 192px; height: 72px; display: block; object-fit: contain; }
+.kct-image-placeholder--logo { width: 192px; height: 72px; border-radius: 10px; }
 .kct-header-actions { display: flex; align-items: center; gap: 16px; }
 .kct-service-select { display: grid; gap: 4px; font-size: 12px; color: var(--kct-text-muted); }
 .kct-service-select select { height: 44px; min-width: 220px; padding: 0 38px 0 12px; border: 1px solid var(--kct-border-control); border-radius: 10px; background: #fff; color: var(--kct-text-primary); }
@@ -847,6 +863,7 @@
 .kct-site-picker-option { width: 100%; min-height: 92px; padding: 14px 18px; display: grid; grid-template-columns: 86px minmax(0, 1fr) 24px; align-items: center; gap: 16px; border: 1px solid var(--kct-border-subtle); border-radius: 16px; background: #fff; color: var(--kct-text-primary); text-align: left; cursor: pointer; }
 .kct-site-picker-option:hover { border-color: var(--kct-border-available); background: var(--kct-surface-tint); }
 .kct-site-picker-option img { width: 86px; height: 58px; object-fit: contain; }
+.kct-image-placeholder--site-option { width: 86px; height: 58px; border-radius: 10px; }
 .kct-site-picker-option > span:not(.kct-site-picker-arrow) { min-width: 0; display: grid; gap: 5px; }
 .kct-site-picker-option strong { font-family: Montserrat, system-ui, sans-serif; font-size: 17px; }
 .kct-site-picker-option small { overflow: hidden; color: var(--kct-text-muted); font-size: 13px; line-height: 1.4; text-overflow: ellipsis; white-space: nowrap; }
@@ -858,6 +875,7 @@
 .kct-mobile-book { display: none; }
 .kct-hero { position: relative; height: 300px; overflow: hidden; border-radius: var(--kct-radius-card); background: #1e3d1a; }
 .kct-hero > img { width: 100%; height: 100%; display: block; object-fit: cover; object-position: 50% 55%; }
+.kct-image-placeholder--hero { width: 100%; height: 100%; }
 .kct-hero-shade { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(0, 0, 0, 0.66) 0%, rgba(0, 0, 0, 0.1) 60%); }
 .kct-hero-copy { position: absolute; top: 50%; left: 40px; z-index: 1; width: 520px; display: flex; flex-direction: column; gap: 12px; color: #fff; transform: translateY(-50%); }
 .kct-hero-copy h1 { margin: 0; font-size: 48px; line-height: 1.02; font-weight: 700; }
@@ -881,10 +899,17 @@
 .kct-calendar-nav { display: flex; align-items: center; justify-content: space-between; color: var(--kct-text-muted); font-size: 13px; }
 .kct-months { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px; }
 .kct-month { display: flex; flex-direction: column; gap: 10px; }
-.kct-month.is-loading { opacity: 0.55; pointer-events: none; }
+.kct-month.is-loading { pointer-events: none; }
 .kct-month h3 { margin: 0; text-align: center; font-size: 16px; font-weight: 700; }
 .kct-calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
 .kct-calendar-weekdays { color: var(--kct-text-muted); text-align: center; font-size: 12px; font-weight: 600; }
+.kct-calendar-skeleton,
+.kct-time-skeleton {
+    background: linear-gradient(100deg, #eceeeb 20%, #f7f8f6 40%, #eceeeb 60%);
+    background-size: 220% 100%;
+    animation: kct-skeleton-shimmer 1.4s ease-in-out infinite;
+}
+.kct-calendar-skeleton { height: 64px; border-radius: var(--kct-radius-control); }
 .kct-calendar-day { min-width: 0; height: 64px; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 0; background: transparent; font-size: 15px; }
 .kct-calendar-day--closed { color: var(--kct-text-disabled); }
 .kct-calendar-day--full { gap: 2px; border: 1px solid #ecd5b4; border-radius: var(--kct-radius-control); background: #fff8ed; color: var(--kct-text-warning); }
@@ -902,6 +927,10 @@
 .kct-times-panel > div:first-child { display: flex; flex-direction: column; gap: 2px; }
 .kct-times-panel > div:first-child > span { color: var(--kct-text-muted); font-size: 13px; }
 .kct-times-scroll { max-height: 456px; padding-right: 4px; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; scrollbar-gutter: stable; }
+.kct-time-skeleton-list { width: 100%; display: flex; flex-direction: column; gap: 12px; }
+.kct-time-skeleton { width: 100%; min-height: 66px; border-radius: 14px; }
+.kct-time-skeleton-list.is-mobile { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.kct-time-skeleton-list.is-mobile .kct-time-skeleton { min-height: 48px; border-radius: 12px; }
 .kct-time-option { width: 100%; min-height: 66px; padding: 12px 16px; display: flex; align-items: center; gap: 16px; border: 1px solid var(--kct-border-subtle); border-radius: 14px; background: #fff; color: var(--kct-text-primary); text-align: left; cursor: pointer; }
 .kct-time-option > span { flex-grow: 1; display: flex; flex-direction: column; gap: 2px; }
 .kct-time-option strong { font-family: Montserrat, system-ui, sans-serif; font-size: 18px; font-weight: 700; }
@@ -958,6 +987,7 @@
     .kct-mobile-book { display: block; }
     .kct-header { height: 64px; padding: 0 24px; }
     .kct-header img { width: 120px; height: 45px; }
+    .kct-image-placeholder--logo { width: 120px; height: 45px; }
     .kct-voucher-button { height: 40px; padding: 0 12px; gap: 6px; font-size: 13px; }
     .kct-voucher-label-desktop { display: none; }
     .kct-voucher-label-mobile { display: inline; }
@@ -981,6 +1011,7 @@
     .kct-month.is-compact { gap: 4px; }
     .kct-month.is-compact .kct-calendar-grid { gap: 4px; }
     .kct-month.is-compact .kct-calendar-weekdays { font-size: 11px; }
+    .kct-month.is-compact .kct-calendar-skeleton { height: 44px; border-radius: 10px; }
     .kct-month.is-compact .kct-calendar-day { height: 44px; font-size: 14px; }
     .kct-month.is-compact .kct-calendar-day--open { border-radius: 10px; font-size: 15px; font-weight: 700; }
     .kct-month.is-compact .kct-calendar-day--full { gap: 0; line-height: 1; }
@@ -1011,6 +1042,16 @@
     .kct-summary-total button { min-width: 128px; height: 52px; padding: 0 28px; font-size: 16px; }
 }
 
+@keyframes kct-skeleton-shimmer {
+    from { background-position: 100% 0; }
+    to { background-position: -100% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .kct-calendar-skeleton,
+    .kct-time-skeleton { animation: none; }
+}
+
 @media (max-width: 767px) {
     .kct-header { padding: 0 16px; }
     .kct-service-select select { max-width: 115px; }
@@ -1024,4 +1065,5 @@
     .kct-site-picker-dialog h1 { font-size: 27px; }
     .kct-site-picker-option { min-height: 82px; padding: 12px; grid-template-columns: 64px minmax(0, 1fr) 20px; gap: 12px; }
     .kct-site-picker-option img { width: 64px; height: 48px; }
+    .kct-image-placeholder--site-option { width: 64px; height: 48px; }
 }

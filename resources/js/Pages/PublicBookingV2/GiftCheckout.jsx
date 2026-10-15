@@ -2,7 +2,7 @@ import React, { useMemo, useRef, useState } from 'react';
 import { Head } from '@inertiajs/react';
 import axios from 'axios';
 import { format, parseISO } from 'date-fns';
-import { ChevronIcon, GiftIcon, money, Stepper } from './BookingComponents';
+import { ChevronIcon, GiftIcon, money, Stepper, TenantImage } from './BookingComponents';
 import './booking-v2.css';
 
 function LockIcon() {
@@ -14,13 +14,13 @@ function LockIcon() {
     );
 }
 
-function GiftSummary({ service, season, adults, children, total, backUrl, heroFallback }) {
+function GiftSummary({ service, season, adults, children, total, backUrl }) {
     return (
         <>
-            <img
-                src={service.image || heroFallback}
-                onError={(event) => { event.currentTarget.src = heroFallback; }}
-                alt=""
+            <TenantImage
+                src={service.image}
+                alt={service.name}
+                placeholderClassName="kct-image-placeholder--summary"
             />
             <div className="kct-checkout-summary-title">
                 <strong>{service.name}</strong>
@@ -67,8 +67,6 @@ export default function GiftCheckout({ team, service, season, countries = [], ba
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState('');
     const submittingRef = useRef(false);
-    const logoFallback = '/images/kct-booking-v2/logo-karkloof.png';
-    const heroFallback = '/images/kct-booking-v2/hero-zipline.jpg';
     const selectedCountry = countries.find((country) => String(country.id) === countryId) || defaultCountry;
     const total = useMemo(
         () => (adults * Number(season.adult_price)) + (children * Number(season.child_price)),
@@ -123,7 +121,6 @@ export default function GiftCheckout({ team, service, season, countries = [], ba
             children={children}
             total={total}
             backUrl={backUrl}
-            heroFallback={heroFallback}
         />
     );
 
@@ -133,10 +130,10 @@ export default function GiftCheckout({ team, service, season, countries = [], ba
             <div className="kct-app-shell">
                 <header className="kct-header kct-checkout-header">
                     <a href={backUrl} aria-label={`${team.name} booking home`}>
-                        <img
-                            src={team?.file_logo?.path || logoFallback}
-                            onError={(event) => { event.currentTarget.src = logoFallback; }}
+                        <TenantImage
+                            src={team?.file_logo?.path}
                             alt={team.name}
+                            placeholderClassName="kct-image-placeholder--logo"
                         />
                     </a>
                     <span className="kct-secure-checkout"><LockIcon />Secure checkout</span>

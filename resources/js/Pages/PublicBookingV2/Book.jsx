@@ -20,7 +20,9 @@ import {
     MobilePaxRow,
     money,
     Stepper,
+    TenantImage,
     TimeOptions,
+    TimeOptionsSkeleton,
 } from './BookingComponents';
 import {
     availabilityState,
@@ -245,8 +247,6 @@ export default function Book({ team, teams = [], services = [], selectedServiceI
         setSelectedSlotId(null);
         setSelectionNotice('');
     };
-    const logoFallback = '/images/kct-booking-v2/logo-karkloof.png';
-    const heroFallback = '/images/kct-booking-v2/hero-zipline.jpg';
     const childMinimumAge = service.age_label?.match(/\d+/)?.[0] || null;
     const visibleStart = dateKey(startOfMonth(viewMonth));
     const visibleEnd = dateKey(endOfMonth(addMonths(viewMonth, 1)));
@@ -316,10 +316,10 @@ export default function Book({ team, teams = [], services = [], selectedServiceI
                         onClick={() => setShowSitePicker(true)}
                         aria-label="Choose a booking site"
                     >
-                        <img
-                            src={team?.file_logo?.path || logoFallback}
-                            onError={(event) => { event.currentTarget.src = logoFallback; }}
+                        <TenantImage
+                            src={team?.file_logo?.path}
                             alt={team.name}
+                            placeholderClassName="kct-image-placeholder--logo"
                         />
                     </button>
                     <div className="kct-header-actions">
@@ -349,10 +349,10 @@ export default function Book({ team, teams = [], services = [], selectedServiceI
 
                 <main className="kct-main kct-desktop-book">
                     <section className="kct-hero">
-                        <img
-                            src={heroImage || heroFallback}
-                            onError={(event) => { event.currentTarget.src = heroFallback; }}
-                            alt="Guest ziplining through the forest canopy"
+                        <TenantImage
+                            src={heroImage}
+                            alt={service.name}
+                            placeholderClassName="kct-image-placeholder--hero"
                         />
                         <div className="kct-hero-shade" />
                         <div className="kct-hero-copy">
@@ -395,14 +395,17 @@ export default function Book({ team, teams = [], services = [], selectedServiceI
                                     <span aria-live="polite">{selectedDate ? `${slots.length} ${slots.length === 1 ? 'time' : 'times'} available` : 'Available times will appear here'}</span>
                                 </div>
                                 <div className="kct-times-scroll">
-                                    <TimeOptions
-                                        slots={slots}
-                                        selectedSlotId={selectedSlotId}
-                                        onSelect={selectSlot}
-                                        arrivalMinutes={arrivalMinutes}
-                                        disabled={availabilityUpdating}
-                                    />
-                                    {loading && slots.length === 0 && <p className="kct-times-empty" role="status">Checking available times...</p>}
+                                    {loading && slots.length === 0 ? (
+                                        <TimeOptionsSkeleton />
+                                    ) : (
+                                        <TimeOptions
+                                            slots={slots}
+                                            selectedSlotId={selectedSlotId}
+                                            onSelect={selectSlot}
+                                            arrivalMinutes={arrivalMinutes}
+                                            disabled={availabilityUpdating}
+                                        />
+                                    )}
                                     {noVisibleAvailability && <p className="kct-times-empty" role="status">No tours are available in these months. Try the next available dates.</p>}
                                     {selectedDate && !loading && slots.length === 0 && <p className="kct-times-empty">No times are available for this date.</p>}
                                 </div>
@@ -419,10 +422,10 @@ export default function Book({ team, teams = [], services = [], selectedServiceI
 
                 <main className="kct-mobile-book">
                     <section className="kct-mobile-hero">
-                        <img
-                            src={heroImage || heroFallback}
-                            onError={(event) => { event.currentTarget.src = heroFallback; }}
-                            alt="Guest ziplining through the forest canopy"
+                        <TenantImage
+                            src={heroImage}
+                            alt={service.name}
+                            placeholderClassName="kct-image-placeholder--hero"
                         />
                         <div className="kct-mobile-hero-shade" />
                         <div className="kct-mobile-hero-copy">
@@ -453,15 +456,18 @@ export default function Book({ team, teams = [], services = [], selectedServiceI
                         <section className="kct-mobile-card kct-mobile-time-card">
                             <h2>Choose a time {selectedDate && <span>{'\u00b7'} {format(parseISO(selectedDate), 'EEE d MMM')}</span>}</h2>
                             <div className="kct-mobile-time-grid" role="group" aria-label={selectedDate ? `Times on ${format(parseISO(selectedDate), 'EEEE d MMMM')}` : 'Available times'}>
-                                <TimeOptions
-                                    slots={slots}
-                                    selectedSlotId={selectedSlotId}
-                                    onSelect={selectSlot}
-                                    arrivalMinutes={arrivalMinutes}
-                                    mobile
-                                    disabled={availabilityUpdating}
-                                />
-                                {loading && slots.length === 0 && <p className="kct-times-empty" role="status">Checking available times...</p>}
+                                {loading && slots.length === 0 ? (
+                                    <TimeOptionsSkeleton mobile />
+                                ) : (
+                                    <TimeOptions
+                                        slots={slots}
+                                        selectedSlotId={selectedSlotId}
+                                        onSelect={selectSlot}
+                                        arrivalMinutes={arrivalMinutes}
+                                        mobile
+                                        disabled={availabilityUpdating}
+                                    />
+                                )}
                                 {noCurrentMonthAvailability && <p className="kct-times-empty" role="status">No tours are available this month. Try the next available dates.</p>}
                                 {selectedDate && !loading && slots.length === 0 && <p className="kct-times-empty">No tours on this date. Try another date.</p>}
                             </div>

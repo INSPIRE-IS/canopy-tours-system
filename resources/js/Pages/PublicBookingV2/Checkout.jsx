@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Head, router } from '@inertiajs/react';
 import axios from 'axios';
 import { format, parseISO } from 'date-fns';
-import { ChevronIcon, ConditionsModal, money } from './BookingComponents';
+import { ChevronIcon, ConditionsModal, money, TenantImage } from './BookingComponents';
 import { formatHoldCountdown, remainingHoldSeconds } from './bookingState';
 import './booking-v2.css';
 
@@ -39,13 +39,13 @@ function SummaryLine({ label, value }) {
     );
 }
 
-function BookingDetails({ service, lines, selectedExtras, formattedDate, time, arrivalBy, changeUrl, heroFallback }) {
+function BookingDetails({ service, lines, selectedExtras, formattedDate, time, arrivalBy, changeUrl }) {
     return (
         <>
-            <img
-                src={service.image || heroFallback}
-                onError={(event) => { event.currentTarget.src = heroFallback; }}
-                alt=""
+            <TenantImage
+                src={service.image}
+                alt={service.name}
+                placeholderClassName="kct-image-placeholder--summary"
             />
             <div className="kct-checkout-summary-title">
                 <strong>{service.name}</strong>
@@ -172,8 +172,6 @@ export default function Checkout({ team, service, selection, quote, extras = [],
     const [holdSeconds, setHoldSeconds] = useState(() => remainingHoldSeconds(hold?.expires_at));
     const expiryRedirected = useRef(false);
     const submittingRef = useRef(false);
-    const logoFallback = '/images/kct-booking-v2/logo-karkloof.png';
-    const heroFallback = '/images/kct-booking-v2/hero-zipline.jpg';
     const formattedDate = format(parseISO(selection.date), 'EEE d MMMM yyyy');
     const time = selection.time.slice(0, 5);
     const canSubmit = Boolean(details.full_name.trim()
@@ -328,10 +326,10 @@ export default function Checkout({ team, service, selection, quote, extras = [],
             <div className="kct-app-shell">
                 <header className="kct-header kct-checkout-header">
                     <a href={changeUrl} aria-label={`${team.name} booking home`}>
-                        <img
-                            src={team?.file_logo?.path || logoFallback}
-                            onError={(event) => { event.currentTarget.src = logoFallback; }}
+                        <TenantImage
+                            src={team?.file_logo?.path}
                             alt={team.name}
+                            placeholderClassName="kct-image-placeholder--logo"
                         />
                     </a>
                     <span className="kct-secure-checkout"><LockIcon />Secure checkout</span>
@@ -351,7 +349,6 @@ export default function Checkout({ team, service, selection, quote, extras = [],
                             time={time}
                             arrivalBy={selection.arrival_by}
                             changeUrl={changeUrl}
-                            heroFallback={heroFallback}
                         />
                     </section>
 
@@ -402,7 +399,6 @@ export default function Checkout({ team, service, selection, quote, extras = [],
                             time={time}
                             arrivalBy={selection.arrival_by}
                             changeUrl={changeUrl}
-                            heroFallback={heroFallback}
                         />
                         <hr />
                         <PaymentSummary {...paymentSummaryProps} />
