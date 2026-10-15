@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Head, router } from '@inertiajs/react';
 import axios from 'axios';
 import { format, parseISO } from 'date-fns';
-import { ChevronIcon, money } from './BookingComponents';
+import { ChevronIcon, ConditionsModal, money } from './BookingComponents';
 import { formatHoldCountdown, remainingHoldSeconds } from './bookingState';
 import './booking-v2.css';
 
@@ -414,17 +414,12 @@ export default function Checkout({ team, service, selection, quote, extras = [],
                 </main>
             </div>
 
-            {showConditions && (
-                <div className="kct-conditions-backdrop" role="presentation" onMouseDown={() => setShowConditions(false)}>
-                    <section className="kct-conditions-dialog" role="dialog" aria-modal="true" aria-labelledby="conditions-title" onMouseDown={(event) => event.stopPropagation()}>
-                        <div>
-                            <h2 id="conditions-title">Conditions and cancellation policy</h2>
-                            <button type="button" onClick={() => setShowConditions(false)} aria-label="Close conditions">x</button>
-                        </div>
-                        <p>{terms.text}</p>
-                    </section>
-                </div>
-            )}
+            <ConditionsModal
+                isOpen={showConditions}
+                onClose={() => setShowConditions(false)}
+                content={service.condition_html}
+                plainText={terms.text}
+            />
         </div>
     );
 }

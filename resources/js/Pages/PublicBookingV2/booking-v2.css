@@ -571,18 +571,22 @@
 .kct-conditions-dialog {
     width: min(620px, 100%);
     max-height: min(680px, 85vh);
-    overflow: auto;
-    padding: 28px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
     border-radius: 20px;
     background: #fff;
     box-shadow: 0 24px 80px rgb(0 0 0 / 25%);
 }
 
-.kct-conditions-dialog>div {
+.kct-conditions-header {
+    flex: 0 0 auto;
+    padding: 28px 28px 20px;
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
     gap: 20px;
+    border-bottom: 1px solid var(--kct-border-subtle);
 }
 
 .kct-conditions-dialog h2 {
@@ -591,17 +595,67 @@
     font-size: 22px;
 }
 
-.kct-conditions-dialog p {
-    margin: 20px 0 0;
+.kct-conditions-body {
+    min-height: 0;
+    padding: 22px 28px 28px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+}
+
+.kct-conditions-body .prose,
+.kct-conditions-plain {
+    margin: 0;
     color: var(--kct-text-muted);
     line-height: 1.65;
+}
+
+.kct-conditions-body .prose> :first-child {
+    margin-top: 0;
+}
+
+.kct-conditions-body .prose> :last-child {
+    margin-bottom: 0;
+}
+
+.kct-conditions-body .prose p {
+    margin: 0 0 14px;
+}
+
+.kct-conditions-body .prose ul,
+.kct-conditions-body .prose ol {
+    margin: 10px 0 16px;
+    padding-left: 24px;
+}
+
+.kct-conditions-body .prose li {
+    margin: 6px 0;
+    padding-left: 2px;
+}
+
+.kct-conditions-plain {
     white-space: pre-line;
 }
 
-.kct-conditions-dialog button {
+.kct-conditions-header button {
+    width: 44px;
+    height: 44px;
+    flex: 0 0 auto;
+    display: grid;
+    place-items: center;
     border: 0;
+    border-radius: 50%;
+    background: transparent;
     color: var(--kct-text-muted);
-    font-size: 22px;
+    font-size: 28px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.kct-conditions-header button:hover,
+.kct-conditions-header button:focus-visible {
+    background: var(--kct-surface-tint);
+    color: var(--kct-text-primary);
 }
 
 @media (max-width: 980px) {
@@ -625,6 +679,27 @@
 }
 
 @media (max-width: 640px) {
+    .kct-conditions-backdrop {
+        padding: 16px;
+    }
+
+    .kct-conditions-dialog {
+        max-height: calc(100dvh - 32px);
+        border-radius: 16px;
+    }
+
+    .kct-conditions-header {
+        padding: 20px 18px 14px;
+    }
+
+    .kct-conditions-dialog h2 {
+        font-size: 19px;
+    }
+
+    .kct-conditions-body {
+        padding: 18px 18px 22px;
+    }
+
     .kct-checkout-header {
         height: 76px;
     }

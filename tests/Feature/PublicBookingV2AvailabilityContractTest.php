@@ -232,7 +232,8 @@ it('resolves public service content by slug and prefers the dedicated minimum ag
         'adults' => 1,
         'children' => 0,
     ]))->assertOk()->assertInertia(fn (Assert $page) => $page
-        ->where('terms.text', 'Cancel at least five days before the tour.'));
+        ->where('terms.text', 'Cancel at least five days before the tour.')
+        ->where('service.condition_html', $values['condition_text']));
 });
 
 it('applies the service field definition migration repeatedly without losing values', function () {

@@ -339,6 +339,7 @@ class PublicBookingV2Controller extends Controller
                 'image' => $this->publicAssetUrl($service->file?->path)
                     ?? $this->publicAssetUrl($team->file_image?->path),
                 'condition_text' => $this->checkoutTermsText($fieldValues),
+                'condition_html' => $fieldValues['condition_text'] ?? null,
             ],
             'selection' => [
                 'date' => $date->toDateString(),
