@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Head, Link } from '@inertiajs/react';
+import axios from 'axios';
 import './PublicBookingV2/booking-v2.css';
 
 function LockIcon() {
@@ -27,12 +28,122 @@ function StatusIcon({ success }) {
     );
 }
 
-export default function PayfastResult({ status, message }) {
+export default function PayfastResult({
+    status,
+    message,
+    purchase = null,
+    purchaseState = null,
+    purchaseStatusUrl = null,
+    purchaseAcknowledgementUrl = null,
+    purchaseContext = null,
+}) {
     const isSuccess = status === 'success';
+    const [paymentConfirmed, setPaymentConfirmed] = useState(purchaseState === 'paid');
+    const purchasePushed = useRef(false);
     const title = isSuccess ? 'Payment received' : 'Payment cancelled';
-    const supportingMessage = isSuccess
-        ? 'Your payment is being processed. The booking will be confirmed once PayFast completes the payment notification.'
+    const supportingMessage = isSuccess && paymentConfirmed
+        ? 'Your payment has been confirmed. Thank you for your booking.'
+        : isSuccess
+            ? 'Your payment is being processed. The booking will be confirmed once PayFast completes the payment notification.'
         : 'No payment was completed. You can return to the booking home and try again when you are ready.';
+
+    useEffect(() => {
+        if (!isSuccess || !purchaseContext) {
+            return undefined;
+        }
+
+        let cancelled = false;
+        let pollTimer = null;
+
+        const pushPurchase = async (purchaseEvent) => {
+            const transactionId = purchaseEvent?.ecommerce?.transaction_id;
+            if (!transactionId || purchasePushed.current) {
+                return;
+            }
+
+            const storageKey = `ga4_purchase_${transactionId}`;
+            try {
+                if (window.localStorage.getItem(storageKey)) {
+                    purchasePushed.current = true;
+                    setPaymentConfirmed(true);
+                    return;
+                }
+            } catch {
+                // Browser storage can be unavailable in strict privacy modes.
+            }
+
+            purchasePushed.current = true;
+            window.dataLayer = window.dataLayer || [];
+            window.dataLayer.push({ ecommerce: null });
+            window.dataLayer.push(purchaseEvent);
+
+            try {
+                window.localStorage.setItem(storageKey, new Date().toISOString());
+            } catch {
+                // GA4 also deduplicates purchases by transaction_id.
+            }
+
+            setPaymentConfirmed(true);
+            console.info('[analytics] purchase pushed to dataLayer', {
+                transaction_id: transactionId,
+                value: purchaseEvent.ecommerce?.value,
+                currency: purchaseEvent.ecommerce?.currency,
+                item_count: purchaseEvent.ecommerce?.items?.length ?? 0,
+            });
+
+            if (purchaseAcknowledgementUrl) {
+                try {
+                    await axios.post(purchaseAcknowledgementUrl, {
+                        purchase_context: purchaseContext,
+                        transaction_id: transactionId,
+                    });
+                } catch (error) {
+                    console.warn('[analytics] purchase acknowledgement failed', error);
+                }
+            }
+        };
+
+        if (purchase) {
+            pushPurchase(purchase);
+            return () => {
+                cancelled = true;
+            };
+        }
+
+        if (!purchaseStatusUrl) {
+            return undefined;
+        }
+
+        const checkPayment = async () => {
+            try {
+                const response = await axios.get(purchaseStatusUrl);
+                if (cancelled) {
+                    return;
+                }
+
+                if (response.data?.state === 'paid' && response.data?.purchase) {
+                    if (pollTimer) {
+                        window.clearInterval(pollTimer);
+                    }
+                    await pushPurchase(response.data.purchase);
+                }
+            } catch (error) {
+                if (!cancelled) {
+                    console.warn('[analytics] payment confirmation check failed', error);
+                }
+            }
+        };
+
+        checkPayment();
+        pollTimer = window.setInterval(checkPayment, 2500);
+
+        return () => {
+            cancelled = true;
+            if (pollTimer) {
+                window.clearInterval(pollTimer);
+            }
+        };
+    }, [isSuccess, purchase, purchaseAcknowledgementUrl, purchaseContext, purchaseStatusUrl]);
 
     return (
         <div className="kct-book-page kct-checkout-page kct-payment-result-page">

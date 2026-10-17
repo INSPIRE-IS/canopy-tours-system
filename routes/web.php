@@ -147,6 +147,12 @@ Route::get('/payment/payfast/gift/{gift}', [PaymentController::class, 'payfastGi
 Route::post('/payment/payfast/notify', [PaymentController::class, 'payfastNotify'])->name('front.payment.payfast.notify');
 Route::get('/payment/payfast/return', [PaymentController::class, 'payfastReturn'])->name('front.payment.payfast.return');
 Route::get('/payment/payfast/cancel', [PaymentController::class, 'payfastCancel'])->name('front.payment.payfast.cancel');
+Route::get('/payment/payfast/purchase-status', [PaymentController::class, 'payfastPurchaseStatus'])
+    ->name('front.payment.payfast.purchase-status')
+    ->middleware('throttle:60,1');
+Route::post('/payment/payfast/purchase-acknowledged', [PaymentController::class, 'payfastPurchaseAcknowledged'])
+    ->name('front.payment.payfast.purchase-acknowledged')
+    ->middleware('throttle:20,1');
 
 // Handle offline submission
 Route::post('/payment/offline', [PaymentController::class, 'offline'])->name('front.payment.offline');

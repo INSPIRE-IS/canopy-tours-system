@@ -38,6 +38,7 @@ use App\Models\User;
 use App\Services\RendererService;
 use App\Services\PayfastService;
 use App\Services\EmailDispatchService;
+use App\Services\PurchaseAnalyticsService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\URL;
@@ -47,6 +48,10 @@ use Str;
 
 class PaymentController extends Controller
 {
+    public function __construct(private readonly PurchaseAnalyticsService $purchaseAnalytics)
+    {
+    }
+
     private function shouldAutoSendPaymentEmail(?int $teamId): bool
     {
         return app(EmailDispatchService::class)->canSendAutomatic(
@@ -326,6 +331,10 @@ class PaymentController extends Controller
                 ->with('error', 'PayFast is not configured for this site.');
         }
 
+        $purchaseContext = $this->purchaseAnalytics->issueContextToken('booking', $booking->id);
+        $config['return_url'] = $this->appendPurchaseContext($config['return_url'], $purchaseContext);
+        session()->put('payfast_purchase_context', $purchaseContext);
+
         $data = $this->buildPayfastData([
             'm_payment_id' => 'booking-' . $booking->id . '-' . now('Africa/Johannesburg')->format('YmdHis'),
             'amount' => $booking->grand_tot_due,
@@ -374,6 +383,10 @@ class PaymentController extends Controller
                 ->with('error', 'PayFast is not configured for this site.');
         }
 
+        $purchaseContext = $this->purchaseAnalytics->issueContextToken('voucher', $gift->id);
+        $config['return_url'] = $this->appendPurchaseContext($config['return_url'], $purchaseContext);
+        session()->put('payfast_purchase_context', $purchaseContext);
+
         $data = $this->buildPayfastData([
             'm_payment_id' => (string) $gift->id,
             'amount' => $gift->grand_tot_due,
@@ -409,11 +422,36 @@ class PaymentController extends Controller
 
     public function payfastReturn(Request $request, PayfastService $payfast)
     {
-        $this->handlePayfastCallback($request, 'return', $payfast);
+        if ($request->hasAny(['m_payment_id', 'custom_int1'])) {
+            $this->handlePayfastCallback($request, 'return', $payfast);
+        }
+
+        $purchaseContext = $request->query('purchase_context')
+            ?: session()->get('payfast_purchase_context');
+        $purchaseStatus = is_string($purchaseContext)
+            ? $this->purchaseAnalytics->status($purchaseContext)
+            : null;
+
+        Log::info('PayFast return analytics context resolved', [
+            'context_present' => is_string($purchaseContext),
+            'context_valid' => $purchaseStatus !== null,
+            'type' => $purchaseStatus['type'] ?? null,
+            'record_id' => $purchaseStatus['id'] ?? null,
+            'payment_state' => $purchaseStatus['state'] ?? null,
+        ]);
 
         return Inertia::render('PayfastResult', [
             'status' => 'success',
             'message' => 'Thank you. Your payment has been received and is being processed.',
+            'purchase' => $purchaseStatus['purchase'] ?? null,
+            'purchaseState' => $purchaseStatus['state'] ?? null,
+            'purchaseStatusUrl' => is_string($purchaseContext)
+                ? route('front.payment.payfast.purchase-status', ['purchase_context' => $purchaseContext])
+                : null,
+            'purchaseAcknowledgementUrl' => is_string($purchaseContext)
+                ? route('front.payment.payfast.purchase-acknowledged')
+                : null,
+            'purchaseContext' => is_string($purchaseContext) ? $purchaseContext : null,
         ]);
     }
 
@@ -435,6 +473,48 @@ class PaymentController extends Controller
         }
 
         return response('OK', 200);
+    }
+
+    public function payfastPurchaseStatus(Request $request)
+    {
+        $validated = $request->validate([
+            'purchase_context' => ['required', 'string'],
+        ]);
+        $status = $this->purchaseAnalytics->status($validated['purchase_context']);
+
+        if (! $status || $status['state'] === 'not_found') {
+            abort(404);
+        }
+
+        if ($status['state'] === 'paid') {
+            Log::info('GA4 purchase payload ready', $this->purchaseLogContext($status));
+        }
+
+        return response()
+            ->json([
+                'state' => $status['state'],
+                'purchase' => $status['purchase'],
+            ])
+            ->header('Cache-Control', 'no-store, private');
+    }
+
+    public function payfastPurchaseAcknowledged(Request $request)
+    {
+        $validated = $request->validate([
+            'purchase_context' => ['required', 'string'],
+            'transaction_id' => ['required', 'string', 'max:255'],
+        ]);
+        $status = $this->purchaseAnalytics->status($validated['purchase_context']);
+        $expectedTransactionId = data_get($status, 'purchase.ecommerce.transaction_id');
+
+        if (! $status || $status['state'] !== 'paid' || ! is_string($expectedTransactionId)
+            || ! hash_equals($expectedTransactionId, $validated['transaction_id'])) {
+            abort(422, 'Purchase acknowledgement did not match a confirmed payment.');
+        }
+
+        Log::info('GA4 purchase pushed to browser dataLayer', $this->purchaseLogContext($status));
+
+        return response()->noContent();
     }
 
     public function simulated(Request $request)
@@ -1157,6 +1237,39 @@ class PaymentController extends Controller
             $merged,
             fn($value) => $value !== null && $value !== ''
         ));
+    }
+
+    private function appendPurchaseContext(?string $returnUrl, string $purchaseContext): string
+    {
+        $returnUrl = $returnUrl ?: route('front.payment.payfast.return');
+        $separator = str_contains($returnUrl, '?') ? '&' : '?';
+
+        return $returnUrl . $separator . http_build_query(
+            ['purchase_context' => $purchaseContext],
+            '',
+            '&',
+            PHP_QUERY_RFC3986
+        );
+    }
+
+    private function purchaseLogContext(array $status): array
+    {
+        $purchase = $status['purchase'] ?? [];
+
+        return [
+            'type' => $status['type'] ?? null,
+            'record_id' => $status['id'] ?? null,
+            'transaction_id' => data_get($purchase, 'ecommerce.transaction_id'),
+            'value' => data_get($purchase, 'ecommerce.value'),
+            'currency' => data_get($purchase, 'ecommerce.currency'),
+            'item_count' => count(data_get($purchase, 'ecommerce.items', [])),
+            'affiliations' => collect(data_get($purchase, 'ecommerce.items', []))
+                ->pluck('affiliation')
+                ->filter()
+                ->unique()
+                ->values()
+                ->all(),
+        ];
     }
 
     private function orderPayfastCheckoutData(array $data): array

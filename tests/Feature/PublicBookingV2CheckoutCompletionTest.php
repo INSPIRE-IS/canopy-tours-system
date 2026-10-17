@@ -7,6 +7,7 @@ use App\Jobs\FulfillBookingPayment;
 use App\Mail\BookingMail;
 use App\Models\PublicBookingHold;
 use App\Services\EmailDispatchService;
+use App\Services\PurchaseAnalyticsService;
 use App\Services\RendererService;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
@@ -229,6 +230,69 @@ function storeExistingBoardingPass(Booking $booking): void
         'updated_at' => now(),
     ]);
 }
+
+it('exposes a paid core activity purchase without extras or customer data', function () {
+    $fixture = createV2CheckoutCompletionFixture();
+    $booking = createPaidV2CheckoutBooking($this, $fixture);
+    $analytics = app(PurchaseAnalyticsService::class);
+    $purchaseContext = $analytics->issueContextToken('booking', $booking->id);
+
+    expect((float) $booking->grand_tot_due)->toBe(2750.0);
+
+    $response = $this->getJson(route('front.payment.payfast.purchase-status', [
+        'purchase_context' => $purchaseContext,
+    ]))->assertOk();
+
+    $response
+        ->assertJsonPath('state', 'paid')
+        ->assertJsonPath('purchase.event', 'purchase')
+        ->assertJsonPath('purchase.ecommerce.transaction_id', 'booking-' . $booking->reference)
+        ->assertJsonPath('purchase.ecommerce.value', 2585)
+        ->assertJsonPath('purchase.ecommerce.currency', 'ZAR')
+        ->assertJsonPath('purchase.ecommerce.items.0.item_name', 'Canopy Tour')
+        ->assertJsonPath('purchase.ecommerce.items.0.affiliation', 'Checkout Completion Site')
+        ->assertJsonPath('purchase.ecommerce.items.0.price', 2585)
+        ->assertJsonCount(1, 'purchase.ecommerce.items');
+
+    expect($response->getContent())
+        ->not->toContain('guest@example.com')
+        ->not->toContain('+27821234567')
+        ->not->toContain('Checkout Guest');
+
+    $this->postJson(route('front.payment.payfast.purchase-acknowledged'), [
+        'purchase_context' => $purchaseContext,
+        'transaction_id' => 'booking-' . $booking->reference,
+    ])->assertNoContent();
+});
+
+it('does not expose a purchase event before the booking is paid', function () {
+    $fixture = createV2CheckoutCompletionFixture();
+    $bookingId = $this
+        ->withSession(['public_booking_v2_session_key' => $fixture['holdSessionKey']])
+        ->postJson(
+            route('front.v2.checkout.confirm', [
+                'team' => $fixture['teamId'],
+                'service' => $fixture['serviceId'],
+            ]),
+            v2CheckoutCompletionPayload($fixture)
+        )
+        ->assertOk()
+        ->json('booking_id');
+    $purchaseContext = app(PurchaseAnalyticsService::class)
+        ->issueContextToken('booking', $bookingId);
+
+    $this->getJson(route('front.payment.payfast.purchase-status', [
+        'purchase_context' => $purchaseContext,
+    ]))
+        ->assertOk()
+        ->assertJsonPath('state', 'pending')
+        ->assertJsonPath('purchase', null);
+
+    $this->postJson(route('front.payment.payfast.purchase-acknowledged'), [
+        'purchase_context' => $purchaseContext,
+        'transaction_id' => 'booking-not-paid',
+    ])->assertUnprocessable();
+});
 
 it('atomically converts an owned hold into one provisional booking with extras and legal acceptance', function () {
     $fixture = createV2CheckoutCompletionFixture();

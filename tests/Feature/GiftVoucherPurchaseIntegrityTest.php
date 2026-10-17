@@ -5,6 +5,7 @@ use App\Jobs\FulfillGiftVoucherPayment;
 use App\Mail\MessageGuestMail;
 use App\Models\GiftVoucher;
 use App\Services\EmailDispatchService;
+use App\Services\PurchaseAnalyticsService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Queue;
@@ -237,6 +238,40 @@ it('marks a paid gift voucher as available rather than redeemed', function () {
         ->count())->toBe(1);
     $this->assertDatabaseCount('emails', 0);
     Mail::assertNothingSent();
+});
+
+it('exposes a paid gift voucher as a site-affiliated purchase', function () {
+    $fixture = createGiftVoucherPurchaseFixture();
+    $voucherId = $this->postJson(
+        route('front.booking.gift-store'),
+        giftVoucherPurchasePayload($fixture['seasonId'])
+    )->assertOk()->json('voucher_id');
+    GiftVoucher::whereKey($voucherId)->update([
+        'status_payment_id' => 2,
+        'paid_date' => now(),
+    ]);
+    $voucher = GiftVoucher::findOrFail($voucherId);
+    $purchaseContext = app(PurchaseAnalyticsService::class)
+        ->issueContextToken('voucher', $voucherId);
+
+    $response = $this->getJson(route('front.payment.payfast.purchase-status', [
+        'purchase_context' => $purchaseContext,
+    ]))->assertOk();
+
+    $response
+        ->assertJsonPath('state', 'paid')
+        ->assertJsonPath('purchase.event', 'purchase')
+        ->assertJsonPath('purchase.ecommerce.transaction_id', 'gift-voucher-' . $voucher->voucher_code)
+        ->assertJsonPath('purchase.ecommerce.value', 2585)
+        ->assertJsonPath('purchase.ecommerce.currency', 'ZAR')
+        ->assertJsonPath('purchase.ecommerce.items.0.item_name', 'Gift Voucher Test Tour Gift Voucher')
+        ->assertJsonPath('purchase.ecommerce.items.0.affiliation', 'Gift Voucher Test Site')
+        ->assertJsonPath('purchase.ecommerce.items.0.price', 2585);
+
+    expect($response->getContent())
+        ->not->toContain('buyer@example.com')
+        ->not->toContain('+27821234567')
+        ->not->toContain('Voucher Buyer');
 });
 
 it('prepares the voucher PDF after payment and sends a verification-safe email only once', function () {
