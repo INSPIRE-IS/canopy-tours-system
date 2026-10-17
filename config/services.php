@@ -31,4 +31,8 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    'google_tag_manager' => [
+        'container_id' => env('GTM_CONTAINER_ID'),
+    ],
+
 ];

@@ -55,6 +55,15 @@ Read this before changing the public booking checkout, holds, public extras, Pay
 - Duplicate PayFast notifications must not create duplicate payment, extra-allocation, audit, or late-payment alert records.
 - Booking email/PDF fulfilment runs only after payment commits. Disabled email settings send nothing; delivery failures leave payment intact and remain retryable through the queue or a repeated PayFast callback.
 
+## Purchase analytics
+
+- Google Tag Manager is enabled for named public `front.*` routes only when `GTM_CONTAINER_ID` is configured. Admin routes are not included.
+- PayFast checkout adds an encrypted, expiring purchase context to the return URL. The token identifies only the booking or gift voucher and exposes no customer details.
+- The return page may poll the purchase-status endpoint, but it must not push a `purchase` event until the existing PayFast completion flow has stored paid status (`status_payment_id = 2`).
+- For bookings, ecommerce value is the VAT-inclusive core activity total after promotions, calculated from stored booking fees. Optional extras, tips, and later additional payments are excluded even though the PayFast payment may be higher. Gift-voucher value is the stored core voucher total. Items contain activity/voucher data and use the owning team name as the item affiliation; no name, email, phone number, or other customer data is sent.
+- The browser suppresses repeat pushes for the same transaction ID, and GA4 receives a stable booking-reference or voucher-code transaction ID for its own duplicate handling.
+- Application logs distinguish return-context resolution, a paid payload becoming available, and the browser acknowledging that it pushed the event to `dataLayer`. The acknowledgement confirms the browser push, not GA4 ingestion; Tag Assistant and GA4 DebugView remain the external verification sources.
+
 ## Legacy boundary
 
 - `/front/legacy/welcome`, `ActivityController::store`, `/booking/store`, the session cart, and the intermediate `PaymentController::booking` screen are legacy fallback flows.
