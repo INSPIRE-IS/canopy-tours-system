@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Inertia\Testing\AssertableInertia as Assert;
 
 beforeEach(fn () => CarbonImmutable::setTestNow('2032-04-01 09:00:00'));
 afterEach(fn () => CarbonImmutable::setTestNow());
@@ -231,6 +232,25 @@ function storeExistingBoardingPass(Booking $booking): void
         'updated_at' => now(),
     ]);
 }
+
+it('returns booking payments to the owning V2 site after success or cancellation', function () {
+    $fixture = createV2CheckoutCompletionFixture();
+    $booking = createPaidV2CheckoutBooking($this, $fixture);
+    $purchaseContext = app(PurchaseAnalyticsService::class)
+        ->issueContextToken('booking', $booking->id);
+    $homeUrl = route('front.welcome', ['team' => $fixture['teamId']]);
+
+    foreach (['front.payment.payfast.return', 'front.payment.payfast.cancel'] as $routeName) {
+        $this->get(route($routeName, ['purchase_context' => $purchaseContext]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('PayfastResult')
+                ->where('site.id', $fixture['teamId'])
+                ->where('site.name', 'Checkout Completion Site')
+                ->where('homeUrl', $homeUrl)
+                ->etc());
+    }
+});
 
 it('exposes a paid core activity purchase without extras or customer data', function () {
     $fixture = createV2CheckoutCompletionFixture();

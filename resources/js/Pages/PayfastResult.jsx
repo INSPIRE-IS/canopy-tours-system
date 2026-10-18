@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Head, Link } from '@inertiajs/react';
 import axios from 'axios';
+import { TenantImage } from './PublicBookingV2/BookingComponents';
 import './PublicBookingV2/booking-v2.css';
 
 function LockIcon() {
@@ -36,6 +37,8 @@ export default function PayfastResult({
     purchaseStatusUrl = null,
     purchaseAcknowledgementUrl = null,
     purchaseContext = null,
+    site = null,
+    homeUrl = route('front.welcome'),
 }) {
     const isSuccess = status === 'success';
     const [paymentConfirmed, setPaymentConfirmed] = useState(purchaseState === 'paid');
@@ -46,6 +49,16 @@ export default function PayfastResult({
         : isSuccess
             ? 'Your payment is being processed. The booking will be confirmed once PayFast completes the payment notification.'
         : 'No payment was completed. You can return to the booking home and try again when you are ready.';
+
+    useEffect(() => {
+        if (!site?.id) return;
+
+        try {
+            window.localStorage.setItem('preferred_team_id', String(site.id));
+        } catch {
+            // The server-provided home URL remains authoritative when storage is unavailable.
+        }
+    }, [site?.id]);
 
     useEffect(() => {
         if (!isSuccess || !purchaseContext) {
@@ -151,8 +164,12 @@ export default function PayfastResult({
 
             <div className="kct-app-shell">
                 <header className="kct-header kct-checkout-header">
-                    <Link href={route('front.welcome')} aria-label="Choose a booking site">
-                        <img src="/images/kct-booking-v2/logo-karkloof.png" alt="Karkloof Canopy Tour" />
+                    <Link href={homeUrl} aria-label={`Return to ${site?.name || 'booking home'}`}>
+                        <TenantImage
+                            src={site?.logo}
+                            alt={site?.name ? `${site.name} logo` : ''}
+                            placeholderClassName="kct-image-placeholder--logo"
+                        />
                     </Link>
                     <span className="kct-secure-checkout"><LockIcon />Secure payment</span>
                 </header>
@@ -166,7 +183,7 @@ export default function PayfastResult({
                         <h1>{title}</h1>
                         <p className="kct-payment-result-message">{message}</p>
                         <p className="kct-payment-result-support">{supportingMessage}</p>
-                        <Link href={route('front.welcome')} className="kct-payment-result-action">
+                        <Link href={homeUrl} className="kct-payment-result-action">
                             Back to home
                         </Link>
                     </section>

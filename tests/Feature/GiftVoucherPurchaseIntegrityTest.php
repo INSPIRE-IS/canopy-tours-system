@@ -206,6 +206,27 @@ it('provides the voucher item team to the gift payment page', function () {
             ->where('gift.team_id', $fixture['teamId']));
 });
 
+it('returns gift payments to the owning V2 site', function () {
+    $fixture = createGiftVoucherPurchaseFixture();
+    $voucherId = $this->postJson(
+        route('front.booking.gift-store'),
+        giftVoucherPurchasePayload($fixture['seasonId'])
+    )->assertOk()->json('voucher_id');
+    $purchaseContext = app(PurchaseAnalyticsService::class)
+        ->issueContextToken('voucher', $voucherId);
+
+    $this->get(route('front.payment.payfast.cancel', [
+        'purchase_context' => $purchaseContext,
+    ]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('PayfastResult')
+            ->where('site.id', $fixture['teamId'])
+            ->where('site.name', 'Gift Voucher Test Site')
+            ->where('homeUrl', route('front.welcome', ['team' => $fixture['teamId']]))
+            ->etc());
+});
+
 it('marks a paid gift voucher as available rather than redeemed', function () {
     Mail::fake();
     Queue::fake();

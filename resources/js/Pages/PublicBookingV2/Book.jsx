@@ -66,6 +66,16 @@ export default function Book({ team, teams = [], services = [], selectedServiceI
     const availabilityKey = `${service?.id || 0}:${availabilityPax.adults}:${availabilityPax.children}`;
 
     useEffect(() => {
+        if (!team?.id) return;
+
+        try {
+            window.localStorage.setItem('preferred_team_id', String(team.id));
+        } catch {
+            // Site-specific server URLs still work when browser storage is unavailable.
+        }
+    }, [team?.id]);
+
+    useEffect(() => {
         if (!notice || shownNotice.current === notice) return;
         shownNotice.current = notice;
         showToast(notice, 'warning', 7000);
