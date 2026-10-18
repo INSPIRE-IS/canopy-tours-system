@@ -323,7 +323,14 @@ class PaymentController extends Controller
         }
 
         $purchaseContext = $this->purchaseAnalytics->issueContextToken('booking', $booking->id);
-        $config['return_url'] = $this->appendPurchaseContext($config['return_url'], $purchaseContext);
+        $config['return_url'] = $this->appendPurchaseContext(
+            $config['return_url'] ?: route('front.payment.payfast.return'),
+            $purchaseContext
+        );
+        $config['cancel_url'] = $this->appendPurchaseContext(
+            $config['cancel_url'] ?: route('front.payment.payfast.cancel'),
+            $purchaseContext
+        );
         session()->put('payfast_purchase_context', $purchaseContext);
 
         $data = $this->buildPayfastData([
@@ -375,7 +382,14 @@ class PaymentController extends Controller
         }
 
         $purchaseContext = $this->purchaseAnalytics->issueContextToken('voucher', $gift->id);
-        $config['return_url'] = $this->appendPurchaseContext($config['return_url'], $purchaseContext);
+        $config['return_url'] = $this->appendPurchaseContext(
+            $config['return_url'] ?: route('front.payment.payfast.return'),
+            $purchaseContext
+        );
+        $config['cancel_url'] = $this->appendPurchaseContext(
+            $config['cancel_url'] ?: route('front.payment.payfast.cancel'),
+            $purchaseContext
+        );
         session()->put('payfast_purchase_context', $purchaseContext);
 
         $data = $this->buildPayfastData([
@@ -422,6 +436,7 @@ class PaymentController extends Controller
         $purchaseStatus = is_string($purchaseContext)
             ? $this->purchaseAnalytics->status($purchaseContext)
             : null;
+        $navigation = $this->payfastResultNavigation($purchaseContext);
 
         $this->logPurchaseAnalytics('PayFast return analytics context resolved', [
             'context_present' => is_string($purchaseContext),
@@ -443,16 +458,23 @@ class PaymentController extends Controller
                 ? route('front.payment.payfast.purchase-acknowledged')
                 : null,
             'purchaseContext' => is_string($purchaseContext) ? $purchaseContext : null,
+            ...$navigation,
         ]);
     }
 
     public function payfastCancel(Request $request, PayfastService $payfast)
     {
-        $this->handlePayfastCallback($request, 'cancel', $payfast);
+        if ($request->hasAny(['m_payment_id', 'custom_int1'])) {
+            $this->handlePayfastCallback($request, 'cancel', $payfast);
+        }
+
+        $purchaseContext = $request->query('purchase_context')
+            ?: session()->get('payfast_purchase_context');
 
         return Inertia::render('PayfastResult', [
             'status' => 'cancelled',
             'message' => 'Payment was cancelled. You can try again if you wish.',
+            ...$this->payfastResultNavigation($purchaseContext),
         ]);
     }
 
@@ -1230,17 +1252,68 @@ class PaymentController extends Controller
         ));
     }
 
-    private function appendPurchaseContext(?string $returnUrl, string $purchaseContext): string
+    private function appendPurchaseContext(string $url, string $purchaseContext): string
     {
-        $returnUrl = $returnUrl ?: route('front.payment.payfast.return');
-        $separator = str_contains($returnUrl, '?') ? '&' : '?';
+        $separator = str_contains($url, '?') ? '&' : '?';
 
-        return $returnUrl . $separator . http_build_query(
+        return $url . $separator . http_build_query(
             ['purchase_context' => $purchaseContext],
             '',
             '&',
             PHP_QUERY_RFC3986
         );
+    }
+
+    private function payfastResultNavigation(mixed $purchaseContext): array
+    {
+        $site = null;
+
+        if (is_string($purchaseContext)) {
+            $context = $this->purchaseAnalytics->resolveContext($purchaseContext);
+            $teamId = match ($context['type'] ?? null) {
+                'booking' => Booking::withTrashed()->whereKey($context['id'])->value('team_id'),
+                'voucher' => GiftVoucher::query()
+                    ->find($context['id'])
+                    ?->gift_voucher_items()
+                    ->value('team_id'),
+                default => null,
+            };
+
+            if ($teamId) {
+                $team = Team::query()
+                    ->with('file_logo')
+                    ->where('is_published', true)
+                    ->find($teamId);
+
+                if ($team) {
+                    $site = [
+                        'id' => $team->id,
+                        'name' => $team->name,
+                        'logo' => $this->publicPaymentAssetUrl($team->file_logo?->path),
+                    ];
+                }
+            }
+        }
+
+        return [
+            'site' => $site,
+            'homeUrl' => $site
+                ? route('front.welcome', ['team' => $site['id']])
+                : route('front.welcome'),
+        ];
+    }
+
+    private function publicPaymentAssetUrl(?string $url): ?string
+    {
+        if (! $url) {
+            return null;
+        }
+
+        $path = parse_url($url, PHP_URL_PATH);
+
+        return is_string($path) && (str_starts_with($path, '/storage/') || str_starts_with($path, '/images/'))
+            ? $path
+            : $url;
     }
 
     private function purchaseLogContext(array $status): array
