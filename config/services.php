@@ -33,6 +33,7 @@ return [
 
     'google_tag_manager' => [
         'container_id' => env('GTM_CONTAINER_ID'),
+        'purchase_logging_enabled' => env('GA4_PURCHASE_LOGGING', false),
     ],
 
 ];
