@@ -11,9 +11,10 @@ use Illuminate\Console\Command;
 class SeedHelpQuestions extends Command
 {
     protected $signature = 'seed:help-questions {--team=} {--with-samples}';
+
     // php artisan seed:help-questions --team=1 --with-samples
     // php artisan seed:help-questions --with-samples
-    protected $description = 'Seed help question categories and optional sample questions.';
+    protected $description = 'Seed help categories and the maintained baseline knowledge-base articles.';
 
     public function handle(): int
     {
@@ -61,7 +62,7 @@ class SeedHelpQuestions extends Command
 
         foreach ($categories as $index => $category) {
             TypeHelpQuestion::updateOrCreate([
-                'name' => $category['name']
+                'name' => $category['name'],
             ], [
                 'name' => $category['name'],
                 'order_id' => $index + 1,
@@ -69,24 +70,27 @@ class SeedHelpQuestions extends Command
             ]);
         }
 
-        $this->info('Categories seeded: ' . count($categories));
+        $this->info('Categories seeded: '.count($categories));
 
-        if (!$this->option('with-samples')) {
-            $this->info('No sample questions seeded. Use --with-samples to add placeholders.');
+        if (! $this->option('with-samples')) {
+            $this->info('No help articles seeded. Use --with-samples to add or update the maintained baseline articles.');
+
             return self::SUCCESS;
         }
 
         $teamId = $this->option('team');
-        if ($teamId !== null && !Team::whereKey($teamId)->exists()) {
-            $this->error('Team not found for --team=' . $teamId);
+        if ($teamId !== null && ! Team::whereKey($teamId)->exists()) {
+            $this->error('Team not found for --team='.$teamId);
+
             return self::FAILURE;
         }
 
         $questions = $this->sampleQuestions();
         foreach ($questions as $item) {
             $category = TypeHelpQuestion::where('name', $item['category'])->first();
-            if (!$category) {
-                $this->warn('Skipping question, missing category: ' . $item['category']);
+            if (! $category) {
+                $this->warn('Skipping question, missing category: '.$item['category']);
+
                 continue;
             }
 
@@ -139,7 +143,7 @@ class SeedHelpQuestions extends Command
             );
         }
 
-        $this->info('Sample help questions seeded: ' . count($questions));
+        $this->info('Sample help questions seeded: '.count($questions));
 
         return self::SUCCESS;
     }
@@ -159,9 +163,18 @@ class SeedHelpQuestions extends Command
                 'category' => 'General',
                 'question' => 'Why do I see "Site under construction" on the front welcome page?',
                 'description' => 'This happens when there are no published venues available on the public site.',
-                'where' => '<a href="/front/legacy/welcome">Front > Welcome</a>, <a href="/admin/teams">Admin > Site</a>',
-                'business_rules' => 'The public venue dropdown lists only teams with Publish enabled. If zero teams are published, the front welcome page shows an under-construction message and a staff login link. To make the site bookable, publish at least one team (requires <code>teams_publish</code> permission).',
+                'where' => '<a href="/front/welcome">Front > Welcome</a>, <a href="/admin/teams">Admin > Site</a>',
+                'business_rules' => 'The active public entry uses Booking V2. Only teams with Publish enabled are offered. One published site opens directly; zero or multiple published sites show the V2 site-selection experience, with the zero-site state explaining that booking is not yet available. The legacy welcome route remains a fallback and should not be used as the normal public link. Publishing a site requires <code>teams_publish</code> permission.',
                 'related' => 'sites (teams), publish, teams_publish, front welcome',
+                'is_internal' => true,
+            ],
+            [
+                'category' => 'General',
+                'question' => 'Which public booking route should we use?',
+                'description' => 'Booking V2 is the active public customer flow; the legacy route is retained only as a fallback.',
+                'where' => '<a href="/front/welcome">Front > Welcome</a>',
+                'business_rules' => 'Use <code>/</code> or <code>/front/welcome</code> as the normal public entry. The application selects or asks for a published site and continues through the V2 service, availability, checkout, gift-voucher, and payment-result screens. Routes under <code>/front/legacy</code> belong to the previous public flow and must not be used for new website booking links unless a deliberate rollback is required.',
+                'related' => 'Booking V2, public welcome, published sites, legacy fallback',
                 'is_internal' => true,
             ],
             [
@@ -304,8 +317,8 @@ class SeedHelpQuestions extends Command
                 'category' => 'Services',
                 'question' => 'Gift services vs bookable services (what shows where?)',
                 'description' => 'Online Bookable controls public booking visibility; gift vouchers remain a separate flow.',
-                'where' => '<a href="/admin/services">Admin > Services</a>, <a href="/front/legacy/welcome">Front > Welcome</a>, <a href="/front/activity">Front > Activities</a>',
-                'business_rules' => 'Current service-level control is Online Bookable. When enabled, the service can show in the public booking flow. When disabled, it is hidden from guests and remains staff-only. Gift voucher behaviour should be handled separately and not assumed from the Online Bookable flag.',
+                'where' => '<a href="/admin/services">Admin > Services</a> and <a href="/front/welcome">Front > Welcome</a>',
+                'business_rules' => 'Online Bookable controls whether a service can appear in the public Booking V2 flow. When disabled, the service remains available to authorised staff but is hidden from guests. Buying the activity as a gift is a separate date-free checkout and does not reserve dated capacity; however, the current public gift route still requires the site to be published and the selected service to be Online Bookable. There is no separate public Giftable visibility switch in V2.',
                 'examples' => 'A staff-managed product can be Online Bookable off while still being available to internal users in Admin.',
                 'is_internal' => true,
             ],
@@ -314,7 +327,7 @@ class SeedHelpQuestions extends Command
                 'question' => 'How do I clone a service?',
                 'description' => 'Cloning creates a full copy of the service and its related setup.',
                 'where' => 'Open a service detail view from <a href="/admin/services">Admin > Services</a> and click Clone Service.',
-                'business_rules' => 'Clone copies service fields, seasons, inventories, time slots, inventory days, and closeouts. The clone starts as Draft (hidden) and must be set to Bookable/Gift/Both to appear.',
+                'business_rules' => 'Clone copies service fields, seasons, inventories, time slots, inventory days, and closeouts. The clone starts as Draft/hidden. Review its copied content, seasons, inventory, pricing, and availability before enabling Online Bookable. The owning site must also be published before the service can appear publicly.',
                 'is_internal' => true,
             ],
             [
@@ -380,8 +393,18 @@ class SeedHelpQuestions extends Command
                 'question' => 'Where does the current inventory model fall short?',
                 'description' => 'Weekly schedules expand across the full season, which can be too broad for date-specific needs.',
                 'where' => '<a href="/admin/inventories">Admin > Inventory</a> and <a href="/admin/closeouts">Admin > Closeouts</a>',
-                'business_rules' => 'Current inventory applies selected weekdays + time slots to every matching day in the season. It does not allow "open only for these exact dates" without using closeouts to block everything else.',
-                'examples' => 'If you only want 09:00 on May 5-7, the current system forces you to open 09:00 for every matching weekday across the season, then add closeouts for the days you do NOT want. Closeouts can remove dates but cannot create availability that never existed. see <a href="/admin/inventory-slot-ranges">Admin > Date Overrides</a> for a more flexible solution.',
+                'business_rules' => 'Recurring inventory still defines the normal weekdays and time slots across a season. For exceptional exact dates, use Date Overrides or Inventory Schedule instead of creating closeouts for every unwanted matching weekday. A public Date Override can deliberately open or capacity-adjust an exact date/time; an internal-only override remains staff-only. Use Preview Availability to confirm the effective result.',
+                'examples' => 'If 09:00 should open only on selected dates, configure the normal season/inventory carefully and use <a href="/admin/inventory-slot-ranges">Admin > Date Overrides</a> or Inventory Schedule for those exact cells. Use a closeout when an otherwise recurring slot must be closed.',
+                'is_internal' => true,
+            ],
+            [
+                'category' => 'Inventory',
+                'question' => 'How does slot funneling work?',
+                'description' => 'Slot funneling limits how many qualifying departures are shown as open at one time.',
+                'where' => '<a href="/admin/inventories">Admin > Inventory</a> (Slot Funneling)',
+                'business_rules' => 'Slot funneling is configured on the inventory for a specific service and season. Set the maximum number of open slots to zero to disable it, or choose how many chronological qualifying slots may remain open. Full or insufficient-capacity earlier slots do not consume an open position, so later qualifying slots can open. The shared calendar builder applies the same rule to admin availability and Booking V2. This is a chronological max-open-slots rule, not automatic demand-based price changing.',
+                'examples' => 'With a maximum of 2 open slots, the first two qualifying departures are available. As an earlier departure becomes full for the requested group size, the next qualifying departure can open.',
+                'related' => 'inventory, seasons, availability, capacity, Booking V2, demand pricing',
                 'is_internal' => true,
             ],
             [
@@ -683,17 +706,19 @@ class SeedHelpQuestions extends Command
             [
                 'category' => 'Vouchers',
                 'question' => 'How do vouchers apply to bookings?',
-                'description' => 'Voucher codes reduce booking totals.',
+                'description' => 'Ordinary booking-voucher redemption is a legacy/incomplete area and is not the same as promotions or gift-voucher sales.',
                 'where' => '<a href="/admin/vouchers">Admin > Vouchers</a>',
-                'business_rules' => 'Voucher codes apply at checkout.',
+                'business_rules' => 'Do not promise that an ordinary voucher code will reduce a current public or admin booking total. The historical voucher records remain for compatibility, but the legacy redemption/payment controls are hidden until a complete allocation, partial-use, balance, expiry, cancellation, and reporting model is agreed. Use Promotions for an approved booking discount. Use a Prepaid Voucher Partner wholesaler rate when the guest already paid an external partner. Gift vouchers are purchased through their separate date-free flow.',
+                'related' => 'promotions, gift vouchers, prepaid voucher partners, wholesaler rates, legacy vouchers',
                 'is_internal' => true,
             ],
             [
                 'category' => 'Gift Vouchers',
                 'question' => 'How are gift vouchers redeemed?',
-                'description' => 'Gift vouchers are sold on the front site.',
-                'where' => '<a href="/front/voucher">Front > Gift Voucher</a>',
-                'business_rules' => 'Redeemed during payment using the voucher code.',
+                'description' => 'Gift vouchers are purchased through a date-free public checkout and remain separate from dated bookings.',
+                'where' => '<a href="/front/welcome">Front > Welcome</a> > Buy as a Gift',
+                'business_rules' => 'The buyer selects an Online Bookable service, the current applicable season and quantities, then pays through PayFast. Payment marks the gift voucher paid but not redeemed. Post-payment fulfilment generates the voucher document and sends the guest email when the site email settings allow it; fulfilment failure must not reverse the recorded payment and can be retried. Buying a voucher does not select a date or reserve capacity. A complete public/admin redemption and balance-allocation workflow is not currently confirmed, so staff must not describe purchase as automatic redemption during booking payment.',
+                'related' => 'gift voucher, PayFast, voucher code, paid, redeemed, fulfilment',
                 'is_internal' => true,
             ],
             [
@@ -826,7 +851,7 @@ class SeedHelpQuestions extends Command
                 'question' => 'How do we cancel a slot?',
                 'description' => 'Cancel a booking or a full slot.',
                 'where' => '<a href="/admin/bookings">Admin > Bookings</a> (Tools menu)',
-                'business_rules' => 'Cancel Slot removes all items for date/time/service; deletes the booking if empty.',
+                'business_rules' => 'Cancel Slot soft-cancels every active booking item for the selected team, service, date, and time. If a parent booking has no active items left, the parent booking is also soft-cancelled. Records are retained for audit and can be shown with cancelled bookings. Reinstate restores the original booking/items only after capacity is checked; an authorised force-capacity override is a deliberate exception.',
                 'related' => 'cancel booking, cancel slot, cancelled bookings, reinstate booking, soft delete, capacity',
                 'is_internal' => false,
             ],
@@ -1023,9 +1048,10 @@ class SeedHelpQuestions extends Command
             [
                 'category' => 'Messaging',
                 'question' => 'Where are manual guest messages logged?',
-                'description' => 'Internal message threads between staff.',
-                'where' => '<a href="/admin/messenger">Admin > Messages</a>',
-                'business_rules' => 'Unread count appears in the header.',
+                'description' => 'Guest email history and internal staff conversations are separate records.',
+                'where' => 'Booking Add > Email History for guest email records; <a href="/admin/messenger">Admin > Messages</a> for staff-to-staff conversations',
+                'business_rules' => 'Operational guest sends that create an email audit row are shown against the booking in Email History. Admin > Messages is the internal staff messenger and its unread count appears in the header; it is not the customer email audit. A copied WhatsApp link opens WhatsApp Web outside the application and is not proof that the guest received or read the message.',
+                'related' => 'email history, guest email, internal messages, WhatsApp, audit',
                 'is_internal' => true,
             ],
             [
@@ -1196,11 +1222,30 @@ class SeedHelpQuestions extends Command
             [
                 'category' => 'System / Settings',
                 'question' => 'Why do unpaid online bookings expire?',
-                'description' => 'Public online bookings are temporary holds until PayFast payment is completed.',
-                'where' => 'Guest payment page and scheduled command `bookings:expire-unpaid-front`',
-                'business_rules' => 'A frontend booking is provisional when it has a frontend session, no admin user, pending payment, zero paid, and no successful payment row. The scheduled command checks these bookings every 15 minutes against the configured command window, currently 3 hours. It marks an overdue booking as payment-window expired so capacity is released, but keeps the booking and related records available for PayFast reconciliation and staff recovery. Admin bookings and Pay Later bookings are not affected.',
-                'examples' => 'An unpaid public booking older than 3 hours stops reserving capacity. Its reference, activity, customer, invoice, and gateway history remain available instead of being deleted.',
-                'related' => 'frontend payment, PayFast, abandoned cart, provisional booking, site setup, capacity release',
+                'description' => 'Booking V2 has a short checkout hold followed by a longer provisional-booking payment window.',
+                'where' => 'Public V2 checkout, PayFast payment result, and scheduled command <code>bookings:expire-unpaid-front</code>',
+                'business_rules' => 'Before Confirm & Pay, Continue creates a lightweight session-owned capacity hold when holds are enabled. It normally lasts 15 minutes and does not create a customer, booking, invoice, or payment record. Confirm & Pay revalidates the hold, capacity, price, promo, extras, and terms in one transaction, then creates the pending provisional booking. The longer payment window is currently 3 hours and runs from the latest PayFast submit or booking creation when PayFast was not opened. The scheduled expiry command marks overdue unpaid frontend bookings as payment-window expired and releases capacity without permanently deleting their booking, customer, invoice, or gateway history. Admin bookings and Pay Later bookings are not affected.',
+                'examples' => 'Letting the checkout countdown expire returns the guest to availability without creating a booking. Cancelling PayFast leaves the provisional booking pending until payment succeeds or the longer payment window expires.',
+                'related' => 'checkout hold, frontend payment, PayFast, provisional booking, capacity release, payment expiry',
+                'is_internal' => true,
+            ],
+            [
+                'category' => 'Bookings - Payments',
+                'question' => 'What happens when the V2 checkout is refreshed, cancelled, times out, or is paid late?',
+                'description' => 'The server, not the browser countdown, owns hold and payment expiry.',
+                'where' => 'Public V2 checkout and PayFast result pages',
+                'business_rules' => 'Refreshing checkout resumes the same server expiry time and does not restart the short hold. If the hold expires before Confirm & Pay, the guest returns to availability and must choose an available slot again. A cancelled or incomplete PayFast attempt does not mark the booking paid; the provisional booking remains pending until payment succeeds or the scheduled expiry releases its capacity. A valid PayFast notify received after provisional expiry is never discarded: payment is recorded, the booking is restored to operational visibility, and staff receive a capacity-review alert because the released space may have been sold again. PayFast notify/ITN is the payment source of truth, not the browser return page.',
+                'related' => 'Booking V2, refresh, timeout, PayFast cancel, late payment, capacity alert, notify',
+                'is_internal' => true,
+            ],
+            [
+                'category' => 'System / Settings',
+                'question' => 'What does GA4 purchase tracking include?',
+                'description' => 'The booking platform sends a purchase event only for verified paid PayFast bookings and gift vouchers.',
+                'where' => 'Public PayFast return page, Google Tag Manager, and GA4',
+                'business_rules' => 'A standard <code>purchase</code> event is prepared only after stored payment state is paid. Included transactions are paid public bookings, staff-created bookings paid through the tracked signed PayLink, and paid public gift vouchers. Cancelled, declined, unpaid, simulated, or staff-recorded offline payments do not emit a purchase. Booking value is the VAT-inclusive core activity amount after promotions and deliberately excludes optional extras, tips, and later additional payments. Gift value is the stored core voucher total. The event contains transaction/product/site information but no guest name, email, or telephone number. Stable transaction IDs and browser suppression reduce duplicate events after refresh.',
+                'examples' => 'A R2,200 PayFast payment containing a R1,790 activity plus R410 optional extras reports purchase value R1,790. A cancelled PayFast result reports no purchase.',
+                'related' => 'GA4, Google Tag Manager, ecommerce, PayFast, purchase, gift voucher, extras',
                 'is_internal' => true,
             ],
             [
@@ -1233,12 +1278,14 @@ class SeedHelpQuestions extends Command
                 // Alternate open/close: “ ... ”
                 $out .= ($doubleIndex % 2 === 0) ? "\u{201C}" : "\u{201D}";
                 $doubleIndex++;
+
                 continue;
             }
 
             if ($ch === "'") {
                 // Right single quote for apostrophes: don’t, promo’s, etc.
                 $out .= "\u{2019}";
+
                 continue;
             }
 
@@ -1254,8 +1301,7 @@ class SeedHelpQuestions extends Command
         string $businessRules = '',
         string $examples = '',
         string $related = ''
-    ): string
-    {
+    ): string {
         $description = trim($description);
         $where = trim($where);
         $businessRules = trim($businessRules);
@@ -1263,14 +1309,14 @@ class SeedHelpQuestions extends Command
         $related = trim($related);
 
         $parts = [];
-        $parts[] = '<p><strong>Description:</strong> ' . ($description !== '' ? $description : 'N/A') . '</p>';
-        $parts[] = '<p><strong>Where:</strong> ' . ($where !== '' ? $where : 'N/A') . '</p>';
-        $parts[] = '<p><strong>Business Rules:</strong> ' . ($businessRules !== '' ? $businessRules : 'N/A') . '</p>';
+        $parts[] = '<p><strong>Description:</strong> '.($description !== '' ? $description : 'N/A').'</p>';
+        $parts[] = '<p><strong>Where:</strong> '.($where !== '' ? $where : 'N/A').'</p>';
+        $parts[] = '<p><strong>Business Rules:</strong> '.($businessRules !== '' ? $businessRules : 'N/A').'</p>';
         if ($examples !== '') {
-            $parts[] = '<p><strong>Example:</strong> ' . $examples . '</p>';
+            $parts[] = '<p><strong>Example:</strong> '.$examples.'</p>';
         }
         if ($related !== '') {
-            $parts[] = '<p><strong>Related:</strong> ' . $related . '</p>';
+            $parts[] = '<p><strong>Related:</strong> '.$related.'</p>';
         }
 
         return implode('', $parts);
