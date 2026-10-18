@@ -432,7 +432,7 @@ class PaymentController extends Controller
             ? $this->purchaseAnalytics->status($purchaseContext)
             : null;
 
-        Log::info('PayFast return analytics context resolved', [
+        $this->logPurchaseAnalytics('PayFast return analytics context resolved', [
             'context_present' => is_string($purchaseContext),
             'context_valid' => $purchaseStatus !== null,
             'type' => $purchaseStatus['type'] ?? null,
@@ -487,7 +487,7 @@ class PaymentController extends Controller
         }
 
         if ($status['state'] === 'paid') {
-            Log::info('GA4 purchase payload ready', $this->purchaseLogContext($status));
+            $this->logPurchaseAnalytics('GA4 purchase payload ready', $this->purchaseLogContext($status));
         }
 
         return response()
@@ -512,7 +512,7 @@ class PaymentController extends Controller
             abort(422, 'Purchase acknowledgement did not match a confirmed payment.');
         }
 
-        Log::info('GA4 purchase pushed to browser dataLayer', $this->purchaseLogContext($status));
+        $this->logPurchaseAnalytics('GA4 purchase pushed to browser dataLayer', $this->purchaseLogContext($status));
 
         return response()->noContent();
     }
@@ -1270,6 +1270,15 @@ class PaymentController extends Controller
                 ->values()
                 ->all(),
         ];
+    }
+
+    private function logPurchaseAnalytics(string $message, array $context): void
+    {
+        if (! config('services.google_tag_manager.purchase_logging_enabled', false)) {
+            return;
+        }
+
+        Log::info($message, $context);
     }
 
     private function orderPayfastCheckoutData(array $data): array

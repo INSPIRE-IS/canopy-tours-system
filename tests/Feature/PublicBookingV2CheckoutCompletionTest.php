@@ -11,6 +11,7 @@ use App\Services\PurchaseAnalyticsService;
 use App\Services\RendererService;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -293,6 +294,50 @@ it('does not expose a purchase event before the booking is paid', function () {
         'transaction_id' => 'booking-not-paid',
     ])->assertUnprocessable();
 });
+
+it('gates purchase diagnostic logs without changing the analytics response', function (bool $loggingEnabled) {
+    $fixture = createV2CheckoutCompletionFixture();
+    $booking = createPaidV2CheckoutBooking($this, $fixture);
+    $purchaseContext = app(PurchaseAnalyticsService::class)
+        ->issueContextToken('booking', $booking->id);
+
+    config()->set('services.google_tag_manager.purchase_logging_enabled', $loggingEnabled);
+    Log::spy();
+
+    $this->getJson(route('front.payment.payfast.purchase-status', [
+        'purchase_context' => $purchaseContext,
+    ]))
+        ->assertOk()
+        ->assertJsonPath('purchase.ecommerce.transaction_id', 'booking-' . $booking->reference);
+
+    $this->postJson(route('front.payment.payfast.purchase-acknowledged'), [
+        'purchase_context' => $purchaseContext,
+        'transaction_id' => 'booking-' . $booking->reference,
+    ])->assertNoContent();
+
+    if ($loggingEnabled) {
+        Log::shouldHaveReceived('info')
+            ->with('GA4 purchase payload ready', Mockery::type('array'))
+            ->once();
+        Log::shouldHaveReceived('info')
+            ->with('GA4 purchase pushed to browser dataLayer', Mockery::type('array'))
+            ->once();
+
+        return;
+    }
+
+    Log::shouldNotHaveReceived('info', [
+        'GA4 purchase payload ready',
+        Mockery::type('array'),
+    ]);
+    Log::shouldNotHaveReceived('info', [
+        'GA4 purchase pushed to browser dataLayer',
+        Mockery::type('array'),
+    ]);
+})->with([
+    'logging disabled' => false,
+    'logging enabled' => true,
+]);
 
 it('atomically converts an owned hold into one provisional booking with extras and legal acceptance', function () {
     $fixture = createV2CheckoutCompletionFixture();
