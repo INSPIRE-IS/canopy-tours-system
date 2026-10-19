@@ -127,7 +127,7 @@ class ActivityController extends Controller
 
         $services = Service::with([
             'file',
-            'servicefieldValues.field',
+            'servicefieldValues.fieldIncludingTrashed',
             'seasons.inventory',
             'activePromotions',
         ]);
@@ -184,7 +184,9 @@ class ActivityController extends Controller
                     //Log::info('inventory ' . $inventory->season_id);
                     //dd($inventory);
                     $fieldValues = $service->serviceFieldValues->mapWithKeys(function ($fv) {
-                        return [$fv->field->slug => $fv->value];
+                        $slug = $fv->fieldIncludingTrashed?->slug;
+
+                        return $slug ? [$slug => $fv->value] : [];
                     });
                     // from services it already filters out the promos that are not active
                     $promos = $service->activePromotions;
@@ -249,7 +251,7 @@ class ActivityController extends Controller
         $season = Season::with([
             'service',
             'service.file',
-            'service.serviceFieldValues.field',
+            'service.serviceFieldValues.fieldIncludingTrashed',
             'inventory'
         ])->findOrFail($activity_id);
 
@@ -275,7 +277,9 @@ class ActivityController extends Controller
         }
 
         $fieldValues = $season->service->serviceFieldValues->mapWithKeys(function ($fv) {
-            return [$fv->field->slug => $this->frontActivityContent($fv->value)];
+            $slug = $fv->fieldIncludingTrashed?->slug;
+
+            return $slug ? [$slug => $this->frontActivityContent($fv->value)] : [];
         });
         //dd($fieldValues);
         $activity = [

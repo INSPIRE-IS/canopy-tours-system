@@ -184,6 +184,7 @@ class BookingItem extends Model
     {
 
         $paxList = collect();
+        $logCheckinDiagnostics = (bool) config('diagnostics.checkin_logging_enabled', false);
         $booking = $this->relationLoaded('booking')
             ? $this->getRelation('booking')
             : $this->booking()->withTrashed()->first();
@@ -236,7 +237,9 @@ class BookingItem extends Model
         // 1) Add actual customers first
         foreach ($this->customers as $customer) {
             $paxType = $this->guessPaxType($customer) ?? 'adult';
-            logger()->info('**********pax type****existing*********** ', [$paxType]);
+            if ($logCheckinDiagnostics) {
+                logger()->info('**********pax type****existing*********** ', [$paxType]);
+            }
             // If excluding guides, skip guide customers entirely
             if ($excludeGuides && $paxType === 'guide') {
                 continue;
@@ -296,10 +299,12 @@ class BookingItem extends Model
                 'source'    => 'customer',
             ]);
 
-            logger()->info('pushed customer pax', [
-                'type' => $paxType,
-                'linkedCounts' => $linkedCounts,
-            ]);
+            if ($logCheckinDiagnostics) {
+                logger()->info('pushed customer pax', [
+                    'type' => $paxType,
+                    'linkedCounts' => $linkedCounts,
+                ]);
+            }
         }
 
         //logger()->info('after customers linkedCounts', [$linkedCounts, 'totals' => $totals]);
@@ -331,7 +336,9 @@ class BookingItem extends Model
                 $paid = $tot_paid >= $price ? $price : 0;
                 $tot_paid = $tot_paid - $price;
 
-                logger()->info('**********pax type****new*********** ', [$type]);
+                if ($logCheckinDiagnostics) {
+                    logger()->info('**********pax type****new*********** ', [$type]);
+                }
                 $paxList->push([
                     'reference' => $booking?->reference,
                     'booking_item_id'  => $this->id,

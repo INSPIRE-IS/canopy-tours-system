@@ -46,6 +46,11 @@ class ServiceFieldValue extends Model
         return $this->belongsTo(ServiceField::class, 'field_id');
     }
 
+    public function fieldIncludingTrashed()
+    {
+        return $this->belongsTo(ServiceField::class, 'field_id')->withTrashed();
+    }
+
     public function team()
     {
         return $this->belongsTo(Team::class, 'team_id');
