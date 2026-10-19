@@ -311,9 +311,12 @@ class FeedbackQuestionnaireController extends Controller
 
                     // $customers = $bookingItem->paxWithCustomers();
                     $customers = $bookingItem->paxWithCustomers();
+                    $logCheckinDiagnostics = (bool) config('diagnostics.checkin_logging_enabled', false);
 
-                    $customers = $customers->map(function ($customer) use ($questions, $answers) {
-                        Log::info('customer1', (array) $customer);
+                    $customers = $customers->map(function ($customer) use ($questions, $answers, $logCheckinDiagnostics) {
+                        if ($logCheckinDiagnostics) {
+                            Log::info('customer1', (array) $customer);
+                        }
 
                         // Convert to object
                         $real = $customer;
@@ -326,12 +329,14 @@ class FeedbackQuestionnaireController extends Controller
                             ->where('customer_id', $customer->customer_id)
                             ->first();
 
-                        Log::info('customer2', (array) $customer);
+                        if ($logCheckinDiagnostics) {
+                            Log::info('customer2', (array) $customer);
+                        }
                         // $manifest = $manifest->toArray();
                         // dd($manifest);
 
                         // Questionnaire
-                        $questionnaire = $questions->map(function ($q) use ($answers, $customer) {
+                        $questionnaire = $questions->map(function ($q) use ($answers, $customer, $logCheckinDiagnostics) {
                             // dd($q['id']);
                             $existing = $answers->first(function ($a) use ($customer, $q) {
                                 return $a->customer_id == $customer->customer_id &&
@@ -370,11 +375,15 @@ class FeedbackQuestionnaireController extends Controller
                                 'description' => $q['description'],
                                 'answer' => $existing ? $existing->answer : $valueFromCustomer,
                             ];
-                            Log::info('customer4', (array) $output);
+                            if ($logCheckinDiagnostics) {
+                                Log::info('customer4', (array) $output);
+                            }
                             return $output;
                         });
 
-                        Log::info('customer4', (array) $customer);
+                        if ($logCheckinDiagnostics) {
+                            Log::info('customer4', (array) $customer);
+                        }
 
                         return [
                             'customer' => $customer,
