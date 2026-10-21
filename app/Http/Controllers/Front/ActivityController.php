@@ -183,11 +183,31 @@ class ActivityController extends Controller
                     // }
                     //Log::info('inventory ' . $inventory->season_id);
                     //dd($inventory);
-                    $fieldValues = $service->serviceFieldValues->mapWithKeys(function ($fv) {
-                        $slug = $fv->fieldIncludingTrashed?->slug;
+                    $serviceFieldValues = collect();
+                    try {
+                        $serviceFieldValues = $service->servicefieldValues;
+                        $fieldValues = $serviceFieldValues->mapWithKeys(function ($fv) {
+                            $slug = $fv->fieldIncludingTrashed?->slug;
 
-                        return $slug ? [$slug => $fv->value] : [];
-                    });
+                            return $slug ? [$slug => $fv->value] : [];
+                        });
+                    } catch (\Throwable $e) {
+                        Log::error('Legacy service field mapping failed.', [
+                            'surface' => 'welcome',
+                            'team_id' => $service->team_id,
+                            'service_id' => $service->id,
+                            'season_id' => $season->id,
+                            'relation_loaded' => $service->relationLoaded('servicefieldValues'),
+                            'field_references' => $serviceFieldValues
+                                ->map(fn($fv) => ['value_id' => $fv->id, 'field_id' => $fv->field_id])
+                                ->values()
+                                ->all(),
+                            'exception' => $e::class,
+                            'message' => $e->getMessage(),
+                        ]);
+
+                        throw $e;
+                    }
                     // from services it already filters out the promos that are not active
                     $promos = $service->activePromotions;
                     $promo = null;
@@ -251,7 +271,7 @@ class ActivityController extends Controller
         $season = Season::with([
             'service',
             'service.file',
-            'service.serviceFieldValues.fieldIncludingTrashed',
+            'service.servicefieldValues.fieldIncludingTrashed',
             'inventory'
         ])->findOrFail($activity_id);
 
@@ -276,11 +296,31 @@ class ActivityController extends Controller
             abort(404, 'This season has no inventory.');
         }
 
-        $fieldValues = $season->service->serviceFieldValues->mapWithKeys(function ($fv) {
-            $slug = $fv->fieldIncludingTrashed?->slug;
+        $serviceFieldValues = collect();
+        try {
+            $serviceFieldValues = $season->service->servicefieldValues;
+            $fieldValues = $serviceFieldValues->mapWithKeys(function ($fv) {
+                $slug = $fv->fieldIncludingTrashed?->slug;
 
-            return $slug ? [$slug => $this->frontActivityContent($fv->value)] : [];
-        });
+                return $slug ? [$slug => $this->frontActivityContent($fv->value)] : [];
+            });
+        } catch (\Throwable $e) {
+            Log::error('Legacy service field mapping failed.', [
+                'surface' => 'activity',
+                'team_id' => $season->team_id,
+                'service_id' => $season->service_id,
+                'season_id' => $season->id,
+                'relation_loaded' => $season->service->relationLoaded('servicefieldValues'),
+                'field_references' => $serviceFieldValues
+                    ->map(fn($fv) => ['value_id' => $fv->id, 'field_id' => $fv->field_id])
+                    ->values()
+                    ->all(),
+                'exception' => $e::class,
+                'message' => $e->getMessage(),
+            ]);
+
+            throw $e;
+        }
         //dd($fieldValues);
         $activity = [
             'id'         => $inventory->id,
