@@ -116,6 +116,7 @@ class PaymentController extends Controller
         return Inertia::render('BookingPayment', [
             'booking' => $booking->load($this->paymentBookingRelations()),
             'lookups' => $lookups,
+            'paymentWindowHours' => $booking->team?->frontend_unpaid_booking_expiry_hours ?? 3,
             'canRemoveItems' => true,
             'payfastUrl' => route('front.payment.payfast.booking', ['booking' => $booking->id]),
         ]);
@@ -132,6 +133,7 @@ class PaymentController extends Controller
         return Inertia::render('BookingPayment', [
             'booking' => $booking->load($this->paymentBookingRelations()),
             'lookups' => $lookups,
+            'paymentWindowHours' => $booking->team?->frontend_unpaid_booking_expiry_hours ?? 3,
             'payfastStatus' => $payfastStatus,
             'canRemoveItems' => false,
             'payfastUrl' => $isPayable

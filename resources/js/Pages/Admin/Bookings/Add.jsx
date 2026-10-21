@@ -103,7 +103,8 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
     const headerBookingDate = bookingItem?.booking_inventory?.date || '—';
     const headerSlotTime = bookingItem?.booking_inventory?.inventory_time_slot?.start_time || '';
     const headerDateTime = headerSlotTime ? `${headerBookingDate} ${String(headerSlotTime).slice(0, 5)}` : headerBookingDate;
-    const isCancelledBooking = Boolean(booking?.deleted_at || bookingItem?.deleted_at);
+    const isPaymentExpiredBooking = Boolean(booking?.payment_window_expired_at && Number(booking?.status_payment_id) !== 2);
+    const isCancelledBooking = Boolean(booking?.deleted_at || bookingItem?.deleted_at || isPaymentExpiredBooking);
     useEffect(() => {
         if (flash?.success) {
             showToast(flash.success, "success");
@@ -412,7 +413,9 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                         </header> */}
             <div className="bg-white p-6 ">
                 {isCancelledBooking && (
-                    <CancelledBookingBanner message="Check-in, guest messaging, payment changes, and booking edits are disabled while this booking is cancelled." />
+                    <CancelledBookingBanner message={isPaymentExpiredBooking
+                        ? "This unpaid booking's payment window expired. It is available for review only until staff restore it safely."
+                        : "Check-in, guest messaging, payment changes, and booking edits are disabled while this booking is cancelled."} />
                 )}
                 {/* top */}
                 <div className="flex justify-between items-center mb-6">

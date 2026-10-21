@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\Storage;
 class ExpireUnpaidFrontendBookings extends Command
 {
     protected $signature = 'bookings:expire-unpaid-front
-        {--hours=3 : Hold window in hours from latest PayFast submit, or booking creation if no submit exists}
+        {--hours= : Override non-disabled site payment windows in hours}
         {--team= : Optional team id}
         {--force : Actually expire bookings. Without this option the command is a dry run}';
 
@@ -22,7 +22,9 @@ class ExpireUnpaidFrontendBookings extends Command
 
     public function handle(): int
     {
-        $hours = max(1, (int) $this->option('hours'));
+        $hoursOverride = $this->option('hours') !== null
+            ? max(0, (int) $this->option('hours'))
+            : null;
         $teamId = $this->option('team') !== null ? (int) $this->option('team') : null;
         $force = (bool) $this->option('force');
         $now = now();
@@ -34,12 +36,14 @@ class ExpireUnpaidFrontendBookings extends Command
                 'booking_items.service:id,name',
                 'booking_items.booking_inventory:id,booking_item_id,date,inventory_time_slot_id,pax',
                 'booking_items.booking_inventory.inventory_time_slot:id,start_time',
+                'team:id,frontend_unpaid_booking_expiry_hours',
             ])
             ->whereNotNull('session_id')
             ->whereNull('user_id')
             ->where('status_payment_id', 1)
             ->whereRaw('COALESCE(tot_paid, 0) = 0')
             ->whereNull('payment_window_expired_at')
+            ->whereNull('payment_window_restored_at')
             ->whereNull('deleted_at')
             ->when($teamId, fn($query) => $query->where('team_id', $teamId))
             ->whereDoesntHave('booking_payments', function ($query) {
@@ -54,6 +58,21 @@ class ExpireUnpaidFrontendBookings extends Command
         $expiredCount = 0;
 
         foreach ($bookings as $booking) {
+            $siteHours = $booking->team?->frontend_unpaid_booking_expiry_hours;
+
+            // A deliberate site value of zero remains authoritative even when
+            // support runs the command with a temporary --hours override.
+            if ($siteHours !== null && (int) $siteHours === 0) {
+                continue;
+            }
+
+            $hours = $hoursOverride
+                ?? max(0, (int) ($siteHours ?? 3));
+
+            if ($hours === 0) {
+                continue;
+            }
+
             $candidateCount++;
             $latestSubmitAt = GatewayLog::where('booking_id', $booking->id)
                 ->where('event', 'submit')
@@ -112,7 +131,11 @@ class ExpireUnpaidFrontendBookings extends Command
 
             if ((int) $booking->status_payment_id !== 1
                 || (float) $booking->tot_paid > 0
-                || $booking->payment_window_expired_at !== null) {
+                || $booking->payment_window_expired_at !== null
+                || $booking->payment_window_restored_at !== null
+                || $booking->session_id === null
+                || $booking->user_id !== null
+                || $booking->booking_payments()->where('status_payment_id', 2)->exists()) {
                 return;
             }
 

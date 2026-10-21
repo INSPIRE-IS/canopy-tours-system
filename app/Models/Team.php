@@ -45,6 +45,7 @@ class Team extends Model
         'is_published',
         'frontend_hold_enabled',
         'frontend_hold_minutes',
+        'frontend_unpaid_booking_expiry_hours',
         'invoice_note',
         'vat_no',
         'created_at',
@@ -58,6 +59,7 @@ class Team extends Model
         'is_published' => 'boolean',
         'frontend_hold_enabled' => 'boolean',
         'frontend_hold_minutes' => 'integer',
+        'frontend_unpaid_booking_expiry_hours' => 'integer',
     ];
 
     protected function serializeDate(DateTimeInterface $date)

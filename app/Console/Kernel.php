@@ -21,7 +21,7 @@ class Kernel extends ConsoleKernel
         //$schedule->command('app:send-feedback-email')->dailyAt('06:00');
 
         //$schedule->command('geo:sync')->monthly();
-        $schedule->command('bookings:expire-unpaid-front --hours=3 --force')
+        $schedule->command('bookings:expire-unpaid-front --force')
             ->everyFifteenMinutes()
             ->withoutOverlapping();
     }

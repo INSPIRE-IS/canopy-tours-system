@@ -2184,7 +2184,8 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
     const bookingExtrasTotal = bookingExtras.reduce((sum, extra) => {
         return sum + (Number(extra.quantity || 0) * Number(extra.unit_price || 0));
     }, 0);
-    const isCancelledBooking = Boolean(booking?.deleted_at || booking_items?.deleted_at);
+    const isPaymentExpiredBooking = Boolean(booking?.payment_window_expired_at && Number(booking?.status_payment_id) !== 2);
+    const isCancelledBooking = Boolean(booking?.deleted_at || booking_items?.deleted_at || isPaymentExpiredBooking);
     const hasRealPaymentRows = Array.isArray(booking?.booking_payments) && booking.booking_payments.length > 0;
     const wasPrepaidWholesalerVoucher = Boolean(booking_items?.booking_fee?.is_prepaid_wholesaler_voucher);
     const shouldClearSyntheticPaid = wasPrepaidWholesalerVoucher && !isPrepaidWholesalerVoucher && !hasRealPaymentRows;
@@ -2246,7 +2247,9 @@ export default function Dashboard({ auth, wholesalers = [], services = [], booki
                 <div className="space-y-6 max-w-full overflow-hidden mx-auto p-6 bg-white shadow rounded">
                     <h1 className="text-booking-heading">Edit Booking</h1>
                     {isCancelledBooking && (
-                        <CancelledBookingBanner message="This screen is review-only while cancelled. Reinstate the booking before changing dates, pax, rates, or guest details." />
+                        <CancelledBookingBanner message={isPaymentExpiredBooking
+                            ? "This unpaid booking's payment window expired. This screen is review-only until staff restore it safely."
+                            : "This screen is review-only while cancelled. Reinstate the booking before changing dates, pax, rates, or guest details."} />
                     )}
                     {page.props.error && <div className="text-red-600">{page.props.error}</div>}
                     {errors?.booking_total && (

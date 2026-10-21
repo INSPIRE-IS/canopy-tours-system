@@ -48,6 +48,7 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams, permissions = {}
         is_published: true,
         frontend_hold_enabled: true,
         frontend_hold_minutes: 15,
+        frontend_unpaid_booking_expiry_hours: 3,
         invoice_note: "",
         vat_no: "",
         team_id: team?.team_id,
@@ -89,6 +90,7 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams, permissions = {}
                 is_published: team.is_published ?? true,
                 frontend_hold_enabled: team.frontend_hold_enabled ?? true,
                 frontend_hold_minutes: team.frontend_hold_minutes ?? 15,
+                frontend_unpaid_booking_expiry_hours: team.frontend_unpaid_booking_expiry_hours ?? 3,
                 invoice_note: team.invoice_note || "",
                 vat_no: team.vat_no || "",
                 team_id: team.team_id,
@@ -107,6 +109,7 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams, permissions = {}
                 is_published: true,
                 frontend_hold_enabled: true,
                 frontend_hold_minutes: 15,
+                frontend_unpaid_booking_expiry_hours: 3,
             }));
         }
         setLogo(null);
@@ -181,6 +184,7 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams, permissions = {}
         }
         formData.append('frontend_hold_enabled', data.frontend_hold_enabled ? 1 : 0);
         formData.append('frontend_hold_minutes', data.frontend_hold_minutes ?? '');
+        formData.append('frontend_unpaid_booking_expiry_hours', data.frontend_unpaid_booking_expiry_hours ?? 3);
         formData.append('invoice_note', data.invoice_note);
         formData.append('vat_no', data.vat_no);
         formData.append('team_id', data.team_id);
@@ -345,6 +349,24 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams, permissions = {}
                                 disabled={!data.frontend_hold_enabled || mode === "view"}
                             />
                         </div>
+                    </div>
+
+                    <div className="flex flex-row w-full items-start gap-6 justify-start mb-4">
+                        <div className="w-1/2">
+                            <InputText
+                                title="Unpaid booking expiry (hours)"
+                                field="frontend_unpaid_booking_expiry_hours"
+                                type="number"
+                                min="0"
+                                value={data.frontend_unpaid_booking_expiry_hours}
+                                mode={mode}
+                                handleChange={handleChange}
+                                errors={errors}
+                            />
+                        </div>
+                        <p className="w-1/2 pt-6 text-xs text-gray-500">
+                            Starts when the provisional booking is created or PayFast is opened. Use 0 to keep unpaid frontend bookings and their reserved capacity until staff resolve them.
+                        </p>
                     </div>
 
                     <div className="flex flex-row w-full items-center gap-2 justify-start mb-4">

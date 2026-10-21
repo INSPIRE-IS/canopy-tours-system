@@ -5,7 +5,7 @@ import CustomSelect from '@/Components/CustomSelect';
 import NavSelect from '@/Components/NavSelect';
 import TopNav from '@/Components/TopNav';
 
-export default function ReviewPayment({ auth, booking, lookups, payfastStatus, canRemoveItems = false, payfastUrl = null }) {
+export default function ReviewPayment({ auth, booking, lookups, payfastStatus, canRemoveItems = false, payfastUrl = null, paymentWindowHours = 3 }) {
   //const { props, booking } = usePage();
   console.log('auth ', auth);
   console.log('booking ', booking);
@@ -207,8 +207,9 @@ export default function ReviewPayment({ auth, booking, lookups, payfastStatus, c
               <h2 className="font-semibold mb-2">Payment Method</h2>
               <p>Pay Online (PayFast)</p>
               <p className="mt-2 text-sm text-gray-600">
-                Your online booking is held for 3 hours while payment is completed.
-                Unpaid holds are cancelled automatically after that window.
+                {Number(paymentWindowHours) === 0
+                  ? 'This booking remains reserved until payment is completed or staff resolve it.'
+                  : `Your online booking is held for ${paymentWindowHours} ${Number(paymentWindowHours) === 1 ? 'hour' : 'hours'} while payment is completed. Unpaid provisional bookings expire automatically after that window.`}
               </p>
             </div>
           ) : (
