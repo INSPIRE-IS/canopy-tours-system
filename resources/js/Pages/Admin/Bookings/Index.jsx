@@ -887,12 +887,31 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
         );
     };
 
+    const resetBookingFilters = () => {
+        sessionStorage.removeItem('bookings.selectedServiceId');
+        setSelectedServiceId('0');
+        setSearchQuery('');
+        setSearchOpen(false);
+        setShowServices(false);
+    };
+
     const handleTodayClick = () => {
-        // "Today" should reset the UI into a consistent state regardless of current view.
+        [
+            'bookings.selectedDate',
+            'bookings.rangeStart',
+            'bookings.rangeEnd',
+            'bookings.viewMode',
+            'bookings.selectedServiceId',
+            'bookings.showEmptySlots',
+        ].forEach((key) => sessionStorage.removeItem(key));
+
+        // "Today" is the reliable escape hatch from stale browser-specific view state.
         setViewMode(VIEW_MODES.DAY);
         setSelectedDate(today);
         setRangeStart(today);
         setRangeEnd(today);
+        setShowEmptySlots(false);
+        resetBookingFilters();
     };
 
     const handleCloseModal = () => {
@@ -1032,7 +1051,7 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                                 <img src="/assets/icons/task-square.svg" alt="bookings" className="w-5 h-5" />
                                 <span className="font-semibold text-lg text-gray-800 block text-start">Bookings</span>
                             </span>
-                            <span className="flex gap-2">
+                            <span className="flex flex-wrap items-end gap-2">
 
                                 {viewMode === VIEW_MODES.DAY && (
                                     <div className="w-[200px]">
@@ -1107,6 +1126,14 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                                         </div>
                                     )}
                                 </div>
+
+                                <button
+                                    type="button"
+                                    onClick={resetBookingFilters}
+                                    className="flex items-center w-auto h-[40px] px-4 py-2 rounded-[10px] border-[3px] border-primary-14 text-primary-14 cursor-pointer"
+                                >
+                                    <span className="text-btn-outline-gray">Reset filters</span>
+                                </button>
 
                                 <div className="relative" ref={searchRef}>
                                     <div className="flex items-center w-[280px] h-[40px] gap-2 px-4 py-2 rounded-[10px] border-[3px] border-primary-14 text-primary-14 bg-white hover:border-black focus-within:border-black">
