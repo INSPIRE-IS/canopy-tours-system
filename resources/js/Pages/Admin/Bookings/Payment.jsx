@@ -46,7 +46,8 @@ export default function Dashboard({ auth, booking, payment_history = [], booking
     const paymentHistory = Array.isArray(payment_history) ? payment_history : [];
     const bookingExtrasList = Array.isArray(booking_extras) ? booking_extras : [];
     const bookingItems = Array.isArray(booking?.booking_items) ? booking.booking_items : [];
-    const isCancelledBooking = Boolean(booking?.deleted_at);
+    const isPaymentExpiredBooking = Boolean(booking?.payment_window_expired_at && Number(booking?.status_payment_id) !== 2);
+    const isCancelledBooking = Boolean(booking?.deleted_at || isPaymentExpiredBooking);
     const formatMoney = (value) => `R${Number(value || 0).toFixed(2)}`;
     const formatDate = (value) => {
         if (!value) return '-';
@@ -358,7 +359,9 @@ export default function Dashboard({ auth, booking, payment_history = [], booking
 
             <div className="bg-white p-6 ">
                 {isCancelledBooking && (
-                    <CancelledBookingBanner message="Payment history is available for review only. Reinstate the booking before recording payments, refunds, PayLinks, or price changes." />
+                    <CancelledBookingBanner message={isPaymentExpiredBooking
+                        ? "This unpaid booking's payment window expired. Payment history is available for review only until staff restore it safely."
+                        : "Payment history is available for review only. Reinstate the booking before recording payments, refunds, PayLinks, or price changes."} />
                 )}
                 {/* top */}
                 <div className="flex justify-between items-center mb-6">

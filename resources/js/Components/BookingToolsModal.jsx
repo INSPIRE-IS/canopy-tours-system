@@ -38,6 +38,7 @@ export default function BookingToolsModal({ booking, position, onClose, BookingT
 
     if (!booking || !position) return null;
     const isCancelled = !!booking?.is_cancelled;
+    const isPaymentExpired = !!booking?.is_payment_expired;
 
     return (
         <div
@@ -54,7 +55,16 @@ export default function BookingToolsModal({ booking, position, onClose, BookingT
                 <div className="flex flex-col gap-2">
                     <BookingRateBreakdown breakdown={booking.rate_breakdown} compact />
 
-                    {isCancelled ? (
+                    {isPaymentExpired ? (
+                        <>
+                            <p className="rounded-lg bg-orange-50 px-3 py-2 text-sm text-orange-800">
+                                Restoring rechecks the original slot capacity and moves the booking to staff management.
+                            </p>
+                            <button type="button" onClick={() => BookingToolClick('restore_expired_booking', booking)} className="btn-tool">
+                                {icons.check_in} Restore Expired Booking
+                            </button>
+                        </>
+                    ) : isCancelled ? (
                         <button type="button" onClick={() => BookingToolClick('reinstate_booking', booking)} className="btn-tool">{icons.check_in} Reinstate Booking</button>
                     ) : (
                         <button type="button" onClick={() => BookingToolClick('cancel_bookings', booking)} className="btn-tool-red">{icons.cancel_all_bookings} Cancel All Bookings</button>

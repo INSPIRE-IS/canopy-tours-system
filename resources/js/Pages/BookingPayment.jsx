@@ -207,8 +207,9 @@ export default function ReviewPayment({ auth, booking, lookups, payfastStatus, u
               <h2 className="font-semibold mb-2">Payment Method</h2>
               <p>Pay Online (PayFast)</p>
               <p className="mt-2 text-sm text-gray-600">
-                Your online booking is held for {unpaidBookingHoldHours} hours while payment is completed.
-                Unpaid holds are cancelled automatically after that window.
+                {Number(unpaidBookingHoldHours) === 0
+                  ? 'This booking remains reserved until payment is completed or staff resolve it.'
+                  : `Your online booking is held for ${unpaidBookingHoldHours} ${Number(unpaidBookingHoldHours) === 1 ? 'hour' : 'hours'} while payment is completed. Unpaid provisional bookings expire automatically after that window.`}
               </p>
             </div>
           ) : (

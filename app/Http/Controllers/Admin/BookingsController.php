@@ -111,7 +111,8 @@ class BookingsController extends Controller
             ->where('inventory_time_slot_id', $inventoryTimeSlotId)
             ->whereHas('booking_item', function ($query) use ($service, $teamId, $excludeBookingItemId) {
                 $query->where('service_id', $service->id)
-                    ->where('team_id', $teamId);
+                    ->where('team_id', $teamId)
+                    ->whereHas('booking', fn ($query) => $query->operational());
                 if ($excludeBookingItemId) {
                     $query->where('id', '!=', $excludeBookingItemId);
                 }
@@ -569,7 +570,9 @@ class BookingsController extends Controller
 
         abort_if(Gate::denies('bookings_access'), Response::HTTP_FORBIDDEN, '403 Forbidden');
         $teamId = auth()->user()->team_id;
-        $includeCancelled = $request->boolean('include_cancelled');
+        // Keep the existing query parameter for bookmarked URLs, but treat it as
+        // the deliberate inactive-record view for both cancelled and expired bookings.
+        $includeInactive = $request->boolean('include_cancelled');
         // Board visibility controls generated empty slots/filter options only.
         // Existing bookings must remain visible even when their service is hidden from empty-slot operations.
         $visibleServiceIds = Service::where('team_id', $teamId)
@@ -583,18 +586,19 @@ class BookingsController extends Controller
         $bookingsQuery = Booking::with([
             'booking_payments',
         ])
-            ->where('team_id', $teamId)
-            ->operational();
+            ->where('team_id', $teamId);
 
-        if ($includeCancelled) {
+        if ($includeInactive) {
             $bookingsQuery->withTrashed();
+        } else {
+            $bookingsQuery->operational();
         }
 
         $bookings = $bookingsQuery->get();
 
         $bookingItemRelations = [
-            'booking' => function ($query) use ($includeCancelled) {
-                if ($includeCancelled) {
+            'booking' => function ($query) use ($includeInactive) {
+                if ($includeInactive) {
                     $query->withTrashed();
                 }
                 $query->with('files', 'booking_discounts.booking_discount_items.discount');
@@ -603,8 +607,8 @@ class BookingsController extends Controller
             'customer_manifests',
             'booking_detail',
             'booking_fee',
-            'booking_inventory' => function ($query) use ($includeCancelled) {
-                if ($includeCancelled) {
+            'booking_inventory' => function ($query) use ($includeInactive) {
+                if ($includeInactive) {
                     $query->withTrashed();
                 }
             },
@@ -618,15 +622,15 @@ class BookingsController extends Controller
 
         $bookingItemsQuery = BookingItem::with($bookingItemRelations)
             ->where('team_id', $teamId)
-            ->whereHas('booking', function ($query) use ($includeCancelled) {
-                if ($includeCancelled) {
+            ->whereHas('booking', function ($query) use ($includeInactive) {
+                if ($includeInactive) {
                     $query->withTrashed();
+                } else {
+                    $query->operational();
                 }
-
-                $query->operational();
             });
 
-        if ($includeCancelled) {
+        if ($includeInactive) {
             $bookingItemsQuery->withTrashed();
         }
 
@@ -782,6 +786,9 @@ class BookingsController extends Controller
                     'booking_note' => $latestBookingNote,
                     'booking_notes' => $bookingNotes,
                     'is_cancelled' => $booking_item->trashed() || ($booking_item->booking && $booking_item->booking->trashed()),
+                    'is_payment_expired' => $booking_item->booking?->payment_window_expired_at !== null
+                        && (int) $booking_item->booking?->status_payment_id !== 2,
+                    'payment_window_expired_at' => $booking_item->booking?->payment_window_expired_at?->format('Y-m-d H:i:s'),
                 ];
                 return $info;
             } catch (\Throwable $e) {
@@ -4627,6 +4634,116 @@ class BookingsController extends Controller
         });
 
         return back()->with('success', 'Booking reinstated.');
+    }
+
+    public function restoreExpired($booking)
+    {
+        abort_if(Gate::denies('bookings_edit'), Response::HTTP_FORBIDDEN, '403 Forbidden');
+
+        $teamId = (int) auth()->user()->team_id;
+        $userId = (int) auth()->id();
+
+        try {
+            DB::transaction(function () use ($booking, $teamId, $userId) {
+                $booking = Booking::query()
+                    ->whereKey($booking)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                abort_if((int) $booking->team_id !== $teamId, Response::HTTP_FORBIDDEN, '403 Forbidden');
+
+                if ($booking->payment_window_expired_at === null || (int) $booking->status_payment_id === 2) {
+                    throw ValidationException::withMessages([
+                        'booking' => 'This booking is not an expired unpaid booking.',
+                    ]);
+                }
+
+                if ($booking->session_id === null || $booking->user_id !== null) {
+                    throw ValidationException::withMessages([
+                        'booking' => 'Only expired public provisional bookings can be restored with this action.',
+                    ]);
+                }
+
+                if ((float) $booking->tot_paid > 0
+                    || $booking->booking_payments()->where('status_payment_id', 2)->exists()) {
+                    throw ValidationException::withMessages([
+                        'booking' => 'This booking has payment activity and must be reviewed before restoration.',
+                    ]);
+                }
+
+                $items = BookingItem::query()
+                    ->with(['service', 'booking_inventory'])
+                    ->where('booking_id', $booking->id)
+                    ->where('team_id', $teamId)
+                    ->get();
+
+                if ($items->isEmpty()) {
+                    throw ValidationException::withMessages([
+                        'booking' => 'No booking activities were found to restore.',
+                    ]);
+                }
+
+                $slotIds = $items
+                    ->pluck('booking_inventory.inventory_time_slot_id')
+                    ->filter()
+                    ->unique()
+                    ->sort()
+                    ->values();
+
+                InventoryTimeSlot::query()
+                    ->whereIn('id', $slotIds)
+                    ->orderBy('id')
+                    ->lockForUpdate()
+                    ->get();
+
+                foreach ($items as $item) {
+                    $inventory = $item->booking_inventory;
+                    $bookingDate = $inventory?->getRawOriginal('date');
+
+                    if (! $item->service || ! $inventory || ! $inventory->inventory_time_slot_id || ! $bookingDate) {
+                        throw ValidationException::withMessages([
+                            'booking' => 'This booking cannot be restored because its original activity or slot details are missing.',
+                        ]);
+                    }
+
+                    if (Carbon::parse($bookingDate, 'Africa/Johannesburg')->startOfDay()
+                        ->lt(now('Africa/Johannesburg')->startOfDay())) {
+                        throw ValidationException::withMessages([
+                            'booking' => 'This booking cannot be restored because its activity date has passed.',
+                        ]);
+                    }
+
+                    $this->validateSlotCapacity(
+                        $item->service,
+                        $bookingDate,
+                        (int) $inventory->inventory_time_slot_id,
+                        (int) $inventory->pax,
+                        $teamId,
+                        $item->id
+                    );
+                }
+
+                $expiredAt = $booking->payment_window_expired_at->copy();
+                $restoredAt = now();
+
+                $booking->update([
+                    'payment_window_expired_at' => null,
+                    'payment_window_restored_at' => $restoredAt,
+                    'updated_by_id' => $userId,
+                ]);
+
+                $this->logAudit('Expired booking restored by staff', $booking, $items->first(), [
+                    'previous_payment_window_expired_at' => $expiredAt->format('Y-m-d H:i:s'),
+                    'payment_window_restored_at' => $restoredAt->format('Y-m-d H:i:s'),
+                    'restored_as_staff_managed' => true,
+                ]);
+            }, 3);
+        } catch (ValidationException $exception) {
+            return back()->with('error', collect($exception->errors())->flatten()->first()
+                ?: 'This expired booking could not be restored.');
+        }
+
+        return back()->with('success', 'Expired booking restored and moved to staff management.');
     }
 
     public function cancelSlot(Request $request)

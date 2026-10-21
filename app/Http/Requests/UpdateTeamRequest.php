@@ -46,6 +46,7 @@ class UpdateTeamRequest extends FormRequest
             'is_published' => ['sometimes', 'boolean'],
             'frontend_hold_enabled' => ['sometimes', 'boolean'],
             'frontend_hold_minutes' => ['required_if:frontend_hold_enabled,1', 'nullable', 'integer', 'min:1', 'max:120'],
+            'frontend_unpaid_booking_hold_hours' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:24'],
             'team_id' => ['nullable', 'exists:teams,id'],
             'logo' => ['nullable', 'image', 'max:2048'],
             'image' => ['nullable', 'image', 'max:4096'],

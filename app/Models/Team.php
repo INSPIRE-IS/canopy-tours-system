@@ -59,6 +59,7 @@ class Team extends Model
         'is_published' => 'boolean',
         'frontend_hold_enabled' => 'boolean',
         'frontend_hold_minutes' => 'integer',
+        'frontend_unpaid_booking_hold_hours' => 'integer',
     ];
 
     protected function serializeDate(DateTimeInterface $date)

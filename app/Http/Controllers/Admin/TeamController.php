@@ -47,7 +47,7 @@ class TeamController extends Controller
         $hours = $data['frontend_unpaid_booking_hold_hours'] ?? null;
         $data['frontend_unpaid_booking_hold_hours'] = $hours === null || $hours === ''
             ? null
-            : max(1, min(24, (int) $hours));
+            : max(0, min(24, (int) $hours));
 
         return $data;
     }

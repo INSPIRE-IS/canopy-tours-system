@@ -23,7 +23,7 @@ class ExpireUnpaidFrontendBookings extends Command
     public function handle(): int
     {
         $hoursOverride = $this->option('hours') !== null && $this->option('hours') !== '';
-        $hoursOverrideValue = $hoursOverride ? max(1, (int) $this->option('hours')) : null;
+        $hoursOverrideValue = $hoursOverride ? max(0, (int) $this->option('hours')) : null;
         $teamId = $this->option('team') !== null ? (int) $this->option('team') : null;
         $force = (bool) $this->option('force');
         $now = now();
@@ -42,6 +42,7 @@ class ExpireUnpaidFrontendBookings extends Command
             ->where('status_payment_id', 1)
             ->whereRaw('COALESCE(tot_paid, 0) = 0')
             ->whereNull('payment_window_expired_at')
+            ->whereNull('payment_window_restored_at')
             ->whereNull('deleted_at')
             ->when($teamId, fn($query) => $query->where('team_id', $teamId))
             ->whereDoesntHave('booking_payments', function ($query) {
@@ -56,8 +57,22 @@ class ExpireUnpaidFrontendBookings extends Command
         $expiredCount = 0;
 
         foreach ($bookings as $booking) {
+            $siteHours = $booking->team?->frontend_unpaid_booking_hold_hours;
+
+            // A deliberate site value of zero remains authoritative even when
+            // support runs the command with a temporary --hours override.
+            if ($siteHours !== null && (int) $siteHours === 0) {
+                continue;
+            }
+
+            $hours = $hoursOverrideValue
+                ?? max(0, (int) ($siteHours ?? 3));
+
+            if ($hours === 0) {
+                continue;
+            }
+
             $candidateCount++;
-            $hours = $hoursOverrideValue ?? $this->holdHoursForBooking($booking);
             $latestSubmitAt = GatewayLog::where('booking_id', $booking->id)
                 ->where('event', 'submit')
                 ->max('created_at');
@@ -116,7 +131,11 @@ class ExpireUnpaidFrontendBookings extends Command
 
             if ((int) $booking->status_payment_id !== 1
                 || (float) $booking->tot_paid > 0
-                || $booking->payment_window_expired_at !== null) {
+                || $booking->payment_window_expired_at !== null
+                || $booking->payment_window_restored_at !== null
+                || $booking->session_id === null
+                || $booking->user_id !== null
+                || $booking->booking_payments()->where('status_payment_id', 2)->exists()) {
                 return;
             }
 
@@ -141,13 +160,6 @@ class ExpireUnpaidFrontendBookings extends Command
                 'host' => 'console',
             ]);
         });
-    }
-
-    private function holdHoursForBooking(Booking $booking): int
-    {
-        $hours = $booking->team?->frontend_unpaid_booking_hold_hours;
-
-        return max(1, (int) ($hours ?: 3));
     }
 
     private function formatActivities(Booking $booking): string

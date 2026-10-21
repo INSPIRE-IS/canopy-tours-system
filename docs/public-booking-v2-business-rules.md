@@ -12,13 +12,15 @@ Read this before changing the public booking checkout, holds, public extras, Pay
 6. The guest is sent to the existing `front.payment.payfast.booking` endpoint. V2 does not implement a second gateway or callback flow.
 7. PayFast notify is the trusted completion path. It marks the booking paid, records the payment and audit entry, and allocates only extras whose metadata source is `public_booking_v2`.
 8. After payment commits, `FulfillBookingPayment` checks the normal site email lookup gates. When enabled it reuses the established `RendererService`, `BookingMail`, invoice Blade, and boarding-pass Blade flow. It does not use the experimental invoice-template email content.
-9. The scheduled `bookings:expire-unpaid-front --hours=3 --force` command marks abandoned pending frontend bookings expired. It does not delete them.
+9. The scheduled `bookings:expire-unpaid-front --force` command uses each site's unpaid-booking expiry setting to mark abandoned pending frontend bookings expired. It does not delete them. A site value of `0` disables automatic expiry.
+10. Staff can review expired bookings from **Show cancelled / expired bookings**. Restore Expired Booking revalidates the original activity date and capacity, records the restoring user, and converts the record to staff-managed so it cannot expire automatically again.
 
 ## Timing rules
 
 - The short checkout hold starts before customer details are persisted. Its duration comes from the site setting and is normally 15 minutes.
 - Checkout holds are enabled by default for newly created sites. Existing site values are not changed automatically.
-- The three-hour provisional payment window starts from the latest PayFast submit log, or from booking creation if PayFast was never opened.
+- The provisional payment window is configured per site (default three hours) and starts from the latest PayFast submit log, or from booking creation if PayFast was never opened.
+- Expired provisional bookings do not consume operational capacity. Staff restoration has no over-capacity override and is blocked once the activity date has passed.
 - These timers serve different stages and must not be combined: the short hold protects Checkout capacity; the longer window protects an existing provisional booking while PayFast is in progress.
 - A paid booking always consumes capacity, including one paid after its provisional window expired.
 - A late successful payment is never discarded. It creates a staff alert requiring capacity review because the expired space may have been sold again.
@@ -51,7 +53,7 @@ Read this before changing the public booking checkout, holds, public extras, Pay
 
 - Confirm & pay is session-blocked and recoverable by hold UUID/linked booking. Retrying the same confirmation must return the existing booking rather than create a duplicate.
 - Any validation or persistence failure rolls back customer, booking, invoice, extras, and acceptance records together.
-- A cancelled or incomplete PayFast attempt leaves the provisional booking pending until payment succeeds or the three-hour expiry command marks it expired.
+- A cancelled or incomplete PayFast attempt leaves the provisional booking pending until payment succeeds or the site's configured expiry window marks it expired.
 - Duplicate PayFast notifications must not create duplicate payment, extra-allocation, audit, or late-payment alert records.
 - Booking email/PDF fulfilment runs only after payment commits. Disabled email settings send nothing; delivery failures leave payment intact and remain retryable through the queue or a repeated PayFast callback.
 

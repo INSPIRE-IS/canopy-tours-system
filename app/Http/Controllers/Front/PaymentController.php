@@ -64,7 +64,7 @@ class PaymentController extends Controller
     {
         $hours = Team::whereKey($teamId)->value('frontend_unpaid_booking_hold_hours');
 
-        return max(1, (int) ($hours ?: 3));
+        return $hours === null ? 3 : max(0, (int) $hours);
     }
 
     private function vatBreakdownForTeam(?int $teamId, float $totalDue): array

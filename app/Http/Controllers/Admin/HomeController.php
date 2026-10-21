@@ -31,7 +31,10 @@ class HomeController extends Controller
             'filter_field'          => 'created_at',
             'filter_period'         => 'year',
             // For super admins, respect the selected team when set.
-            'where_raw'             => $teamId ? ('team_id = ' . (int) $teamId) : '',
+            'where_raw'             => implode(' AND ', array_filter([
+                $teamId ? ('team_id = ' . (int) $teamId) : null,
+                '(payment_window_expired_at IS NULL OR status_payment_id = 2)',
+            ])),
         ];
 
         $chart1 = new LaravelChart($settings1);
@@ -65,6 +68,7 @@ class HomeController extends Controller
             'type_booking:id,name'
         ])
             ->when($teamId, fn($query) => $query->where('team_id', $teamId))
+            ->operational()
             ->latest()
             ->take(10)
             ->get();
@@ -150,7 +154,11 @@ class HomeController extends Controller
                 }),
         ];
         // dd($settings3);
-        $booking = \App\Models\Booking::with('booking_items', 'booking_items.season:id,name', 'status_payment:id,name')->latest()->take(10)->get();
+        $booking = \App\Models\Booking::with('booking_items', 'booking_items.season:id,name', 'status_payment:id,name')
+            ->operational()
+            ->latest()
+            ->take(10)
+            ->get();
         $settings4 = [
             'chart_title'           => 'Booking Status',
             // 'chart_type'            => 'latest_entries',
@@ -234,6 +242,7 @@ class HomeController extends Controller
             ->selectRaw('promotion_id, COUNT(*) as usage_count')
             ->whereNotNull('promotion_id')
             ->when($teamId, fn($query) => $query->where('team_id', $teamId))
+            ->whereHas('booking', fn($query) => $query->operational())
             ->groupBy('promotion_id')
             ->pluck('usage_count', 'promotion_id');
 
@@ -267,7 +276,8 @@ class HomeController extends Controller
             ->selectRaw('discount_id, COUNT(*) as usage_count')
             ->whereNotNull('discount_id')
             ->whereHas('booking_discount.booking', function ($query) use ($teamId) {
-                $query->when($teamId, fn($sub) => $sub->where('team_id', $teamId));
+                $query->when($teamId, fn($sub) => $sub->where('team_id', $teamId))
+                    ->operational();
             })
             ->groupBy('discount_id')
             ->pluck('usage_count', 'discount_id');
@@ -276,6 +286,7 @@ class HomeController extends Controller
             ->selectRaw('discount_id, COUNT(*) as usage_count')
             ->whereNotNull('discount_id')
             ->when($teamId, fn($query) => $query->where('team_id', $teamId))
+            ->whereHas('booking', fn($query) => $query->operational())
             ->groupBy('discount_id')
             ->pluck('usage_count', 'discount_id');
 

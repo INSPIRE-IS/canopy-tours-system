@@ -328,6 +328,7 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['auth', 'v
     Route::post('bookings/cancel-slot', [BookingsController::class, 'cancelSlot'])->name('bookings.cancel-slot');
     Route::post('bookings/update-timeslot', [BookingsController::class, 'updateTimeslot'])->name('bookings.update-timeslot');
     Route::post('bookings/{booking}/reinstate', [BookingsController::class, 'reinstate'])->name('bookings.reinstate');
+    Route::post('bookings/{booking}/restore-expired', [BookingsController::class, 'restoreExpired'])->name('bookings.restore-expired');
     // Route::get('bookings/cancel-booking/{booking}', [BookingsController::class, 'cancelBooking'])->name('bookings.cancel-booking');
     Route::resource('bookings', BookingsController::class)->withTrashed(['show', 'edit']);
 

@@ -144,10 +144,38 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
             router.post(route('admin.bookings.reinstate', confirmAction.booking.id), {
                 force_capacity_override: !!confirmAction.forceCapacityOverride,
             }, {
-                onSuccess: () => {
+                onSuccess: (page) => {
                     setConfirmAction(null);
                     setConfirmOpen(false);
                     setSelectedBooking(null);
+
+                    if (page.props?.flash?.error) {
+                        return;
+                    }
+
+                    setShowCancelledBookings(false);
+                    router.visit(route('admin.bookings.index'));
+                },
+                onError: () => {
+                    setConfirmAction(null);
+                    setConfirmOpen(false);
+                    setSelectedBooking(null);
+                }
+            });
+            return;
+        }
+
+        if (confirmAction.type === 'restore_expired') {
+            router.post(route('admin.bookings.restore-expired', confirmAction.booking.id), {}, {
+                onSuccess: (page) => {
+                    setConfirmAction(null);
+                    setConfirmOpen(false);
+                    setSelectedBooking(null);
+
+                    if (page.props?.flash?.error) {
+                        return;
+                    }
+
                     setShowCancelledBookings(false);
                     router.visit(route('admin.bookings.index'));
                 },
@@ -300,6 +328,11 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
             setConfirmOpen(true);
             setSelectedBooking(booking);
             setConfirmAction(buildReinstateAction(booking));
+        }
+        if (tool === 'restore_expired_booking') {
+            setConfirmOpen(true);
+            setSelectedBooking(booking);
+            setConfirmAction({ type: 'restore_expired', booking });
         }
     };
 
@@ -760,11 +793,14 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                 totalPaid: 0,
                 totalDue: 0,
                 cancelledCount: 0,
+                expiredCount: 0,
                 bookings: [],
             };
 
             if (item.is_cancelled) {
                 existing.cancelledCount += 1;
+            } else if (item.is_payment_expired) {
+                existing.expiredCount += 1;
             } else {
                 existing.totalPax += Number(item.bookingPax || 0);
                 existing.totalPrice += Number(item.price || 0);
@@ -802,6 +838,7 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                         totalPaid: 0,
                         totalDue: 0,
                         cancelledCount: 0,
+                        expiredCount: 0,
                         bookings: [],
                     });
                 });
@@ -811,7 +848,10 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
         const rows = Array.from(grouped.values())
             .filter((row) => (isSearchActive ? row.bookings.length > 0 : showEmptySlots || row.bookings.length > 0));
         rows.forEach((row) => {
-            row.bookings.sort((a, b) => Number(!!a.is_cancelled) - Number(!!b.is_cancelled));
+            row.bookings.sort((a, b) => {
+                const inactiveRank = (booking) => booking.is_cancelled ? 2 : booking.is_payment_expired ? 1 : 0;
+                return inactiveRank(a) - inactiveRank(b);
+            });
         });
         rows.sort((a, b) => {
             const aDate = a.booking_date || '';
@@ -887,12 +927,31 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
         );
     };
 
+    const resetBookingFilters = () => {
+        sessionStorage.removeItem('bookings.selectedServiceId');
+        setSelectedServiceId('0');
+        setSearchQuery('');
+        setSearchOpen(false);
+        setShowServices(false);
+    };
+
     const handleTodayClick = () => {
-        // "Today" should reset the UI into a consistent state regardless of current view.
+        [
+            'bookings.selectedDate',
+            'bookings.rangeStart',
+            'bookings.rangeEnd',
+            'bookings.viewMode',
+            'bookings.selectedServiceId',
+            'bookings.showEmptySlots',
+        ].forEach((key) => sessionStorage.removeItem(key));
+
+        // "Today" is the reliable escape hatch from stale browser-specific view state.
         setViewMode(VIEW_MODES.DAY);
         setSelectedDate(today);
         setRangeStart(today);
         setRangeEnd(today);
+        setShowEmptySlots(false);
+        resetBookingFilters();
     };
 
     const handleCloseModal = () => {
@@ -1032,7 +1091,7 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                                 <img src="/assets/icons/task-square.svg" alt="bookings" className="w-5 h-5" />
                                 <span className="font-semibold text-lg text-gray-800 block text-start">Bookings</span>
                             </span>
-                            <span className="flex gap-2">
+                            <span className="flex flex-wrap items-end gap-2">
 
                                 {viewMode === VIEW_MODES.DAY && (
                                     <div className="w-[200px]">
@@ -1086,7 +1145,7 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                                         checked={showCancelledBookings}
                                         onChange={(e) => handleShowCancelledChange(e.target.checked)}
                                     />
-                                    Show cancelled bookings
+                                    Show cancelled / expired bookings
                                 </label>
 
                                 <div className="relative" ref={servicesRef}>
@@ -1107,6 +1166,14 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                                         </div>
                                     )}
                                 </div>
+
+                                <button
+                                    type="button"
+                                    onClick={resetBookingFilters}
+                                    className="flex items-center w-auto h-[40px] px-4 py-2 rounded-[10px] border-[3px] border-primary-14 text-primary-14 cursor-pointer"
+                                >
+                                    <span className="text-btn-outline-gray">Reset filters</span>
+                                </button>
 
                                 <div className="relative" ref={searchRef}>
                                     <div className="flex items-center w-[280px] h-[40px] gap-2 px-4 py-2 rounded-[10px] border-[3px] border-primary-14 text-primary-14 bg-white hover:border-black focus-within:border-black">
@@ -1266,6 +1333,11 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                                                                 {row.cancelledCount} cancelled
                                                             </span>
                                                         )}
+                                                        {row.expiredCount > 0 && (
+                                                            <span className="mt-1 inline-flex items-center rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-700">
+                                                                {row.expiredCount} payment expired
+                                                            </span>
+                                                        )}
                                                     </td>
                                                     <td className="w-[268px] p-3">
                                                         <div className="flex flex-wrap items-center gap-2">
@@ -1325,7 +1397,7 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                                                         <>
                                                             {row.bookings.map((booking, index) => (
                                                                 <React.Fragment key={`${row.key}-${index}`}>
-                                                                    <tr className={booking.is_cancelled ? 'bg-amber-50' : 'bg-gray-50'}>
+                                                                    <tr className={booking.is_cancelled ? 'bg-amber-50' : booking.is_payment_expired ? 'bg-orange-50' : 'bg-gray-50'}>
                                                                         <td className="w-[164px] p-3">
                                                                             <Link
                                                                                 href={route('admin.bookings.add', {
@@ -1339,6 +1411,11 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                                                                             {booking.is_cancelled && (
                                                                                 <span className="ml-2 inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
                                                                                     Cancelled
+                                                                                </span>
+                                                                            )}
+                                                                            {booking.is_payment_expired && (
+                                                                                <span className="ml-2 inline-flex items-center rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-700">
+                                                                                    Payment expired
                                                                                 </span>
                                                                             )}
                                                                         </td>
@@ -1423,7 +1500,7 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                                                                         </td>
                                                                     </tr>
                                                                     {booking.rate_breakdown && (
-                                                                        <tr className={booking.is_cancelled ? 'bg-amber-50' : 'bg-gray-50'}>
+                                                                        <tr className={booking.is_cancelled ? 'bg-amber-50' : booking.is_payment_expired ? 'bg-orange-50' : 'bg-gray-50'}>
                                                                             <td colSpan={7} className="px-3 pb-4 pt-0">
                                                                                 <div className="rounded-2xl border border-gray-200 bg-white p-3 shadow-sm">
                                                                                     <BookingRateBreakdown breakdown={booking.rate_breakdown} compact />
@@ -1496,23 +1573,32 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                         position={customerToolsTarget.position}
                         onClose={() => setCustomerToolsTarget(null)}
                         CustomerToolClick={(tool, _index, booking, customer) => CustomerToolClick(tool, booking, customer)}
+                        allowedTools={customerToolsTarget.booking?.is_payment_expired ? ['booking_notes'] : null}
                     />
                 )}
 
                 {confirmOpen && (
                     <ConfirmModal
-                        title={confirmAction?.type === 'reinstate'
+                        title={confirmAction?.type === 'restore_expired'
+                            ? 'Restore expired booking?'
+                            : confirmAction?.type === 'reinstate'
                             ? 'Reinstate this booking?'
                             : confirmAction?.type === 'slot'
                                 ? 'Cancel all bookings in this slot?'
                                 : 'Cancel this booking?'}
-                        message={confirmAction?.type === 'reinstate'
+                        message={confirmAction?.type === 'restore_expired'
+                            ? 'The system will recheck the original activity date and capacity. If restored, this booking becomes staff-managed and will not expire automatically again.'
+                            : confirmAction?.type === 'reinstate'
                             ? (confirmAction.capacityWarning || 'This will restore the cancelled booking if the time slot still has enough capacity.')
                             : confirmAction?.type === 'slot'
                                 ? 'This will cancel all bookings for this date, time slot, and service.'
                                 : 'This action can be reversed later by showing cancelled bookings and reinstating the booking.'}
-                        confirmText={confirmAction?.type === 'reinstate' ? 'Yes, reinstate' : 'Yes, cancel'}
-                        cancelText={confirmAction?.type === 'reinstate' ? 'Keep Cancelled' : 'Keep Booking'}
+                        confirmText={confirmAction?.type === 'restore_expired'
+                            ? 'Yes, restore'
+                            : confirmAction?.type === 'reinstate' ? 'Yes, reinstate' : 'Yes, cancel'}
+                        cancelText={confirmAction?.type === 'restore_expired'
+                            ? 'Keep Expired'
+                            : confirmAction?.type === 'reinstate' ? 'Keep Cancelled' : 'Keep Booking'}
                         requireConfirmationCheckbox={!!confirmAction?.forceCapacityOverride}
                         confirmationLabel="I understand this reinstate will exceed the current slot capacity and want to override it."
                         onConfirm={handleConfirmCancel}
