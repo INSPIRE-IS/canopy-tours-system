@@ -249,8 +249,11 @@ class ServiceCalendarBuilder
             );
 
             foreach ($daySlots as &$slot) {
-                // If the slot is full, it's always "allowed"
-                if ($slot['info']['status'] === 'full') {
+                // Only genuinely available slots consume the funnel quota.
+                // Full slots are skipped so the next slot can open for the
+                // requested pax. Closeouts, cutoffs, and other unavailable
+                // states must also be skipped without hiding later capacity.
+                if (($slot['info']['status'] ?? null) !== 'available') {
                     continue;
                 }
 

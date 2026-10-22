@@ -10,6 +10,13 @@ use Illuminate\Validation\Rule;
 
 class StoreInventoryRequest extends FormRequest
 {
+    protected function prepareForValidation(): void
+    {
+        if (! $this->boolean('allow_slot_funneling')) {
+            $this->merge(['slot_funneling' => 0]);
+        }
+    }
+
     /**
      * Determine if the user is authorized to make this request.
      */

@@ -27,7 +27,8 @@ test('public booking help documents the two stage expiry lifecycle', function ()
     expect($article)
         ->not->toBeEmpty()
         ->and($article['business_rules'])->toContain('15 minutes')
-        ->and($article['business_rules'])->toContain('3 hours')
+        ->and($article['business_rules'])->toContain('configured per site in hours')
+        ->and($article['business_rules'])->toContain('A value of 0 means unpaid frontend bookings never expire automatically')
         ->and($article['business_rules'])->toContain('does not create a customer, booking, invoice, or payment record');
 });
 
