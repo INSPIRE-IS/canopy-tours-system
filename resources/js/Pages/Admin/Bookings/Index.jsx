@@ -173,6 +173,7 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                     setSelectedBooking(null);
 
                     if (page.props?.flash?.error) {
+                        showToast(page.props.flash.error, 'error');
                         return;
                     }
 
@@ -325,11 +326,13 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
             setConfirmAction({ type: 'slot', booking });
         }
         if (tool === 'reinstate_booking') {
+            setBookingToolsTarget(null);
             setConfirmOpen(true);
             setSelectedBooking(booking);
             setConfirmAction(buildReinstateAction(booking));
         }
         if (tool === 'restore_expired_booking') {
+            setBookingToolsTarget(null);
             setConfirmOpen(true);
             setSelectedBooking(booking);
             setConfirmAction({ type: 'restore_expired', booking });
@@ -1485,6 +1488,19 @@ export default function Dashboard({ auth, bookings, activities, lookups, service
                                                                                         )}
                                                                                     </div>
                                                                                 </div>
+                                                                                {(booking.is_payment_expired || booking.is_cancelled) && (
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        onClick={(e) => openBookingToolsModal(e, {
+                                                                                            ...booking,
+                                                                                            active_slot_pax: row.totalPax,
+                                                                                            maxPax: row.maxPax,
+                                                                                        })}
+                                                                                        className="btn-tool"
+                                                                                    >
+                                                                                        {icons.tools} Booking Tools
+                                                                                    </button>
+                                                                                )}
                                                                                 <button
                                                                                     type="button"
                                                                                     onClick={(e) => openCustomerToolsModal(e, {
