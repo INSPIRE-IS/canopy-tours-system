@@ -13,7 +13,12 @@ use Illuminate\Support\Facades\Storage;
 
 class ExpireUnpaidFrontendBookings extends Command
 {
-    protected $signature = 'bookings:expire-unpaid-front
+    // This command is intended to be run from the console, and it 
+    // will expire unpaid public frontend provisional bookings so that 
+    // abandoned carts release capacity. It can be run with the following command:
+    // use the --force option to actually expire bookings. Without this option, the command will perform a dry run and report what would be expired without making any changes.
+    // php artisan bookings:expire-unpaid-front  --force
+    protected $signature = 'bookings:expire-unpaid-front 
         {--hours= : Override hold window in hours. By default each team uses its admin site setting, falling back to 3 hours}
         {--team= : Optional team id}
         {--force : Actually expire bookings. Without this option the command is a dry run}';
@@ -129,13 +134,15 @@ class ExpireUnpaidFrontendBookings extends Command
         DB::transaction(function () use ($booking, $hours, $holdFrom, $expiresAt) {
             $booking = Booking::query()->lockForUpdate()->findOrFail($booking->id);
 
-            if ((int) $booking->status_payment_id !== 1
+            if (
+                (int) $booking->status_payment_id !== 1
                 || (float) $booking->tot_paid > 0
                 || $booking->payment_window_expired_at !== null
                 || $booking->payment_window_restored_at !== null
                 || $booking->session_id === null
                 || $booking->user_id !== null
-                || $booking->booking_payments()->where('status_payment_id', 2)->exists()) {
+                || $booking->booking_payments()->where('status_payment_id', 2)->exists()
+            ) {
                 return;
             }
 

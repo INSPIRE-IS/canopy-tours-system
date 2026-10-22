@@ -191,16 +191,25 @@ it('blocks restoration when active bookings already consume the remaining capaci
         ->and($booking->updated_by_id)->toBeNull();
 });
 
-it('blocks restoration after the activity date has passed', function () {
+it('allows authorised staff to restore after the activity date has passed and audits the user', function () {
     $fixture = createExpiredRestoreFixture();
     $bookingId = createRestoreTestBooking($fixture, 'REF-PAST', 2, '2032-04-09', true);
 
     $this->actingAs($fixture['user'])
         ->post(route('admin.bookings.restore-expired', $bookingId))
         ->assertRedirect()
-        ->assertSessionHas('error', 'This booking cannot be restored because its activity date has passed.');
+        ->assertSessionHas('success');
 
-    expect(Booking::query()->findOrFail($bookingId)->payment_window_expired_at)->not->toBeNull();
+    $booking = Booking::query()->findOrFail($bookingId);
+    expect($booking->payment_window_expired_at)->toBeNull()
+        ->and($booking->payment_window_restored_at)->not->toBeNull()
+        ->and($booking->updated_by_id)->toBe($fixture['user']->id)
+        ->and(DB::table('audit_logs')
+            ->where('subject_type', Booking::class)
+            ->where('subject_id', $bookingId)
+            ->where('description', 'Expired booking restored by staff')
+            ->where('user_id', $fixture['user']->id)
+            ->exists())->toBeTrue();
 });
 
 it('requires booking edit permission to restore an expired booking', function () {

@@ -4706,13 +4706,6 @@ class BookingsController extends Controller
                         ]);
                     }
 
-                    if (Carbon::parse($bookingDate, 'Africa/Johannesburg')->startOfDay()
-                        ->lt(now('Africa/Johannesburg')->startOfDay())) {
-                        throw ValidationException::withMessages([
-                            'booking' => 'This booking cannot be restored because its activity date has passed.',
-                        ]);
-                    }
-
                     $this->validateSlotCapacity(
                         $item->service,
                         $bookingDate,

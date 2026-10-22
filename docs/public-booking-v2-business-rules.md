@@ -20,7 +20,7 @@ Read this before changing the public booking checkout, holds, public extras, Pay
 - The short checkout hold starts before customer details are persisted. Its duration comes from the site setting and is normally 15 minutes.
 - Checkout holds are enabled by default for newly created sites. Existing site values are not changed automatically.
 - The provisional payment window is configured per site (default three hours) and starts from the latest PayFast submit log, or from booking creation if PayFast was never opened.
-- Expired provisional bookings do not consume operational capacity. Staff restoration has no over-capacity override and is blocked once the activity date has passed.
+- Expired provisional bookings do not consume operational capacity. Staff restoration has no over-capacity override, but authorised staff may restore a past activity when correcting records; the restoring user is retained in the booking and audit log.
 - These timers serve different stages and must not be combined: the short hold protects Checkout capacity; the longer window protects an existing provisional booking while PayFast is in progress.
 - A paid booking always consumes capacity, including one paid after its provisional window expired.
 - A late successful payment is never discarded. It creates a staff alert requiring capacity review because the expired space may have been sold again.
