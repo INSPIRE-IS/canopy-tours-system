@@ -5105,11 +5105,7 @@ class BookingsController extends Controller
             ->latest('id')
             ->first();
 
-        if (!$file?->path || !Storage::disk('public')->exists($file->path)) {
-            return null;
-        }
-
-        return Storage::disk('public')->path($file->path);
+        return $this->publicStoragePath($file);
     }
 
     private function latestBoardingPassPdfPath(BookingItem $bookingItem): ?string
@@ -5120,11 +5116,19 @@ class BookingsController extends Controller
             ->latest('id')
             ->first();
 
-        if (!$file?->path || !Storage::disk('public')->exists($file->path)) {
+        return $this->publicStoragePath($file);
+    }
+
+    private function publicStoragePath(?File $file): ?string
+    {
+        // File::path is presented as a public URL; storage operations need the persisted relative path.
+        $relativePath = $file?->getRawOriginal('path');
+
+        if (!$relativePath || !Storage::disk('public')->exists($relativePath)) {
             return null;
         }
 
-        return Storage::disk('public')->path($file->path);
+        return Storage::disk('public')->path($relativePath);
     }
 
     private function assertBookingBelongsToTeam(Booking $booking): void
