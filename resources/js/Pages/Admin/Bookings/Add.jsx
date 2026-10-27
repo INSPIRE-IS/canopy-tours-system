@@ -585,7 +585,7 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                             }}
                         />
 
-                        {permissions?.bookings_edit && (
+                        {false && permissions?.bookings_edit && (
                             <WhiteButton
                                 type="button"
                                 title={regeneratingBoardingPass ? "Regenerating..." : "Regenerate Pass"}
