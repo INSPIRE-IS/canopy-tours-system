@@ -5022,6 +5022,94 @@ class BookingsController extends Controller
         return redirect()->back()->with('success', 'Message sent');
     }
 
+    public function regenerateBoardingPass(Request $request, Booking $booking)
+    {
+        abort_if(Gate::denies('bookings_edit'), Response::HTTP_FORBIDDEN, '403 Forbidden');
+        $this->assertBookingBelongsToTeam($booking);
+
+        $validated = $request->validate([
+            'booking_item_id' => ['required', 'integer', 'exists:booking_items,id'],
+        ]);
+
+        $bookingItem = BookingItem::with([
+            'booking.team.file_logo',
+            'service',
+            'customers',
+            'booking_inventory.inventory_time_slot',
+            'booking_inventory.inventory_type_day.type_day',
+            'booking_fee',
+        ])
+            ->whereKey($validated['booking_item_id'])
+            ->where('booking_id', $booking->id)
+            ->where('team_id', auth()->user()->team_id)
+            ->firstOrFail();
+
+        $dir = "pass/{$bookingItem->id}";
+        $path = "{$dir}/boarding_pass_{$bookingItem->id}.pdf";
+        $temporaryPath = "{$dir}/.boarding_pass_{$bookingItem->id}_" . Str::uuid() . '.pdf';
+        $disk = Storage::disk('public');
+
+        try {
+            $passData = $this->getPassDetails($bookingItem);
+            $html = view('pdfs.boarding-pass', ['data' => $passData])->render();
+            $disk->makeDirectory($dir);
+
+            $shot = Browsershot::html($html);
+            $chromePath = config('browsershot.chrome_path');
+            if (!empty($chromePath)) {
+                $shot->setChromePath($chromePath);
+            }
+
+            $shot->format('A4')
+                ->showBackground()
+                ->margins(0, 0, 0, 0)
+                ->scale(1.0)
+                ->timeout(60000)
+                ->save($disk->path($temporaryPath));
+
+            if (!$disk->exists($temporaryPath) || !$disk->put($path, $disk->get($temporaryPath))) {
+                throw new \RuntimeException('The regenerated boarding-pass PDF could not be stored.');
+            }
+
+            $file = File::withTrashed()
+                ->where('booking_id', $booking->id)
+                ->where('table_name', 'BookingItem')
+                ->where('table_row_id', $bookingItem->id)
+                ->where('type_file_id', 6)
+                ->latest('id')
+                ->first() ?? new File();
+
+            $file->fill([
+                'team_id' => $bookingItem->team_id,
+                'table_name' => 'BookingItem',
+                'table_row_id' => $bookingItem->id,
+                'file_name' => basename($path),
+                'file_type' => 'application/pdf',
+                'type_file_id' => 6,
+                'path' => $path,
+                'booking_id' => $booking->id,
+            ]);
+            $file->deleted_at = null;
+            $file->save();
+
+            $this->logAudit('Boarding pass regenerated', $booking, $bookingItem, [
+                'path' => $path,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Boarding pass regeneration failed', [
+                'booking_id' => $booking->id,
+                'booking_item_id' => $bookingItem->id,
+                'message' => $e->getMessage(),
+            ]);
+
+            return back()->with('error', 'The boarding pass could not be regenerated. Please try again or check the server logs.');
+        } finally {
+            $disk->delete($temporaryPath);
+        }
+
+        return back()->with('success', 'Boarding pass regenerated.');
+    }
+
     public function guestLinks(Request $request, Booking $booking)
     {
         $this->assertBookingBelongsToTeam($booking);
