@@ -1,10 +1,12 @@
 <?php
 
 $envPath = env('BROWSERSHOT_CHROME_PATH');
+$adminBookingBoardingPassEnabled = env('BROWSERSHOT_ADMIN_BOOKING_PASS_ENABLED', false);
 
 if (!empty($envPath)) {
     return [
         'chrome_path' => $envPath,
+        'admin_booking_boarding_pass_enabled' => $adminBookingBoardingPassEnabled,
     ];
 }
 
@@ -42,4 +44,5 @@ foreach ($candidates as $candidate) {
 
 return [
     'chrome_path' => $resolved,
+    'admin_booking_boarding_pass_enabled' => $adminBookingBoardingPassEnabled,
 ];
