@@ -321,6 +321,7 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['auth', 'v
     Route::post('/bookings/calculate-price', [BookingsController::class, 'calculate'])->name('booking.calculate');
     Route::post('/bookings/send-email', [BookingsController::class, 'sendEmail'])->name('bookings.send-email');
     Route::get('/bookings/{booking}/guest-links', [BookingsController::class, 'guestLinks'])->withTrashed()->name('bookings.guest-links');
+    Route::post('/bookings/{booking}/boarding-pass/regenerate', [BookingsController::class, 'regenerateBoardingPass'])->name('bookings.boarding-pass.regenerate');
     Route::get('bookings/add/{booking}', [BookingsController::class, 'add'])->withTrashed()->name('bookings.add');
     Route::put('bookings/{booking}/lead-contact', [BookingsController::class, 'updateLeadContact'])->withTrashed()->name('bookings.lead-contact.update');
     Route::post('bookings/notes', [BookingsController::class, 'addNote'])->name('bookings.notes.store');

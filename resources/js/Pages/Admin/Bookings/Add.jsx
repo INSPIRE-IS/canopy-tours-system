@@ -29,6 +29,7 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
     // console.log("staff", staff);
     const { props } = usePage();
     const { flash } = props;
+    const permissions = props.permissions || {};
     const { showToast } = useToast();
     const [toggleCustomer, setToggleCustomer] = useState(true);
     const [toggleManifest, setToggleManifest] = useState(true);
@@ -57,6 +58,7 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
     const [noteLimit, setNoteLimit] = useState(5);
     const [auditLogLimit, setAuditLogLimit] = useState(5);
     const [emailTypeFilter, setEmailTypeFilter] = useState('all');
+    const [regeneratingBoardingPass, setRegeneratingBoardingPass] = useState(false);
     const [attendanceOverrides, setAttendanceOverrides] = useState({});
     const commentsRef = useRef(null);
 
@@ -105,6 +107,20 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
     const headerDateTime = headerSlotTime ? `${headerBookingDate} ${String(headerSlotTime).slice(0, 5)}` : headerBookingDate;
     const isPaymentExpiredBooking = Boolean(booking?.payment_window_expired_at && Number(booking?.status_payment_id) !== 2);
     const isCancelledBooking = Boolean(booking?.deleted_at || bookingItem?.deleted_at || isPaymentExpiredBooking);
+
+    const regenerateBoardingPass = () => {
+        if (!booking?.id || !bookingItem?.id || regeneratingBoardingPass) return;
+
+        setRegeneratingBoardingPass(true);
+        router.post(route('admin.bookings.boarding-pass.regenerate', { booking: booking.id }), {
+            booking_item_id: bookingItem.id,
+        }, {
+            preserveScroll: true,
+            onError: () => showToast('The boarding pass could not be regenerated.', 'error'),
+            onFinish: () => setRegeneratingBoardingPass(false),
+        });
+    };
+
     useEffect(() => {
         if (flash?.success) {
             showToast(flash.success, "success");
@@ -563,9 +579,26 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                                     window.open(route('admin.details.download', { booking: booking.id }), '_blank', 'noopener,noreferrer');
                                     return;
                                 }
-                                window.open(passFile.path, '_blank', 'noopener,noreferrer');
+                                const separator = passFile.path.includes('?') ? '&' : '?';
+                                const version = encodeURIComponent(passFile.updated_at || passFile.id);
+                                window.open(`${passFile.path}${separator}v=${version}`, '_blank', 'noopener,noreferrer');
                             }}
                         />
+
+                        {false && permissions?.bookings_edit && (
+                            <WhiteButton
+                                type="button"
+                                title={regeneratingBoardingPass ? "Regenerating..." : "Regenerate Pass"}
+                                icon={true}
+                                iconName={icons.resend_invoice}
+                                textColor="text-[#4D81E7]"
+                                width="w-[158.8px]"
+                                height="h-[31px]"
+                                className="mt-4"
+                                disabled={isCancelledBooking || regeneratingBoardingPass}
+                                onClick={regenerateBoardingPass}
+                            />
+                        )}
 
                         {/* 
                         <WhiteButton

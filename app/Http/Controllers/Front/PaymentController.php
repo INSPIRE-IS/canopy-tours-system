@@ -39,6 +39,7 @@ use App\Services\RendererService;
 use App\Services\PayfastService;
 use App\Services\EmailDispatchService;
 use App\Services\PurchaseAnalyticsService;
+use App\Support\PayfastLogSanitizer;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\URL;
@@ -357,16 +358,6 @@ class PaymentController extends Controller
         $passphrase = $this->payfastPassphrase($config);
         $data['signature'] = $payfast->generateSignature($data, $passphrase);
 
-        $this->logPayfastSubmitDebug(
-            'booking',
-            $booking->id,
-            $booking->team_id,
-            $config,
-            $data,
-            $signedAccess,
-            $payfast->generateSignatureString($data, $passphrase, maskPassphrase: true),
-            $passphrase
-        );
         $this->logPayfastEvent('submit', $data, null, $this->resolvePayfastGatewayId(), $booking->team_id, $booking->id, null);
 
         return view('payfast.redirect', [
@@ -416,16 +407,6 @@ class PaymentController extends Controller
         $data['signature'] = $payfast->generateSignature($data, $passphrase);
 
         $teamId = $this->resolveGiftTeamId($gift);
-        $this->logPayfastSubmitDebug(
-            'gift',
-            $gift->id,
-            $teamId,
-            $config,
-            $data,
-            false,
-            $payfast->generateSignatureString($data, $passphrase, maskPassphrase: true),
-            $passphrase
-        );
         $this->logPayfastEvent('submit', $data, null, $this->resolvePayfastGatewayId(), $teamId, null, $gift->id);
 
         return view('payfast.redirect', [
@@ -1120,101 +1101,13 @@ class PaymentController extends Controller
             'amount_gross' => $payload['amount_gross'] ?? ($payload['amount'] ?? null),
             'signature_valid' => $signatureValid,
             'ip_address' => request()->ip(),
-            'payload' => $payload,
+            'payload' => PayfastLogSanitizer::sanitize($payload),
             'message' => $message,
             'gateway_id' => $gatewayId,
             'team_id' => $teamId,
             'booking_id' => $bookingId,
             'gift_voucher_id' => $voucherId,
         ]);
-    }
-
-    private function logPayfastSubmitDebug(
-        string $type,
-        int $recordId,
-        ?int $teamId,
-        array $config,
-        array $payload,
-        bool $signedAccess,
-        ?string $signatureString = null,
-        ?string $effectivePassphrase = null
-    ): void
-    {
-        $passphrase = (string) ($effectivePassphrase ?? '');
-
-        Log::info('PayFast submit debug', [
-            'type' => $type,
-            'record_id' => $recordId,
-            'team_id' => $teamId,
-            'signed_access' => $signedAccess,
-            'enabled' => (bool) ($config['enabled'] ?? false),
-            'source' => $config['source'] ?? null,
-            'is_sandbox' => (bool) ($config['is_sandbox'] ?? false),
-            'endpoint_host' => $this->urlHost($config['endpoint_url'] ?? null),
-            'return_host' => $this->urlHost($payload['return_url'] ?? null),
-            'cancel_host' => $this->urlHost($payload['cancel_url'] ?? null),
-            'notify_host' => $this->urlHost($payload['notify_url'] ?? null),
-            'merchant_id' => $this->maskedValue($payload['merchant_id'] ?? null),
-            'merchant_key' => $this->maskedValue($payload['merchant_key'] ?? null),
-            'passphrase_set' => $passphrase !== '',
-            'passphrase_length' => strlen($passphrase),
-            'passphrase_has_edge_whitespace' => $passphrase !== trim($passphrase),
-            'passphrase_blank_after_trim' => trim($passphrase) === '',
-            'amount' => $payload['amount'] ?? null,
-            'm_payment_id' => $payload['m_payment_id'] ?? null,
-            'custom_str1' => $payload['custom_str1'] ?? null,
-            'custom_str2' => $payload['custom_str2'] ?? null,
-            'payload_keys' => array_keys($payload),
-            'signature' => $payload['signature'] ?? null,
-            'signature_string_preview' => $this->payfastSignatureStringPreview($payload, $passphrase),
-            'signature_string_exact' => $signatureString,
-        ]);
-    }
-
-    private function payfastSignatureStringPreview(array $payload, ?string $passphrase): string
-    {
-        unset($payload['signature']);
-
-        $pairs = [];
-        foreach ($payload as $key => $value) {
-            if ($value === null || $value === '') {
-                continue;
-            }
-
-            $displayValue = match ($key) {
-                'merchant_key' => '[masked]',
-                'email_address' => $this->maskedValue($value),
-                default => (string) $value,
-            };
-
-            $pairs[] = $key . '=' . urlencode(trim((string) $displayValue));
-        }
-
-        if ($passphrase !== null && $passphrase !== '') {
-            $pairs[] = 'passphrase=[set len=' . strlen($passphrase) . ']';
-        }
-
-        return implode('&', $pairs);
-    }
-
-    private function maskedValue($value): ?string
-    {
-        if ($value === null || $value === '') {
-            return null;
-        }
-
-        $value = (string) $value;
-
-        return substr($value, 0, 4) . '...' . ' len=' . strlen($value);
-    }
-
-    private function urlHost(?string $url): ?string
-    {
-        if (!$url) {
-            return null;
-        }
-
-        return parse_url($url, PHP_URL_HOST) ?: $url;
     }
 
     private function normalizePayfastData(array $data): array

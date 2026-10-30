@@ -1533,27 +1533,18 @@ class BookingsController extends Controller
                 $fileName = "{$dir}/boarding_pass_{$bookingItem->id}.pdf";
                 $disk = Storage::disk('public');
                 $fullPath = $disk->path($fileName);
-                if (!$disk->exists($fileName)) {
+                $boardingPassAvailable = $disk->exists($fileName);
+                if (!$boardingPassAvailable) {
                     $disk->makeDirectory($dir);
-                    $chromePath = config('browsershot.chrome_path');
-                    if (empty($chromePath)) {
-                        Log::warning('Browsershot chrome path not resolved; using default detection.', [
-                            'env_path' => env('BROWSERSHOT_CHROME_PATH'),
-                        ]);
-                    }
-                    $shot = Browsershot::html($html);
-                    if (!empty($chromePath)) {
-                        $shot->setChromePath($chromePath);
-                    }
-                    $shot->format('A4')
-                        ->showBackground()
-                        ->margins(0, 0, 0, 0)
-                        ->scale(1.0)
-                        ->timeout(60000)
-                        ->save($fullPath);
+                    $boardingPassAvailable = $this->tryGenerateBoardingPassPdf(
+                        $html,
+                        $fullPath,
+                        $booking,
+                        $bookingItem
+                    );
                 }
 
-                if ($autoSendInvoice) {
+                if ($autoSendInvoice && $boardingPassAvailable) {
                     Email::create([
                         'sender'         => config('mail.from.address'),
                         'receiver'       => $customer->email_address,
@@ -1572,28 +1563,32 @@ class BookingsController extends Controller
                         'attachment' => $fileName,
                     ]);
                 }
-                File::create([
-                    'team_id'      => $bookingItem->team_id,
-                    'table_name'   => 'BookingItem',
-                    'table_row_id' => $bookingItem->id,
-                    'file_name'    =>  $fileName,
-                    'file_type'    => "application/pdf",
-                    'type_file_id' => 6,
-                    'path'         => $fileName,
-                    'booking_id'   => $booking->id,
-                ]);
+                if ($boardingPassAvailable) {
+                    File::create([
+                        'team_id'      => $bookingItem->team_id,
+                        'table_name'   => 'BookingItem',
+                        'table_row_id' => $bookingItem->id,
+                        'file_name'    =>  $fileName,
+                        'file_type'    => "application/pdf",
+                        'type_file_id' => 6,
+                        'path'         => $fileName,
+                        'booking_id'   => $booking->id,
+                    ]);
+                }
                 $attachments = [
                     [
                         'data' => $invoicePdf->output(),
                         'name' => "{$documentLabelLower}-{$data['invoice']['number']}.pdf",
                         'mime' => 'application/pdf',
                     ],
-                    [
+                ];
+                if ($boardingPassAvailable) {
+                    $attachments[] = [
                         'data' => file_get_contents($fullPath),
                         'name' => $fileName,
                         'mime' => 'application/pdf',
-                    ],
-                ];
+                    ];
+                }
                 // //send mail
                 $messageData = [
                     'invoice' => [
@@ -3150,27 +3145,18 @@ class BookingsController extends Controller
                 $fileName = "{$dir}/boarding_pass_{$bookingItem->id}.pdf";
                 $disk = Storage::disk('public');
                 $fullPath = $disk->path($fileName);
-                if (!$disk->exists($fileName)) {
+                $boardingPassAvailable = $disk->exists($fileName);
+                if (!$boardingPassAvailable) {
                     $disk->makeDirectory($dir);
-                    $chromePath = config('browsershot.chrome_path');
-                    if (empty($chromePath)) {
-                        Log::warning('Browsershot chrome path not resolved; using default detection.', [
-                            'env_path' => env('BROWSERSHOT_CHROME_PATH'),
-                        ]);
-                    }
-                    $shot = Browsershot::html($html);
-                    if (!empty($chromePath)) {
-                        $shot->setChromePath($chromePath);
-                    }
-                    $shot->format('A4')
-                        ->showBackground()
-                        ->margins(0, 0, 0, 0)
-                        ->scale(1.0)
-                        ->timeout(60000)
-                        ->save($fullPath);
+                    $boardingPassAvailable = $this->tryGenerateBoardingPassPdf(
+                        $html,
+                        $fullPath,
+                        $booking,
+                        $bookingItem
+                    );
                 }
 
-                if ($autoSendInvoice) {
+                if ($autoSendInvoice && $boardingPassAvailable) {
                     Email::create([
                         'sender'         => config('mail.from.address'),
                         'receiver'       => $customer->email_address,
@@ -3185,28 +3171,32 @@ class BookingsController extends Controller
                         'team_id'        => $bookingItem->team_id,
                     ]);
                 }
-                File::create([
-                    'team_id'      => $bookingItem->team_id,
-                    'table_name'   => 'BookingItem',
-                    'table_row_id' => $bookingItem->id,
-                    'file_name'    =>  $fileName,
-                    'file_type'    => "application/pdf",
-                    'type_file_id' => 6,
-                    'path'         => $fileName,
-                    'booking_id'   => $booking->id,
-                ]);
+                if ($boardingPassAvailable) {
+                    File::create([
+                        'team_id'      => $bookingItem->team_id,
+                        'table_name'   => 'BookingItem',
+                        'table_row_id' => $bookingItem->id,
+                        'file_name'    =>  $fileName,
+                        'file_type'    => "application/pdf",
+                        'type_file_id' => 6,
+                        'path'         => $fileName,
+                        'booking_id'   => $booking->id,
+                    ]);
+                }
                 $attachments = [
                     [
                         'data' => $invoicePdf->output(),
                         'name' => "{$documentLabelLower}-{$data['invoice']['number']}.pdf",
                         'mime' => 'application/pdf',
                     ],
-                    [
+                ];
+                if ($boardingPassAvailable) {
+                    $attachments[] = [
                         'data' => file_get_contents($fullPath),
                         'name' => $fileName,
                         'mime' => 'application/pdf',
-                    ],
-                ];
+                    ];
+                }
                 $messageData = [
                     'invoice' => [
                         'number' => $booking->reference ?? 'INV-No',
@@ -3280,6 +3270,61 @@ class BookingsController extends Controller
                 'error' => 'Something went wrong while updating this booking. Please try again.',
             ])->withInput();
         }
+    }
+
+    private function tryGenerateBoardingPassPdf(
+        string $html,
+        string $fullPath,
+        Booking $booking,
+        BookingItem $bookingItem
+    ): bool {
+        if (!config('browsershot.admin_booking_boarding_pass_enabled', false)) {
+            Log::warning('Automatic admin booking boarding-pass generation is disabled; booking will continue.', [
+                'booking_id' => $booking->id,
+                'booking_item_id' => $bookingItem->id,
+            ]);
+
+            return false;
+        }
+
+        try {
+            $chromePath = config('browsershot.chrome_path');
+            if (empty($chromePath)) {
+                Log::warning('Browsershot chrome path not resolved; using default detection.', [
+                    'booking_id' => $booking->id,
+                    'booking_item_id' => $bookingItem->id,
+                ]);
+            }
+
+            $shot = Browsershot::html($html);
+            if (!empty($chromePath)) {
+                $shot->setChromePath($chromePath);
+            }
+            $shot->format('A4')
+                ->showBackground()
+                ->margins(0, 0, 0, 0)
+                ->scale(1.0)
+                ->timeout(60000)
+                ->save($fullPath);
+
+            if (is_file($fullPath)) {
+                return true;
+            }
+
+            Log::error('Boarding-pass PDF generation completed without creating a file; booking will continue.', [
+                'booking_id' => $booking->id,
+                'booking_item_id' => $bookingItem->id,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Boarding-pass PDF generation failed; booking will continue without it.', [
+                'booking_id' => $booking->id,
+                'booking_item_id' => $bookingItem->id,
+                'exception' => $e::class,
+                'message' => $e->getMessage(),
+            ]);
+        }
+
+        return false;
     }
 
     public function getPassDetails($bookingItem)
@@ -5022,6 +5067,94 @@ class BookingsController extends Controller
         return redirect()->back()->with('success', 'Message sent');
     }
 
+    public function regenerateBoardingPass(Request $request, Booking $booking)
+    {
+        abort_if(Gate::denies('bookings_edit'), Response::HTTP_FORBIDDEN, '403 Forbidden');
+        $this->assertBookingBelongsToTeam($booking);
+
+        $validated = $request->validate([
+            'booking_item_id' => ['required', 'integer', 'exists:booking_items,id'],
+        ]);
+
+        $bookingItem = BookingItem::with([
+            'booking.team.file_logo',
+            'service',
+            'customers',
+            'booking_inventory.inventory_time_slot',
+            'booking_inventory.inventory_type_day.type_day',
+            'booking_fee',
+        ])
+            ->whereKey($validated['booking_item_id'])
+            ->where('booking_id', $booking->id)
+            ->where('team_id', auth()->user()->team_id)
+            ->firstOrFail();
+
+        $dir = "pass/{$bookingItem->id}";
+        $path = "{$dir}/boarding_pass_{$bookingItem->id}.pdf";
+        $temporaryPath = "{$dir}/.boarding_pass_{$bookingItem->id}_" . Str::uuid() . '.pdf';
+        $disk = Storage::disk('public');
+
+        try {
+            $passData = $this->getPassDetails($bookingItem);
+            $html = view('pdfs.boarding-pass', ['data' => $passData])->render();
+            $disk->makeDirectory($dir);
+
+            $shot = Browsershot::html($html);
+            $chromePath = config('browsershot.chrome_path');
+            if (!empty($chromePath)) {
+                $shot->setChromePath($chromePath);
+            }
+
+            $shot->format('A4')
+                ->showBackground()
+                ->margins(0, 0, 0, 0)
+                ->scale(1.0)
+                ->timeout(60000)
+                ->save($disk->path($temporaryPath));
+
+            if (!$disk->exists($temporaryPath) || !$disk->put($path, $disk->get($temporaryPath))) {
+                throw new \RuntimeException('The regenerated boarding-pass PDF could not be stored.');
+            }
+
+            $file = File::withTrashed()
+                ->where('booking_id', $booking->id)
+                ->where('table_name', 'BookingItem')
+                ->where('table_row_id', $bookingItem->id)
+                ->where('type_file_id', 6)
+                ->latest('id')
+                ->first() ?? new File();
+
+            $file->fill([
+                'team_id' => $bookingItem->team_id,
+                'table_name' => 'BookingItem',
+                'table_row_id' => $bookingItem->id,
+                'file_name' => basename($path),
+                'file_type' => 'application/pdf',
+                'type_file_id' => 6,
+                'path' => $path,
+                'booking_id' => $booking->id,
+            ]);
+            $file->deleted_at = null;
+            $file->save();
+
+            $this->logAudit('Boarding pass regenerated', $booking, $bookingItem, [
+                'path' => $path,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Boarding pass regeneration failed', [
+                'booking_id' => $booking->id,
+                'booking_item_id' => $bookingItem->id,
+                'message' => $e->getMessage(),
+            ]);
+
+            return back()->with('error', 'The boarding pass could not be regenerated. Please try again or check the server logs.');
+        } finally {
+            $disk->delete($temporaryPath);
+        }
+
+        return back()->with('success', 'Boarding pass regenerated.');
+    }
+
     public function guestLinks(Request $request, Booking $booking)
     {
         $this->assertBookingBelongsToTeam($booking);
@@ -5105,11 +5238,7 @@ class BookingsController extends Controller
             ->latest('id')
             ->first();
 
-        if (!$file?->path || !Storage::disk('public')->exists($file->path)) {
-            return null;
-        }
-
-        return Storage::disk('public')->path($file->path);
+        return $this->publicStoragePath($file);
     }
 
     private function latestBoardingPassPdfPath(BookingItem $bookingItem): ?string
@@ -5120,11 +5249,19 @@ class BookingsController extends Controller
             ->latest('id')
             ->first();
 
-        if (!$file?->path || !Storage::disk('public')->exists($file->path)) {
+        return $this->publicStoragePath($file);
+    }
+
+    private function publicStoragePath(?File $file): ?string
+    {
+        // File::path is presented as a public URL; storage operations need the persisted relative path.
+        $relativePath = $file?->getRawOriginal('path');
+
+        if (!$relativePath || !Storage::disk('public')->exists($relativePath)) {
             return null;
         }
 
-        return Storage::disk('public')->path($file->path);
+        return Storage::disk('public')->path($relativePath);
     }
 
     private function assertBookingBelongsToTeam(Booking $booking): void
