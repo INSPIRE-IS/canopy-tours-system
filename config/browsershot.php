@@ -1,12 +1,14 @@
 <?php
 
 $envPath = env('BROWSERSHOT_CHROME_PATH');
+$chromeDevelSandbox = env('CHROME_DEVEL_SANDBOX');
 $adminBookingBoardingPassEnabled = env('BROWSERSHOT_ADMIN_BOOKING_PASS_ENABLED', false);
 $adminBookingBoardingPassRegenerateButtonEnabled = env('BROWSERSHOT_ADMIN_BOOKING_PASS_REGENERATE_BUTTON_ENABLED', false);
 
 if (!empty($envPath)) {
     return [
         'chrome_path' => $envPath,
+        'chrome_devel_sandbox' => $chromeDevelSandbox,
         'admin_booking_boarding_pass_enabled' => $adminBookingBoardingPassEnabled,
         'admin_booking_boarding_pass_regenerate_button_enabled' => $adminBookingBoardingPassRegenerateButtonEnabled,
     ];
@@ -46,6 +48,7 @@ foreach ($candidates as $candidate) {
 
 return [
     'chrome_path' => $resolved,
+    'chrome_devel_sandbox' => $chromeDevelSandbox,
     'admin_booking_boarding_pass_enabled' => $adminBookingBoardingPassEnabled,
     'admin_booking_boarding_pass_regenerate_button_enabled' => $adminBookingBoardingPassRegenerateButtonEnabled,
 ];
