@@ -537,251 +537,13 @@ class PaymentController extends Controller
             'gift_id' => 'nullable|integer',
         ]);
         if ($validated['type'] === 'booking') {
-
             try {
-                $booking = DB::transaction(function () use ($validated) {
-                    $renderService = app(RendererService::class);
-                    $booking = Booking::findOrFail($validated['booking']);
-                    // Mark as paid (in real app, you'd validate PayFast response)
-                    $booking->update([
-                        'status_payment_id' => 2, // e.g., "paid"
-                        'tot_paid' => $booking->grand_tot_due,
-                    ]);
-
-                    $totalDue = (float) $booking->grand_tot_due;
-                    $vat = $this->vatBreakdownForTeam($booking->team_id, $totalDue);
-                    $vatItem = $vat['vat_item'];
-
-                    $payment = BookingPayment::updateOrCreate(
-                        ['booking_id' => $booking->id,],
-                        [
-                            'type_pay_option_id'   => 2,     // or 'Pay Offline'
-                            'type_payment_id' => 3, // credit card
-                            'status_payment_id' => 2,  // 'paid', 'failed', 'cancelled'
-                            'ex_vat_amount'         => $vat['ex_vat_amount'], // total excl VAT
-                            'lookup_item_id' => $vatItem?->id,
-                            'vat' => $vat['vat_percent'],
-                            'vat_amount' => $vat['vat_amount'],
-                            'reference'      => $booking->reference, // Str::uuid(),      // can be order ref or external tx
-                            'gateway_id'        => 1,        // PayFast
-                            'meta'           => json_encode(['ip' => request()->ip()]),
-                            'payment_date'   =>  now(),
-                            'redeemer_name'  => '', //$validated['name'] . ' ' . $validated['surname'],
-                            'voucher_code' => null,
-                            'note'           => '',
-                            'updated_by_id'  => null,
-                            'team_id'        => $booking->team_id,
-                        ]
-                    );
-
-                    AuditLog::create([
-                        'description' => 'Payment recorded (simulated)',
-                        'subject_id' => $booking->id,
-                        'subject_type' => Booking::class,
-                        'user_id' => null,
-                        'properties' => json_encode([
-                            'payment_id' => $payment?->id,
-                            'amount' => $booking->grand_tot_due,
-                            'method' => 'simulated',
-                        ]),
-                        'host' => request()->ip(),
-                    ]);
-
-                    $grandTot = $booking->grand_tot_due;
-                    foreach ($booking->booking_items as $item) {
-                        $fee = $item->booking_fee;
-                        $fee->tot_paid = min($fee->tot_amount, $grandTot);
-                        $fee->save();
-                        $grandTot -= $fee->tot_paid;
-                    }
-
-                    $alert = Alert::create([
-                        'alert_text' => 'Payment Confirmation',
-                        'alert_link' => route('admin.bookings.index', [], false), //route('front.payment.booking', ['booking' => $booking->id]),
-                        'type_alert_id' => 3, // booking confirmation
-                        'team_id' => $booking->team_id,
-                    ]);
-                    $users = User::where('team_id', $booking->team_id)
-                        ->whereHas('roles', function ($query) {
-                            $query->whereIn('name', ['Manager', 'Consultant']);
-                        })
-                        ->with('roles')
-                        ->get();
-                    foreach ($users as $user) {
-                        $user->alerts()->attach($alert->id); // ✅ attach by ID
-                    }
-
-                    $customer = Customer::findOrFail($booking->customer_id);
-                    $invoiceTypeId = TypeInvoice::where('slug', 'std')->value('id');
-                    $invoice = Invoice::where('booking_id', $booking->id)
-                        ->when($invoiceTypeId, fn($query) => $query->where('type_invoice_id', $invoiceTypeId))
-                        ->first();
-                    $customer = Customer::where('id', $booking->customer_id)->first();
-                    $site = Team::findorFail($invoice->team_id);
-                    $items = $booking?->booking_items->first();
-
-                    $subject = 'Payment Confirmation';
-                    $recipient = $customer->email_address;
-
-                    // 🔹 Load Blade view with data
-                    $data = $renderService->invoice($booking, $customer, $invoice);
-                    $invoicePdf = Pdf::loadView('invoices.invoice', $data);
-                    // Optional: tweak DOMPDF options
-                    $invoicePdf->setPaper('A4', 'portrait');
-
-
-                    $invoiceFilename = 'invoices/' . $data['invoice']['number'] . '.pdf';
-                    Storage::disk('public')->put($invoiceFilename, $invoicePdf->output());
-                    $shouldSendPaymentEmail = $this->shouldAutoSendPaymentEmail($invoice->team_id);
-                    $content = "
-                            <p>Hello {$customer->full_name},</p>
-                            <p>Your booking has been paid.</p>
-                            <p>Thank you for choosing Canopy Tours.</p>
-                            <p>Your booking reference is {$booking->reference}.</p>
-                            <p>Please Contact us if you have any questions.</p>";
-                    Email::create([
-                        'sender'         => config('mail.from.address'),
-                        'receiver'       => $customer->email_address,
-                        'subject'        => 'Invoice ' . $data['invoice']['number'],
-                        'body'           => strip_tags($content), // strip_tags($html)or a summary
-                        'attachment_path' => $invoiceFilename,
-                        'sent'           => $shouldSendPaymentEmail,
-                        'sent_at'        => $shouldSendPaymentEmail ? now() : null,
-                        'user_id'        => null,
-                        'auditable_type' => 'App\Models\Invoice',
-                        'auditable_id'   => $invoice->id,
-                        'team_id'        => $invoice->team_id,
-                    ]);
-                    if ($shouldSendPaymentEmail) {
-                        AuditLog::create([
-                            'description' => 'Email sent (invoice payment)',
-                            'subject_id' => $booking->id,
-                            'subject_type' => Booking::class,
-                            'user_id' => null,
-                            'properties' => json_encode([
-                                'invoice_id' => $invoice->id,
-                                'receiver' => $customer->email_address,
-                                'subject' => 'Invoice ' . $data['invoice']['number'],
-                                'attachment' => $invoiceFilename,
-                            ]),
-                            'host' => request()->ip(),
-                        ]);
-                    }
-                    File::create([
-                        'team_id'      => $invoice->team_id,
-                        'table_name'   => 'invoices',
-                        'table_row_id' => $invoice->id,
-                        'file_name'    => $data['invoice']['number'] . '.pdf',
-                        'file_type'    => "application/pdf",
-                        'type_file_id' => 4, // invoice
-                        'path'         => $invoiceFilename,
-                        'booking_id'   => $booking->id,
-                    ]);
-                    $bookingItem = BookingItem::with('booking', 'booking.team', 'booking.team.file_logo', 'customers', 'booking_inventory.inventory_time_slot', 'booking_inventory.inventory_type_day.type_day', 'booking_fee')
-                        ->where('booking_id', $booking->id)->first(); // ->get();
-                    $data = $this->getPassDetails($bookingItem);
-                    // dd($data);
-                    $html = view('pdfs.boarding-pass', ['data' => $data])->render();
-                    $dir = "pass/{$bookingItem->id}";
-                    $fileName = "{$dir}/boarding_pass_{$bookingItem->id}.pdf";
-                    $disk = Storage::disk('public');
-                    $fullPath = $disk->path($fileName);
-                    if (!$disk->exists($fileName)) {
-                        $disk->makeDirectory($dir);
-                        $chromePath = config('browsershot.chrome_path');
-                        if (empty($chromePath)) {
-                            Log::warning('Browsershot chrome path not resolved; using default detection.', [
-                                'env_path' => env('BROWSERSHOT_CHROME_PATH'),
-                            ]);
-                        }
-                        $shot = Browsershot::html($html);
-                        if (!empty($chromePath)) {
-                            $shot->setChromePath($chromePath);
-                        }
-                        $shot->format('A4')
-                            ->showBackground()
-                            ->margins(0, 0, 0, 0)
-                            ->scale(1.0)
-                            ->timeout(60000)
-                            ->save($fullPath);
-                    }
-
-                    // return response()->download($fullPath);
-                    Email::create([
-                        'sender'         => config('mail.from.address'),
-                        'receiver'       => $customer->email_address,
-                        'subject'        => 'Your Boarding Pass – Invoice ',
-                        'body'           => strip_tags($content), // or a summary
-                        'attachment_path' => $fileName,
-                        'sent'           => $shouldSendPaymentEmail,
-                        'sent_at'        => $shouldSendPaymentEmail ? now() : null,
-                        'user_id'        => null,
-                        'auditable_type' => BookingItem::class,
-                        'auditable_id'   => $bookingItem->id,
-                        'team_id'        => $bookingItem->team_id,
-                    ]);
-                    if ($shouldSendPaymentEmail) {
-                        AuditLog::create([
-                            'description' => 'Email sent (boarding pass payment)',
-                            'subject_id' => $booking->id,
-                            'subject_type' => Booking::class,
-                            'user_id' => null,
-                            'properties' => json_encode([
-                                'booking_item_id' => $bookingItem->id,
-                                'receiver' => $customer->email_address,
-                                'attachment' => $fileName,
-                            ]),
-                            'host' => request()->ip(),
-                        ]);
-                    }
-                    File::create([
-                        'team_id'      => $bookingItem->team_id,
-                        'table_name'   => 'BookingItem',
-                        'table_row_id' => $bookingItem->id,
-                        'file_name'    =>  $fileName,
-                        'file_type'    => "application/pdf",
-                        'type_file_id' => 6, // optional enum/type
-                        'path'         => $fileName,
-                        'booking_id'   => $booking->id,
-                    ]);
-                    $attachments = [
-                        [
-                            'data' => $invoicePdf->output(),
-                            'name' => "invoice.pdf",
-                            'mime' => 'application/pdf',
-                        ],
-                        [
-                            'data' => file_get_contents($fullPath),
-                            'name' => $fileName,
-                            'mime' => 'application/pdf',
-                        ],
-                    ];
-                    // //send mail
-                    $messageData = [
-                        'invoice' => [
-                            'number' => $booking->reference ?? 'INV-No',
-                            'date' => now()->format('Y-m-d'),
-                        ],
-                        'customer' => [
-                            'name' => $customer->full_name,
-                        ],
-                        'booking' => [
-                            'reference' => $booking->reference,
-                        ],
-                    ];
-
-                    if ($shouldSendPaymentEmail) {
-                        Mail::to($customer->email_address)->send(new BookingMail($messageData, $attachments));
-
-                        Log::info('Payment confirmation email sent', [
-                            'booking_id' => $booking->id,
-                            'customer' => $customer->email_address,
-                        ]);
-                    }
-
-                    return $booking;
-                });
-
+                $booking = Booking::findOrFail($validated['booking']);
+                $booking = $this->completeBookingPaymentDbOnly($booking, null, [
+                    'event' => 'simulated',
+                    'ip' => $request->ip(),
+                ]);
+                FulfillBookingPayment::dispatch($booking->id)->afterResponse();
                 $vatRate = LookupItem::findDefaultForTeam('vat_rate', $booking->team_id);
 
                 return Inertia::render('SimulatedPayment', [
@@ -789,24 +551,16 @@ class PaymentController extends Controller
                     'vatRate' => $vatRate,
                     'success' => true,
                     'booking_id' => $booking->id,
-                    'redirect_url' => route('front.payment.booking', ['booking' => $booking->id]) //  route('payfast.checkout', ['booking' => $booking->id])
+                    'redirect_url' => route('front.payment.booking', ['booking' => $booking->id]),
                 ]);
-                // 4. Save to booking_inventories or other linked tables
-                // return response()->json([
-                //     'success' => true,
-                //     'booking_id' => $booking->id,
-                //     'redirect_url' => route('front.payment.booking', ['booking' => $booking->id]) //  route('payfast.checkout', ['booking' => $booking->id])
-                // ]);
-                //return redirect()->back()->with('booking_id', $booking->id);
-
             } catch (\Throwable $e) {
-                // Log the full error for debugging
-                Log::error('Booking failed and rolled back', [
+                Log::error('Simulated booking payment failed', [
                     'message' => $e->getMessage(),
                     'trace' => $e->getTraceAsString(),
                     'input' => $validated,
                 ]);
-                return redirect()->back()->with('error', 'Something went wrong while saving your booking. Please try again.');
+
+                return redirect()->back()->with('error', 'Something went wrong while processing the simulated payment. Please try again.');
             }
         } else if ($validated['type'] === 'voucher') {
             $voucher = GiftVoucher::findOrFail($validated['gift_id']);
@@ -1396,7 +1150,9 @@ class PaymentController extends Controller
             }
 
             AuditLog::create([
-                'description' => 'Payment recorded (PayFast ITN)',
+                'description' => ($meta['event'] ?? null) === 'simulated'
+                    ? 'Payment recorded (simulated)'
+                    : 'Payment recorded (PayFast ITN)',
                 'subject_id' => $booking->id,
                 'subject_type' => Booking::class,
                 'user_id' => null,

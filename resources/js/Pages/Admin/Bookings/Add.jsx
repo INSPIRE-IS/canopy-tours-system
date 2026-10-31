@@ -108,7 +108,12 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
     const isPaymentExpiredBooking = Boolean(booking?.payment_window_expired_at && Number(booking?.status_payment_id) !== 2);
     const isCancelledBooking = Boolean(booking?.deleted_at || bookingItem?.deleted_at || isPaymentExpiredBooking);
     const boardingPassFile = (booking?.files || [])
-        .filter(file => Number(file?.type_file_id) === 6 && file?.path)
+        .filter(file =>
+            Number(file?.type_file_id) === 6
+            && file?.table_name === 'BookingItem'
+            && Number(file?.table_row_id) === Number(bookingItem?.id)
+            && file?.path
+        )
         .sort((a, b) => (a?.id ?? 0) - (b?.id ?? 0))
         .pop() || null;
 
