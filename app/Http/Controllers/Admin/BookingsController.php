@@ -4578,6 +4578,7 @@ class BookingsController extends Controller
             'bookingNotes' => $bookingNotes,
             'bookingEmails' => $bookingEmails,
             'bookingAuditLogs' => $auditLogs,
+            'boardingPassRegenerateButtonEnabled' => config('browsershot.admin_booking_boarding_pass_regenerate_button_enabled', false),
         ]);
     }
 
