@@ -26,16 +26,6 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        $chromeDevelSandbox = config('browsershot.chrome_devel_sandbox');
-        if (is_string($chromeDevelSandbox) && $chromeDevelSandbox !== '') {
-            // PHP-FPM may not expose Laravel .env values to child processes.
-            if (function_exists('putenv')) {
-                putenv("CHROME_DEVEL_SANDBOX={$chromeDevelSandbox}");
-            }
-            $_ENV['CHROME_DEVEL_SANDBOX'] = $chromeDevelSandbox;
-            $_SERVER['CHROME_DEVEL_SANDBOX'] = $chromeDevelSandbox;
-        }
-
         Gate::define('viewPulse', function ($user) {
             return (bool) ($user?->is_admin ?? false);
         });

@@ -3300,6 +3300,9 @@ class BookingsController extends Controller
             if (!empty($chromePath)) {
                 $shot->setChromePath($chromePath);
             }
+            if (config('browsershot.no_sandbox', false)) {
+                $shot->noSandbox();
+            }
             $shot->format('A4')
                 ->showBackground()
                 ->margins(0, 0, 0, 0)
@@ -5105,6 +5108,9 @@ class BookingsController extends Controller
             if (!empty($chromePath)) {
                 $shot->setChromePath($chromePath);
             }
+            if (config('browsershot.no_sandbox', false)) {
+                $shot->noSandbox();
+            }
 
             $shot->format('A4')
                 ->showBackground()
@@ -5943,6 +5949,9 @@ class BookingsController extends Controller
             $shot = Browsershot::html($html);
             if (!empty($chromePath)) {
                 $shot->setChromePath($chromePath);
+            }
+            if (config('browsershot.no_sandbox', false)) {
+                $shot->noSandbox();
             }
             $shot->format('A4')
                 ->showBackground()
