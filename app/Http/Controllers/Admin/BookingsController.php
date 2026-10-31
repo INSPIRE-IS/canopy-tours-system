@@ -2194,6 +2194,59 @@ class BookingsController extends Controller
                 'booking_id' => $booking->id,
             ]);
 
+            $bookingItems = BookingItem::with([
+                'booking.team.file_logo',
+                'service',
+                'customers',
+                'booking_inventory.inventory_time_slot',
+                'booking_inventory.inventory_type_day.type_day',
+                'booking_fee',
+            ])->where('booking_id', $booking->id)->orderBy('id')->get();
+            $boardingPassAttachments = [];
+
+            foreach ($bookingItems as $bookingItem) {
+                $passData = $this->getPassDetails($bookingItem);
+                $html = view('pdfs.boarding-pass', ['data' => $passData])->render();
+                $dir = "pass/{$bookingItem->id}";
+                $fileName = "{$dir}/boarding_pass_{$bookingItem->id}.pdf";
+                $disk = Storage::disk('public');
+                $fullPath = $disk->path($fileName);
+                $boardingPassAvailable = $disk->exists($fileName);
+
+                if (! $boardingPassAvailable) {
+                    $disk->makeDirectory($dir);
+                    $boardingPassAvailable = $this->tryGenerateBoardingPassPdf(
+                        $html,
+                        $fullPath,
+                        $booking,
+                        $bookingItem
+                    );
+                }
+
+                if ($boardingPassAvailable) {
+                    File::withTrashed()->updateOrCreate(
+                        [
+                            'booking_id' => $booking->id,
+                            'table_name' => 'BookingItem',
+                            'table_row_id' => $bookingItem->id,
+                            'type_file_id' => 6,
+                        ],
+                        [
+                            'team_id' => $bookingItem->team_id,
+                            'file_name' => basename($fileName),
+                            'file_type' => 'application/pdf',
+                            'path' => $fileName,
+                            'deleted_at' => null,
+                        ]
+                    );
+                    $boardingPassAttachments[] = [
+                        'data' => $disk->get($fileName),
+                        'name' => basename($fileName),
+                        'mime' => 'application/pdf',
+                    ];
+                }
+            }
+
             if ($autoSendInvoice) {
                 $documentLabel = $data['document']['label'] ?? 'Invoice';
                 Email::create([
@@ -2220,11 +2273,11 @@ class BookingsController extends Controller
                     'booking' => [
                         'reference' => $booking->reference,
                     ],
-                ], [[
+                ], array_merge([[
                     'data' => $invoicePdf->output(),
                     'name' => strtolower($documentLabel) . "-{$data['invoice']['number']}.pdf",
                     'mime' => 'application/pdf',
-                ]]));
+                ]], $boardingPassAttachments)));
             }
 
             return $booking->fresh();
@@ -3145,15 +3198,16 @@ class BookingsController extends Controller
                 $fileName = "{$dir}/boarding_pass_{$bookingItem->id}.pdf";
                 $disk = Storage::disk('public');
                 $fullPath = $disk->path($fileName);
-                $boardingPassAvailable = $disk->exists($fileName);
-                if (!$boardingPassAvailable) {
-                    $disk->makeDirectory($dir);
-                    $boardingPassAvailable = $this->tryGenerateBoardingPassPdf(
-                        $html,
-                        $fullPath,
-                        $booking,
-                        $bookingItem
-                    );
+                $disk->makeDirectory($dir);
+                $boardingPassAvailable = $this->tryGenerateBoardingPassPdf(
+                    $html,
+                    $fullPath,
+                    $booking,
+                    $bookingItem
+                );
+                if (! $boardingPassAvailable) {
+                    // Never leave stale or partially overwritten pass content available after an edit.
+                    $disk->delete($fileName);
                 }
 
                 if ($autoSendInvoice && $boardingPassAvailable) {

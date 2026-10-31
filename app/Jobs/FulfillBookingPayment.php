@@ -46,12 +46,10 @@ class FulfillBookingPayment implements ShouldQueue
                 throw new RuntimeException('Booking payment fulfilment requires a confirmed payment.');
             }
 
-            if (! $emailDispatch->canSendAutomatic(
+            $shouldSendPaymentEmail = $emailDispatch->canSendAutomatic(
                 $booking->team_id,
                 EmailDispatchService::SETTING_AUTO_PAYMENT
-            )) {
-                return;
-            }
+            );
 
             $customer = Customer::findOrFail($booking->customer_id);
             $invoiceTypeId = TypeInvoice::where('slug', TypeInvoice::SLUG_STD)->value('id');
@@ -61,9 +59,13 @@ class FulfillBookingPayment implements ShouldQueue
                 ->firstOrFail();
             $data = $renderer->invoice($booking, $customer, $invoice);
             $invoicePath = $this->invoicePath($booking, $invoice, $data);
-            $passPath = $this->boardingPassPath($booking);
+            $passPaths = $this->boardingPassPaths($booking);
             $subject = $data['document']['email_subject']
                 ?? trim(($data['document']['label'] ?? 'Invoice') . ' ' . $data['invoice']['number']);
+
+            if (! $shouldSendPaymentEmail) {
+                return;
+            }
 
             $email = Email::firstOrNew([
                 'auditable_type' => Invoice::class,
@@ -93,7 +95,7 @@ class FulfillBookingPayment implements ShouldQueue
                 'name' => strtolower($data['document']['label'] ?? 'invoice') . "-{$data['invoice']['number']}.pdf",
                 'mime' => 'application/pdf',
             ]];
-            if ($passPath) {
+            foreach ($passPaths as $passPath) {
                 $attachments[] = [
                     'data' => Storage::disk('public')->get($passPath),
                     'name' => basename($passPath),
@@ -120,7 +122,8 @@ class FulfillBookingPayment implements ShouldQueue
                         'receiver' => $customer->email_address,
                         'subject' => $subject,
                         'invoice_attachment' => $invoicePath,
-                        'boarding_pass_attachment' => $passPath,
+                        'boarding_pass_attachment' => $passPaths[0] ?? null,
+                        'boarding_pass_attachments' => $passPaths,
                     ]),
                     'host' => null,
                 ]
@@ -153,9 +156,9 @@ class FulfillBookingPayment implements ShouldQueue
         return $path;
     }
 
-    private function boardingPassPath(Booking $booking): ?string
+    private function boardingPassPaths(Booking $booking): array
     {
-        $bookingItem = BookingItem::with(
+        $bookingItems = BookingItem::with(
             'booking',
             'booking.team',
             'booking.team.file_logo',
@@ -164,62 +167,74 @@ class FulfillBookingPayment implements ShouldQueue
             'booking_inventory.inventory_time_slot',
             'booking_inventory.inventory_type_day.type_day',
             'booking_fee'
-        )->where('booking_id', $booking->id)->first();
+        )->where('booking_id', $booking->id)->orderBy('id')->get();
 
-        if (! $bookingItem) {
-            return null;
+        if ($bookingItems->isEmpty()) {
+            return [];
         }
 
-        $path = "pass/{$bookingItem->id}/boarding_pass_{$bookingItem->id}.pdf";
-        $existing = File::withTrashed()
-            ->where('table_name', 'BookingItem')
-            ->where('table_row_id', $bookingItem->id)
-            ->where('booking_id', $booking->id)
-            ->where('type_file_id', 6)
-            ->latest('id')
-            ->first();
-        $existingPath = $existing?->getRawOriginal('path');
-        if ($existingPath && Storage::disk('public')->exists($existingPath)) {
-            return $existingPath;
-        }
-
-        $passData = app(PaymentController::class)->getPassDetails($bookingItem);
-        $html = view('pdfs.boarding-pass', ['data' => $passData])->render();
         $disk = Storage::disk('public');
-        $disk->makeDirectory("pass/{$bookingItem->id}");
-        $chromePath = config('browsershot.chrome_path');
-        if (empty($chromePath)) {
-            Log::warning('Browsershot chrome path not resolved; using default detection.', [
-                'env_path' => env('BROWSERSHOT_CHROME_PATH'),
-            ]);
-        }
-        $shot = Browsershot::html($html);
-        if (! empty($chromePath)) {
-            $shot->setChromePath($chromePath);
-        }
-        $shot->format('A4')
-            ->showBackground()
-            ->margins(0, 0, 0, 0)
-            ->scale(1.0)
-            ->timeout(60000)
-            ->save($disk->path($path));
+        $paths = [];
 
-        File::withTrashed()->updateOrCreate(
-            [
-                'table_name' => 'BookingItem',
-                'table_row_id' => (string) $bookingItem->id,
-                'booking_id' => $booking->id,
-                'type_file_id' => 6,
-            ],
-            [
-                'team_id' => $booking->team_id,
-                'file_name' => basename($path),
-                'file_type' => 'application/pdf',
-                'path' => $path,
-                'deleted_at' => null,
-            ]
-        );
+        foreach ($bookingItems as $bookingItem) {
+            $path = "pass/{$bookingItem->id}/boarding_pass_{$bookingItem->id}.pdf";
+            $existing = File::withTrashed()
+                ->where('table_name', 'BookingItem')
+                ->where('table_row_id', $bookingItem->id)
+                ->where('booking_id', $booking->id)
+                ->where('type_file_id', 6)
+                ->latest('id')
+                ->first();
+            $existingPath = $existing?->getRawOriginal('path');
+            if ($existingPath && $disk->exists($existingPath)) {
+                if ($existing->trashed()) {
+                    $existing->restore();
+                }
+                $paths[] = $existingPath;
+                continue;
+            }
 
-        return $path;
+            $passData = app(PaymentController::class)->getPassDetails($bookingItem);
+            $html = view('pdfs.boarding-pass', ['data' => $passData])->render();
+            $disk->makeDirectory("pass/{$bookingItem->id}");
+            $chromePath = config('browsershot.chrome_path');
+            if (empty($chromePath)) {
+                Log::warning('Browsershot chrome path not resolved; using default detection.', [
+                    'env_path' => env('BROWSERSHOT_CHROME_PATH'),
+                ]);
+            }
+            $shot = Browsershot::html($html);
+            if (! empty($chromePath)) {
+                $shot->setChromePath($chromePath);
+            }
+            if (config('browsershot.no_sandbox', false)) {
+                $shot->noSandbox();
+            }
+            $shot->format('A4')
+                ->showBackground()
+                ->margins(0, 0, 0, 0)
+                ->scale(1.0)
+                ->timeout(60000)
+                ->save($disk->path($path));
+
+            File::withTrashed()->updateOrCreate(
+                [
+                    'table_name' => 'BookingItem',
+                    'table_row_id' => (string) $bookingItem->id,
+                    'booking_id' => $booking->id,
+                    'type_file_id' => 6,
+                ],
+                [
+                    'team_id' => $booking->team_id,
+                    'file_name' => basename($path),
+                    'file_type' => 'application/pdf',
+                    'path' => $path,
+                    'deleted_at' => null,
+                ]
+            );
+            $paths[] = $path;
+        }
+
+        return $paths;
     }
 }

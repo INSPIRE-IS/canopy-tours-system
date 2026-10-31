@@ -5,6 +5,7 @@ use App\Http\Controllers\Front\PaymentController;
 use App\Exports\Reports\BookingsReportExport;
 use App\Jobs\FulfillBookingPayment;
 use App\Mail\BookingMail;
+use App\Models\BookingItem;
 use App\Models\PublicBookingHold;
 use App\Services\EmailDispatchService;
 use App\Services\PurchaseAnalyticsService;
@@ -214,9 +215,9 @@ function createPaidV2CheckoutBooking($test, array $fixture): Booking
     return $booking->refresh();
 }
 
-function storeExistingBoardingPass(Booking $booking): void
+function storeExistingBoardingPass(Booking $booking, ?BookingItem $bookingItem = null): void
 {
-    $bookingItem = $booking->booking_items()->firstOrFail();
+    $bookingItem ??= $booking->booking_items()->firstOrFail();
     $path = "pass/{$bookingItem->id}/boarding_pass_{$bookingItem->id}.pdf";
     Storage::disk('public')->put($path, 'existing boarding pass');
     DB::table('files')->insert([
@@ -465,11 +466,16 @@ it('creates the invoice when the site has no default invoice template', function
     ]);
 });
 
-it('does not fulfil a paid booking email when automatic payment email is disabled', function () {
+it('prepares paid booking documents without sending email when automatic payment email is disabled', function () {
     Mail::fake();
     Storage::fake('public');
     $fixture = createV2CheckoutCompletionFixture();
     $booking = createPaidV2CheckoutBooking($this, $fixture);
+    storeExistingBoardingPass($booking);
+    DB::table('files')
+        ->where('booking_id', $booking->id)
+        ->where('type_file_id', 6)
+        ->update(['deleted_at' => now()]);
     $emailDispatch = Mockery::mock(EmailDispatchService::class);
     $emailDispatch->shouldReceive('canSendAutomatic')
         ->once()
@@ -479,8 +485,89 @@ it('does not fulfil a paid booking email when automatic payment email is disable
     (new FulfillBookingPayment($booking->id))->handle($emailDispatch, app(RendererService::class));
 
     $this->assertDatabaseCount('emails', 0);
-    $this->assertDatabaseCount('files', 0);
+    $this->assertDatabaseHas('files', [
+        'booking_id' => $booking->id,
+        'type_file_id' => 4,
+        'table_name' => 'invoices',
+    ]);
+    expect(DB::table('files')->where('booking_id', $booking->id)->count())->toBe(2);
+    $this->assertDatabaseHas('files', [
+        'booking_id' => $booking->id,
+        'type_file_id' => 6,
+        'deleted_at' => null,
+    ]);
     $this->assertDatabaseHas('bookings', ['id' => $booking->id, 'status_payment_id' => 2]);
+    Mail::assertNothingSent();
+});
+
+it('uses the same deferred fulfilment path for a simulated booking payment', function () {
+    Mail::fake();
+    Storage::fake('public');
+    $fixture = createV2CheckoutCompletionFixture();
+    $bookingId = $this
+        ->withSession(['public_booking_v2_session_key' => $fixture['holdSessionKey']])
+        ->postJson(
+            route('front.v2.checkout.confirm', [
+                'team' => $fixture['teamId'],
+                'service' => $fixture['serviceId'],
+            ]),
+            v2CheckoutCompletionPayload($fixture)
+        )
+        ->assertOk()
+        ->json('booking_id');
+    $booking = Booking::findOrFail($bookingId);
+    storeExistingBoardingPass($booking);
+    DB::table('type_pay_options')->insert([
+        'id' => 2,
+        'name' => 'Pay Online',
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+    DB::table('type_payments')->insert([
+        'id' => 3,
+        'name' => 'Credit Card',
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+    $lookupId = DB::table('lookups')->insertGetId([
+        'name' => 'VAT',
+        'slug' => 'vat',
+        'team_id' => $fixture['teamId'],
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+    DB::table('lookup_items')->insert([
+        'name' => 'VAT 15%',
+        'slug' => 'vat_rate',
+        'rate' => 15,
+        'multiplier' => 1.15,
+        'effective_from' => '2020-01-01',
+        'is_default' => true,
+        'is_active' => true,
+        'team_id' => $fixture['teamId'],
+        'lookup_id' => $lookupId,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    $this->get(route('front.payment.simulated', [
+        'type' => 'booking',
+        'booking' => $booking->id,
+    ]))->assertOk();
+
+    $this->assertDatabaseHas('bookings', [
+        'id' => $booking->id,
+        'status_payment_id' => 2,
+    ]);
+    $this->assertDatabaseHas('audit_logs', [
+        'description' => 'Payment recorded (simulated)',
+        'subject_id' => $booking->id,
+    ]);
+    $this->assertDatabaseHas('files', [
+        'booking_id' => $booking->id,
+        'type_file_id' => 4,
+        'table_name' => 'invoices',
+    ]);
     Mail::assertNothingSent();
 });
 
@@ -511,6 +598,36 @@ it('sends the existing booking email with its documents only once when enabled',
         'subject_id' => $booking->id,
     ]);
     expect(DB::table('files')->where('booking_id', $booking->id)->count())->toBe(2);
+});
+
+it('attaches an item-specific boarding pass for every linked booking activity', function () {
+    Mail::fake();
+    Storage::fake('public');
+    $fixture = createV2CheckoutCompletionFixture();
+    $booking = createPaidV2CheckoutBooking($this, $fixture);
+    $firstItem = $booking->booking_items()->firstOrFail();
+    $secondItem = $firstItem->replicate();
+    $secondItem->save();
+    storeExistingBoardingPass($booking, $firstItem);
+    storeExistingBoardingPass($booking, $secondItem);
+
+    $emailDispatch = Mockery::mock(EmailDispatchService::class);
+    $emailDispatch->shouldReceive('canSendAutomatic')
+        ->once()
+        ->with($fixture['teamId'], EmailDispatchService::SETTING_AUTO_PAYMENT)
+        ->andReturnTrue();
+
+    (new FulfillBookingPayment($booking->id))->handle($emailDispatch, app(RendererService::class));
+
+    Mail::assertSent(BookingMail::class, function (BookingMail $mail) {
+        $mail->build();
+
+        return count($mail->rawAttachments) === 3;
+    });
+    expect(DB::table('files')
+        ->where('booking_id', $booking->id)
+        ->where('type_file_id', 6)
+        ->count())->toBe(2);
 });
 
 it('keeps the booking paid and the email retryable when automatic delivery fails', function () {
