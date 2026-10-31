@@ -22,7 +22,7 @@ import CancelledBookingBanner from '@/Components/CancelledBookingBanner';
 // import { useRoute } from 'ziggy-js';
 // import { Ziggy } from '@/ziggy'; // the generated file
 
-export default function Dashboard({ auth, booking, manifest, bookingItem, staff, lookups, bookingNotes = [], bookingEmails = [], bookingAuditLogs = [], settings = {} }) {
+export default function Dashboard({ auth, booking, manifest, bookingItem, staff, lookups, bookingNotes = [], bookingEmails = [], bookingAuditLogs = [], settings = {}, boardingPassRegenerateButtonEnabled = false }) {
     // console.log("auth", auth);
     // console.log("booking", booking);
     // console.log("bookingItem", bookingItem);
@@ -585,7 +585,7 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                             }}
                         />
 
-                        {false && permissions?.bookings_edit && (
+                        {boardingPassRegenerateButtonEnabled && permissions?.bookings_edit && (
                             <WhiteButton
                                 type="button"
                                 title={regeneratingBoardingPass ? "Regenerating..." : "Regenerate Pass"}
