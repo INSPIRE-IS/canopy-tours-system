@@ -107,6 +107,10 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
     const headerDateTime = headerSlotTime ? `${headerBookingDate} ${String(headerSlotTime).slice(0, 5)}` : headerBookingDate;
     const isPaymentExpiredBooking = Boolean(booking?.payment_window_expired_at && Number(booking?.status_payment_id) !== 2);
     const isCancelledBooking = Boolean(booking?.deleted_at || bookingItem?.deleted_at || isPaymentExpiredBooking);
+    const boardingPassFile = (booking?.files || [])
+        .filter(file => Number(file?.type_file_id) === 6 && file?.path)
+        .sort((a, b) => (a?.id ?? 0) - (b?.id ?? 0))
+        .pop() || null;
 
     const regenerateBoardingPass = () => {
         if (!booking?.id || !bookingItem?.id || regeneratingBoardingPass) return;
@@ -561,34 +565,27 @@ export default function Dashboard({ auth, booking, manifest, bookingItem, staff,
                             Proforma Invoice
                         </a> */}
 
-                        <WhiteButton
-                            title="Booking Pass"
-                            icon={true}
-                            iconName={icons.manifest}
-                            textColor="text-[#4D81E7]"
-                            width="w-[158.8px]"
-                            height="h-[31px]"
-                            className="mt-4"
-                            onClick={() => {
-                                if (!booking?.id) return;
-                                const passFile = (booking?.files || [])
-                                    .filter(file => Number(file?.type_file_id) === 6)
-                                    .sort((a, b) => (a?.id ?? 0) - (b?.id ?? 0))
-                                    .pop();
-                                if (!passFile?.path) {
-                                    window.open(route('admin.details.download', { booking: booking.id }), '_blank', 'noopener,noreferrer');
-                                    return;
-                                }
-                                const separator = passFile.path.includes('?') ? '&' : '?';
-                                const version = encodeURIComponent(passFile.updated_at || passFile.id);
-                                window.open(`${passFile.path}${separator}v=${version}`, '_blank', 'noopener,noreferrer');
-                            }}
-                        />
+                        {boardingPassFile && (
+                            <WhiteButton
+                                title="Booking Pass"
+                                icon={true}
+                                iconName={icons.manifest}
+                                textColor="text-[#4D81E7]"
+                                width="w-[158.8px]"
+                                height="h-[31px]"
+                                className="mt-4"
+                                onClick={() => {
+                                    const separator = boardingPassFile.path.includes('?') ? '&' : '?';
+                                    const version = encodeURIComponent(boardingPassFile.updated_at || boardingPassFile.id);
+                                    window.open(`${boardingPassFile.path}${separator}v=${version}`, '_blank', 'noopener,noreferrer');
+                                }}
+                            />
+                        )}
 
-                        {boardingPassRegenerateButtonEnabled && permissions?.bookings_edit && (
+                        {permissions?.bookings_edit && (!boardingPassFile || boardingPassRegenerateButtonEnabled) && (
                             <WhiteButton
                                 type="button"
-                                title={regeneratingBoardingPass ? "Regenerating..." : "Regenerate Pass"}
+                                title={regeneratingBoardingPass ? "Generating..." : (boardingPassFile ? "Regenerate Pass" : "Generate Pass")}
                                 icon={true}
                                 iconName={icons.resend_invoice}
                                 textColor="text-[#4D81E7]"
