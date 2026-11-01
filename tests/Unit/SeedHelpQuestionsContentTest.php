@@ -52,3 +52,13 @@ test('promotion help documents multi-season and time-slot date rules', function 
         ->and($article['business_rules'])->toContain('span multiple eligible seasons')
         ->and($article['business_rules'])->toContain('Time-slot promotions remain restricted to their selected season');
 });
+
+test('promotion help documents paired child percentage and Rand rules', function () {
+    $article = seededHelpQuestion('Varied child promotion (how does it apply)?');
+
+    expect($article)
+        ->not->toBeEmpty()
+        ->and($article['business_rules'])->toContain('One discounted child per adult')
+        ->and($article['business_rules'])->toContain('percentage or a fixed Rand amount')
+        ->and($article['examples'])->toContain('1 adult + 2 children discounts one child');
+});

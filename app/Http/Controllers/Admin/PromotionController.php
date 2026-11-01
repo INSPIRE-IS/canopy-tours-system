@@ -10,6 +10,7 @@ use App\Models\Season;
 use App\Models\Service;
 use App\Models\TypeDay;
 use App\Support\PromotionSeasonWindow;
+use App\Support\VariedChildPromotion;
 use Carbon\Carbon;
 use Gate;
 use Illuminate\Http\Request;
@@ -111,13 +112,8 @@ class PromotionController extends Controller
         }
 
         if ($data['type'] === 'varied_child') {
-            $hasTiers = !empty($params['tiers']);
-            $hasSingle = isset($params['min_adults'], $params['child_discount_percent']);
-            if (!$hasTiers && !$hasSingle) {
-                throw ValidationException::withMessages([
-                    'params' => ['Varied child promotions require tiers or a min adult rule.'],
-                ]);
-            }
+            $params = $this->validateVariedChildParams($params);
+            $data['params'] = $params;
         }
 
         if ($data['type'] === 'fixed_value') {
@@ -264,13 +260,8 @@ class PromotionController extends Controller
         }
 
         if ($data['type'] === 'varied_child') {
-            $hasTiers = !empty($params['tiers']);
-            $hasSingle = isset($params['min_adults'], $params['child_discount_percent']);
-            if (!$hasTiers && !$hasSingle) {
-                throw ValidationException::withMessages([
-                    'params' => ['Varied child promotions require tiers or a min adult rule.'],
-                ]);
-            }
+            $params = $this->validateVariedChildParams($params);
+            $data['params'] = $params;
         }
 
         if ($data['type'] === 'fixed_value') {
@@ -431,6 +422,17 @@ class PromotionController extends Controller
 
         if ($errors !== []) {
             throw ValidationException::withMessages($errors);
+        }
+    }
+
+    private function validateVariedChildParams(array $params): array
+    {
+        try {
+            return VariedChildPromotion::normalizeParams($params);
+        } catch (\InvalidArgumentException $exception) {
+            throw ValidationException::withMessages([
+                'params' => [$exception->getMessage()],
+            ]);
         }
     }
 

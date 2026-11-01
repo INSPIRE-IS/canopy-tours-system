@@ -69,6 +69,13 @@ const Modal = ({ isOpen, onClose, mode, item = null, services }) => {
       if (normalizedParams.fixed_value_mode === 'per_pax') {
         normalizedParams.fixed_value_mode = 'each_adult_child';
       }
+      if (item.type === 'varied_child' && !normalizedParams.tiers) {
+        normalizedParams.child_discount_mode = normalizedParams.child_discount_mode || 'all_children';
+        normalizedParams.child_discount_type = normalizedParams.child_discount_type || 'percent';
+        normalizedParams.child_discount_value = normalizedParams.child_discount_value
+          ?? normalizedParams.child_discount_percent
+          ?? '';
+      }
       const normalizedItem = {
         ...item,
         params: normalizedParams,
@@ -224,8 +231,8 @@ const Modal = ({ isOpen, onClose, mode, item = null, services }) => {
                   </div>
                   <div>
                     <div className="font-semibold text-gray-700">Varied Child</div>
-                    <div>Fields: Min adults + Child discount %, or tiers.</div>
-                    <div>Logic: Child-only discount when min adults/tier matched.</div>
+                    <div>Fields: Min adults, child rule, discount type, and value.</div>
+                    <div>Logic: Discount all children after the adult minimum, or match one discounted child to each adult.</div>
                   </div>
                   <div>
                     <div className="font-semibold text-gray-700">Volume Discount</div>
@@ -413,6 +420,18 @@ const Modal = ({ isOpen, onClose, mode, item = null, services }) => {
 
             {data.type === 'varied_child' && (
               <>
+                <CustomSelect
+                  label="Child Discount Rule"
+                  name="child_discount_mode"
+                  value={data.params?.child_discount_mode || 'all_children'}
+                  mode={mode}
+                  options={[
+                    { id: 'all_children', name: 'All children when minimum adults is met' },
+                    { id: 'one_per_adult', name: 'One discounted child per adult' },
+                  ]}
+                  onChange={(e) => setData('params', { ...data.params, child_discount_mode: e.target.value })}
+                  errors={errors}
+                />
                 <CustomInputText
                   title="Min Adults"
                   type="number"
@@ -421,14 +440,31 @@ const Modal = ({ isOpen, onClose, mode, item = null, services }) => {
                   onChange={(e) => setData('params', { ...data.params, min_adults: e.target.value })}
                   errors={errors}
                 />
-                <CustomInputText
-                  title="Child Discount (%)"
-                  type="number"
-                  name="child_discount_percent"
-                  value={data.params?.child_discount_percent || ''}
-                  onChange={(e) => setData('params', { ...data.params, child_discount_percent: e.target.value })}
+                <CustomSelect
+                  label="Child Discount Type"
+                  name="child_discount_type"
+                  value={data.params?.child_discount_type || 'percent'}
+                  mode={mode}
+                  options={[
+                    { id: 'percent', name: 'Percent (%)' },
+                    { id: 'fixed_value', name: 'Rand amount (R) per discounted child' },
+                  ]}
+                  onChange={(e) => setData('params', { ...data.params, child_discount_type: e.target.value })}
                   errors={errors}
                 />
+                <CustomInputText
+                  title={(data.params?.child_discount_type || 'percent') === 'fixed_value'
+                    ? 'Child Discount (R per discounted child)'
+                    : 'Child Discount (%)'}
+                  type="number"
+                  name="child_discount_value"
+                  value={data.params?.child_discount_value ?? data.params?.child_discount_percent ?? ''}
+                  onChange={(e) => setData('params', { ...data.params, child_discount_value: e.target.value })}
+                  errors={errors}
+                />
+                <p className="text-xs text-gray-500 -mt-2">
+                  One per adult discounts up to the smaller of the adult or child count. Additional children remain at the normal child rate.
+                </p>
               </>
             )}
 

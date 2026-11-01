@@ -3,6 +3,7 @@ import test from 'node:test';
 import {
     availabilityState,
     calculateBookingTotal,
+    checkoutPricingLines,
     findFirstOpenDate,
     findSelectedSlot,
     formatHoldCountdown,
@@ -65,4 +66,22 @@ test('formats the checkout hold as minutes and seconds', () => {
     assert.equal(formatHoldCountdown(900), '15:00');
     assert.equal(formatHoldCountdown(61), '1:01');
     assert.equal(formatHoldCountdown(0), '0:00');
+});
+
+test('shows paired child promotion lines separately from rack-price children', () => {
+    const lines = checkoutPricingLines(
+        { adult_unit_price: 895, adult_total: 895, child_unit_price: 795, child_total: 1590 },
+        { adults: 1, children: 2 },
+        {
+            line_items: [
+                { type: 'adult', count: 1, final_rate: 895, line_total: 895 },
+                { type: 'child', count: 1, final_rate: 795, line_total: 795 },
+                { type: 'child', count: 1, final_rate: 397.5, line_total: 397.5, adjustment_label: 'Kids Half Price' },
+            ],
+        },
+    );
+
+    assert.deepEqual(lines.map((line) => line.value), [895, 795, 397.5]);
+    assert.match(lines[1].label, /1 child x R795/);
+    assert.match(lines[2].label, /Kids Half Price/);
 });

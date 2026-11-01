@@ -3,7 +3,7 @@ import { Head, router } from '@inertiajs/react';
 import axios from 'axios';
 import { format, parseISO } from 'date-fns';
 import { ChevronIcon, ConditionsModal, money, TenantImage } from './BookingComponents';
-import { formatHoldCountdown, remainingHoldSeconds } from './bookingState';
+import { checkoutPricingLines, formatHoldCountdown, remainingHoldSeconds } from './bookingState';
 import './booking-v2.css';
 
 function LockIcon() {
@@ -54,7 +54,7 @@ function BookingDetails({ service, lines, selectedExtras, formattedDate, time, a
             <div className="kct-checkout-summary-lines">
                 <SummaryLine label="Date" value={formattedDate} />
                 <SummaryLine label="Time" value={`${time}${arrivalBy ? ` - arrive by ${arrivalBy}` : ''}`} />
-                {lines.map((line) => <SummaryLine key={line.label} {...line} />)}
+                {lines.map((line) => <SummaryLine key={line.key} label={line.label} value={money(line.value)} />)}
                 {selectedExtras.map((extra) => (
                     <SummaryLine
                         key={extra.id}
@@ -178,16 +178,10 @@ export default function Checkout({ team, service, selection, quote, extras = [],
         && details.email.trim()
         && details.phone.trim()
         && accepted);
-    const lines = useMemo(() => [
-        selection.adults > 0 ? {
-            label: `${selection.adults} ${selection.adults === 1 ? 'adult' : 'adults'} x ${money(quote.adult_unit_price)}`,
-            value: money(quote.adult_total),
-        } : null,
-        selection.children > 0 ? {
-            label: `${selection.children} ${selection.children === 1 ? 'child' : 'children'} x ${money(quote.child_unit_price)}`,
-            value: money(quote.child_total),
-        } : null,
-    ].filter(Boolean), [quote, selection]);
+    const lines = useMemo(
+        () => checkoutPricingLines(quote, selection, appliedPromo),
+        [appliedPromo, quote, selection],
+    );
     const selectedExtras = extras.filter((extra) => selectedExtraIds.includes(extra.id));
     const extrasTotal = selectedExtras.reduce((total, extra) => total + Number(extra.total || 0), 0);
     const activityTotal = Number(appliedPromo?.total_price ?? quote.total ?? 0);

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\VariedChildPromotion;
 use App\Traits\Auditable;
 use App\Traits\MultiTenantModelTrait;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -558,10 +559,7 @@ class BookingItem extends Model
                         break;
 
                     case 'varied_child':
-                        // Support single rule  {min_adults, child_discount_percent}
-                        // and tiered rules     {tiers:[{min_adults, child_discount_percent}, ...]}
                         if (!empty($params['tiers']) && is_array($params['tiers'])) {
-                            // choose best tier with min_adults <= adultCount
                             $best = collect($params['tiers'])
                                 ->filter(fn($t) => isset($t['min_adults']) && $pax_adults >= (int)$t['min_adults'])
                                 ->sortByDesc('min_adults')
@@ -571,11 +569,18 @@ class BookingItem extends Model
                                 $pct = (float) $best['child_discount_percent'];
                                 $rates['child'] = round($rates['child'] - ($rates['child'] * ($pct / 100)), 2);
                             }
-                        } elseif (isset($params['min_adults'], $params['child_discount_percent'])) {
-                            if ($pax_adults >= (int)$params['min_adults']) {
-                                $pct = (float) $params['child_discount_percent'];
-                                $rates['child'] = round($rates['child'] - ($rates['child'] * ($pct / 100)), 2);
+                        } else {
+                            try {
+                                $childPricing = VariedChildPromotion::pricingBreakdown(
+                                    (float) $baseRates['child'],
+                                    (int) $pax_adults,
+                                    (int) $pax_children,
+                                    $params
+                                );
+                            } catch (\InvalidArgumentException) {
+                                break;
                             }
+                            $rates['child'] = $childPricing['average_rate'];
                         }
                         logger()->info('varied_child promo applied ' . var_export($rates, true));
                         break;
