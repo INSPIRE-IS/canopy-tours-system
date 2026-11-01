@@ -205,6 +205,14 @@ Adjacent seasons may have different:
 
 Never copy availability from one season into another to make a view look continuous.
 
+### Promotion activity windows
+
+- General service-level promotions may start in one eligible season and end in a later eligible season for the same service.
+- Both activity-window boundary dates must belong to eligible seasons. Genuine gaps remain unavailable because booking calendars still require real season inventory for the selected date.
+- Public promotions must not use staff-only seasons merely to satisfy their date boundaries. Internal-use-only promotions may use internal seasons.
+- Time-slot promotions remain constrained to one explicitly selected season because time-slot IDs are inventory-specific.
+- Promo redemption must still use the actual season resolved for the selected activity date; a broad promotion window does not create availability or extend a season.
+
 ## Investigation checklist
 
 1. Identify the surface: inventory preview, Admin Create, Admin Edit, or public activity calendar.
