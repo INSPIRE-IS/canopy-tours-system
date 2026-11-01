@@ -647,10 +647,10 @@ class SeedHelpQuestions extends Command
             [
                 'category' => 'Promotions',
                 'question' => 'Varied child promotion (how does it apply)?',
-                'description' => 'Varied child promos discount child pricing when an adult minimum is met (or by tiers).',
+                'description' => 'Varied child promos discount eligible child pricing when an adult minimum is met.',
                 'where' => '<a href="/admin/promotions">Admin > Promotions</a> (Type: Varied Child)',
-                'business_rules' => 'If the booking has at least the required number of adults, the child rate is discounted by the configured percentage (single rule) or by the best matching tier.',
-                'examples' => 'Example 1: Min adults=2, child discount=50%; booking 2 adults + 1 child => child is 50% off. Example 2: Min adults=3; booking 2 adults + 2 children => no child discount applies.',
+                'business_rules' => 'Choose All children to preserve the original threshold rule: once the minimum adult count is met, every child receives the discount. Choose One discounted child per adult for paired specials: the discounted child count is the smaller of the adult and child counts, while additional children remain at rack rate. The child discount can be a percentage or a fixed Rand amount per discounted child and is capped at the child rate.',
+                'examples' => 'Paired 50% example: 1 adult + 2 children discounts one child and leaves one child at rack rate; 2 adults + 3 children discounts two children. Rand example: R200 off per paired child with 2 adults + 3 children subtracts R400 from the child subtotal. Legacy all-children example: Min adults=2 with 50% off discounts every child once 2 adults are present.',
                 'related' => 'promotions, varied_child, tiers, pricing',
                 'is_internal' => true,
             ],

@@ -6,6 +6,7 @@ use App\Models\Discount;
 use App\Models\Promotion;
 use App\Models\Season;
 use App\Models\WholesalerRate;
+use App\Support\VariedChildPromotion;
 
 class PricingService
 {
@@ -209,7 +210,6 @@ class PricingService
                             'adjustment_label' => $appliedPromo['name'] ?? 'Promotion',
                         ];
                     };
-
                     switch ($promo->type) {
                         case 'percent':
                             foreach ($rates as $key => $value) {
@@ -304,12 +304,42 @@ class PricingService
 
                                 if ($best && isset($best['child_discount_percent'])) {
                                     $pct = (float) $best['child_discount_percent'];
+                                    if ($pct < 0 || $pct > 100) {
+                                        throw new \InvalidArgumentException('Varied child discount percent must be between 0 and 100.');
+                                    }
                                     $rates['child'] = round($rates['child'] - ($rates['child'] * ($pct / 100)), 2);
                                 }
-                            } elseif (isset($params['min_adults'], $params['child_discount_percent'])) {
-                                if ($adultCount >= (int) $params['min_adults']) {
-                                    $pct = (float) $params['child_discount_percent'];
-                                    $rates['child'] = round($rates['child'] - ($rates['child'] * ($pct / 100)), 2);
+                            } else {
+                                $childPricing = VariedChildPromotion::pricingBreakdown(
+                                    (float) $baseRates['child'],
+                                    (int) $adultCount,
+                                    (int) $childCount,
+                                    $params
+                                );
+                                $rates['child'] = $childPricing['average_rate'];
+
+                                if ($childPricing['discounted_count'] > 0) {
+                                    $promoLineItems['child'] = [];
+                                    if ($childPricing['rack_count'] > 0) {
+                                        $promoLineItems['child'][] = [
+                                            'type' => 'child',
+                                            'count' => $childPricing['rack_count'],
+                                            'discount_id' => null,
+                                            'base_rate' => (float) $baseRates['child'],
+                                            'final_rate' => (float) $baseRates['child'],
+                                            'line_total' => round($baseRates['child'] * $childPricing['rack_count'], 2),
+                                            'adjustment_label' => null,
+                                        ];
+                                    }
+                                    $promoLineItems['child'][] = [
+                                        'type' => 'child',
+                                        'count' => $childPricing['discounted_count'],
+                                        'discount_id' => null,
+                                        'base_rate' => (float) $baseRates['child'],
+                                        'final_rate' => $childPricing['discounted_rate'],
+                                        'line_total' => round($childPricing['discounted_rate'] * $childPricing['discounted_count'], 2),
+                                        'adjustment_label' => $appliedPromo['name'] ?? 'Promotion',
+                                    ];
                                 }
                             }
                             break;
