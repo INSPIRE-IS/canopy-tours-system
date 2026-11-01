@@ -9,6 +9,7 @@ use App\Models\PromotionDayTimeSlot;
 use App\Models\Season;
 use App\Models\Service;
 use App\Models\TypeDay;
+use App\Support\PromotionSeasonWindow;
 use Carbon\Carbon;
 use Gate;
 use Illuminate\Http\Request;
@@ -136,16 +137,7 @@ class PromotionController extends Controller
             ]);
         }
 
-        $season = Season::where('service_id', $data['service_id'])
-            ->whereDate('start_date', '<=', $data['activity_start_date'])
-            ->whereDate('end_date', '>=', $data['activity_end_date'])
-            ->first();
-
-        if (!$season) {
-            throw ValidationException::withMessages([
-                'activity_start_date' => ['Activity dates must fall within a season for the selected service.'],
-            ]);
-        }
+        $this->validateActivitySeasonCoverage($data);
 
         if ($data['activity_start_date'] < $data['booking_start_date'] || $data['activity_end_date'] < $data['booking_start_date']) {
             throw ValidationException::withMessages([
@@ -298,16 +290,7 @@ class PromotionController extends Controller
             ]);
         }
 
-        $season = Season::where('service_id', $data['service_id'])
-            ->whereDate('start_date', '<=', $data['activity_start_date'])
-            ->whereDate('end_date', '>=', $data['activity_end_date'])
-            ->first();
-
-        if (!$season) {
-            throw ValidationException::withMessages([
-                'activity_start_date' => ['Activity dates must fall within a season for the selected service.'],
-            ]);
-        }
+        $this->validateActivitySeasonCoverage($data);
 
         if ($data['activity_start_date'] < $data['booking_start_date'] || $data['activity_end_date'] < $data['booking_start_date']) {
             throw ValidationException::withMessages([
@@ -429,6 +412,26 @@ class PromotionController extends Controller
             ->values();
         //dd($promotions);
         return response()->json($promotions);
+    }
+
+    private function validateActivitySeasonCoverage(array $data): void
+    {
+        $seasons = Season::query()
+            ->where('service_id', $data['service_id'])
+            ->get(['id', 'start_date', 'end_date', 'internal_only']);
+
+        $errors = PromotionSeasonWindow::validationErrors(
+            $seasons,
+            $data['type'],
+            $data['season_id'] ?? null,
+            $data['activity_start_date'],
+            $data['activity_end_date'],
+            (bool) ($data['internal_use_only'] ?? false)
+        );
+
+        if ($errors !== []) {
+            throw ValidationException::withMessages($errors);
+        }
     }
 
     private function validateExactPaxDiscountRules($rawRules): array

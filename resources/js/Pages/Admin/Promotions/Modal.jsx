@@ -9,6 +9,7 @@ import GraduatedTable from "@/Components/GraduatedTable";
 import ExactPaxDiscountEditor from "@/Components/ExactPaxDiscountEditor";
 import VolumeDiscountEditor from "@/Components/VolumeDiscountEditor";
 import { icons } from "@/icons";
+import { validatePromotionSeasonWindow } from "./promotionSeasonValidation";
 
 const Modal = ({ isOpen, onClose, mode, item = null, services }) => {
 
@@ -159,15 +160,20 @@ const Modal = ({ isOpen, onClose, mode, item = null, services }) => {
       return;
     }
 
-    // Make sure activity window is inside a season for the selected service
+    // General promos may span seasons; time-slot promos remain tied to one inventory season.
     if (activity_start_date && activity_end_date) {
       const service = services.find(s => s.id == data.service_id);
-      const season = service?.seasons?.find((s) =>
-        activity_start_date >= s.start_date && activity_end_date <= s.end_date
-      );
+      const seasonValidation = validatePromotionSeasonWindow({
+        type: data.type,
+        seasonId: data.season_id,
+        seasons: service?.seasons || [],
+        activityStartDate: activity_start_date,
+        activityEndDate: activity_end_date,
+        internalUseOnly: data.internal_use_only,
+      });
 
-      if (!season) {
-        alert("Activity dates must fall within a season for the selected service.");
+      if (!seasonValidation.valid) {
+        alert(seasonValidation.message);
         return;
       }
     }
@@ -294,6 +300,9 @@ const Modal = ({ isOpen, onClose, mode, item = null, services }) => {
               <CustomInputText title="End Date (YYYY-MM-DD)" type="date" name="booking_end_date" value={data.booking_end_date} mode={mode} onChange={(e) => { handleChange(e.target.name, e.target.value); }} errors={errors} />
             </div>
             <span className="text-booking-card-title">Activity Dates</span>
+            <p className="text-xs text-gray-500 -mt-2">
+              General promotions can span seasons when both boundary dates are covered. Time-slot promotions must stay within the selected season.
+            </p>
             <div className="flex flex-row w-full items-center gap-2 justify-between mb-4">
               <CustomInputText title="Start Date (YYYY-MM-DD)" type="date" name="activity_start_date" value={data.activity_start_date} mode={mode} onChange={(e) => { handleChange(e.target.name, e.target.value); }} errors={errors} />
               <CustomInputText title="End Date (YYYY-MM-DD)" type="date" name="activity_end_date" value={data.activity_end_date} mode={mode} onChange={(e) => { handleChange(e.target.name, e.target.value); }} errors={errors} />

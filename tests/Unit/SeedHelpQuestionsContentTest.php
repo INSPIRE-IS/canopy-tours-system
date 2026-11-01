@@ -43,3 +43,12 @@ test('help articles distinguish current public features from legacy or external 
         ->and(seededHelpQuestion('How does slot funneling work?'))->not->toBeEmpty()
         ->and(seededHelpQuestion('What does GA4 purchase tracking include?'))->not->toBeEmpty();
 });
+
+test('promotion help documents multi-season and time-slot date rules', function () {
+    $article = seededHelpQuestion('How do booking dates vs activity dates work for promos?');
+
+    expect($article)
+        ->not->toBeEmpty()
+        ->and($article['business_rules'])->toContain('span multiple eligible seasons')
+        ->and($article['business_rules'])->toContain('Time-slot promotions remain restricted to their selected season');
+});
