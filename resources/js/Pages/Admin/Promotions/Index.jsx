@@ -92,7 +92,9 @@ export default function Index({ promos, searchTerm, sortColumn, sortDirection, p
                         <tr key={item.id} className="flex justify-between overflow-x-auto items-center hover:bg-gray-50">
                           <td className="w-[80px] p-3">{item.id}</td>
                           <td className="w-[80px] xl:w-[200px] p-3">{item.name} / {item.promo_code}</td>
-                          <td className="w-[80px] xl:w-[140px] p-3">{item.type} / {item.value}</td>
+                          <td className="w-[80px] xl:w-[140px] p-3">
+                            {item.type === 'varied_child' ? 'Varied Child' : `${item.type} / ${item.value}`}
+                          </td>
                           <td className="w-[80px] xl:w-[180px] p-3">{item.service?.name}</td>
                           <td className="w-[80px] xl:w-[140px] p-3">{item?.booking_start_date?.split('T')[0]} / {item?.booking_end_date?.split('T')[0]}</td>
                           <td className="w-[80px] xl:w-[120px] p-3">{item.internal_use_only ? 'Yes' : 'No'}</td>
