@@ -5,9 +5,11 @@ namespace App\Exceptions;
 use App\Models\BookingItem;
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
 use Illuminate\Routing\Exceptions\InvalidSignatureException;
+use Illuminate\Session\TokenMismatchException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\URL;
 use Inertia\Inertia;
+use Symfony\Component\HttpFoundation\Response;
 use Throwable;
 
 class Handler extends ExceptionHandler
@@ -36,6 +38,10 @@ class Handler extends ExceptionHandler
     public function render($request, Throwable $exception)
     {
         //dd($exception);
+        if ($exception instanceof TokenMismatchException && $request->is('admin/*')) {
+            return $this->renderExpiredAdminSession($request);
+        }
+
         if ($exception instanceof InvalidSignatureException) {
             if ($request->is('front/booking-questionnaire/checkin') || $request->is('front/feedback-questionnaire/feedback')) {
                 $bookingItemId = $request->query('booking_item_id');
@@ -84,6 +90,50 @@ class Handler extends ExceptionHandler
         }
 
         return parent::render($request, $exception);
+    }
+
+    protected function renderExpiredAdminSession($request): Response
+    {
+        $returnUrl = $this->safeAdminReturnUrl($request);
+        $message = 'Your session expired. Please sign in again to continue.';
+
+        $request->session()->put('url.intended', $returnUrl);
+        $request->session()->flash('session_expired', $message);
+
+        if ($request->header('X-Inertia')) {
+            return Inertia::location(route('login'));
+        }
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => $message,
+                'redirect' => route('login'),
+            ], 419);
+        }
+
+        return redirect()->route('login');
+    }
+
+    protected function safeAdminReturnUrl($request): string
+    {
+        $fallback = route('admin.dashboard');
+        $previous = $request->headers->get('referer');
+        if (! is_string($previous) || $previous === '') {
+            return $fallback;
+        }
+
+        $parts = parse_url($previous);
+        if (! is_array($parts)) {
+            return $fallback;
+        }
+
+        $path = $parts['path'] ?? '';
+        if (strcasecmp((string) ($parts['host'] ?? ''), $request->getHost()) !== 0
+            || ! ($path === '/admin' || str_starts_with($path, '/admin/'))) {
+            return $fallback;
+        }
+
+        return $previous;
     }
 
     protected function resolveCheckinExpiry(?BookingItem $bookingItem): ?Carbon

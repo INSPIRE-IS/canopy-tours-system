@@ -9,6 +9,23 @@ window.axios = axios;
 
 window.axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
 
+let redirectingAfterSessionExpiry = false;
+window.axios.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        const redirect = error.response?.status === 419
+            ? error.response?.data?.redirect
+            : null;
+
+        if (redirect && !redirectingAfterSessionExpiry) {
+            redirectingAfterSessionExpiry = true;
+            window.location.assign(redirect);
+        }
+
+        return Promise.reject(error);
+    },
+);
+
 /**
  * Echo exposes an expressive API for subscribing to channels and listening
  * for events that are broadcast by Laravel. Echo and event broadcasting
