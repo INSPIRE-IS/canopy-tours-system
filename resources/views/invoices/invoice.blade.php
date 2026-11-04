@@ -33,6 +33,7 @@
         .meta-left { width: 70%; padding-right: 8px; }
         .meta-right { width: 30%; }
         .meta-table th { font-weight: bold; }
+        .client-details { overflow-wrap: anywhere; word-wrap: break-word; }
         .items th { font-weight: bold; }
     </style>
 </head>
@@ -87,10 +88,26 @@
                                 {{ $site['website_url'] }}
                             @endif
                         </td>
-                        <td class="border">
-                            {{ $client['name'] ?? '' }}<br>
-                            {{ $client['phone'] ?? '' }}<br>
-                            {{ $client['email'] ?? '' }}
+                        <td class="border client-details">
+                            {{ $client['name'] ?? '' }}
+                            @if(!empty($client['phone']))
+                                <br>{{ $client['phone'] }}
+                            @endif
+                            @if(!empty($client['email']))
+                                <br>{{ $client['email'] }}
+                            @endif
+                            @if(!empty($client['guest_name']))
+                                <div class="mt-1">
+                                    <strong>Guest:</strong><br>
+                                    {{ $client['guest_name'] }}<br>
+                                    @if(!empty($client['guest_phone']))
+                                        {{ $client['guest_phone'] }}<br>
+                                    @endif
+                                    @if(!empty($client['guest_email']))
+                                        {{ $client['guest_email'] }}<br>
+                                    @endif
+                                </div>
+                            @endif
                         </td>
                     </tr>
                 </table>

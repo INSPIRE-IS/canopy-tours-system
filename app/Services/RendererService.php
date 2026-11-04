@@ -88,12 +88,18 @@ class RendererService
         $clientName = $customer->full_name;
         $clientPhone = $customer->contact_number;
         $clientEmail = $customer->email_address;
+        $guestName = null;
+        $guestPhone = null;
+        $guestEmail = null;
         if ($wholesalerBooking?->wholesaler) {
             $consultant = $wholesalerBooking->consultant_name;
             $clientName = $wholesalerBooking->wholesaler->name
                 . ($consultant ? ' (Attn: ' . $consultant . ')' : '');
             $clientPhone = $wholesalerBooking->consultant_mobile ?? '';
             $clientEmail = $wholesalerBooking->consultant_email ?? '';
+            $guestName = $customer->full_name;
+            $guestPhone = $customer->contact_number;
+            $guestEmail = $customer->email_address;
         }
 
         $emailMessageLines = $documentLabel === 'Quote'
@@ -227,6 +233,9 @@ class RendererService
                 'name' => $clientName,
                 'phone' => $clientPhone,
                 'email' => $clientEmail,
+                'guest_name' => $guestName,
+                'guest_phone' => $guestPhone,
+                'guest_email' => $guestEmail,
             ],
             'invoice' => [
                 'number' => $invoice->invoice_number,
