@@ -47,7 +47,7 @@ class LookupItem extends Model
 
     public static function defaultsForTeam(?int $teamId, ?int $lookupId = null): Collection
     {
-        $query = static::query()
+        $query = static::withoutGlobalScope('team_id')
             ->where('is_default', true)
             ->where(function ($q) use ($teamId) {
                 $q->whereNull('team_id');
@@ -74,7 +74,7 @@ class LookupItem extends Model
 
     public static function findDefaultForTeam(string $slug, ?int $teamId, ?int $lookupId = null): ?self
     {
-        $query = static::query()
+        $query = static::withoutGlobalScope('team_id')
             ->where('slug', $slug)
             ->where('is_default', true)
             ->where(function ($q) use ($teamId) {
@@ -97,7 +97,7 @@ class LookupItem extends Model
     {
         static::ensureSettingsForTeam($teamId);
 
-        $lookup = Lookup::where('slug', 'settings')->first();
+        $lookup = static::settingsLookup();
         if (!$lookup) {
             return [];
         }
@@ -113,11 +113,11 @@ class LookupItem extends Model
     {
         static::ensureSettingsForTeam($teamId);
 
-        $lookup = Lookup::where('slug', 'settings')->first();
+        $lookup = static::settingsLookup();
         if (!$lookup) {
             return [
                 'franchise_royalty_percent' => 10.0,
-                'franchise_marketing_percent' => 2.5,
+                'franchise_marketing_percent' => 1.5,
             ];
         }
 
@@ -125,7 +125,7 @@ class LookupItem extends Model
 
         return [
             'franchise_royalty_percent' => static::settingRate($items->get('franchise_royalty_percent'), 10.0),
-            'franchise_marketing_percent' => static::settingRate($items->get('franchise_marketing_percent'), 2.5),
+            'franchise_marketing_percent' => static::settingRate($items->get('franchise_marketing_percent'), 1.5),
         ];
     }
 
@@ -218,20 +218,12 @@ class LookupItem extends Model
 
     public static function ensureSettingsForTeam(?int $teamId): void
     {
-        $lookup = Lookup::firstOrCreate(
-            ['slug' => 'settings'],
-            ['name' => 'Settings', 'team_id' => null]
-        );
-
-        $defaults = static::query()
-            ->where('lookup_id', $lookup->id)
-            ->where('is_default', true)
-            ->whereNull('team_id')
-            ->get();
+        $lookup = static::settingsLookup();
 
         $today = now()->toDateString();
         foreach (static::settingsDefinitions() as $definition) {
-            static::firstOrCreate(
+            // Global defaults must bypass the tenant creation hook, which assigns the signed-in user's team.
+            static::withoutEvents(fn() => static::withoutGlobalScope('team_id')->firstOrCreate(
                 [
                     'lookup_id' => $lookup->id,
                     'slug' => $definition['slug'],
@@ -250,10 +242,10 @@ class LookupItem extends Model
                     'is_default' => true,
                     'is_active' => true,
                 ]
-            );
+            ));
         }
 
-        $defaults = static::query()
+        $defaults = static::withoutGlobalScope('team_id')
             ->where('lookup_id', $lookup->id)
             ->where('is_default', true)
             ->whereNull('team_id')
@@ -272,7 +264,7 @@ class LookupItem extends Model
             return;
         }
 
-        static::query()
+        static::withoutGlobalScope('team_id')
             ->where('lookup_id', $lookup->id)
             ->where('team_id', $teamId)
             ->get()
@@ -286,7 +278,7 @@ class LookupItem extends Model
             });
 
         foreach ($defaults as $default) {
-            static::firstOrCreate(
+            static::withoutGlobalScope('team_id')->firstOrCreate(
                 [
                     'lookup_id' => $lookup->id,
                     'slug' => $default->slug,
@@ -305,6 +297,18 @@ class LookupItem extends Model
                 ]
             );
         }
+    }
+
+    private static function settingsLookup(): Lookup
+    {
+        // Reuse the legacy settings container regardless of ownership; new containers are global.
+        return Lookup::withoutEvents(fn() => Lookup::withoutGlobalScope('team_id')->firstOrCreate(
+            ['slug' => 'settings'],
+            [
+                'name' => 'Settings',
+                'team_id' => null,
+            ]
+        ));
     }
 
     private static function isRateSetting(?string $slug): bool
