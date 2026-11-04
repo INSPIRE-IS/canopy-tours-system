@@ -51,7 +51,7 @@ class LookupsController extends Controller
                     'name' => $item->name ?? $item->slug,
                     'description' => $item->info ?? '',
                     'rate' => $item->rate,
-                    'fallback' => $item->slug === 'franchise_royalty_percent' ? 10 : 2.5,
+                    'fallback' => $item->slug === 'franchise_royalty_percent' ? 10 : 1.5,
                 ];
             })
             ->values();

@@ -117,7 +117,7 @@ class LookupItem extends Model
         if (!$lookup) {
             return [
                 'franchise_royalty_percent' => 10.0,
-                'franchise_marketing_percent' => 2.5,
+                'franchise_marketing_percent' => 1.5,
             ];
         }
 
@@ -125,7 +125,7 @@ class LookupItem extends Model
 
         return [
             'franchise_royalty_percent' => static::settingRate($items->get('franchise_royalty_percent'), 10.0),
-            'franchise_marketing_percent' => static::settingRate($items->get('franchise_marketing_percent'), 2.5),
+            'franchise_marketing_percent' => static::settingRate($items->get('franchise_marketing_percent'), 1.5),
         ];
     }
 

@@ -80,14 +80,26 @@ class FranchiseFeesReportExport implements FromCollection, WithHeadings, ShouldA
         $rows->push($this->summaryRow('Average Per Guest', $totalPax > 0 ? $this->money($totalInclVat / $totalPax) : $this->money(0)));
         $reportSettings = LookupItem::franchiseFeeSettingsForTeam($this->teamId);
         $royaltyPercent = (float) ($reportSettings['franchise_royalty_percent'] ?? 10.0);
-        $marketingPercent = (float) ($reportSettings['franchise_marketing_percent'] ?? 2.5);
-        $rows->push($this->summaryRow("Royalty @ {$this->percentLabel($royaltyPercent)}", $this->money($turnoverExclVat * ($royaltyPercent / 100))));
-        $rows->push($this->summaryRow("Marketing Account @ {$this->percentLabel($marketingPercent)}", $this->money($turnoverExclVat * ($marketingPercent / 100))));
+        $marketingPercent = (float) ($reportSettings['franchise_marketing_percent'] ?? 1.5);
+        $franchiseFees = $this->calculateFranchiseFees($totalInclVat, $royaltyPercent, $marketingPercent);
+        $rows->push($this->summaryRow("Royalty @ {$this->percentLabel($royaltyPercent)}", $this->money($franchiseFees['royalty'])));
+        $rows->push($this->summaryRow("Marketing Account @ {$this->percentLabel($marketingPercent)}", $this->money($franchiseFees['marketing'])));
         $rows->push($this->blankRow());
         $this->reportNotesRow = $rows->count() + 2;
         $rows->push($this->summaryRow('Report Notes', 'V1 buckets known 10/15/20/25%, configured trade-exchange wholesalers, prepaid voucher partner rates, complimentary, and full-rate rows; unmapped promos/discounts/non-trade wholesalers/custom rates are grouped under Other with structured pricing comments only.'));
 
         return $rows;
+    }
+
+    protected function calculateFranchiseFees(
+        float $totalInclVat,
+        float $royaltyPercent,
+        float $marketingPercent,
+    ): array {
+        return [
+            'royalty' => $totalInclVat * ($royaltyPercent / 100),
+            'marketing' => $totalInclVat * ($marketingPercent / 100),
+        ];
     }
 
     public function registerEvents(): array

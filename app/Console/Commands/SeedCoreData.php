@@ -349,7 +349,7 @@ class SeedCoreData extends Command
             [
                 'name' => 'Franchise Marketing Percent',
                 'slug' => 'franchise_marketing_percent',
-                'info' => 'Hidden admin setting for Franchise Fees marketing percentage. Leave rate blank to use 2.5%.',
+                'info' => 'Hidden admin setting for Franchise Fees marketing percentage. Leave rate blank to use 1.5%.',
             ],
         ] as $reportSetting) {
             LookupItem::updateOrCreate(
