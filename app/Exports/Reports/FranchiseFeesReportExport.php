@@ -4,9 +4,10 @@ namespace App\Exports\Reports;
 
 use App\Models\BookingItem;
 use App\Models\Discount;
-use App\Models\LookupItem;
 use App\Models\Wholesaler;
 use App\Models\WholesalerRate;
+use App\Services\FranchiseFeeRateResolver;
+use App\Services\FranchiseFeeReportCalculator;
 use Carbon\Carbon;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Database\Eloquent\Builder;
@@ -78,15 +79,11 @@ class FranchiseFeesReportExport implements FromCollection, WithHeadings, ShouldA
         $rows->push($this->summaryRow('VAT', $this->money($vat)));
         $rows->push($this->summaryRow('Turnover excl VAT', $this->money($turnoverExclVat)));
         $rows->push($this->summaryRow('Average Per Guest', $totalPax > 0 ? $this->money($totalInclVat / $totalPax) : $this->money(0)));
-        $reportSettings = LookupItem::franchiseFeeSettingsForTeam($this->teamId);
-        $royaltyPercent = (float) ($reportSettings['franchise_royalty_percent'] ?? 10.0);
-        $marketingPercent = (float) ($reportSettings['franchise_marketing_percent'] ?? 1.5);
-        $franchiseFees = $this->calculateFranchiseFees($totalInclVat, $royaltyPercent, $marketingPercent);
-        $rows->push($this->summaryRow("Royalty @ {$this->percentLabel($royaltyPercent)}", $this->money($franchiseFees['royalty'])));
-        $rows->push($this->summaryRow("Marketing Account @ {$this->percentLabel($marketingPercent)}", $this->money($franchiseFees['marketing'])));
+        $financials = app(FranchiseFeeReportCalculator::class)->calculate($this->teamId, $rowsByDate);
+        $this->appendFranchiseFeeRows($rows, $financials, app(FranchiseFeeReportCalculator::class));
         $rows->push($this->blankRow());
         $this->reportNotesRow = $rows->count() + 2;
-        $rows->push($this->summaryRow('Report Notes', 'V1 buckets known 10/15/20/25%, configured trade-exchange wholesalers, prepaid voucher partner rates, complimentary, and full-rate rows; unmapped promos/discounts/non-trade wholesalers/custom rates are grouped under Other with structured pricing comments only.'));
+        $rows->push($this->summaryRow('Report Notes', 'Royalty and marketing rates are selected by activity date. V1 buckets known 10/15/20/25%, configured trade-exchange wholesalers, prepaid voucher partner rates, complimentary, and full-rate rows; unmapped promos/discounts/non-trade wholesalers/custom rates are grouped under Other with structured pricing comments only.'));
 
         return $rows;
     }
@@ -100,6 +97,46 @@ class FranchiseFeesReportExport implements FromCollection, WithHeadings, ShouldA
             'royalty' => $totalInclVat * ($royaltyPercent / 100),
             'marketing' => $totalInclVat * ($marketingPercent / 100),
         ];
+    }
+
+    private function appendFranchiseFeeRows(
+        Collection $rows,
+        array $financials,
+        FranchiseFeeReportCalculator $calculator,
+    ): void {
+        $periods = $financials['fee_periods'];
+
+        if (count($periods) <= 1) {
+            $period = $periods[0] ?? [
+                'royalty_percent' => FranchiseFeeRateResolver::FALLBACK_ROYALTY_PERCENT,
+                'marketing_percent' => FranchiseFeeRateResolver::FALLBACK_MARKETING_PERCENT,
+            ];
+            $rows->push($this->summaryRow(
+                "Royalty @ {$this->percentLabel((float) $period['royalty_percent'])}",
+                $this->money($financials['royalty'])
+            ));
+            $rows->push($this->summaryRow(
+                "Marketing Account @ {$this->percentLabel((float) $period['marketing_percent'])}",
+                $this->money($financials['marketing'])
+            ));
+
+            return;
+        }
+
+        foreach ($periods as $period) {
+            $dateLabel = $calculator->periodDateLabel($period);
+            $rows->push($this->summaryRow(
+                "Royalty @ {$this->percentLabel((float) $period['royalty_percent'])} ({$dateLabel})",
+                $this->money($period['royalty'])
+            ));
+            $rows->push($this->summaryRow(
+                "Marketing Account @ {$this->percentLabel((float) $period['marketing_percent'])} ({$dateLabel})",
+                $this->money($period['marketing'])
+            ));
+        }
+
+        $rows->push($this->summaryRow('Royalty total', $this->money($financials['royalty'])));
+        $rows->push($this->summaryRow('Marketing Account total', $this->money($financials['marketing'])));
     }
 
     public function registerEvents(): array

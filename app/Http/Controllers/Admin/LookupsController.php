@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\FranchiseFeeRatePeriod;
 use App\Models\Lookup;
 use App\Models\LookupItem;
+use App\Services\FranchiseFeeRateResolver;
 use Gate;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -42,25 +44,37 @@ class LookupsController extends Controller
             })
             ->values();
 
-        $reportSettings = $items
-            ->filter(fn($item) => in_array($item->slug, $this->reportSettingSlugs(), true))
-            ->sortBy('id')
-            ->map(function ($item) {
-                return [
-                    'slug' => $item->slug,
-                    'name' => $item->name ?? $item->slug,
-                    'description' => $item->info ?? '',
-                    'rate' => $item->rate,
-                    'fallback' => $item->slug === 'franchise_royalty_percent' ? 10 : 1.5,
-                ];
-            })
-            ->values();
         $canManageReportSettings = auth()->user()->roles->contains(1);
+        $franchiseFeePeriods = collect();
+        if ($canManageReportSettings && $teamId) {
+            $franchiseFeePeriods = FranchiseFeeRatePeriod::withoutGlobalScope('team_id')
+                ->where('team_id', $teamId)
+                ->orderByDesc('effective_from')
+                ->get()
+                ->map(fn (FranchiseFeeRatePeriod $period) => [
+                    'id' => $period->id,
+                    'royalty_percent' => (float) $period->royalty_percent,
+                    'marketing_percent' => (float) $period->marketing_percent,
+                    'effective_from' => $period->effective_from?->toDateString(),
+                    'effective_to' => $period->effective_to?->toDateString(),
+                    'is_active' => (bool) $period->is_active,
+                    'is_current' => $period->is_active
+                        && $period->effective_from?->lte(today())
+                        && ($period->effective_to === null || $period->effective_to->gte(today())),
+                    'note' => $period->note,
+                ])
+                ->values();
+        }
+        $franchiseFeeDefaults = [
+            'royalty_percent' => FranchiseFeeRateResolver::FALLBACK_ROYALTY_PERCENT,
+            'marketing_percent' => FranchiseFeeRateResolver::FALLBACK_MARKETING_PERCENT,
+        ];
 
         return Inertia::render('Admin/Settings/Index', [
             'settings' => $settings,
-            'reportSettings' => $reportSettings,
             'canManageReportSettings' => $canManageReportSettings,
+            'franchiseFeePeriods' => $franchiseFeePeriods,
+            'franchiseFeeDefaults' => $franchiseFeeDefaults,
         ]);
     }
 
@@ -80,7 +94,7 @@ class LookupsController extends Controller
         $items = LookupItem::defaultsForTeam($teamId, $lookup->id);
         $booleanItems = $items->reject(fn($item) => in_array($item->slug, $this->reportSettingSlugs(), true));
         $rules = $booleanItems->mapWithKeys(fn($item) => [$item->slug => 'boolean'])->all();
-        if (auth()->user()->roles->contains(1)) {
+        if (auth()->user()->roles->contains(1) && $request->has('report_settings')) {
             $rules['report_settings.franchise_royalty_percent'] = ['nullable', 'numeric', 'min:0', 'max:100'];
             $rules['report_settings.franchise_marketing_percent'] = ['nullable', 'numeric', 'min:0', 'max:100'];
         }
@@ -110,7 +124,7 @@ class LookupsController extends Controller
             );
         }
 
-        if (auth()->user()->roles->contains(1)) {
+        if (auth()->user()->roles->contains(1) && $request->has('report_settings')) {
             foreach ($this->reportSettingSlugs() as $slug) {
                 $source = $items->firstWhere('slug', $slug);
                 $rate = $validated['report_settings'][$slug] ?? null;

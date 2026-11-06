@@ -10,6 +10,7 @@ use App\Http\Controllers\Admin\CloseoutsController;
 use App\Http\Controllers\Admin\CustomerManifestController;
 use App\Http\Controllers\Admin\DiscountController;
 use App\Http\Controllers\Admin\DynamicQuestionnaireController;
+use App\Http\Controllers\Admin\FranchiseFeeRatePeriodController;
 use App\Http\Controllers\Admin\HelpQuestionsController;
 use App\Http\Controllers\Admin\HomeController;
 use App\Http\Controllers\Admin\InventoryController;
@@ -244,6 +245,9 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['auth', 'v
     // Settings (Lookups)
     Route::get('settings', [LookupsController::class, 'index'])->name('settings.index');
     Route::post('settings', [LookupsController::class, 'store'])->name('settings.store');
+    Route::post('settings/franchise-fee-periods', [FranchiseFeeRatePeriodController::class, 'store'])->name('settings.franchise-fee-periods.store');
+    Route::put('settings/franchise-fee-periods/{franchiseFeeRatePeriod}', [FranchiseFeeRatePeriodController::class, 'update'])->name('settings.franchise-fee-periods.update');
+    Route::delete('settings/franchise-fee-periods/{franchiseFeeRatePeriod}', [FranchiseFeeRatePeriodController::class, 'destroy'])->name('settings.franchise-fee-periods.destroy');
     // Boarding Pass Templates
     Route::resource('boardingpass', BoardingPassController::class);
     // Users
