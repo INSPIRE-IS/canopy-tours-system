@@ -1157,6 +1157,28 @@
     font-weight: 500;
 }
 
+.kct-whatsapp-assistance {
+    width: fit-content;
+    min-height: 40px;
+    padding: 0 14px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    border-radius: 10px;
+    background: rgba(15, 38, 17, 0.36);
+    color: #fff;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 600;
+    backdrop-filter: blur(4px);
+}
+
+.kct-whatsapp-assistance:hover {
+    border-color: #fff;
+    background: rgba(15, 38, 17, 0.58);
+}
+
 .kct-booking-card {
     padding: 28px 32px 32px;
     display: flex;
@@ -1819,6 +1841,13 @@
     .kct-mobile-hero-copy p {
         margin: 6px 0 0;
         font-size: 14px;
+    }
+
+    .kct-mobile-hero-copy .kct-whatsapp-assistance {
+        min-height: 36px;
+        margin-top: 10px;
+        padding: 0 12px;
+        font-size: 13px;
     }
 
     .kct-mobile-content {
