@@ -6,6 +6,9 @@ import CustomSelect from "@/Components/CustomSelect";
 import OutlineButton from "@/Components/OutlineButton";
 import BlueButton from "@/Components/BlueButton";
 import InputRichText from "@/Components/InputRichText";
+import CustomTextarea from "@/Components/CustomTextarea";
+
+const DEFAULT_WHATSAPP_MESSAGE = "Hi, I need assistance with an online booking.";
 
 const TeamModal = ({ isOpen, onClose, mode, team = null, teams, permissions = {}, user = null }) => {
     // console.log("mode", mode);
@@ -39,6 +42,9 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams, permissions = {}
         telephone: "",
         email: "",
         website_url: "",
+        whatsapp_enabled: false,
+        whatsapp_number: "",
+        whatsapp_message: DEFAULT_WHATSAPP_MESSAGE,
         account_owner: "",
         account_number: "",
         account_type: "",
@@ -81,6 +87,9 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams, permissions = {}
                 telephone: team.telephone || "",
                 email: team.email || "",
                 website_url: team.website_url || "",
+                whatsapp_enabled: team.whatsapp_enabled ?? false,
+                whatsapp_number: team.whatsapp_number || "",
+                whatsapp_message: team.whatsapp_message || DEFAULT_WHATSAPP_MESSAGE,
                 account_owner: team.account_owner || "",
                 account_number: team.account_number || "",
                 account_type: team.account_type || "",
@@ -110,6 +119,9 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams, permissions = {}
                 frontend_hold_enabled: true,
                 frontend_hold_minutes: 15,
                 frontend_unpaid_booking_expiry_hours: 3,
+                whatsapp_enabled: false,
+                whatsapp_number: "",
+                whatsapp_message: DEFAULT_WHATSAPP_MESSAGE,
             }));
         }
         setLogo(null);
@@ -173,6 +185,9 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams, permissions = {}
         formData.append('telephone', data.telephone);
         formData.append('email', data.email);
         formData.append('website_url', data.website_url);
+        formData.append('whatsapp_enabled', data.whatsapp_enabled ? 1 : 0);
+        formData.append('whatsapp_number', data.whatsapp_number);
+        formData.append('whatsapp_message', data.whatsapp_message);
         formData.append('account_owner', data.account_owner);
         formData.append('account_number', data.account_number);
         formData.append('account_type', data.account_type);
@@ -492,6 +507,47 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams, permissions = {}
                             errors={errors}
                         />
                     </div>
+                    <label className="block font-semibold mb-1">WhatsApp Booking Assistance</label>
+                    <span className="border-bottom border-[1px] border-black flex flex-row w-full items-center gap-2 justify-start mb-4"></span>
+                    <div className="w-full mb-4">
+                        <CustomCheckbox
+                            label="Enable WhatsApp assistance on the public booking site"
+                            name="whatsapp_enabled"
+                            checked={!!data.whatsapp_enabled}
+                            onChange={handleChange}
+                            errors={errors}
+                            disabled={mode === "view"}
+                        />
+                        <p className="text-xs text-gray-500">
+                            This only opens a WhatsApp conversation. It does not reserve places or create a booking.
+                        </p>
+                    </div>
+                    {data.whatsapp_enabled && (
+                        <div className="w-full mb-4">
+                            <InputText
+                                title="Business WhatsApp Number"
+                                field="whatsapp_number"
+                                value={data.whatsapp_number}
+                                mode={mode}
+                                handleChange={handleChange}
+                                placeholder="+27121231234"
+                                errors={errors}
+                                required
+                            />
+                            <p className="text-xs text-gray-500 mb-4">
+                                Use the South African international format: +27 followed by 9 digits, without spaces.
+                            </p>
+                            <CustomTextarea
+                                label="Prefilled WhatsApp Message"
+                                name="whatsapp_message"
+                                value={data.whatsapp_message}
+                                mode={mode}
+                                onChange={(event) => setData('whatsapp_message', event.target.value)}
+                                error={errors?.whatsapp_message}
+                                rows={3}
+                            />
+                        </div>
+                    )}
                     <div className="flex flex-row w-full items-center gap-2 justify-start mb-4">
                         <InputText
                             title="Account Owner"

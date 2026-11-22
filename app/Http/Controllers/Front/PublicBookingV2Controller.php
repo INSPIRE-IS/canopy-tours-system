@@ -126,6 +126,14 @@ class PublicBookingV2Controller extends Controller
                 'name' => $team->name,
                 'description' => $team->description,
                 'color' => $team->color,
+                'whatsapp' => $team->whatsapp_enabled
+                    && preg_match('/^\+27[0-9]{9}$/', (string) $team->whatsapp_number)
+                    && filled(trim((string) $team->whatsapp_message))
+                        ? [
+                            'number' => $team->whatsapp_number,
+                            'message' => trim($team->whatsapp_message),
+                        ]
+                        : null,
                 'file_logo' => $team->file_logo ? [
                     'path' => $this->publicAssetUrl($team->file_logo->path),
                     'file_name' => $team->file_logo->file_name,

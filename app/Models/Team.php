@@ -36,6 +36,9 @@ class Team extends Model
         'telephone',
         'email',
         'website_url',
+        'whatsapp_enabled',
+        'whatsapp_number',
+        'whatsapp_message',
         'account_owner',
         'account_number',
         'account_type',
@@ -57,6 +60,7 @@ class Team extends Model
 
     protected $casts = [
         'is_published' => 'boolean',
+        'whatsapp_enabled' => 'boolean',
         'frontend_hold_enabled' => 'boolean',
         'frontend_hold_minutes' => 'integer',
         'frontend_unpaid_booking_expiry_hours' => 'integer',

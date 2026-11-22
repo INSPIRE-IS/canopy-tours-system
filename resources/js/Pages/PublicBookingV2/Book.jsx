@@ -38,6 +38,15 @@ const dateKey = (date) => format(date, 'yyyy-MM-dd');
 // Switch to true only after the client approves persistent inline reset copy.
 const SHOW_INLINE_SELECTION_NOTICE = false;
 
+function WhatsAppIcon() {
+    return (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M20.5 11.7a8.5 8.5 0 0 1-12.6 7.5L3.5 20.5l1.3-4.2a8.5 8.5 0 1 1 15.7-4.6Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+            <path d="M8.4 7.9c.2-.5.4-.5.8-.5h.4c.2 0 .4.1.5.4l.8 1.8c.1.3 0 .5-.2.7l-.6.7c-.2.2-.1.4 0 .6.5.9 1.3 1.7 2.2 2.2.2.1.4.2.6 0l.8-1c.2-.2.4-.3.7-.2l1.8.9c.3.1.4.3.4.5 0 .3-.1 1.3-.7 1.8-.5.5-1.2.8-2 .7-1.1-.1-2.5-.6-4.2-2.1-2-1.8-3.2-4-3.3-5.2 0-.5.1-.9.2-1.3Z" fill="currentColor" />
+        </svg>
+    );
+}
+
 export default function Book({ team, teams = [], services = [], selectedServiceId, notice = null }) {
     const { showToast } = useToast();
     const [serviceId, setServiceId] = useState(Number(selectedServiceId || services[0]?.id || 0));
@@ -64,6 +73,14 @@ export default function Book({ team, teams = [], services = [], selectedServiceI
     const availabilityCache = useRef(null);
     const shownNotice = useRef(null);
     const availabilityKey = `${service?.id || 0}:${availabilityPax.adults}:${availabilityPax.children}`;
+    const whatsappUrl = useMemo(() => {
+        const number = String(team?.whatsapp?.number || '').replace(/\D/g, '');
+        const message = String(team?.whatsapp?.message || '').trim();
+
+        if (!/^27[0-9]{9}$/.test(number) || !message) return null;
+
+        return `https://wa.me/${number}?text=${encodeURIComponent(message)}`;
+    }, [team?.whatsapp?.number, team?.whatsapp?.message]);
 
     useEffect(() => {
         if (!team?.id) return;
@@ -373,6 +390,12 @@ export default function Book({ team, teams = [], services = [], selectedServiceI
                                 {service.age_label && <span>{service.age_label}</span>}
                                 {service.arrival_label && <span>{service.arrival_label}</span>}
                             </div>
+                            {whatsappUrl && (
+                                <a className="kct-whatsapp-assistance" href={whatsappUrl} target="_blank" rel="noopener noreferrer">
+                                    <WhatsAppIcon />
+                                    Need help? WhatsApp us
+                                </a>
+                            )}
                         </div>
                     </section>
 
@@ -445,6 +468,12 @@ export default function Book({ team, teams = [], services = [], selectedServiceI
                                 service.age_label,
                                 service.arrival_label,
                             ].filter(Boolean).join(' \u00b7 ')}</p>
+                            {whatsappUrl && (
+                                <a className="kct-whatsapp-assistance" href={whatsappUrl} target="_blank" rel="noopener noreferrer">
+                                    <WhatsAppIcon />
+                                    Need help? WhatsApp us
+                                </a>
+                            )}
                         </div>
                     </section>
 

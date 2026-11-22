@@ -174,7 +174,36 @@ it('opens the new booking flow when exactly one site is published', function () 
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('PublicBookingV2/Book')
-            ->where('teams.0.id', $teamId));
+            ->where('teams.0.id', $teamId)
+            ->where('team.whatsapp', null));
+});
+
+it('only exposes valid enabled WhatsApp assistance settings to the public booking page', function () {
+    $teamId = DB::table('teams')->insertGetId([
+        'name' => 'Karkloof Canopy Tour',
+        'is_published' => true,
+        'whatsapp_enabled' => true,
+        'whatsapp_number' => '+27762412888',
+        'whatsapp_message' => 'Hi, I need assistance with an online booking.',
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    $this->get(route('front.welcome', ['team' => $teamId]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('PublicBookingV2/Book')
+            ->where('team.whatsapp.number', '+27762412888')
+            ->where('team.whatsapp.message', 'Hi, I need assistance with an online booking.'));
+
+    DB::table('teams')->where('id', $teamId)->update([
+        'whatsapp_number' => '076 241 2888',
+    ]);
+
+    $this->get(route('front.welcome', ['team' => $teamId]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('team.whatsapp', null));
 });
 
 it('enables the checkout hold by default for newly created sites', function () {
