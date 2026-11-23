@@ -39,7 +39,12 @@ class TeamController extends Controller
     private function normalizeSiteAdminSettings(array $data, Request $request): array
     {
         if (!$this->canManageSiteAdminSettings($request->user())) {
-            unset($data['frontend_unpaid_booking_hold_hours']);
+            unset(
+                $data['frontend_unpaid_booking_hold_hours'],
+                $data['auto_attendance_enabled'],
+                $data['auto_attendance_timing'],
+                $data['auto_attendance_run_time'],
+            );
 
             return $data;
         }

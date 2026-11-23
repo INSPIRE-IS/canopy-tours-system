@@ -45,6 +45,9 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams, permissions = {}
         whatsapp_enabled: false,
         whatsapp_number: "",
         whatsapp_message: DEFAULT_WHATSAPP_MESSAGE,
+        auto_attendance_enabled: false,
+        auto_attendance_timing: "same_day",
+        auto_attendance_run_time: "20:00",
         account_owner: "",
         account_number: "",
         account_type: "",
@@ -90,6 +93,9 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams, permissions = {}
                 whatsapp_enabled: team.whatsapp_enabled ?? false,
                 whatsapp_number: team.whatsapp_number || "",
                 whatsapp_message: team.whatsapp_message || DEFAULT_WHATSAPP_MESSAGE,
+                auto_attendance_enabled: team.auto_attendance_enabled ?? false,
+                auto_attendance_timing: team.auto_attendance_timing || "same_day",
+                auto_attendance_run_time: String(team.auto_attendance_run_time || "20:00").slice(0, 5),
                 account_owner: team.account_owner || "",
                 account_number: team.account_number || "",
                 account_type: team.account_type || "",
@@ -122,6 +128,9 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams, permissions = {}
                 whatsapp_enabled: false,
                 whatsapp_number: "",
                 whatsapp_message: DEFAULT_WHATSAPP_MESSAGE,
+                auto_attendance_enabled: false,
+                auto_attendance_timing: "same_day",
+                auto_attendance_run_time: "20:00",
             }));
         }
         setLogo(null);
@@ -188,6 +197,11 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams, permissions = {}
         formData.append('whatsapp_enabled', data.whatsapp_enabled ? 1 : 0);
         formData.append('whatsapp_number', data.whatsapp_number);
         formData.append('whatsapp_message', data.whatsapp_message);
+        if (isAdminUser) {
+            formData.append('auto_attendance_enabled', data.auto_attendance_enabled ? 1 : 0);
+            formData.append('auto_attendance_timing', data.auto_attendance_timing);
+            formData.append('auto_attendance_run_time', data.auto_attendance_run_time);
+        }
         formData.append('account_owner', data.account_owner);
         formData.append('account_number', data.account_number);
         formData.append('account_type', data.account_type);
@@ -553,6 +567,51 @@ const TeamModal = ({ isOpen, onClose, mode, team = null, teams, permissions = {}
                             />
                         </div>
                     )}
+                    <label className="block font-semibold mb-1">Automatic Attendance Reconciliation</label>
+                    <span className="border-bottom border-[1px] border-black flex flex-row w-full items-center gap-2 justify-start mb-4"></span>
+                    <div className="w-full mb-4">
+                        <CustomCheckbox
+                            label="Enable automatic attendance reconciliation"
+                            name="auto_attendance_enabled"
+                            checked={!!data.auto_attendance_enabled}
+                            onChange={handleChange}
+                            errors={errors}
+                            disabled={mode === "view" || !isAdminUser}
+                        />
+                        <p className="text-xs text-gray-500 mb-4">
+                            Completed check-ins still marked as no-show will be marked arrived at the configured cutoff. Cancelled and already-arrived guests are not changed.
+                        </p>
+                        {data.auto_attendance_enabled && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <CustomSelect
+                                    label="Reconcile"
+                                    name="auto_attendance_timing"
+                                    value={data.auto_attendance_timing}
+                                    onChange={(event) => setData('auto_attendance_timing', event.target.value)}
+                                    mode={mode === "view" || !isAdminUser ? "view" : mode}
+                                    showOption={false}
+                                    options={[
+                                        { id: 'same_day', name: 'Same activity day' },
+                                        { id: 'next_day', name: 'Following calendar day' },
+                                    ]}
+                                    errors={errors}
+                                />
+                                <InputText
+                                    title="Run time (Africa/Johannesburg)"
+                                    field="auto_attendance_run_time"
+                                    type="time"
+                                    step="60"
+                                    value={data.auto_attendance_run_time}
+                                    mode={mode === "view" || !isAdminUser ? "view" : mode}
+                                    handleChange={handleChange}
+                                    errors={errors}
+                                />
+                            </div>
+                        )}
+                        {!isAdminUser && (
+                            <p className="text-xs font-medium text-gray-600">Only an Admin can change these settings.</p>
+                        )}
+                    </div>
                     <div className="flex flex-row w-full items-center gap-2 justify-start mb-4">
                         <InputText
                             title="Account Owner"

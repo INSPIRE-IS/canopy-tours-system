@@ -39,6 +39,9 @@ class Team extends Model
         'whatsapp_enabled',
         'whatsapp_number',
         'whatsapp_message',
+        'auto_attendance_enabled',
+        'auto_attendance_timing',
+        'auto_attendance_run_time',
         'account_owner',
         'account_number',
         'account_type',
@@ -61,6 +64,7 @@ class Team extends Model
     protected $casts = [
         'is_published' => 'boolean',
         'whatsapp_enabled' => 'boolean',
+        'auto_attendance_enabled' => 'boolean',
         'frontend_hold_enabled' => 'boolean',
         'frontend_hold_minutes' => 'integer',
         'frontend_unpaid_booking_hold_hours' => 'integer',
