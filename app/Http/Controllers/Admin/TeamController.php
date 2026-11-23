@@ -31,6 +31,21 @@ class TeamController extends Controller
         return (bool) ($user?->can('teams_publish') ?? false);
     }
 
+    private function attendanceSettingsData(Request $request, array $data): array
+    {
+        if ((bool) ($request->user()?->is_admin ?? false)) {
+            return $data;
+        }
+
+        unset(
+            $data['auto_attendance_enabled'],
+            $data['auto_attendance_timing'],
+            $data['auto_attendance_run_time'],
+        );
+
+        return $data;
+    }
+
     public function index(Request $request)
     {
         //abort_if(Gate::denies('team_access'), Response::HTTP_FORBIDDEN, '403 Forbidden');
@@ -121,7 +136,7 @@ class TeamController extends Controller
         //dd('here');
         //dd($request->all());
         // TODO: add logic to save image and logo
-        $data = $request->all();
+        $data = $this->attendanceSettingsData($request, $request->all());
 
         $data['owner_id'] = auth()->user()->id;
 
@@ -199,7 +214,7 @@ class TeamController extends Controller
         //     $request->validated(),
         //     $team->getDirty()
         // );
-        $data = $request->all();
+        $data = $this->attendanceSettingsData($request, $request->all());
         $data['owner_id'] = auth()->id();
         //dd($data);
 

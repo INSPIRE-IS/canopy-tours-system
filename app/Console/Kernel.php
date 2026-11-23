@@ -24,6 +24,12 @@ class Kernel extends ConsoleKernel
         $schedule->command('bookings:expire-unpaid-front --force')
             ->everyFifteenMinutes()
             ->withoutOverlapping();
+
+        // Each site is processed only when its configured Johannesburg minute is due.
+        $schedule->command('attendance:auto-mark-arrived')
+            ->everyMinute()
+            ->timezone('Africa/Johannesburg')
+            ->withoutOverlapping();
     }
 
     /**
