@@ -161,6 +161,7 @@ export default function Index({ users, permissions, roles, teams, auth, searchTe
 
                 teams={teams}
                 team={auth?.team}
+                auth={auth}
             />
             {/* {modalOpen && (
             <CModal title={selectedUser ? 'Edit User' : 'Add User'} onClose={closeModal}>

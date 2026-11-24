@@ -39,6 +39,7 @@ use App\Http\Controllers\Front\BookingQuestionnaireController;
 use App\Http\Controllers\Front\FeedbackQuestionnaireController;
 use App\Http\Controllers\Front\PaymentController;
 use App\Http\Controllers\Front\PublicBookingV2Controller;
+use App\Http\Controllers\IntegrationDocsController;
 use App\Http\Controllers\ProfileController;
 use App\Models\Service;
 use Illuminate\Foundation\Application;
@@ -226,6 +227,15 @@ Route::get('wholesalers/options', fn() => \App\Models\Wholesaler::select('id', '
 // });
 Route::redirect('dashboard', '/admin/dashboard');
 
+Route::middleware(['auth', 'integration.docs'])
+    ->prefix('integrations/everlytic')
+    ->name('integration.everlytic.')
+    ->group(function () {
+        Route::get('docs', [IntegrationDocsController::class, 'show'])->name('docs');
+        Route::get('openapi.json', [IntegrationDocsController::class, 'openApi'])->name('openapi');
+        Route::post('token', [IntegrationDocsController::class, 'issueToken'])->name('token.store');
+    });
+
 //Route::middleware('auth')->group(function () {, 'namespace' => 'Admin'
 Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['auth', 'verified']], function () {
 
@@ -251,6 +261,8 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['auth', 'v
     // Boarding Pass Templates
     Route::resource('boardingpass', BoardingPassController::class);
     // Users
+    Route::delete('users/{user}/integration-tokens/{token}', [UsersController::class, 'destroyIntegrationToken'])
+        ->name('users.integration-tokens.destroy');
     Route::resource('users', UsersController::class);
 
     // User Alerts
