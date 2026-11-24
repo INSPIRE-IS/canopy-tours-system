@@ -99,6 +99,11 @@ const UserModal = ({ isOpen, onClose, mode, user = null, roles = [], teams, team
             });
             const body = await response.json().catch(() => ({}));
 
+            if (response.status === 419 && body.redirect) {
+                window.location.assign(body.redirect);
+                return;
+            }
+
             if (!response.ok) {
                 setTokenError(body?.errors?.password?.[0] || body?.message || "The token could not be revoked.");
                 return;
