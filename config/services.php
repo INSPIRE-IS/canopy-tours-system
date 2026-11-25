@@ -36,4 +36,8 @@ return [
         'purchase_logging_enabled' => env('GA4_PURCHASE_LOGGING', false),
     ],
 
+    'everlytic' => [
+        'api_page_size' => (int) env('EVERLYTIC_API_PAGE_SIZE', 100),
+    ],
+
 ];

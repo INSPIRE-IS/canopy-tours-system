@@ -24,6 +24,7 @@ class NewPasswordController extends Controller
         return Inertia::render('Auth/ResetPassword', [
             'email' => $request->email,
             'token' => $request->route('token'),
+            'isAccountSetup' => $request->routeIs('password.setup'),
         ]);
     }
 
@@ -43,13 +44,16 @@ class NewPasswordController extends Controller
         // Here we will attempt to reset the user's password. If it is successful we
         // will update the password on an actual user model and persist it to the
         // database. Otherwise we will parse the error and return the response.
-        $status = Password::reset(
+        $isAccountSetup = $request->routeIs('password.setup.store');
+        $status = Password::broker($isAccountSetup ? 'account_setup' : null)->reset(
             $request->only('email', 'password', 'password_confirmation', 'token'),
-            function ($user) use ($request) {
+            function ($user) use ($request, $isAccountSetup) {
                 $user->forceFill([
                     'password' => Hash::make($request->password),
                     'remember_token' => Str::random(60),
                 ])->save();
+
+                Password::broker($isAccountSetup ? null : 'account_setup')->deleteToken($user);
 
                 event(new PasswordReset($user));
             }

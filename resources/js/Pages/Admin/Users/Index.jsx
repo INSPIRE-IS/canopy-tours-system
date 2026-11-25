@@ -75,6 +75,8 @@ export default function Index({ users, permissions, roles, teams, auth, searchTe
         </header> */}
             <div className="bg-white p-6 ">
                 <SettingsHeader permissions={permissions} isOpenTab={isOpenTab} setIsOpenTab={setIsOpenTab} />
+                {props.flash?.success && <p role="status" className="mb-4 text-sm text-green-700">{props.flash.success}</p>}
+                {props.flash?.error && <p role="alert" className="mb-4 text-sm text-red-700">{props.flash.error}</p>}
                 {/* top */}
                 <div className="flex justify-between items-center mb-6">
                     <SearchBar search={search} handleSearchChange={(e) => handleSearchChange(e)} handleSearchSubmit={handleSearchSubmit} />
@@ -161,6 +163,7 @@ export default function Index({ users, permissions, roles, teams, auth, searchTe
 
                 teams={teams}
                 team={auth?.team}
+                auth={auth}
             />
             {/* {modalOpen && (
             <CModal title={selectedUser ? 'Edit User' : 'Add User'} onClose={closeModal}>

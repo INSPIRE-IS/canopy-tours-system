@@ -38,8 +38,8 @@ class Handler extends ExceptionHandler
     public function render($request, Throwable $exception)
     {
         //dd($exception);
-        if ($exception instanceof TokenMismatchException && $request->is('admin/*')) {
-            return $this->renderExpiredAdminSession($request);
+        if ($exception instanceof TokenMismatchException && $this->isAuthenticatedWebRoute($request)) {
+            return $this->renderExpiredAuthenticatedSession($request);
         }
 
         if ($exception instanceof InvalidSignatureException) {
@@ -92,9 +92,9 @@ class Handler extends ExceptionHandler
         return parent::render($request, $exception);
     }
 
-    protected function renderExpiredAdminSession($request): Response
+    protected function renderExpiredAuthenticatedSession($request): Response
     {
-        $returnUrl = $this->safeAdminReturnUrl($request);
+        $returnUrl = $this->safeAuthenticatedReturnUrl($request);
         $message = 'Your session expired. Please sign in again to continue.';
 
         $request->session()->put('url.intended', $returnUrl);
@@ -114,9 +114,29 @@ class Handler extends ExceptionHandler
         return redirect()->route('login');
     }
 
-    protected function safeAdminReturnUrl($request): string
+    protected function isAuthenticatedWebRoute($request): bool
     {
-        $fallback = route('admin.dashboard');
+        if ($request->is('admin/*') || $request->is('integrations/*')) {
+            return true;
+        }
+
+        $route = $request->route();
+        if (! $route) {
+            return false;
+        }
+
+        return collect($route->gatherMiddleware())->contains(
+            fn ($middleware) => $middleware === 'auth'
+                || str_starts_with((string) $middleware, 'auth:')
+                || $middleware === \App\Http\Middleware\Authenticate::class,
+        );
+    }
+
+    protected function safeAuthenticatedReturnUrl($request): string
+    {
+        $fallback = $request->is('integrations/*')
+            ? route('integration.everlytic.docs')
+            : route('admin.dashboard');
         $previous = $request->headers->get('referer');
         if (! is_string($previous) || $previous === '') {
             return $fallback;
@@ -127,9 +147,9 @@ class Handler extends ExceptionHandler
             return $fallback;
         }
 
-        $path = $parts['path'] ?? '';
+        $path = (string) ($parts['path'] ?? '');
         if (strcasecmp((string) ($parts['host'] ?? ''), $request->getHost()) !== 0
-            || ! ($path === '/admin' || str_starts_with($path, '/admin/'))) {
+            || in_array($path, ['/login', '/logout'], true)) {
             return $fallback;
         }
 

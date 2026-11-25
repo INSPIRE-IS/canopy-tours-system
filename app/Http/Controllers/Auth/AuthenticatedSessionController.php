@@ -35,6 +35,10 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
+        if ($request->user()?->roles()->where('name', 'Integration API')->exists()) {
+            return redirect()->route('integration.everlytic.docs');
+        }
+
         return redirect()->intended(RouteServiceProvider::HOME);
     }
 

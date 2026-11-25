@@ -1,9 +1,13 @@
 <?php
 
+use App\Mail\AttendanceAnomalyMail;
 use App\Models\CustomerManifest;
 use App\Models\User;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 
 beforeEach(function () {
     $this->travelTo(CarbonImmutable::parse('2032-04-10 20:00:00', 'Africa/Johannesburg'));
@@ -226,7 +230,7 @@ it('uses each enabled sites configured same-day or next-day timing', function ()
     ]);
     $notDue = createAttendanceTeam([
         'name' => 'Not Due Site',
-        'auto_attendance_run_time' => '19:59:00',
+        'auto_attendance_run_time' => '20:01:00',
     ]);
     $sameDayManifest = createAttendanceManifest($sameDay, '2032-04-10');
     $nextDayManifest = createAttendanceManifest($nextDay, '2032-04-09');
@@ -237,6 +241,77 @@ it('uses each enabled sites configured same-day or next-day timing', function ()
     expect(CustomerManifest::withoutGlobalScopes()->findOrFail($sameDayManifest)->attendance_status)->toBe('arrived')
         ->and(CustomerManifest::withoutGlobalScopes()->findOrFail($nextDayManifest)->attendance_status)->toBe('arrived')
         ->and(CustomerManifest::withoutGlobalScopes()->findOrFail($notDueManifest)->attendance_status)->toBe('no_show');
+});
+
+it('emails once about missed eligible arrivals without changing their attendance', function () {
+    Mail::fake();
+    config(['mail.audit_bcc' => 'attendance-audit@example.test']);
+
+    $fixture = createAttendanceTeam();
+    Cache::forget("attendance:missed-arrivals-alert:{$fixture['teamId']}:2032-04-10");
+    $manifestId = createAttendanceManifest($fixture, '2032-04-10');
+    $this->travelTo(CarbonImmutable::parse('2032-04-10 20:01:00', 'Africa/Johannesburg'));
+
+    $this->artisan('attendance:auto-mark-arrived')->assertSuccessful();
+    $this->artisan('attendance:auto-mark-arrived')->assertSuccessful();
+
+    expect(CustomerManifest::withoutGlobalScopes()->findOrFail($manifestId)->attendance_status)
+        ->toBe('no_show');
+
+    expect(Mail::sent(AttendanceAnomalyMail::class))->toHaveCount(1);
+    Mail::assertSent(AttendanceAnomalyMail::class, function (AttendanceAnomalyMail $mail) use ($fixture) {
+        return $mail->hasTo('attendance-audit@example.test')
+            && $mail->teamId === $fixture['teamId']
+            && $mail->activityFrom === '2032-04-10'
+            && $mail->activityTo === '2032-04-10'
+            && $mail->candidateCount === 1
+            && str_contains($mail->render(), 'After reviewing the CSV report');
+    });
+});
+
+it('emails a report-only digest for historical eligible arrivals', function () {
+    Mail::fake();
+    config(['mail.audit_bcc' => 'attendance-audit@example.test']);
+
+    $fixture = createAttendanceTeam();
+    Cache::forget("attendance:historical-anomaly-scan:{$fixture['teamId']}:2032-04-10");
+    Cache::forget("attendance:historical-anomaly-alert:{$fixture['teamId']}");
+    $eligible = createAttendanceManifest($fixture, '2032-04-08');
+    $createAttendanceManifest = createAttendanceManifest($fixture, '2032-04-07', 'no_show', true, true);
+    $this->travelTo(CarbonImmutable::parse('2032-04-10 20:01:00', 'Africa/Johannesburg'));
+
+    $this->artisan('attendance:auto-mark-arrived')->assertSuccessful();
+    $this->travelTo(CarbonImmutable::parse('2032-04-11 20:01:00', 'Africa/Johannesburg'));
+    $this->artisan('attendance:auto-mark-arrived')->assertSuccessful();
+
+    expect(CustomerManifest::withoutGlobalScopes()->findOrFail($eligible)->attendance_status)
+        ->toBe('no_show')
+        ->and(CustomerManifest::withoutGlobalScopes()->findOrFail($createAttendanceManifest)->attendance_status)
+        ->toBe('no_show');
+
+    expect(Mail::sent(AttendanceAnomalyMail::class))->toHaveCount(1);
+    Mail::assertSent(AttendanceAnomalyMail::class, function (AttendanceAnomalyMail $mail) use ($fixture) {
+        return $mail->hasTo('attendance-audit@example.test')
+            && $mail->teamId === $fixture['teamId']
+            && $mail->activityFrom === '2032-04-08'
+            && $mail->activityTo === '2032-04-08'
+            && $mail->candidateCount === 1
+            && $mail->historical;
+    });
+});
+
+it('does not send missed-arrival alerts when the audit recipient is not configured', function () {
+    Mail::fake();
+    config(['mail.audit_bcc' => null]);
+
+    $fixture = createAttendanceTeam();
+    Cache::forget("attendance:missed-arrivals-alert:{$fixture['teamId']}:2032-04-10");
+    createAttendanceManifest($fixture, '2032-04-10');
+    $this->travelTo(CarbonImmutable::parse('2032-04-10 20:01:00', 'Africa/Johannesburg'));
+
+    $this->artisan('attendance:auto-mark-arrived')->assertFailed();
+
+    Mail::assertNothingSent();
 });
 
 it('allows only admin users to change attendance automation settings', function () {
@@ -280,4 +355,102 @@ it('allows only admin users to change attendance automation settings', function 
         'auto_attendance_timing' => 'next_day',
         'auto_attendance_run_time' => '21:30:00',
     ]);
+});
+
+it('creates a detailed attendance backfill report without updating by default', function () {
+    Storage::fake('local');
+    $fixture = createAttendanceTeam(['auto_attendance_enabled' => false]);
+    $manifestId = createAttendanceManifest($fixture, '2032-04-09');
+
+    $this->artisan('attendance:backfill-arrived', [
+        '--team' => $fixture['teamId'],
+        '--from' => '2032-04-09',
+        '--to' => '2032-04-09',
+    ])->assertSuccessful();
+
+    expect(CustomerManifest::withoutGlobalScopes()->findOrFail($manifestId)->attendance_status)->toBe('no_show');
+
+    $reports = Storage::disk('local')->files('reports');
+    expect($reports)->toHaveCount(1);
+    expect(Storage::disk('local')->get($reports[0]))
+        ->toContain('manifest_id,team_id,activity_date')
+        ->toContain('Attendance Guest')
+        ->toContain('mark_arrived');
+});
+
+it('applies an attendance backfill with audit history and is repeat safe', function () {
+    Storage::fake('local');
+    $fixture = createAttendanceTeam(['auto_attendance_enabled' => false]);
+    $manifestId = createAttendanceManifest($fixture, '2032-04-09');
+
+    $parameters = [
+        '--team' => $fixture['teamId'],
+        '--from' => '2032-04-09',
+        '--to' => '2032-04-09',
+        '--apply' => true,
+    ];
+
+    $this->artisan('attendance:backfill-arrived', $parameters)->assertSuccessful();
+
+    expect(CustomerManifest::withoutGlobalScopes()->findOrFail($manifestId)->attendance_status)->toBe('arrived');
+    $this->assertDatabaseHas('audit_logs', [
+        'description' => 'audit:updated',
+        'subject_id' => $manifestId,
+        'subject_type' => CustomerManifest::class,
+    ]);
+
+    $auditCount = DB::table('audit_logs')
+        ->where('description', 'audit:updated')
+        ->where('subject_id', $manifestId)
+        ->where('subject_type', CustomerManifest::class)
+        ->count();
+
+    $this->artisan('attendance:backfill-arrived', $parameters)->assertSuccessful();
+
+    expect(DB::table('audit_logs')
+        ->where('description', 'audit:updated')
+        ->where('subject_id', $manifestId)
+        ->where('subject_type', CustomerManifest::class)
+        ->count())->toBe($auditCount);
+});
+
+it('does not backfill soft-deleted, incomplete-indemnity, or cancelled manifests', function () {
+    Storage::fake('local');
+    $fixture = createAttendanceTeam(['auto_attendance_enabled' => false]);
+    $deletedManifest = createAttendanceManifest($fixture, '2032-04-09', 'no_show', false);
+    DB::table('customer_manifests')
+        ->where('id', $deletedManifest)
+        ->update(['deleted_at' => now()]);
+    $incompleteIndemnity = createAttendanceManifest($fixture, '2032-04-09', 'no_show', false);
+    $cancelledAttendance = createAttendanceManifest($fixture, '2032-04-09', 'cancelled');
+
+    $this->artisan('attendance:backfill-arrived', [
+        '--team' => $fixture['teamId'],
+        '--from' => '2032-04-09',
+        '--to' => '2032-04-09',
+        '--apply' => true,
+    ])->assertSuccessful();
+
+    expect(CustomerManifest::withoutGlobalScopes()->findOrFail($deletedManifest)->attendance_status)
+        ->toBe('no_show')
+        ->and(CustomerManifest::withoutGlobalScopes()->findOrFail($incompleteIndemnity)->attendance_status)
+        ->toBe('no_show')
+        ->and(CustomerManifest::withoutGlobalScopes()->findOrFail($cancelledAttendance)->attendance_status)
+        ->toBe('cancelled');
+});
+
+it('rejects invalid and future attendance backfill ranges', function () {
+    $fixture = createAttendanceTeam();
+
+    $this->artisan('attendance:backfill-arrived', [
+        '--team' => $fixture['teamId'],
+        '--from' => '2032-04-10',
+        '--to' => '2032-04-09',
+    ])->assertFailed();
+
+    $this->artisan('attendance:backfill-arrived', [
+        '--team' => $fixture['teamId'],
+        '--from' => '2032-04-11',
+        '--to' => '2032-04-11',
+    ])->assertFailed();
 });

@@ -9,9 +9,15 @@ use App\Models\Permission;
 use App\Models\Role;
 use App\Models\Team;
 use App\Models\User;
+use App\Notifications\AccountPasswordLink;
 use Gate;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
+use Laravel\Sanctum\PersonalAccessToken;
 use Symfony\Component\HttpFoundation\Response;
 use Illuminate\Support\Facades\Session;
 use Inertia\Inertia;
@@ -38,7 +44,27 @@ class UsersController extends Controller
         // dd($teams);
         // $users =  User::with('roles')->get();
         //dd($user->roles->pluck('name'));
-        $users = User::with(['roles.permissions', 'team'])
+        $relations = [
+            'roles.permissions',
+            'team',
+        ];
+        $canManageIntegrationTokens = $request->user()?->hasAnyRoles(['Admin']) ?? false;
+        if ($canManageIntegrationTokens) {
+            $relations['tokens'] = fn ($query) => $query
+                ->where('name', 'like', 'everlytic-%')
+                ->select([
+                    'id',
+                    'tokenable_type',
+                    'tokenable_id',
+                    'name',
+                    'abilities',
+                    'last_used_at',
+                    'expires_at',
+                    'created_at',
+                ]);
+        }
+
+        $users = User::with($relations)
             ->where('name', 'like', '%' . $searchTerm . '%')
 
             // unless user has this role do not show users with this role
@@ -52,6 +78,22 @@ class UsersController extends Controller
             )
             ->orderBy($sortColumn, $sortDirection)
             ->paginate(10);
+
+        $users->getCollection()->transform(function (User $listedUser) use ($canManageIntegrationTokens) {
+            $tokenMetadata = $canManageIntegrationTokens
+                ? $listedUser->tokens->map(fn (PersonalAccessToken $token) => [
+                        'id' => $token->id,
+                        'name' => $token->name,
+                        'created_at' => $token->created_at?->toIso8601String(),
+                        'last_used_at' => $token->last_used_at?->toIso8601String(),
+                        'expires_at' => $token->expires_at?->toIso8601String(),
+                    ])->values()
+                : collect();
+            $listedUser->setAttribute('integration_tokens', $tokenMetadata);
+            $listedUser->unsetRelation('tokens');
+
+            return $listedUser;
+        });
 
         return Inertia::render('Admin/Users/Index', [
             'users' => $users,
@@ -72,28 +114,39 @@ class UsersController extends Controller
 
     public function store(StoreUserRequest $request)
     {
-        // dd($request->all());
-        $user = User::create($request->all());
-        $user->roles()->sync($request->input('roles', []));
+        $sendSetup = $request->boolean('send_password_setup');
+        $attributes = $request->except('send_password_setup');
+        if ($sendSetup) {
+            $attributes['password'] = Str::random(64);
+        }
 
-        // return redirect()->route('Admin.users.index');
-        // $teams = $request->input('teams', []);
-        // $roles = $request->input('roles', []);
-        // $user_data = $request->all();
-        // $user_data['password'] = bcrypt($request->input('password'));
-        // $user = User::create($user_data);
-        // $user->teams()->sync($request->input('teams', []));
-        // foreach ($teams as $teamId) {
-        //     $user->roles()->attach($roles, ['team_id' => $teamId]);
-        // }
+        $user = DB::transaction(function () use ($attributes, $request) {
+            $user = User::create($attributes);
+            $user->roles()->sync($request->input('roles', []));
 
-        // foreach ($roles as $roleId) {
-        //     foreach ($teams as $teamId) {
-        //         $user->roles()->attach($roleId, ['team_id' => $teamId]);
-        //     }
-        // }
-        //$user->roles()->sync($request->input('roles', []));
-        return redirect()->route('admin.users.index');
+            return $user;
+        });
+
+        $redirect = redirect()->route('admin.users.index');
+        if (! $sendSetup) {
+            return $redirect;
+        }
+
+        try {
+            $status = Password::broker('account_setup')->sendResetLink(
+                ['email' => $user->email],
+                fn (User $recipient, string $token) => $recipient->notify(
+                    new AccountPasswordLink($token, invitedBy: $request->user()->email)
+                ),
+            );
+        } catch (\Exception $exception) {
+            report($exception);
+            $status = null;
+        }
+
+        return $status === Password::RESET_LINK_SENT
+            ? $redirect->with('success', 'User created. Password setup email sent.')
+            : $redirect->with('error', 'User created, but the setup email could not be sent. Ask the user to use Forgot your password? on the login page.');
     }
 
     public function update(UpdateUserRequest $request, User $user)
@@ -106,10 +159,37 @@ class UsersController extends Controller
 
     public function destroy(User $user)
     {
-        abort_if(Gate::denies('user_delete'), Response::HTTP_FORBIDDEN, '403 Forbidden');
+        abort_if(Gate::denies('users_delete'), Response::HTTP_FORBIDDEN, '403 Forbidden');
 
+        $user->tokens()->delete();
         $user->delete();
 
         return back();
+    }
+
+    public function destroyIntegrationToken(
+        Request $request,
+        User $user,
+        PersonalAccessToken $token,
+    ) {
+        abort_unless($request->user()?->hasAnyRoles(['Admin']), Response::HTTP_FORBIDDEN, '403 Forbidden');
+
+        $request->validate([
+            'password' => ['required', 'current_password:web'],
+        ]);
+
+        $belongsToUser = $token->tokenable_type === User::class
+            && (int) $token->tokenable_id === (int) $user->id;
+        if (! $belongsToUser || ! str_starts_with($token->name, 'everlytic-')) {
+            throw ValidationException::withMessages([
+                'password' => 'The selected Everlytic token does not belong to this user.',
+            ]);
+        }
+
+        $token->delete();
+
+        return response()->json([
+            'message' => 'Bearer token revoked. The integration user can create a replacement after logging in.',
+        ])->header('Cache-Control', 'private, no-store');
     }
 }

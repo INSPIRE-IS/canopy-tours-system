@@ -15,6 +15,10 @@ beforeEach(function () {
     Route::post('/test-public-expired-session', function () {
         throw new TokenMismatchException;
     })->middleware('web');
+
+    Route::post('/integrations/everlytic/test-expired-session', function () {
+        throw new TokenMismatchException;
+    })->middleware('web');
 });
 
 test('expired admin form submissions redirect to login and preserve the admin return page', function () {
@@ -60,6 +64,21 @@ test('expired JSON submissions provide the login redirect for the Axios intercep
             'message' => 'Your session expired. Please sign in again to continue.',
             'redirect' => route('login'),
         ]);
+});
+
+test('expired integration fetch requests provide the login redirect', function () {
+    $returnUrl = url('/integrations/everlytic/docs');
+
+    $response = $this
+        ->withHeader('Referer', $returnUrl)
+        ->postJson('/integrations/everlytic/test-expired-session');
+
+    $response->assertStatus(419)
+        ->assertJson([
+            'message' => 'Your session expired. Please sign in again to continue.',
+            'redirect' => route('login'),
+        ]);
+    expect(session('url.intended'))->toBe($returnUrl);
 });
 
 test('login renders the expired-session message', function () {
