@@ -1,9 +1,12 @@
 <?php
 
+use App\Mail\AttendanceAnomalyMail;
 use App\Models\CustomerManifest;
 use App\Models\User;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 
 beforeEach(function () {
@@ -227,7 +230,7 @@ it('uses each enabled sites configured same-day or next-day timing', function ()
     ]);
     $notDue = createAttendanceTeam([
         'name' => 'Not Due Site',
-        'auto_attendance_run_time' => '19:59:00',
+        'auto_attendance_run_time' => '20:01:00',
     ]);
     $sameDayManifest = createAttendanceManifest($sameDay, '2032-04-10');
     $nextDayManifest = createAttendanceManifest($nextDay, '2032-04-09');
@@ -238,6 +241,77 @@ it('uses each enabled sites configured same-day or next-day timing', function ()
     expect(CustomerManifest::withoutGlobalScopes()->findOrFail($sameDayManifest)->attendance_status)->toBe('arrived')
         ->and(CustomerManifest::withoutGlobalScopes()->findOrFail($nextDayManifest)->attendance_status)->toBe('arrived')
         ->and(CustomerManifest::withoutGlobalScopes()->findOrFail($notDueManifest)->attendance_status)->toBe('no_show');
+});
+
+it('emails once about missed eligible arrivals without changing their attendance', function () {
+    Mail::fake();
+    config(['mail.audit_bcc' => 'attendance-audit@example.test']);
+
+    $fixture = createAttendanceTeam();
+    Cache::forget("attendance:missed-arrivals-alert:{$fixture['teamId']}:2032-04-10");
+    $manifestId = createAttendanceManifest($fixture, '2032-04-10');
+    $this->travelTo(CarbonImmutable::parse('2032-04-10 20:01:00', 'Africa/Johannesburg'));
+
+    $this->artisan('attendance:auto-mark-arrived')->assertSuccessful();
+    $this->artisan('attendance:auto-mark-arrived')->assertSuccessful();
+
+    expect(CustomerManifest::withoutGlobalScopes()->findOrFail($manifestId)->attendance_status)
+        ->toBe('no_show');
+
+    expect(Mail::sent(AttendanceAnomalyMail::class))->toHaveCount(1);
+    Mail::assertSent(AttendanceAnomalyMail::class, function (AttendanceAnomalyMail $mail) use ($fixture) {
+        return $mail->hasTo('attendance-audit@example.test')
+            && $mail->teamId === $fixture['teamId']
+            && $mail->activityFrom === '2032-04-10'
+            && $mail->activityTo === '2032-04-10'
+            && $mail->candidateCount === 1
+            && str_contains($mail->render(), 'After reviewing the CSV report');
+    });
+});
+
+it('emails a report-only digest for historical eligible arrivals', function () {
+    Mail::fake();
+    config(['mail.audit_bcc' => 'attendance-audit@example.test']);
+
+    $fixture = createAttendanceTeam();
+    Cache::forget("attendance:historical-anomaly-scan:{$fixture['teamId']}:2032-04-10");
+    Cache::forget("attendance:historical-anomaly-alert:{$fixture['teamId']}");
+    $eligible = createAttendanceManifest($fixture, '2032-04-08');
+    $createAttendanceManifest = createAttendanceManifest($fixture, '2032-04-07', 'no_show', true, true);
+    $this->travelTo(CarbonImmutable::parse('2032-04-10 20:01:00', 'Africa/Johannesburg'));
+
+    $this->artisan('attendance:auto-mark-arrived')->assertSuccessful();
+    $this->travelTo(CarbonImmutable::parse('2032-04-11 20:01:00', 'Africa/Johannesburg'));
+    $this->artisan('attendance:auto-mark-arrived')->assertSuccessful();
+
+    expect(CustomerManifest::withoutGlobalScopes()->findOrFail($eligible)->attendance_status)
+        ->toBe('no_show')
+        ->and(CustomerManifest::withoutGlobalScopes()->findOrFail($createAttendanceManifest)->attendance_status)
+        ->toBe('no_show');
+
+    expect(Mail::sent(AttendanceAnomalyMail::class))->toHaveCount(1);
+    Mail::assertSent(AttendanceAnomalyMail::class, function (AttendanceAnomalyMail $mail) use ($fixture) {
+        return $mail->hasTo('attendance-audit@example.test')
+            && $mail->teamId === $fixture['teamId']
+            && $mail->activityFrom === '2032-04-08'
+            && $mail->activityTo === '2032-04-08'
+            && $mail->candidateCount === 1
+            && $mail->historical;
+    });
+});
+
+it('does not send missed-arrival alerts when the audit recipient is not configured', function () {
+    Mail::fake();
+    config(['mail.audit_bcc' => null]);
+
+    $fixture = createAttendanceTeam();
+    Cache::forget("attendance:missed-arrivals-alert:{$fixture['teamId']}:2032-04-10");
+    createAttendanceManifest($fixture, '2032-04-10');
+    $this->travelTo(CarbonImmutable::parse('2032-04-10 20:01:00', 'Africa/Johannesburg'));
+
+    $this->artisan('attendance:auto-mark-arrived')->assertFailed();
+
+    Mail::assertNothingSent();
 });
 
 it('allows only admin users to change attendance automation settings', function () {

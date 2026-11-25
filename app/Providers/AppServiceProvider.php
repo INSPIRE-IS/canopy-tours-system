@@ -48,7 +48,12 @@ class AppServiceProvider extends ServiceProvider
 
             if ($auditBcc) {
                 Event::listen(MessageSending::class, function (MessageSending $event) use ($auditBcc) {
-                    $event->message->addBcc($auditBcc);
+                    $alreadyToAuditAddress = collect($event->message->getTo())
+                        ->contains(fn ($address) => strcasecmp($address->getAddress(), $auditBcc) === 0);
+
+                    if (! $alreadyToAuditAddress) {
+                        $event->message->addBcc($auditBcc);
+                    }
                 });
             }
         }

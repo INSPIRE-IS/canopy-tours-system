@@ -52,6 +52,35 @@ class AttendanceReconciliationService
             ->pluck('customer_manifests.id');
     }
 
+    public function eligibleManifestCountsByDate(
+        int $teamId,
+        CarbonInterface $through,
+    ): Collection {
+        return DB::table('customer_manifests as manifests')
+            ->join('booking_items as items', 'items.id', '=', 'manifests.booking_item_id')
+            ->join('booking_inventories as inventories', 'inventories.booking_item_id', '=', 'items.id')
+            ->join('bookings', 'bookings.id', '=', 'items.booking_id')
+            ->where('manifests.team_id', $teamId)
+            ->where('manifests.is_indemnity', true)
+            ->where('manifests.attendance_status', CustomerManifest::ATTENDANCE_DEFAULT)
+            ->whereNull('manifests.deleted_at')
+            ->where('items.team_id', $teamId)
+            ->whereNull('items.deleted_at')
+            ->where('bookings.team_id', $teamId)
+            ->whereNull('bookings.deleted_at')
+            ->where(function ($query) {
+                $query->whereNull('bookings.payment_window_expired_at')
+                    ->orWhere('bookings.status_payment_id', 2);
+            })
+            ->whereNull('inventories.deleted_at')
+            ->where('inventories.date', '<=', $through->toDateString())
+            ->selectRaw('inventories.date as activity_date')
+            ->selectRaw('COUNT(DISTINCT manifests.id) as candidate_count')
+            ->groupBy('inventories.date')
+            ->orderBy('inventories.date')
+            ->get();
+    }
+
     public function markArrived(Collection $manifestIds): int
     {
         if ($manifestIds->isEmpty()) {
