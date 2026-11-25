@@ -414,6 +414,31 @@ it('applies an attendance backfill with audit history and is repeat safe', funct
         ->count())->toBe($auditCount);
 });
 
+it('does not backfill soft-deleted, incomplete-indemnity, or cancelled manifests', function () {
+    Storage::fake('local');
+    $fixture = createAttendanceTeam(['auto_attendance_enabled' => false]);
+    $deletedManifest = createAttendanceManifest($fixture, '2032-04-09', 'no_show', false);
+    DB::table('customer_manifests')
+        ->where('id', $deletedManifest)
+        ->update(['deleted_at' => now()]);
+    $incompleteIndemnity = createAttendanceManifest($fixture, '2032-04-09', 'no_show', false);
+    $cancelledAttendance = createAttendanceManifest($fixture, '2032-04-09', 'cancelled');
+
+    $this->artisan('attendance:backfill-arrived', [
+        '--team' => $fixture['teamId'],
+        '--from' => '2032-04-09',
+        '--to' => '2032-04-09',
+        '--apply' => true,
+    ])->assertSuccessful();
+
+    expect(CustomerManifest::withoutGlobalScopes()->findOrFail($deletedManifest)->attendance_status)
+        ->toBe('no_show')
+        ->and(CustomerManifest::withoutGlobalScopes()->findOrFail($incompleteIndemnity)->attendance_status)
+        ->toBe('no_show')
+        ->and(CustomerManifest::withoutGlobalScopes()->findOrFail($cancelledAttendance)->attendance_status)
+        ->toBe('cancelled');
+});
+
 it('rejects invalid and future attendance backfill ranges', function () {
     $fixture = createAttendanceTeam();
 
