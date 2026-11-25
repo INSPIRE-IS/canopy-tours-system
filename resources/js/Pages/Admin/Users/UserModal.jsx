@@ -4,6 +4,7 @@ import InputText from "@/Components/InputText";
 import CustomSelect from "@/Components/CustomSelect";
 import OutlineButton from "@/Components/OutlineButton";
 import BlueButton from "@/Components/BlueButton";
+import Checkbox from "@/Components/Checkbox";
 
 const UserModal = ({ isOpen, onClose, mode, user = null, roles = [], teams, team, auth }) => {
     // console.log("mode", mode);
@@ -14,6 +15,7 @@ const UserModal = ({ isOpen, onClose, mode, user = null, roles = [], teams, team
         surname: "",
         email: "",
         password: "",
+        send_password_setup: false,
         mobile_number: "",
         roles: [],
 
@@ -159,7 +161,7 @@ const UserModal = ({ isOpen, onClose, mode, user = null, roles = [], teams, team
                             handleChange={handleChange}
                             errors={errors}
                         />
-                        <InputText
+                        {!(mode === "create" && data.send_password_setup) && <InputText
                             title="Password"
                             field="password"
                             type="password"
@@ -167,8 +169,19 @@ const UserModal = ({ isOpen, onClose, mode, user = null, roles = [], teams, team
                             mode={mode}
                             handleChange={handleChange}
                             errors={errors}
-                        />
+                        />}
                     </div>
+                    {mode === "create" && (
+                        <label className="mb-4 flex items-center gap-2 text-sm text-gray-700">
+                            <Checkbox
+                                checked={data.send_password_setup}
+                                onChange={(event) => {
+                                    setData((current) => ({ ...current, send_password_setup: event.target.checked, password: "" }));
+                                }}
+                            />
+                            Send password setup email instead of setting a password
+                        </label>
+                    )}
                     <div className="flex flex-row w-full items-center gap-2 justify-start mb-4">
                         <InputText
                             title="Mobile Number"

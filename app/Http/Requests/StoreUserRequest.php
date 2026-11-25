@@ -3,7 +3,6 @@
 namespace App\Http\Requests;
 
 use App\Models\Role;
-use App\Models\User;
 use Gate;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
@@ -32,10 +31,13 @@ class StoreUserRequest extends FormRequest
             ],
             'email' => [
                 'required',
+                'email',
                 'unique:users',
             ],
+            'send_password_setup' => ['sometimes', 'boolean'],
             'password' => [
-                'required',
+                $this->boolean('send_password_setup') ? 'nullable' : 'required',
+                'string',
             ],
             'roles.*' => [
                 'integer',

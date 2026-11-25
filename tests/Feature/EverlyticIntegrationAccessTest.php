@@ -4,9 +4,14 @@ use App\Models\Permission;
 use App\Models\Role;
 use App\Models\Team;
 use App\Models\User;
+use App\Notifications\AccountPasswordLink;
 use App\Services\AttendedGuestFeedService;
 use Illuminate\Auth\Middleware\EnsureEmailIsVerified;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Password;
 use Laravel\Sanctum\PersonalAccessToken;
 
 function createEverlyticIntegrationUser(Team $team, string $email = 'integration.user@example.test'): User
@@ -178,6 +183,86 @@ it('requires an integration user to have one role and an assigned site', functio
             'roles' => [$integrationRole->id],
         ])
         ->assertSessionHasErrors('team_id');
+});
+
+it('invites a new integration user to set their password with a single-use link', function () {
+    Notification::fake();
+    $team = Team::query()->create(['name' => 'Invite Site']);
+    $admin = createEverlyticAdmin($team);
+    $role = Role::query()->where('name', 'Integration API')->firstOrFail();
+    config(['panel.registration_default_role' => $role->id]);
+    $email = 'invite@example.test';
+
+    $this->actingAs($admin)->post(route('admin.users.store'), [
+        'name' => 'Invited User',
+        'surname' => 'Example',
+        'email' => $email,
+        'team_id' => $team->id,
+        'roles' => [$role->id],
+        'send_password_setup' => true,
+    ])->assertRedirect(route('admin.users.index'))->assertSessionHas('success');
+
+    $user = User::query()->where('email', $email)->firstOrFail();
+    expect($user->roles()->pluck('name')->all())->toBe(['Integration API']);
+    Notification::assertSentTo($user, AccountPasswordLink::class);
+    $notification = Notification::sent($user, AccountPasswordLink::class)->sole();
+    $mail = $notification->toMail($user);
+    expect($mail->actionText)->toBe('Set your password')
+        ->and($mail->actionUrl)->toContain('/set-up-password/')
+        ->and(implode(' ', $mail->outroLines))->toContain('12 hours', 'reply to this email')
+        ->and($mail->replyTo[0][0])->toBe($admin->email);
+
+    $expiredToken = Password::broker('account_setup')->createToken($admin);
+
+    Auth::guard('web')->logout();
+    $this->travel(11)->hours();
+    $this->get($mail->actionUrl)->assertOk();
+    $payload = [
+        'token' => $notification->token,
+        'email' => $email,
+        'password' => 'my-new-password',
+        'password_confirmation' => 'my-new-password',
+    ];
+    $this->post(route('password.store'), $payload)->assertSessionHasErrors('email');
+    $this->post(route('password.setup.store'), $payload)->assertRedirect(route('login'));
+    expect(Hash::check($payload['password'], $user->fresh()->password))->toBeTrue();
+    $this->post(route('password.setup.store'), $payload)->assertSessionHasErrors('email');
+    $this->travel(61)->minutes();
+    $this->post(route('password.setup.store'), array_replace($payload, [
+        'email' => $admin->email,
+        'token' => $expiredToken,
+    ]))->assertSessionHasErrors('email');
+    $this->post(route('login'), [
+        'email' => $email,
+        'password' => $payload['password'],
+    ])->assertRedirect(route('integration.everlytic.docs'));
+});
+
+it('preserves manual creation and keeps an invited account when mail fails', function () {
+    Notification::fake();
+    $team = Team::query()->create(['name' => 'Mail Failure Site']);
+    $admin = createEverlyticAdmin($team);
+    $role = Role::query()->where('name', 'Integration API')->firstOrFail();
+    config(['panel.registration_default_role' => $role->id]);
+    $attributes = ['name' => 'New User', 'surname' => 'Example', 'team_id' => $team->id, 'roles' => [$role->id]];
+
+    $this->actingAs($admin)->post(route('admin.users.store'), $attributes + [
+        'email' => 'manual@example.test',
+    ])->assertSessionHasErrors('password');
+
+    $this->post(route('admin.users.store'), $attributes + [
+        'email' => 'manual@example.test',
+        'password' => 'manual-password',
+    ])->assertRedirect(route('admin.users.index'));
+    Notification::assertNothingSent();
+
+    Password::shouldReceive('broker')->with('account_setup')->once()->andReturnSelf();
+    Password::shouldReceive('sendResetLink')->once()->andThrow(new RuntimeException('Test mail failure'));
+    $this->post(route('admin.users.store'), $attributes + [
+        'email' => 'mail-failure@example.test',
+        'send_password_setup' => true,
+    ])->assertRedirect(route('admin.users.index'))->assertSessionHas('error');
+    $this->assertDatabaseHas('users', ['email' => 'mail-failure@example.test']);
 });
 
 it('issues and rotates a non-expiring token for an existing restricted user', function () {

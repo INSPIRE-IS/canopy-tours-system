@@ -6,7 +6,8 @@ import PrimaryButton from '@/Components/PrimaryButton';
 import TextInput from '@/Components/TextInput';
 import { Head, useForm } from '@inertiajs/react';
 
-export default function ResetPassword({ token, email }) {
+export default function ResetPassword({ token, email, isAccountSetup }) {
+    const title = isAccountSetup ? 'Set Password' : 'Reset Password';
     const { data, setData, post, processing, errors, reset } = useForm({
         token: token,
         email: email,
@@ -23,12 +24,12 @@ export default function ResetPassword({ token, email }) {
     const submit = (e) => {
         e.preventDefault();
 
-        post(route('password.store'));
+        post(route(isAccountSetup ? 'password.setup.store' : 'password.store'));
     };
 
     return (
         <GuestLayout>
-            <Head title="Reset Password" />
+            <Head title={title} />
 
             <form onSubmit={submit}>
                 <div>
@@ -81,7 +82,7 @@ export default function ResetPassword({ token, email }) {
 
                 <div className="flex items-center justify-end mt-4">
                     <PrimaryButton className="ms-4" disabled={processing}>
-                        Reset Password
+                        {title}
                     </PrimaryButton>
                 </div>
             </form>

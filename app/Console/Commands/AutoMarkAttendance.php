@@ -19,6 +19,8 @@ class AutoMarkAttendance extends Command
         {--team= : Limit the run to one enabled site/team ID}
         {--dry-run : Report matching manifests without changing them}';
 
+    // php artisan attendance:backfill-arrived --team=3 --from=2026-11-22 --to=2026-11-24
+
     protected $description = 'Reconcile completed check-ins and alert about missed arrivals.';
 
     public function handle(AttendanceReconciliationService $attendance): int
@@ -42,7 +44,7 @@ class AutoMarkAttendance extends Command
 
         $teams = Team::query()
             ->where('auto_attendance_enabled', true)
-            ->when($teamId, fn (Builder $query) => $query->whereKey((int) $teamId))
+            ->when($teamId, fn(Builder $query) => $query->whereKey((int) $teamId))
             ->orderBy('id')
             ->get([
                 'id',
@@ -244,7 +246,7 @@ class AutoMarkAttendance extends Command
         }
 
         $activityDateCounts = $countsByDate
-            ->mapWithKeys(fn ($row) => [$row->activity_date => (int) $row->candidate_count])
+            ->mapWithKeys(fn($row) => [$row->activity_date => (int) $row->candidate_count])
             ->all();
         $dateKeys = array_keys($activityDateCounts);
         $dateFrom = CarbonImmutable::parse(min($dateKeys), 'Africa/Johannesburg')->toDateString();

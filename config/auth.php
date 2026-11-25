@@ -97,6 +97,12 @@ return [
             'expire' => 60,
             'throttle' => 60,
         ],
+        'account_setup' => [
+            'provider' => 'users',
+            'table' => 'account_setup_tokens',
+            'expire' => 12 * 60,
+            'throttle' => 60,
+        ],
     ],
 
     /*

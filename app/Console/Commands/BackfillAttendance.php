@@ -18,6 +18,8 @@ class BackfillAttendance extends Command
         {--to= : Required inclusive end date in YYYY-MM-DD format}
         {--apply : Persist the reviewed changes; otherwise this is a dry run}';
 
+    // php artisan attendance:backfill-arrived --team=3 --from=2026-11-22 --to=2026-11-24
+
     protected $description = 'Review or apply a historical arrived-attendance backfill for completed check-ins.';
 
     public function handle(AttendanceReconciliationService $attendance): int
@@ -63,7 +65,7 @@ class BackfillAttendance extends Command
         $reportPath = $this->writeCsv($team, $from, $to, $candidates);
 
         $this->line("{$team->name}: {$candidates->count()} completed check-in manifest(s) are eligible between {$from->toDateString()} and {$to->toDateString()}.");
-        $this->line('Review CSV: '.Storage::disk('local')->path($reportPath));
+        $this->line('Review CSV: ' . Storage::disk('local')->path($reportPath));
 
         if (! $this->option('apply')) {
             $this->warn('Dry run only: no attendance rows were updated. Re-run with --apply after reviewing the CSV.');
@@ -145,7 +147,7 @@ class BackfillAttendance extends Command
                 'action' => 'mark_arrived',
             ];
 
-            fputcsv($handle, array_map(fn ($header) => $row[$header] ?? '', $headers));
+            fputcsv($handle, array_map(fn($header) => $row[$header] ?? '', $headers));
         }
 
         fclose($handle);
