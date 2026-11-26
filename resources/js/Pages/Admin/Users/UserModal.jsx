@@ -92,35 +92,24 @@ const UserModal = ({ isOpen, onClose, mode, user = null, roles = [], teams, team
         setTokenMessage("");
 
         try {
-            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || "";
-            const response = await fetch(`/admin/users/${user.id}/integration-tokens/${tokenId}`, {
-                method: "DELETE",
-                credentials: "same-origin",
-                headers: {
-                    Accept: "application/json",
-                    "Content-Type": "application/json",
-                    "X-CSRF-TOKEN": csrfToken,
+            const { data: body } = await window.axios.delete(
+                route("admin.users.integration-tokens.destroy", { user: user.id, token: tokenId }),
+                {
+                    headers: { Accept: "application/json" },
+                    data: { password: revokePassword },
                 },
-                body: JSON.stringify({ password: revokePassword }),
-            });
-            const body = await response.json().catch(() => ({}));
-
-            if (response.status === 419 && body.redirect) {
-                window.location.assign(body.redirect);
-                return;
-            }
-
-            if (!response.ok) {
-                setTokenError(body?.errors?.password?.[0] || body?.message || "The token could not be revoked.");
-                return;
-            }
+            );
 
             setIntegrationTokens((tokens) => tokens.filter((token) => token.id !== tokenId));
             setRevokePassword("");
             setTokenMessage(body.message || "Bearer token revoked.");
             router.reload({ only: ["users"], preserveScroll: true });
         } catch (error) {
-            setTokenError("The token could not be revoked. Please try again.");
+            const { status, data: body } = error.response ?? {};
+            const fallback = status
+                ? `The token could not be revoked (HTTP ${status}).`
+                : "The token could not be revoked. Check your connection and try again.";
+            setTokenError(body?.errors?.password?.[0] || (status < 500 && body?.message) || fallback);
         } finally {
             setRevokingTokenId(null);
         }
