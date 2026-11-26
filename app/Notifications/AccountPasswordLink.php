@@ -21,7 +21,7 @@ class AccountPasswordLink extends ResetPassword
         $mail = $this->invitedBy
             ? (new MailMessage)
                 ->subject('Set up your Canopy Tours account')
-                ->line('An account has been created for you on the Canopy Tours booking system.')
+                ->line('Use the link below to set a password for your Canopy Tours booking account.')
                 ->action('Set your password', $url)
                 ->line("This link expires in {$hours} hours and can only be used once.")
                 ->line('If it expires, please reply to this email to request a new link.')

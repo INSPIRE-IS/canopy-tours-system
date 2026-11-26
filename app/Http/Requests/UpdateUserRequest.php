@@ -25,8 +25,11 @@ class UpdateUserRequest extends FormRequest
             ],
             'email' => [
                 'required',
+                'email',
                 'unique:users,email,'.request()->route('user')->id,
             ],
+            'send_password_setup' => ['sometimes', 'boolean'],
+            'password' => ['nullable', 'string'],
             'roles.*' => [
                 'integer',
                 'exists:roles,id',

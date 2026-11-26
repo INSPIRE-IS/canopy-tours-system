@@ -45,6 +45,7 @@ const UserModal = ({ isOpen, onClose, mode, user = null, roles = [], teams, team
                 surname: user.surname || "",
                 email: user.email || "",
                 password: "",
+                send_password_setup: false,
                 mobile_number: user.mobile_number || "",
                 roles: user.roles.map((role) => role.id),
                 team_id: user.team_id || null,
@@ -164,7 +165,7 @@ const UserModal = ({ isOpen, onClose, mode, user = null, roles = [], teams, team
                             handleChange={handleChange}
                             errors={errors}
                         />
-                        {!(mode === "create" && data.send_password_setup) && <InputText
+                        {!data.send_password_setup && <InputText
                             title="Password"
                             field="password"
                             type="password"
@@ -174,7 +175,7 @@ const UserModal = ({ isOpen, onClose, mode, user = null, roles = [], teams, team
                             errors={errors}
                         />}
                     </div>
-                    {mode === "create" && (
+                    {mode !== "view" && (
                         <label className="mb-4 flex items-center gap-2 text-sm text-gray-700">
                             <Checkbox
                                 checked={data.send_password_setup}
@@ -182,7 +183,7 @@ const UserModal = ({ isOpen, onClose, mode, user = null, roles = [], teams, team
                                     setData((current) => ({ ...current, send_password_setup: event.target.checked, password: "" }));
                                 }}
                             />
-                            Send password setup email instead of setting a password
+                            {mode === "edit" ? "Send password reset link and disable the current password" : "Send password setup email instead of setting a password"}
                         </label>
                     )}
                     <div className="flex flex-row w-full items-center gap-2 justify-start mb-4">

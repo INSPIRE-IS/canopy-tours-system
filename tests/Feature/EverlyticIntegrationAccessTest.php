@@ -319,6 +319,65 @@ it('preserves manual creation and keeps an invited account when mail fails', fun
     $this->assertDatabaseHas('users', ['email' => 'mail-failure@example.test']);
 });
 
+it('disables the old password when a link is sent to the updated email', function () {
+    Notification::fake();
+    $team = Team::query()->create(['name' => 'Resend Site']);
+    $admin = createEverlyticAdmin($team);
+    $user = createEverlyticIntegrationUser($team);
+    $oldSetup = Password::broker('account_setup')->createToken($user);
+    $oldReset = Password::broker()->createToken($user);
+    $original = clone $user;
+    $url = route('admin.users.update', $user);
+    $payload = [
+        'name' => $user->name,
+        'email' => 'corrected-integration@example.test',
+        'roles' => $user->roles()->pluck('roles.id')->all(),
+        'integration_allowed_team_ids' => (string) $team->id,
+    ];
+
+    $this->actingAs($admin)->put($url, $payload + [
+        'send_password_setup' => true,
+        'password' => 'must-not-be-used',
+    ])->assertRedirect(route('admin.users.index'))->assertSessionHas('success');
+
+    $user->refresh();
+    $disabledPassword = $user->password;
+    expect($user->email)->toBe($payload['email'])
+        ->and($disabledPassword)->not->toBe($original->password)
+        ->and(Hash::check('test-password', $disabledPassword))->toBeFalse()
+        ->and(Hash::check('must-not-be-used', $disabledPassword))->toBeFalse()
+        ->and(Password::broker('account_setup')->tokenExists($original, $oldSetup))->toBeFalse()
+        ->and(Password::broker()->tokenExists($original, $oldReset))->toBeFalse();
+    Notification::assertSentTo($user, AccountPasswordLink::class, function ($notification) use ($user) {
+        return str_contains($notification->toMail($user)->actionUrl, urlencode($user->email))
+            && Password::broker('account_setup')->tokenExists($user, $notification->token);
+    });
+
+    $this->put($url, $payload + ['password' => ''])->assertRedirect(route('admin.users.index'));
+    expect($user->fresh()->password)->toBe($disabledPassword);
+    $this->put($url, $payload + ['password' => 'admin-set-password'])->assertRedirect(route('admin.users.index'));
+    expect(Hash::check('admin-set-password', $user->fresh()->password))->toBeTrue();
+    Notification::assertCount(1);
+});
+
+it('keeps the current password if the edit reset email fails', function () {
+    $team = Team::query()->create(['name' => 'Edit Mail Failure Site']);
+    $admin = createEverlyticAdmin($team);
+    $user = createEverlyticIntegrationUser($team);
+    Password::shouldReceive('broker')->with('account_setup')->once()->andReturnSelf();
+    Password::shouldReceive('sendResetLink')->once()->andThrow(new RuntimeException('Test mail failure'));
+
+    $this->actingAs($admin)->put(route('admin.users.update', $user), [
+        'name' => $user->name,
+        'email' => $user->email,
+        'roles' => $user->roles()->pluck('roles.id')->all(),
+        'integration_allowed_team_ids' => (string) $team->id,
+        'send_password_setup' => true,
+    ])->assertRedirect(route('admin.users.index'))->assertSessionHas('error');
+
+    expect($user->fresh()->password)->toBe($user->password);
+});
+
 it('issues and rotates a non-expiring token for an existing restricted user', function () {
     $team = Team::query()->create(['name' => 'Token Site']);
     $user = createEverlyticIntegrationUser($team, 'Token.User@Example.test');
