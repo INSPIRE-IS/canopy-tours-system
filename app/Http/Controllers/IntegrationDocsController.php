@@ -13,7 +13,6 @@ class IntegrationDocsController extends Controller
     public function show(): View
     {
         $user = auth()->user();
-        $roleNames = $user?->roles()->pluck('name') ?? collect();
         $activeToken = $user?->tokens()
             ->where('name', 'like', 'everlytic-%')
             ->whereJsonContains('abilities', AttendedGuestFeedService::TOKEN_ABILITY)
@@ -21,10 +20,10 @@ class IntegrationDocsController extends Controller
             ->first(['id', 'name', 'created_at', 'last_used_at', 'expires_at']);
 
         return view('integrations.everlytic-docs', [
-            'siteName' => $user?->team?->name,
+            'sites' => $user->integrationSites()->orderBy('id')->get(['id', 'name']),
             'pageSize' => max(1, min(1000, (int) config('services.everlytic.api_page_size', 100))),
             'openApiUrl' => route('integration.everlytic.openapi'),
-            'canSelfIssueToken' => $roleNames->count() === 1 && $roleNames->first() === 'Integration API',
+            'canSelfIssueToken' => $user->isIntegrationApiUser(),
             'activeToken' => $activeToken,
         ]);
     }
@@ -36,12 +35,8 @@ class IntegrationDocsController extends Controller
         ]);
 
         $user = $request->user();
-        $roleNames = $user?->roles()->pluck('name') ?? collect();
-        abort_unless(
-            $roleNames->count() === 1 && $roleNames->first() === 'Integration API',
-            403,
-        );
-        abort_unless($user?->team_id && $user->team, 403, 'The integration user is not assigned to an active site.');
+        abort_unless($user?->isIntegrationApiUser(), 403);
+        abort_unless($user->integrationSites()->exists(), 403, 'The integration user is not allowed access to any active site.');
 
         if (config('sanctum.expiration') !== null) {
             throw ValidationException::withMessages([
@@ -92,6 +87,7 @@ class IntegrationDocsController extends Controller
                         'summary' => 'Opted-in attended guests by inclusive activity-date range',
                         'security' => [['sanctumBearer' => []]],
                         'parameters' => [
+                            ['name' => 'team_id', 'in' => 'query', 'required' => true, 'schema' => ['type' => 'integer', 'minimum' => 1]],
                             ['name' => 'from', 'in' => 'query', 'required' => true, 'schema' => ['type' => 'string', 'format' => 'date']],
                             ['name' => 'to', 'in' => 'query', 'required' => true, 'schema' => ['type' => 'string', 'format' => 'date']],
                             ['name' => 'cursor', 'in' => 'query', 'schema' => ['type' => 'string']],
@@ -99,8 +95,8 @@ class IntegrationDocsController extends Controller
                         'responses' => [
                             '200' => ['description' => "A cursor page containing up to {$pageSize} records"],
                             '401' => ['description' => 'Missing or invalid bearer token'],
-                            '403' => ['description' => 'Token does not have the Everlytic read ability'],
-                            '422' => ['description' => 'Invalid date range'],
+                            '403' => ['description' => 'Integration role, token ability, or site access is missing'],
+                            '422' => ['description' => 'Missing or invalid team ID or date range'],
                         ],
                     ],
                 ],

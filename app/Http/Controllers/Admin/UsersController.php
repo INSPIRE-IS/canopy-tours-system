@@ -38,7 +38,10 @@ class UsersController extends Controller
         $user = Auth::user();
         $teamId = Session::get('team_id');
 
-        $roles = Role::with('permissions')->whereNotIn('name', ['admin', 'super'])->select('name', 'id')->get();
+        $canManageIntegrationTokens = $user->hasAnyRoles(['Admin']);
+        $roles = Role::with('permissions')->whereNotIn('name', ['admin', 'super'])
+            ->when(! $canManageIntegrationTokens, fn ($query) => $query->where('name', '!=', 'Integration API'))
+            ->select('name', 'id')->get();
 
         $teams = Team::select('name', 'id')->whereNotNull('name')->get();
         // dd($teams);
@@ -48,7 +51,6 @@ class UsersController extends Controller
             'roles.permissions',
             'team',
         ];
-        $canManageIntegrationTokens = $request->user()?->hasAnyRoles(['Admin']) ?? false;
         if ($canManageIntegrationTokens) {
             $relations['tokens'] = fn ($query) => $query
                 ->where('name', 'like', 'everlytic-%')
@@ -66,6 +68,9 @@ class UsersController extends Controller
 
         $users = User::with($relations)
             ->where('name', 'like', '%' . $searchTerm . '%')
+            ->when(! $canManageIntegrationTokens, fn ($query) => $query->whereDoesntHave(
+                'roles', fn ($roles) => $roles->where('name', 'Integration API')
+            ))
 
             // unless user has this role do not show users with this role
             ->when(
@@ -115,7 +120,7 @@ class UsersController extends Controller
     public function store(StoreUserRequest $request)
     {
         $sendSetup = $request->boolean('send_password_setup');
-        $attributes = $request->except('send_password_setup');
+        $attributes = $request->except('send_password_setup', 'integration_allowed_team_ids');
         if ($sendSetup) {
             $attributes['password'] = Str::random(64);
         }
@@ -123,6 +128,12 @@ class UsersController extends Controller
         $user = DB::transaction(function () use ($attributes, $request) {
             $user = User::create($attributes);
             $user->roles()->sync($request->input('roles', []));
+            if ($request->integrationTeamIds() !== null) {
+                $user->forceFill([
+                    'team_id' => null,
+                    'integration_allowed_team_ids' => $request->integrationTeamIds(),
+                ])->save();
+            }
 
             return $user;
         });
@@ -151,8 +162,16 @@ class UsersController extends Controller
 
     public function update(UpdateUserRequest $request, User $user)
     {
-        $user->update($request->all());
-        $user->roles()->sync($request->input('roles', []));
+        DB::transaction(function () use ($request, $user) {
+            $user->fill($request->except('integration_allowed_team_ids'));
+            $ids = $request->integrationTeamIds();
+            $user->forceFill(['integration_allowed_team_ids' => $ids]);
+            if ($ids !== null) {
+                $user->team_id = null;
+            }
+            $user->save();
+            $user->roles()->sync($request->input('roles', []));
+        });
 
         return redirect()->route('admin.users.index');
     }
@@ -160,6 +179,7 @@ class UsersController extends Controller
     public function destroy(User $user)
     {
         abort_if(Gate::denies('users_delete'), Response::HTTP_FORBIDDEN, '403 Forbidden');
+        abort_if($user->hasAnyRoles(['Integration API']) && ! auth()->user()->hasAnyRoles(['Admin']), 403);
 
         $user->tokens()->delete();
         $user->delete();

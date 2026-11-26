@@ -24,6 +24,7 @@ function createEverlyticIntegrationUser(Team $team, string $email = 'integration
         'team_id' => $team->id,
     ]));
     $user->roles()->attach(Role::query()->where('name', 'Integration API')->firstOrFail());
+    $user->forceFill(['team_id' => null, 'integration_allowed_team_ids' => [$team->id]])->save();
 
     return $user;
 }
@@ -51,6 +52,23 @@ it('creates a restricted Integration API role with only documentation access', f
 
     expect($role->permissions()->pluck('name')->all())
         ->toBe(['integration_api_docs_access']);
+});
+
+it('backfills a legacy integration site without overwriting a configured allowlist', function () {
+    $site = Team::query()->create(['name' => 'Legacy Integration Site']);
+    $other = Team::query()->create(['name' => 'Configured Integration Site']);
+    $legacy = createEverlyticIntegrationUser($site);
+    $legacy->forceFill(['team_id' => $site->id, 'integration_allowed_team_ids' => null])->save();
+    $configured = createEverlyticIntegrationUser($other, 'configured@example.test');
+    $configured->forceFill(['team_id' => $site->id])->save();
+    $staff = createEverlyticAdmin($site);
+
+    $migration = require database_path('migrations/2026_11_26_000001_add_integration_allowed_team_ids_to_users.php');
+    $migration->up();
+
+    expect($legacy->fresh()->integration_allowed_team_ids)->toBe([$site->id])
+        ->and($configured->fresh()->integration_allowed_team_ids)->toBe([$other->id])
+        ->and($staff->fresh()->integration_allowed_team_ids)->toBeNull();
 });
 
 it('allows the Integration API user to view docs but redirects normal application routes', function () {
@@ -182,7 +200,42 @@ it('requires an integration user to have one role and an assigned site', functio
             'password' => 'test-password',
             'roles' => [$integrationRole->id],
         ])
-        ->assertSessionHasErrors('team_id');
+        ->assertSessionHasErrors('integration_allowed_team_ids');
+});
+
+it('allows only admins to manage the integration account and validates comma-separated site IDs', function () {
+    $site = Team::query()->create(['name' => 'First Allowed Site']);
+    $second = Team::query()->create(['name' => 'Second Allowed Site']);
+    $admin = createEverlyticAdmin($site);
+    $integration = createEverlyticIntegrationUser($site);
+    $role = Role::query()->where('name', 'Integration API')->firstOrFail();
+    $payload = [
+        'name' => 'Integration User',
+        'email' => $integration->email,
+        'roles' => [$role->id],
+        'integration_allowed_team_ids' => "{$site->id}, {$second->id}, {$site->id}",
+    ];
+
+    $url = route('admin.users.update', $integration);
+    $this->actingAs($admin)->put($url, array_replace($payload, [
+        'integration_allowed_team_ids' => "{$site->id}, 999999",
+    ]))->assertSessionHasErrors('integration_allowed_team_ids');
+    $this->put($url, array_replace($payload, [
+        'integration_allowed_team_ids' => "{$site->id},oops",
+    ]))->assertSessionHasErrors('integration_allowed_team_ids');
+    $this->put($url, $payload)->assertRedirect(route('admin.users.index'));
+    expect($integration->refresh()->integration_allowed_team_ids)->toBe([$site->id, $second->id]);
+
+    $staffRole = Role::query()->firstOrCreate(['name' => 'Site Manager']);
+    $staffRole->permissions()->sync(Permission::query()
+        ->whereIn('name', ['users_access', 'users_edit', 'users_delete'])->pluck('id'));
+    $admin->roles()->sync([$staffRole->id]);
+    $admin->unsetRelation('roles');
+
+    $this->actingAs($admin)->get(route('admin.users.index'))->assertOk()
+        ->assertDontSee($integration->email)->assertDontSee('Integration API');
+    $this->put($url, array_replace($payload, ['roles' => [$staffRole->id]]))->assertForbidden();
+    $this->delete(route('admin.users.destroy', $integration))->assertForbidden();
 });
 
 it('invites a new integration user to set their password with a single-use link', function () {
@@ -197,13 +250,14 @@ it('invites a new integration user to set their password with a single-use link'
         'name' => 'Invited User',
         'surname' => 'Example',
         'email' => $email,
-        'team_id' => $team->id,
+        'integration_allowed_team_ids' => (string) $team->id,
         'roles' => [$role->id],
         'send_password_setup' => true,
     ])->assertRedirect(route('admin.users.index'))->assertSessionHas('success');
 
     $user = User::query()->where('email', $email)->firstOrFail();
     expect($user->roles()->pluck('name')->all())->toBe(['Integration API']);
+    expect($user->team_id)->toBeNull()->and($user->integration_allowed_team_ids)->toBe([$team->id]);
     Notification::assertSentTo($user, AccountPasswordLink::class);
     $notification = Notification::sent($user, AccountPasswordLink::class)->sole();
     $mail = $notification->toMail($user);
@@ -244,7 +298,7 @@ it('preserves manual creation and keeps an invited account when mail fails', fun
     $admin = createEverlyticAdmin($team);
     $role = Role::query()->where('name', 'Integration API')->firstOrFail();
     config(['panel.registration_default_role' => $role->id]);
-    $attributes = ['name' => 'New User', 'surname' => 'Example', 'team_id' => $team->id, 'roles' => [$role->id]];
+    $attributes = ['name' => 'New User', 'surname' => 'Example', 'integration_allowed_team_ids' => (string) $team->id, 'roles' => [$role->id]];
 
     $this->actingAs($admin)->post(route('admin.users.store'), $attributes + [
         'email' => 'manual@example.test',

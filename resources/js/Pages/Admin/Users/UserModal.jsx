@@ -20,6 +20,7 @@ const UserModal = ({ isOpen, onClose, mode, user = null, roles = [], teams, team
         roles: [],
 
         team_id: null, //team?.id
+        integration_allowed_team_ids: "",
         is_admin: false,
         is_email_recipient: false,
     });
@@ -33,6 +34,7 @@ const UserModal = ({ isOpen, onClose, mode, user = null, roles = [], teams, team
         [roles],
     );
     const isIntegrationUser = user?.roles?.some((role) => role.name === "Integration API") ?? false;
+    const isIntegrationSelected = integrationRoleId != null && data.roles.includes(integrationRoleId);
     const isAdmin = auth?.user?.is_admin
         || auth?.user?.roles?.some((role) => role.name === "Admin");
 
@@ -46,6 +48,7 @@ const UserModal = ({ isOpen, onClose, mode, user = null, roles = [], teams, team
                 mobile_number: user.mobile_number || "",
                 roles: user.roles.map((role) => role.id),
                 team_id: user.team_id || null,
+                integration_allowed_team_ids: user.integration_allowed_team_ids?.join(", ") || "",
                 is_admin: user.is_admin,
                 is_email_recipient: user.is_email_recipient,
             });
@@ -195,7 +198,14 @@ const UserModal = ({ isOpen, onClose, mode, user = null, roles = [], teams, team
                         <div className="mb-4 w-full"></div>
                     </div>
                     <div className="flex flex-row w-full items-center gap-2 justify-between mb-4">
-                        <CustomSelect
+                        {isIntegrationSelected ? <InputText
+                            title="Allowed site IDs (comma-separated, e.g. 3, 7)"
+                            field="integration_allowed_team_ids"
+                            value={data.integration_allowed_team_ids}
+                            mode={mode}
+                            handleChange={handleChange}
+                            errors={errors}
+                        /> : <CustomSelect
                             label="teams"
                             name="team_id"
                             value={data.team_id ?? ""}
@@ -203,7 +213,7 @@ const UserModal = ({ isOpen, onClose, mode, user = null, roles = [], teams, team
                             onChange={(e) => handleChange(e.target.name, e.target.value)}
                             error={errors.team_id}
                             options={teams}
-                        />
+                        />}
                     </div>
 
                     <div className="mb-4">

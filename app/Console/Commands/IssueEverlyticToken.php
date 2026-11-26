@@ -31,7 +31,6 @@ class IssueEverlyticToken extends Command
         }
 
         $user = User::query()
-            ->with(['roles', 'team'])
             ->whereRaw('LOWER(email) = ?', [$email])
             ->first();
         if (! $user) {
@@ -40,15 +39,14 @@ class IssueEverlyticToken extends Command
             return self::FAILURE;
         }
 
-        if (! $user->team) {
-            $this->error('The user is not assigned to an active site.');
+        if (! $user->isIntegrationApiUser()) {
+            $this->error('The user must have only the Integration API role.');
 
             return self::FAILURE;
         }
 
-        $roleNames = $user->roles->pluck('name');
-        if ($roleNames->count() !== 1 || $roleNames->first() !== 'Integration API') {
-            $this->error('The user must have only the Integration API role.');
+        if (! $user->integrationSites()->exists()) {
+            $this->error('The integration user is not allowed access to any active site.');
 
             return self::FAILURE;
         }
@@ -68,7 +66,7 @@ class IssueEverlyticToken extends Command
         $this->warn('Store this token securely. It will only be displayed once:');
         $this->line($token->plainTextToken);
         $this->newLine();
-        $this->info("Issued {$tokenName} for {$user->email} and site {$user->team->name}.");
+        $this->info("Issued {$tokenName} for {$user->email}.");
         $this->line('Ability: '.AttendedGuestFeedService::TOKEN_ABILITY);
         $this->line('Expires: never (until explicitly revoked)');
 
