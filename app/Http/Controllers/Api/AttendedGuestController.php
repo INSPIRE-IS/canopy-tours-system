@@ -3,10 +3,14 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\AuditLog;
+use App\Models\Team;
 use App\Services\AttendedGuestFeedService;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Laravel\Sanctum\PersonalAccessToken;
 
 class AttendedGuestController extends Controller
@@ -33,7 +37,7 @@ class AttendedGuestController extends Controller
 
         $pageSize = max(1, min(1000, (int) config('services.everlytic.api_page_size', 100)));
 
-        return response()
+        $response = response()
             ->json($feed->snapshot(
                 $team,
                 CarbonImmutable::createFromFormat('Y-m-d', $validated['from'], 'Africa/Johannesburg'),
@@ -41,5 +45,31 @@ class AttendedGuestController extends Controller
                 $pageSize,
             ))
             ->header('Cache-Control', 'private, no-store');
+
+        if (! isset($validated['cursor'])) {
+            try {
+                AuditLog::create([
+                    'description' => 'everlytic:attended-guests.requested',
+                    'user_id' => $user->id,
+                    'subject_type' => Team::class,
+                    'subject_id' => $team->id,
+                    'host' => $request->ip(),
+                    'properties' => [
+                        'from' => $validated['from'],
+                        'to' => $validated['to'],
+                    ],
+                ]);
+            } catch (QueryException $exception) {
+                Log::warning('Could not write the Everlytic request audit entry.', [
+                    'user_id' => $user->id,
+                    'team_id' => $team->id,
+                    'from' => $validated['from'],
+                    'to' => $validated['to'],
+                    'database_error_code' => $exception->getCode(),
+                ]);
+            }
+        }
+
+        return $response;
     }
 }

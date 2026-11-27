@@ -1,6 +1,8 @@
 <?php
 
+use App\Models\AuditLog;
 use App\Models\Role;
+use App\Models\Team;
 use App\Models\User;
 use App\Services\AttendedGuestFeedService;
 use Carbon\CarbonImmutable;
@@ -196,6 +198,7 @@ it('requires a bearer token with only the Everlytic read ability', function () {
     $this->withToken(createAttendedApiToken($fixture['teamId'], ['unrelated:read']))
         ->getJson($url)
         ->assertForbidden();
+    $this->assertDatabaseMissing('audit_logs', ['description' => 'everlytic:attended-guests.requested']);
 });
 
 it('returns only opted-in arrived guests for the token site and date range', function () {
@@ -269,6 +272,8 @@ it('uses the environment-controlled fixed cursor page size', function () {
     $token = createAttendedApiToken($site['teamId']);
 
     $first = $this->withToken($token)
+        ->withServerVariables(['REMOTE_ADDR' => '203.0.113.42'])
+        ->withHeader('X-Forwarded-For', '198.51.100.25')
         ->getJson(attendedApiUrl($site['teamId']))
         ->assertOk()
         ->assertJsonCount(1, 'data')
@@ -281,6 +286,13 @@ it('uses the environment-controlled fixed cursor page size', function () {
         ->assertOk()
         ->assertJsonCount(1, 'data')
         ->assertJsonPath('meta.has_more', false);
+
+    $audit = AuditLog::where('description', 'everlytic:attended-guests.requested')->sole();
+    expect($audit->user_id)->toBe(\Laravel\Sanctum\PersonalAccessToken::findToken($token)->tokenable_id)
+        ->and($audit->subject_type)->toBe(Team::class)
+        ->and($audit->subject_id)->toBe($site['teamId'])
+        ->and($audit->properties->all())->toBe(['from' => '2032-11-01', 'to' => '2032-11-30'])
+        ->and($audit->host)->toBe('203.0.113.42');
 });
 
 it('validates the required inclusive date range', function () {
@@ -291,4 +303,5 @@ it('validates the required inclusive date range', function () {
         ->getJson(attendedApiUrl($site['teamId'], '2032-11-30', '2032-11-01'))
         ->assertUnprocessable()
         ->assertJsonValidationErrors('to');
+    $this->assertDatabaseMissing('audit_logs', ['description' => 'everlytic:attended-guests.requested']);
 });
