@@ -41,7 +41,7 @@
 <header>
     <div>
         <h1>Everlytic API documentation</h1>
-        <p>{{ $siteName ?: 'Canopy Tours' }} - private, read-only integration</p>
+        <p>{{ $sites->pluck('name')->implode(', ') ?: 'Canopy Tours' }} - private, read-only integration</p>
     </div>
     <form method="POST" action="{{ route('logout') }}">
         @csrf
@@ -52,14 +52,17 @@
     <section class="card">
         <h2>Attended guest feed</h2>
         <p>The endpoint returns guests who completed check-in, are marked <strong>arrived</strong>, and currently have an explicit marketing opt-in for this site.</p>
-        <div class="endpoint"><span class="verb">GET</span><code>/api/v1/attended-guests?from=YYYY-MM-DD&amp;to=YYYY-MM-DD</code></div>
+        <div class="endpoint"><span class="verb">GET</span><code>/api/v1/attended-guests?team_id=SITE_ID&amp;from=YYYY-MM-DD&amp;to=YYYY-MM-DD</code></div>
         <h3>Rules</h3>
         <ul>
             <li>The activity date range is inclusive.</li>
             <li>Each page returns at most {{ $pageSize }} records.</li>
             <li>Follow <code>links.next</code> while <code>meta.has_more</code> is true.</li>
             <li>Use <code>contact_id</code> as the stable source identifier.</li>
-            <li>The token is limited to the site assigned to this login.</li>
+            <li>Each request must include one site ID that Admin has allowed for this login.</li>
+            @foreach ($sites as $site)
+                <li>{{ $site->name }}: <code>team_id={{ $site->id }}</code></li>
+            @endforeach
         </ul>
         <p class="warning">This page never stores the bearer token. Keep it in approved secret storage and paste it here only while testing.</p>
         <p><a href="{{ $openApiUrl }}" target="_blank" rel="noopener">Open the protected OpenAPI JSON</a></p>
@@ -102,6 +105,8 @@
         <h2>Try a request</h2>
         <label for="token">Bearer token</label>
         <input id="token" type="password" autocomplete="off" placeholder="Paste the issued Sanctum token">
+        <label for="team-id">Site ID</label>
+        <input id="team-id" type="number" min="1" value="{{ $sites->count() === 1 ? $sites->first()->id : '' }}">
         <div class="grid">
             <div><label for="from">Activity from</label><input id="from" type="date"></div>
             <div><label for="to">Activity to</label><input id="to" type="date"></div>
@@ -200,9 +205,10 @@
         const token = document.getElementById('token').value.trim();
         const from = document.getElementById('from').value;
         const to = document.getElementById('to').value;
-        if (!token || !from || !to) {
+        const team_id = document.getElementById('team-id').value;
+        if (!token || !team_id || !from || !to) {
             status.className = 'status error';
-            status.textContent = 'Bearer token, from date, and to date are required.';
+            status.textContent = 'Bearer token, site ID, from date, and to date are required.';
             return;
         }
 
@@ -211,7 +217,7 @@
         output.textContent = '';
 
         try {
-            const params = new URLSearchParams({ from, to });
+            const params = new URLSearchParams({ team_id, from, to });
             const response = await fetch(`/api/v1/attended-guests?${params.toString()}`, {
                 headers: { Accept:'application/json', Authorization:`Bearer ${token}` },
                 credentials: 'same-origin',

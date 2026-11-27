@@ -20,6 +20,7 @@ const UserModal = ({ isOpen, onClose, mode, user = null, roles = [], teams, team
         roles: [],
 
         team_id: null, //team?.id
+        integration_allowed_team_ids: "",
         is_admin: false,
         is_email_recipient: false,
     });
@@ -33,6 +34,7 @@ const UserModal = ({ isOpen, onClose, mode, user = null, roles = [], teams, team
         [roles],
     );
     const isIntegrationUser = user?.roles?.some((role) => role.name === "Integration API") ?? false;
+    const isIntegrationSelected = integrationRoleId != null && data.roles.includes(integrationRoleId);
     const isAdmin = auth?.user?.is_admin
         || auth?.user?.roles?.some((role) => role.name === "Admin");
 
@@ -43,9 +45,11 @@ const UserModal = ({ isOpen, onClose, mode, user = null, roles = [], teams, team
                 surname: user.surname || "",
                 email: user.email || "",
                 password: "",
+                send_password_setup: false,
                 mobile_number: user.mobile_number || "",
                 roles: user.roles.map((role) => role.id),
                 team_id: user.team_id || null,
+                integration_allowed_team_ids: user.integration_allowed_team_ids?.join(", ") || "",
                 is_admin: user.is_admin,
                 is_email_recipient: user.is_email_recipient,
             });
@@ -88,35 +92,24 @@ const UserModal = ({ isOpen, onClose, mode, user = null, roles = [], teams, team
         setTokenMessage("");
 
         try {
-            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || "";
-            const response = await fetch(`/admin/users/${user.id}/integration-tokens/${tokenId}`, {
-                method: "DELETE",
-                credentials: "same-origin",
-                headers: {
-                    Accept: "application/json",
-                    "Content-Type": "application/json",
-                    "X-CSRF-TOKEN": csrfToken,
+            const { data: body } = await window.axios.delete(
+                route("admin.users.integration-tokens.destroy", { user: user.id, token: tokenId }),
+                {
+                    headers: { Accept: "application/json" },
+                    data: { password: revokePassword },
                 },
-                body: JSON.stringify({ password: revokePassword }),
-            });
-            const body = await response.json().catch(() => ({}));
-
-            if (response.status === 419 && body.redirect) {
-                window.location.assign(body.redirect);
-                return;
-            }
-
-            if (!response.ok) {
-                setTokenError(body?.errors?.password?.[0] || body?.message || "The token could not be revoked.");
-                return;
-            }
+            );
 
             setIntegrationTokens((tokens) => tokens.filter((token) => token.id !== tokenId));
             setRevokePassword("");
             setTokenMessage(body.message || "Bearer token revoked.");
             router.reload({ only: ["users"], preserveScroll: true });
         } catch (error) {
-            setTokenError("The token could not be revoked. Please try again.");
+            const { status, data: body } = error.response ?? {};
+            const fallback = status
+                ? `The token could not be revoked (HTTP ${status}).`
+                : "The token could not be revoked. Check your connection and try again.";
+            setTokenError(body?.errors?.password?.[0] || (status < 500 && body?.message) || fallback);
         } finally {
             setRevokingTokenId(null);
         }
@@ -161,7 +154,7 @@ const UserModal = ({ isOpen, onClose, mode, user = null, roles = [], teams, team
                             handleChange={handleChange}
                             errors={errors}
                         />
-                        {!(mode === "create" && data.send_password_setup) && <InputText
+                        {!data.send_password_setup && <InputText
                             title="Password"
                             field="password"
                             type="password"
@@ -171,7 +164,7 @@ const UserModal = ({ isOpen, onClose, mode, user = null, roles = [], teams, team
                             errors={errors}
                         />}
                     </div>
-                    {mode === "create" && (
+                    {mode !== "view" && (
                         <label className="mb-4 flex items-center gap-2 text-sm text-gray-700">
                             <Checkbox
                                 checked={data.send_password_setup}
@@ -179,7 +172,7 @@ const UserModal = ({ isOpen, onClose, mode, user = null, roles = [], teams, team
                                     setData((current) => ({ ...current, send_password_setup: event.target.checked, password: "" }));
                                 }}
                             />
-                            Send password setup email instead of setting a password
+                            {mode === "edit" ? "Send password reset link and disable the current password" : "Send password setup email instead of setting a password"}
                         </label>
                     )}
                     <div className="flex flex-row w-full items-center gap-2 justify-start mb-4">
@@ -195,7 +188,14 @@ const UserModal = ({ isOpen, onClose, mode, user = null, roles = [], teams, team
                         <div className="mb-4 w-full"></div>
                     </div>
                     <div className="flex flex-row w-full items-center gap-2 justify-between mb-4">
-                        <CustomSelect
+                        {isIntegrationSelected ? <InputText
+                            title="Allowed site IDs (comma-separated, e.g. 3, 7)"
+                            field="integration_allowed_team_ids"
+                            value={data.integration_allowed_team_ids}
+                            mode={mode}
+                            handleChange={handleChange}
+                            errors={errors}
+                        /> : <CustomSelect
                             label="teams"
                             name="team_id"
                             value={data.team_id ?? ""}
@@ -203,7 +203,7 @@ const UserModal = ({ isOpen, onClose, mode, user = null, roles = [], teams, team
                             onChange={(e) => handleChange(e.target.name, e.target.value)}
                             error={errors.team_id}
                             options={teams}
-                        />
+                        />}
                     </div>
 
                     <div className="mb-4">

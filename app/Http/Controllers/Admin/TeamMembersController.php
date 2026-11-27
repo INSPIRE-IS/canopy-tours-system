@@ -18,7 +18,15 @@ class TeamMembersController extends Controller
     {
         $team  = Team::where('owner_id', auth()->user()->id)->first();
         $roles = Role::get(['id', 'name']);
-        $users = User::where('team_id', $team->id)->get();
+        $isAdmin = auth()->user()->hasAnyRoles(['Admin']);
+        $users = User::where(function ($query) use ($team, $isAdmin) {
+            $query->where('team_id', $team->id);
+            if ($isAdmin) {
+                $query->orWhereJsonContains('integration_allowed_team_ids', $team->id);
+            }
+        })->when(! $isAdmin, fn ($query) => $query->whereDoesntHave(
+            'roles', fn ($roles) => $roles->where('name', 'Integration API')
+        ))->get();
 
         return view('Admin.team-members.index', compact('team', 'users', 'roles'));
     }

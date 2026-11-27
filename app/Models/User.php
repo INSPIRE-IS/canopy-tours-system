@@ -70,6 +70,7 @@ class User extends Authenticatable
     protected $casts = [
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
+        'integration_allowed_team_ids' => 'array',
     ];
 
     protected function serializeDate(DateTimeInterface $date)
@@ -85,6 +86,19 @@ class User extends Authenticatable
     public function hasAnyRoles(array $roles)
     {
         return $this->roles->pluck('name')->intersect($roles)->isNotEmpty();
+    }
+
+    public function integrationSites()
+    {
+        return Team::withoutGlobalScope('team_id')
+            ->whereKey($this->integration_allowed_team_ids ?? []);
+    }
+
+    public function isIntegrationApiUser(): bool
+    {
+        $roles = $this->roles()->pluck('name');
+
+        return $roles->count() === 1 && $roles->first() === 'Integration API';
     }
 
     public function __construct(array $attributes = [])

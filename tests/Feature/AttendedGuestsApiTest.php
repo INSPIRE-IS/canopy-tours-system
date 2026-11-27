@@ -1,6 +1,8 @@
 <?php
 
+use App\Models\AuditLog;
 use App\Models\Role;
+use App\Models\Team;
 use App\Models\User;
 use App\Services\AttendedGuestFeedService;
 use Carbon\CarbonImmutable;
@@ -120,11 +122,17 @@ function createAttendedApiToken(int $teamId, array $abilities = [AttendedGuestFe
         'surname' => 'Integration',
         'email' => "attended-api-{$teamId}-".uniqid().'@example.test',
         'password' => bcrypt(uniqid('password-', true)),
-        'team_id' => $teamId,
+        'team_id' => null,
     ]));
+    $user->forceFill(['integration_allowed_team_ids' => [$teamId]])->save();
     $user->roles()->attach(Role::query()->where('name', 'Integration API')->firstOrFail());
 
     return $user->createToken('test-token', $abilities)->plainTextToken;
+}
+
+function attendedApiUrl(int $teamId, string $from = '2032-11-01', string $to = '2032-11-30'): string
+{
+    return "/api/v1/attended-guests?team_id={$teamId}&from={$from}&to={$to}";
 }
 
 function createAttendedApiContact(
@@ -176,7 +184,7 @@ function createAttendedApiContact(
 
 it('requires a bearer token with only the Everlytic read ability', function () {
     $fixture = createAttendedApiFixture('Auth Site');
-    $url = '/api/v1/attended-guests?from=2032-11-01&to=2032-11-30';
+    $url = attendedApiUrl($fixture['teamId']);
 
     $this->getJson($url)->assertUnauthorized();
     $sessionUser = User::withoutEvents(fn () => User::query()->create([
@@ -190,6 +198,7 @@ it('requires a bearer token with only the Everlytic read ability', function () {
     $this->withToken(createAttendedApiToken($fixture['teamId'], ['unrelated:read']))
         ->getJson($url)
         ->assertForbidden();
+    $this->assertDatabaseMissing('audit_logs', ['description' => 'everlytic:attended-guests.requested']);
 });
 
 it('returns only opted-in arrived guests for the token site and date range', function () {
@@ -201,7 +210,7 @@ it('returns only opted-in arrived guests for the token site and date range', fun
     createAttendedApiContact($otherSite, 'Other Guest', 'other@example.test');
 
     $response = $this->withToken(createAttendedApiToken($site['teamId']))
-        ->getJson('/api/v1/attended-guests?from=2032-11-01&to=2032-11-30');
+        ->getJson(attendedApiUrl($site['teamId']));
 
     $response
         ->assertOk()
@@ -218,12 +227,39 @@ it('returns only opted-in arrived guests for the token site and date range', fun
         ->assertJsonPath('meta.has_more', false);
 });
 
+it('requires an allowed active site on every call and never falls back to the user team', function () {
+    $one = createAttendedApiFixture('Site One');
+    $two = createAttendedApiFixture('Site Two');
+    $token = createAttendedApiToken($one['teamId']);
+    $user = \Laravel\Sanctum\PersonalAccessToken::findToken($token)->tokenable;
+    $user->forceFill(['team_id' => $two['teamId']])->save();
+
+    $get = function (string $url) use ($token) {
+        app('auth')->forgetGuards();
+
+        return $this->withToken($token)->getJson($url);
+    };
+    $get('/api/v1/attended-guests?from=2032-11-01&to=2032-11-30')
+        ->assertUnprocessable()->assertJsonValidationErrors('team_id');
+    $get(attendedApiUrl($one['teamId']))->assertOk();
+    $get(attendedApiUrl($two['teamId']))->assertForbidden();
+
+    $user->forceFill(['integration_allowed_team_ids' => [$one['teamId'], $two['teamId']]])->save();
+    $get(attendedApiUrl($two['teamId']))->assertOk();
+
+    $user->forceFill(['integration_allowed_team_ids' => [$one['teamId']]])->save();
+    $get(attendedApiUrl($two['teamId']))->assertForbidden();
+
+    DB::table('teams')->where('id', $one['teamId'])->update(['deleted_at' => now()]);
+    $get(attendedApiUrl($one['teamId']))->assertForbidden();
+});
+
 it('excludes records outside the inclusive activity range', function () {
     $site = createAttendedApiFixture('Date Range Site');
     createAttendedApiContact($site, 'Outside Guest', 'outside@example.test');
 
     $this->withToken(createAttendedApiToken($site['teamId']))
-        ->getJson('/api/v1/attended-guests?from=2032-11-20&to=2032-11-30')
+        ->getJson(attendedApiUrl($site['teamId'], '2032-11-20'))
         ->assertOk()
         ->assertJsonCount(0, 'data');
 });
@@ -236,7 +272,9 @@ it('uses the environment-controlled fixed cursor page size', function () {
     $token = createAttendedApiToken($site['teamId']);
 
     $first = $this->withToken($token)
-        ->getJson('/api/v1/attended-guests?from=2032-11-01&to=2032-11-30')
+        ->withServerVariables(['REMOTE_ADDR' => '203.0.113.42'])
+        ->withHeader('X-Forwarded-For', '198.51.100.25')
+        ->getJson(attendedApiUrl($site['teamId']))
         ->assertOk()
         ->assertJsonCount(1, 'data')
         ->assertJsonPath('meta.limit', 1)
@@ -248,6 +286,13 @@ it('uses the environment-controlled fixed cursor page size', function () {
         ->assertOk()
         ->assertJsonCount(1, 'data')
         ->assertJsonPath('meta.has_more', false);
+
+    $audit = AuditLog::where('description', 'everlytic:attended-guests.requested')->sole();
+    expect($audit->user_id)->toBe(\Laravel\Sanctum\PersonalAccessToken::findToken($token)->tokenable_id)
+        ->and($audit->subject_type)->toBe(Team::class)
+        ->and($audit->subject_id)->toBe($site['teamId'])
+        ->and($audit->properties->all())->toBe(['from' => '2032-11-01', 'to' => '2032-11-30'])
+        ->and($audit->host)->toBe('203.0.113.42');
 });
 
 it('validates the required inclusive date range', function () {
@@ -255,7 +300,8 @@ it('validates the required inclusive date range', function () {
     $token = createAttendedApiToken($site['teamId']);
 
     $this->withToken($token)
-        ->getJson('/api/v1/attended-guests?from=2032-11-30&to=2032-11-01')
+        ->getJson(attendedApiUrl($site['teamId'], '2032-11-30', '2032-11-01'))
         ->assertUnprocessable()
         ->assertJsonValidationErrors('to');
+    $this->assertDatabaseMissing('audit_logs', ['description' => 'everlytic:attended-guests.requested']);
 });

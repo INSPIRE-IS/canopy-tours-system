@@ -38,7 +38,10 @@ class UsersController extends Controller
         $user = Auth::user();
         $teamId = Session::get('team_id');
 
-        $roles = Role::with('permissions')->whereNotIn('name', ['admin', 'super'])->select('name', 'id')->get();
+        $canManageIntegrationTokens = $user->hasAnyRoles(['Admin']);
+        $roles = Role::with('permissions')->whereNotIn('name', ['admin', 'super'])
+            ->when(! $canManageIntegrationTokens, fn ($query) => $query->where('name', '!=', 'Integration API'))
+            ->select('name', 'id')->get();
 
         $teams = Team::select('name', 'id')->whereNotNull('name')->get();
         // dd($teams);
@@ -48,7 +51,6 @@ class UsersController extends Controller
             'roles.permissions',
             'team',
         ];
-        $canManageIntegrationTokens = $request->user()?->hasAnyRoles(['Admin']) ?? false;
         if ($canManageIntegrationTokens) {
             $relations['tokens'] = fn ($query) => $query
                 ->where('name', 'like', 'everlytic-%')
@@ -66,6 +68,9 @@ class UsersController extends Controller
 
         $users = User::with($relations)
             ->where('name', 'like', '%' . $searchTerm . '%')
+            ->when(! $canManageIntegrationTokens, fn ($query) => $query->whereDoesntHave(
+                'roles', fn ($roles) => $roles->where('name', 'Integration API')
+            ))
 
             // unless user has this role do not show users with this role
             ->when(
@@ -115,7 +120,7 @@ class UsersController extends Controller
     public function store(StoreUserRequest $request)
     {
         $sendSetup = $request->boolean('send_password_setup');
-        $attributes = $request->except('send_password_setup');
+        $attributes = $request->except('send_password_setup', 'integration_allowed_team_ids');
         if ($sendSetup) {
             $attributes['password'] = Str::random(64);
         }
@@ -123,6 +128,12 @@ class UsersController extends Controller
         $user = DB::transaction(function () use ($attributes, $request) {
             $user = User::create($attributes);
             $user->roles()->sync($request->input('roles', []));
+            if ($request->integrationTeamIds() !== null) {
+                $user->forceFill([
+                    'team_id' => null,
+                    'integration_allowed_team_ids' => $request->integrationTeamIds(),
+                ])->save();
+            }
 
             return $user;
         });
@@ -132,6 +143,11 @@ class UsersController extends Controller
             return $redirect;
         }
 
+        return $this->sendPasswordSetup($request, $user, 'User created.');
+    }
+
+    private function sendPasswordSetup(Request $request, User $user, string $result, bool $invalidatePassword = false)
+    {
         try {
             $status = Password::broker('account_setup')->sendResetLink(
                 ['email' => $user->email],
@@ -144,22 +160,64 @@ class UsersController extends Controller
             $status = null;
         }
 
+        if ($status === Password::RESET_LINK_SENT && $invalidatePassword) {
+            DB::transaction(function () use ($user) {
+                $current = User::withoutGlobalScope('team_id')->lockForUpdate()->find($user->id);
+                // Do not overwrite a password set while the email was being sent.
+                if (! $current || $current->email !== $user->email || $current->password !== $user->password) {
+                    return;
+                }
+
+                $current->forceFill([
+                    'password' => Str::random(64),
+                    'remember_token' => Str::random(60),
+                ])->save();
+                Password::broker()->deleteToken($current);
+            });
+        }
+
         return $status === Password::RESET_LINK_SENT
-            ? $redirect->with('success', 'User created. Password setup email sent.')
-            : $redirect->with('error', 'User created, but the setup email could not be sent. Ask the user to use Forgot your password? on the login page.');
+            ? redirect()->route('admin.users.index')->with('success', "{$result} Password link sent.")
+            : redirect()->route('admin.users.index')->with('error', "{$result} The password link could not be sent. Try again from Edit User or ask the user to use Forgot your password? on the login page.");
     }
 
     public function update(UpdateUserRequest $request, User $user)
     {
-        $user->update($request->all());
-        $user->roles()->sync($request->input('roles', []));
+        $sendSetup = $request->boolean('send_password_setup');
+        DB::transaction(function () use ($request, $user, $sendSetup) {
+            $previousUser = clone $user;
+            $attributes = $request->except('integration_allowed_team_ids', 'send_password_setup');
+            if ($sendSetup) {
+                unset($attributes['password']);
+            }
+            $user->fill($attributes);
+            $ids = $request->integrationTeamIds();
+            $user->forceFill(['integration_allowed_team_ids' => $ids]);
+            if ($ids !== null) {
+                $user->team_id = null;
+            }
+            $emailChanged = $user->isDirty('email');
+            if ($emailChanged || $user->isDirty('password')) {
+                Password::broker()->deleteToken($previousUser);
+                Password::broker('account_setup')->deleteToken($previousUser);
+            }
+            if ($emailChanged) {
+                Password::broker()->deleteToken($user);
+                Password::broker('account_setup')->deleteToken($user);
+            }
+            $user->save();
+            $user->roles()->sync($request->input('roles', []));
+        });
 
-        return redirect()->route('admin.users.index');
+        return $sendSetup
+            ? $this->sendPasswordSetup($request, $user, 'User updated.', invalidatePassword: true)
+            : redirect()->route('admin.users.index');
     }
 
     public function destroy(User $user)
     {
         abort_if(Gate::denies('users_delete'), Response::HTTP_FORBIDDEN, '403 Forbidden');
+        abort_if($user->hasAnyRoles(['Integration API']) && ! auth()->user()->hasAnyRoles(['Admin']), 403);
 
         $user->tokens()->delete();
         $user->delete();
